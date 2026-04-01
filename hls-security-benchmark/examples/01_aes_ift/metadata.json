@@ -1,0 +1,10 @@
+{
+  "id": "01_aes_ift",
+  "title": "AES-128 Kernel Information Flow Tracking",
+  "cwe_ids": ["CWE-200"],
+  "security_domain": "information_flow_tracking",
+  "difficulty": "medium",
+  "synthesis_target": "Xilinx Vitis HLS 2023.2",
+  "expected_vulnerabilities": 3,
+  "tags": ["crypto", "ift", "taint_tracking", "debug_leak"]
+}

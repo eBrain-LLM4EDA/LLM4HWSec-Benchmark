@@ -1,0 +1,10 @@
+{
+  "id": "03_constant_time_compare",
+  "title": "Constant-Time Token Comparison",
+  "cwe_ids": ["CWE-208"],
+  "security_domain": "side_channel",
+  "difficulty": "easy",
+  "synthesis_target": "Xilinx Vitis HLS 2023.2",
+  "expected_vulnerabilities": 2,
+  "tags": ["timing", "constant_time", "comparison", "side_channel"]
+}

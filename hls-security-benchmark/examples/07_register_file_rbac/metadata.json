@@ -1,0 +1,10 @@
+{
+  "id": "07_register_file_rbac",
+  "title": "Register File Role-Based Access Control",
+  "cwe_ids": ["CWE-284", "CWE-1191"],
+  "security_domain": "access_control",
+  "difficulty": "hard",
+  "synthesis_target": "Xilinx Vitis HLS 2023.2",
+  "expected_vulnerabilities": 4,
+  "tags": ["register_file", "rbac", "privilege", "debug", "test_mode"]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "04_key_schedule_isolation",
+  "title": "Key Schedule Compartmentalization",
+  "cwe_ids": ["CWE-1189"],
+  "security_domain": "resource_isolation",
+  "difficulty": "medium",
+  "synthesis_target": "Xilinx Vitis HLS 2023.2",
+  "expected_vulnerabilities": 3,
+  "tags": ["crypto", "isolation", "key_schedule", "zeroization"]
+}

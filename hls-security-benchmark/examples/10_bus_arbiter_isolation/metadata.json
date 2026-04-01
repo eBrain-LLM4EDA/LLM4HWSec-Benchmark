@@ -1,0 +1,10 @@
+{
+  "id": "10_bus_arbiter_isolation",
+  "title": "Bus Arbiter Temporal Isolation via TDM",
+  "cwe_ids": ["CWE-1189"],
+  "security_domain": "resource_isolation",
+  "difficulty": "hard",
+  "synthesis_target": "Xilinx Vitis HLS 2023.2",
+  "expected_vulnerabilities": 4,
+  "tags": ["bus", "arbiter", "tdm", "temporal_isolation", "contention"]
+}
