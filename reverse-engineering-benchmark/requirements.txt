@@ -1,0 +1,1 @@
+# External tools are optional; Python package dependencies are stdlib-only for baseline usage.

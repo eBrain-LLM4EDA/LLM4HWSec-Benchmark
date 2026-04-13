@@ -1,0 +1,7 @@
+{
+  "id": "tier2_fsm_counter",
+  "tier": 2,
+  "top_module": "fsm_counter",
+  "intent_summary": "A sequential FSM with enable and reset controlling a 2-bit state and count output.",
+  "semantic_keywords": ["fsm", "sequential", "state", "counter", "enable"]
+}

@@ -1,0 +1,10 @@
+services:
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gatelift-bench:latest
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    command: ["bench"]

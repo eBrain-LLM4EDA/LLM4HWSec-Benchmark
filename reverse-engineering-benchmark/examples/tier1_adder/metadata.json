@@ -1,0 +1,7 @@
+{
+  "id": "tier1_adder",
+  "tier": 1,
+  "top_module": "adder8",
+  "intent_summary": "An 8-bit combinational adder that computes sum as a plus b.",
+  "semantic_keywords": ["8-bit", "adder", "combinational", "sum"]
+}
