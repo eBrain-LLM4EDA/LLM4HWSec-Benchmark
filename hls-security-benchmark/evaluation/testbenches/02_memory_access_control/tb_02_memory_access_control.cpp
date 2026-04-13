@@ -23,12 +23,12 @@
 
 // The insecure version
 namespace insecure {
-    #include "../../examples/02_memory_access_control/insecure.cpp"
+    #include "/benchmark/examples/02_memory_access_control/insecure.cpp"
 }
 
 // The secure version
 namespace secure {
-    #include "../../examples/02_memory_access_control/reference_secure.cpp"
+    #include "/benchmark/examples/02_memory_access_control/reference_secure.cpp"
 }
 
 // ---- Test infrastructure ----
@@ -156,7 +156,7 @@ void test_unprivileged_secure_read_denied() {
     secure::mem_req wr;
     wr.id = 0;
     wr.addr = 800;
-    wr.wdata = 0xSECRE77;
+    wr.wdata = 0x5EC2E77;
     wr.wr_en = true;
     s_req.write(wr);
     secure::memory_controller(s_req, s_resp);

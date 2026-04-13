@@ -39,6 +39,15 @@ except ImportError as e:
     HAS_SIM_BACKEND = False
     _SIM_IMPORT_ERROR = str(e)
 
+try:
+    from sim_backend.bambu_backend import (
+        score_synthesis_bambu, score_cosim_bambu,
+        detect_top_function, BambuConfig
+    )
+    HAS_BAMBU = True
+except ImportError:
+    HAS_BAMBU = False
+
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -101,14 +110,18 @@ def count_reference_vulnerabilities(ref_dir: str) -> Tuple[int, List[str]]:
         return 0, []
     with open(vr_path, "r") as f:
         content = f.read()
-    vulns = re.findall(r"### V\d+:.*?\(CWE-(\d+)\)", content)
-    return len(vulns), [f"CWE-{c}" for c in vulns]
+    # Count individual findings (### V1, ### V2, etc.)
+    findings = re.findall(r"### V\d+:", content)
+    # Extract CWE IDs mentioned (may have duplicates across findings)
+    cwes = re.findall(r"CWE-(\d+)", content)
+    unique_cwes = list(set(f"CWE-{c}" for c in cwes))
+    return len(findings), unique_cwes
 
 
 def score_detection(submission_vr_path: str, ref_dir: str, metadata: dict) -> Tuple[float, List[str]]:
     notes = []
     expected_count = metadata.get("expected_vulnerabilities", 0)
-    _, ref_cwes = count_reference_vulnerabilities(ref_dir)
+    ref_finding_count, ref_cwes = count_reference_vulnerabilities(ref_dir)
 
     if not os.path.exists(submission_vr_path):
         return 0.0, ["No vulnerability report submitted"]
@@ -116,23 +129,30 @@ def score_detection(submission_vr_path: str, ref_dir: str, metadata: dict) -> Tu
     with open(submission_vr_path, "r") as f:
         content = f.read()
 
-    reported_cwes = [f"CWE-{c}" for c in re.findall(r"CWE-(\d+)", content)]
-    true_positives = len(set(reported_cwes) & set(ref_cwes))
-    false_positives = len(set(reported_cwes) - set(ref_cwes))
+    # Count submitted findings
+    submitted_findings = re.findall(r"(?:###?\s*V\d+|###?\s*\d+\.)", content)
+    submitted_cwes = list(set(f"CWE-{c}" for c in re.findall(r"CWE-(\d+)", content)))
+
+    # True positives: CWEs that match reference
+    true_positive_cwes = len(set(submitted_cwes) & set(ref_cwes))
+    false_positive_cwes = len(set(submitted_cwes) - set(ref_cwes))
 
     if expected_count == 0:
         return 1.0, notes
 
-    detection_rate = min(true_positives / expected_count, 1.0)
-    total_reported = len(reported_cwes)
-    cwe_accuracy = true_positives / total_reported if total_reported > 0 else 0.0
+    # Score based on findings count (capped at expected) AND CWE coverage
+    finding_rate = min(len(submitted_findings) / expected_count, 1.0)
+    cwe_coverage = true_positive_cwes / len(ref_cwes) if ref_cwes else 1.0
 
-    score = max(detection_rate * cwe_accuracy - (false_positives * 0.05), 0.0)
+    # Combined score: did you find the right number of issues AND tag them correctly?
+    score = finding_rate * cwe_coverage
+    score = max(score - (false_positive_cwes * 0.05), 0.0)
 
-    if true_positives < expected_count:
-        notes.append(f"Missed {expected_count - true_positives} of {expected_count} vulnerabilities")
-    if false_positives > 0:
-        notes.append(f"{false_positives} false positive(s)")
+    missed = max(expected_count - len(submitted_findings), 0)
+    if missed > 0:
+        notes.append(f"Missed {missed} of {expected_count} vulnerabilities")
+    if false_positive_cwes > 0:
+        notes.append(f"{false_positive_cwes} false positive CWE(s)")
 
     return round(score, 3), notes
 
@@ -158,7 +178,14 @@ def evaluate_example_simulate(
     sub_code = os.path.join(submission_dir, "secure.cpp")
     insecure_code = os.path.join(reference_dir, "insecure.cpp")
     spec_path = os.path.join(reference_dir, "security_spec.md")
-    stubs_dir = os.path.join(EVAL_DIR, "sim_backend", "hls_stubs")
+    # HLS include paths: prefer Xilinx open-source headers for ap_int/ap_uint,
+    # keep local stubs only for hls_stream.h
+    xilinx_hls_include = "/opt/HLS_arbitrary_Precision_Types/include"
+    local_stubs = os.path.join(EVAL_DIR, "sim_backend", "hls_stubs")
+    hls_include_dirs = []
+    if os.path.isdir(xilinx_hls_include):
+        hls_include_dirs.append(xilinx_hls_include)
+    hls_include_dirs.append(local_stubs)  # always include for hls_stream.h
     tb_dir = os.path.join(EVAL_DIR, "testbenches")
 
     # --- Dim 1: Detection rate (same as regex mode) ---
@@ -173,7 +200,7 @@ def evaluate_example_simulate(
 
     # --- Parse AST ---
     try:
-        ast = ASTAnalyzer(sub_code, stubs_dir=stubs_dir)
+        ast = ASTAnalyzer(sub_code, include_dirs=hls_include_dirs)
         if ast.parse_errors:
             all_notes.append(f"Parse errors: {'; '.join(ast.parse_errors[:3])}")
     except Exception as e:
@@ -199,11 +226,59 @@ def evaluate_example_simulate(
         all_notes.append(f"Security verification failed: {str(e)}")
         scores.flow_correctness = 0.0
 
-    # --- Dim 3: Synthesis pass (AST-based) ---
+    # --- Dim 3: Synthesis pass ---
+    # AST analysis is the reliable baseline (works on all HLS C++ styles).
+    # Bambu provides a bonus when it can actually synthesize the code.
     try:
-        scores.synthesis_pass = ast.score_synthesis_compatibility()
-        for v in ast.get_analysis().synthesis_violations:
-            all_notes.append(f"Synthesis issue: {v}")
+        ast_synth_score, ast_synth_reason = ast.score_synthesis_compatibility()
+        violations = ast.get_analysis().synthesis_violations
+
+        if violations:
+            for v in violations[:5]:
+                all_notes.append(f"Synthesis issue: {v}")
+
+        # Try bambu for a ground-truth synthesis check
+        bambu_succeeded = False
+        if HAS_BAMBU:
+            try:
+                top_func = detect_top_function(sub_code)
+                bambu_score, bambu_notes, bambu_result = score_synthesis_bambu(
+                    sub_code, top_func
+                )
+                if bambu_score > 0 and bambu_result and bambu_result.verilog_generated:
+                    scores.synthesis_pass = bambu_score
+                    bambu_succeeded = True
+                    all_notes.append(
+                        f"bambu: synthesis passed, "
+                        f"{bambu_result.latency_cycles or '?'} cycles"
+                    )
+                else:
+                    # Print why bambu failed
+                    all_notes.append(f"bambu: score={bambu_score}, top={top_func}")
+                    if bambu_result:
+                        if bambu_result.errors:
+                            for err in bambu_result.errors[:3]:
+                                all_notes.append(f"bambu error: {err[:150]}")
+                        else:
+                            # No parsed errors — dump raw output tail
+                            combined = (bambu_result.stdout + "\n" + bambu_result.stderr).strip()
+                            tail_lines = [l.strip() for l in combined.split("\n") if l.strip()]
+                            # Show last 5 non-empty lines
+                            for line in tail_lines[-5:]:
+                                all_notes.append(f"bambu out: {line[:150]}")
+                        if not bambu_result.success:
+                            all_notes.append(f"bambu: returncode={bambu_result.stdout.count('error') + bambu_result.stderr.count('error')} error mentions")
+                        elif not bambu_result.verilog_generated:
+                            all_notes.append("bambu: no Verilog output generated")
+                    for note in bambu_notes[:2]:
+                        all_notes.append(f"bambu note: {note[:150]}")
+            except Exception as e:
+                all_notes.append(f"bambu exception: {str(e)[:150]}")
+
+        if not bambu_succeeded:
+            scores.synthesis_pass = ast_synth_score
+            if ast_synth_score < 1.0:
+                all_notes.append(f"synth={ast_synth_score}: {ast_synth_reason}")
     except Exception as e:
         all_notes.append(f"Synthesis check failed: {str(e)}")
         scores.synthesis_pass = 0.0

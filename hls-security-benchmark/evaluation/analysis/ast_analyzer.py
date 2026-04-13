@@ -107,13 +107,138 @@ UNSYNTHESIZABLE_CALLS = {
     "malloc", "calloc", "realloc", "free",
     "printf", "fprintf", "sprintf", "snprintf",
     "fopen", "fclose", "fread", "fwrite",
-    "exit", "abort", "system",
+    "exit", "system",
     "rand", "srand", "time",
+    # Note: abort and assert are NOT included — they appear in HLS library
+    # headers (ap_int.h uses assert()) but are compiled away during synthesis.
 }
 
 # Functions that indicate recursion risk (self-calls checked separately)
 STL_TYPES = {"std::vector", "std::map", "std::set", "std::list",
              "std::string", "std::deque", "std::unordered_map"}
+
+
+# ---------------------------------------------------------------------------
+# System include path detection
+# ---------------------------------------------------------------------------
+
+def _detect_system_includes() -> List[str]:
+    """
+    Detect system include paths needed by libclang.
+
+    libclang's Python bindings don't automatically find GCC's or Clang's
+    built-in headers (stddef.h, stdarg.h, etc.). We need to discover and
+    pass them explicitly via -isystem.
+    """
+    args = []
+    import glob
+    import subprocess
+
+    # Strategy 0: Use libclang's own library path to find its resource dir
+    # This is the most reliable approach inside Docker containers
+    try:
+        from clang.cindex import conf as clang_conf
+        libclang_path = clang_conf.get_filename()
+        if libclang_path:
+            # libclang.so is typically at /usr/lib/llvm-XX/lib/libclang.so
+            # resource dir is at /usr/lib/llvm-XX/lib/clang/XX/include
+            lib_dir = os.path.dirname(os.path.realpath(libclang_path))
+            # Try: lib_dir/../lib/clang/*/include
+            clang_dirs = sorted(glob.glob(
+                os.path.join(lib_dir, "clang", "*", "include")
+            ), reverse=True)
+            if not clang_dirs:
+                # Try one level up: /usr/lib/llvm-XX/lib/clang/XX/include
+                parent = os.path.dirname(lib_dir)
+                clang_dirs = sorted(glob.glob(
+                    os.path.join(parent, "lib", "clang", "*", "include")
+                ), reverse=True)
+            for d in clang_dirs:
+                if os.path.isfile(os.path.join(d, "stddef.h")):
+                    args.extend(["-isystem", d])
+                    break
+    except Exception:
+        pass
+
+    # Strategy 1: Find Clang's resource dir via command line
+    if not args:
+        try:
+            result = subprocess.run(
+                ["clang", "-print-resource-dir"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                resource_dir = result.stdout.strip()
+                include_dir = os.path.join(resource_dir, "include")
+                if os.path.isdir(include_dir):
+                    args.extend(["-isystem", include_dir])
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+    # Strategy 2: Brute-force search for clang built-in headers
+    if not args:
+        clang_patterns = [
+            "/usr/lib/llvm-*/lib/clang/*/include",
+            "/usr/lib/clang/*/include",
+            "/usr/local/lib/clang/*/include",
+        ]
+        for pattern in clang_patterns:
+            matches = sorted(glob.glob(pattern), reverse=True)
+            for match in matches:
+                if os.path.isfile(os.path.join(match, "stddef.h")):
+                    args.extend(["-isystem", match])
+                    break
+            if args:
+                break
+
+    # Strategy 3: Find GCC's built-in include dir
+    if not args:
+        gcc_patterns = [
+            "/usr/lib/gcc/x86_64-linux-gnu/*/include",
+            "/usr/lib/gcc/aarch64-linux-gnu/*/include",
+            "/usr/lib/gcc/*/*/include",
+        ]
+        for pattern in gcc_patterns:
+            matches = sorted(glob.glob(pattern), reverse=True)
+            for match in matches:
+                if os.path.isfile(os.path.join(match, "stddef.h")):
+                    args.extend(["-isystem", match])
+                    break
+            if args:
+                break
+
+    # Strategy 4: Ask GCC directly for its include paths
+    if not args:
+        try:
+            result = subprocess.run(
+                ["gcc", "-E", "-x", "c++", "-v", "/dev/null"],
+                capture_output=True, text=True, timeout=5
+            )
+            in_search = False
+            for line in result.stderr.split("\n"):
+                if "#include <...> search starts here" in line:
+                    in_search = True
+                    continue
+                if "End of search list" in line:
+                    break
+                if in_search:
+                    path = line.strip()
+                    if os.path.isdir(path):
+                        args.extend(["-isystem", path])
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+    return args
+
+
+# Cache the result so we don't re-detect on every file
+_cached_system_args = None
+
+def _get_system_include_args() -> List[str]:
+    global _cached_system_args
+    if _cached_system_args is None:
+        _cached_system_args = _detect_system_includes()
+    return _cached_system_args
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +252,7 @@ class ASTAnalyzer:
     """
 
     def __init__(self, source_path: str, stubs_dir: str = None,
+                 include_dirs: List[str] = None,
                  extra_args: List[str] = None):
         if not HAS_CLANG:
             raise ImportError(
@@ -140,10 +266,20 @@ class ASTAnalyzer:
 
         # Build compilation args
         args = ["-std=c++17", "-fsyntax-only"]
+        # Legacy single stubs_dir
         if stubs_dir:
             args.append(f"-I{os.path.abspath(stubs_dir)}")
+        # Multiple include dirs
+        if include_dirs:
+            for d in include_dirs:
+                if os.path.isdir(d):
+                    args.append(f"-I{os.path.abspath(d)}")
         if extra_args:
             args.extend(extra_args)
+
+        # Auto-detect system include paths that libclang needs but doesn't
+        # find on its own (GCC builtins like stddef.h, stdarg.h, etc.)
+        args.extend(_get_system_include_args())
 
         # Parse with Clang
         index = Index.create()
@@ -154,12 +290,22 @@ class ASTAnalyzer:
 
         # Check for parse errors
         self.parse_errors = []
+        fatal_errors = False
         for diag in self.tu.diagnostics:
-            if diag.severity >= 3:  # Error or Fatal
+            if diag.severity >= 4:  # Fatal only (missing headers, etc.)
                 self.parse_errors.append(str(diag))
+                fatal_errors = True
+            elif diag.severity >= 3:  # Error (type mismatches from stubs, etc.)
+                # Errors from HLS stubs are expected — our stubs don't implement
+                # every ap_uint conversion. Only treat as fatal if they're in
+                # the user's source file, not in stub headers.
+                err_str = str(diag)
+                if "hls_stubs" not in err_str:
+                    self.parse_errors.append(err_str)
 
-        if not self.parse_errors:
-            self._analyze()
+        # Always attempt analysis even with non-fatal errors — Clang builds
+        # a partial AST that still contains useful structural information
+        self._analyze()
 
     def _analyze(self):
         """Run all analysis passes over the AST."""
@@ -210,8 +356,10 @@ class ASTAnalyzer:
     def _find_calls(self, cursor: 'Cursor', calls: List[str]):
         for child in cursor.get_children():
             if child.kind == CursorKind.CALL_EXPR:
-                if child.referenced and child.referenced.spelling:
-                    calls.append(child.referenced.spelling)
+                # Only count calls that originate in the user's source file
+                if self._is_in_user_source(child):
+                    if child.referenced and child.referenced.spelling:
+                        calls.append(child.referenced.spelling)
             self._find_calls(child, calls)
 
     # --- Variable extraction ---
@@ -390,10 +538,16 @@ class ASTAnalyzer:
 
     # --- Synthesis violation checks ---
 
+    def _is_in_user_source(self, cursor) -> bool:
+        """Check if a cursor is in the user's source file (not headers)."""
+        if not cursor.location.file:
+            return False
+        file_path = os.path.abspath(cursor.location.file.name)
+        return file_path == self.source_path
+
     def _check_synthesis_violations(self, cursor: 'Cursor'):
         for child in cursor.get_children():
-            if child.location.file and \
-               os.path.abspath(child.location.file.name) != self.source_path:
+            if not self._is_in_user_source(child):
                 continue
 
             # Check AST node kind
@@ -412,11 +566,15 @@ class ASTAnalyzer:
                         f"unsynthesizable call to {callee.spelling}()"
                     )
 
-            # Check for STL types
+            # Check for STL types in user code (not in HLS library internals)
             if child.kind == CursorKind.VAR_DECL:
                 type_str = child.type.spelling
                 for stl_type in STL_TYPES:
                     if stl_type in type_str:
+                        # Skip if the variable is an hls::stream (which uses
+                        # std::queue internally in simulation but synthesizes fine)
+                        if "hls::stream" in type_str or "hls_stream" in type_str:
+                            continue
                         self.result.synthesis_violations.append(
                             f"Line {child.location.line}: "
                             f"STL type {stl_type} not synthesizable"
@@ -529,42 +687,55 @@ class ASTAnalyzer:
 
     # --- Scoring functions ---
 
-    def score_synthesis_compatibility(self) -> float:
-        """Score 0.0–1.0 for synthesis compatibility."""
+    def score_synthesis_compatibility(self) -> tuple:
+        """Score 0.0–1.0 for synthesis compatibility. Returns (score, reason)."""
         if self.parse_errors:
-            return 0.0  # Doesn't even parse
+            return 0.0, f"parse errors ({len(self.parse_errors)})"
 
         violations = len(self.result.synthesis_violations)
         has_pragmas = any(p.kind == "INTERFACE" for p in self.result.pragmas)
+        
+        # Check for HLS types in variables AND function parameters
+        all_type_strings = [v.type_str for v in self.result.variables]
+        all_type_strings += [p["type_str"] for f in self.result.functions for p in f.params]
+        
         has_hls_types = any(
-            "ap_uint" in v.type_str or "ap_int" in v.type_str
-            for v in self.result.variables
+            "ap_uint" in t or "ap_int" in t or "ap_fixed" in t
+            for t in all_type_strings
         )
-        has_streams = any(
-            "hls::stream" in v.type_str
-            for v in self.result.variables
-        ) or any(
-            "hls::stream" in p["type_str"]
-            for f in self.result.functions
-            for p in f.params
-        )
+        has_streams = any("hls::stream" in t or "stream" in t for t in all_type_strings)
 
-        # Invalid pragmas are a concern but not fatal
+        # Also check source text as fallback (Clang may resolve template names)
+        if not has_hls_types or not has_pragmas:
+            with open(self.source_path, "r") as f:
+                source = f.read()
+            if not has_hls_types:
+                has_hls_types = "ap_uint" in source or "ap_int" in source
+            if not has_pragmas:
+                has_pragmas = "#pragma HLS INTERFACE" in source or \
+                              "#pragma HLS interface" in source
+            if not has_streams:
+                has_streams = "hls::stream" in source
+
         invalid_pragmas = sum(1 for p in self.result.pragmas if not p.is_valid)
 
         if violations == 0 and has_pragmas and (has_hls_types or has_streams):
             if invalid_pragmas == 0:
-                return 1.0
+                return 1.0, "clean"
             else:
-                return 0.9
+                return 0.9, f"{invalid_pragmas} invalid pragma(s)"
         elif violations == 0 and (has_hls_types or has_streams):
-            return 0.85
+            return 0.85, "no INTERFACE pragmas detected"
         elif violations == 0:
-            return 0.7
+            parts = []
+            if not has_pragmas: parts.append("no HLS pragmas")
+            if not has_hls_types: parts.append("no ap_uint/ap_int types")
+            if not has_streams: parts.append("no hls::stream")
+            return 0.7, "; ".join(parts) if parts else "no HLS constructs found"
         elif violations <= 2:
-            return 0.5
+            return 0.5, f"{violations} violation(s)"
         else:
-            return 0.25
+            return 0.25, f"{violations} violations"
 
     def get_analysis(self) -> AnalysisResult:
         return self.result

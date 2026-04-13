@@ -1,0 +1,54 @@
+# =============================================================================
+# HLS Security Benchmark - Docker Compose
+# =============================================================================
+#
+# Quick start:
+#   docker compose run --rm evaluate
+#
+# With custom submissions:
+#   SUBMISSIONS=./my_llm_outputs docker compose run --rm evaluate
+#
+# Interactive shell:
+#   docker compose run --rm evaluate bash
+#
+# Bambu synthesis on a single file:
+#   docker compose run --rm evaluate bambu /data/submissions/01_aes_ift/secure.cpp \
+#       --top-fname=aes_encrypt --simulate --simulator=VERILATOR
+# =============================================================================
+
+services:
+  evaluate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Mount submissions directory (default: ./submissions)
+      - ${SUBMISSIONS:-./submissions}:/data/submissions:ro
+      # Mount output directory for results
+      - ${OUTPUT:-./results}:/data/output
+    environment:
+      - EVAL_MODE=${EVAL_MODE:-simulate}
+    command: ["--mode", "${EVAL_MODE:-simulate}"]
+
+  # Lightweight variant: regex-only evaluation (no bambu/clang needed)
+  evaluate-regex:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ${SUBMISSIONS:-./submissions}:/data/submissions:ro
+      - ${OUTPUT:-./results}:/data/output
+    command: ["--mode", "regex"]
+
+  # Development shell with all tools
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ${SUBMISSIONS:-./submissions}:/data/submissions
+      - ${OUTPUT:-./results}:/data/output
+      - .:/benchmark
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true

@@ -24,7 +24,9 @@ import tempfile
 from typing import Tuple, List
 
 
-STUBS_DIR = os.path.join(os.path.dirname(__file__), "hls_stubs")
+_XILINX_HLS_INCLUDE = "/opt/HLS_arbitrary_Precision_Types/include"
+_LOCAL_STUBS = os.path.join(os.path.dirname(__file__), "hls_stubs")
+STUBS_DIR = _XILINX_HLS_INCLUDE if os.path.isdir(_XILINX_HLS_INCLUDE) else _LOCAL_STUBS
 
 
 def find_testbench(example_id: str, testbench_dir: str) -> str:
@@ -63,12 +65,17 @@ def compile_testbench(
     """
     cmd = [
         "g++", "-std=c++17", "-O2",
-        f"-I{STUBS_DIR}",
+    ]
+    # Add Xilinx headers first (ap_int), then local stubs (hls_stream)
+    if os.path.isdir(_XILINX_HLS_INCLUDE):
+        cmd.append(f"-I{_XILINX_HLS_INCLUDE}")
+    cmd.append(f"-I{_LOCAL_STUBS}")
+    cmd.extend([
         f'-DSECURE_DUT="{os.path.abspath(secure_code_path)}"',
         f'-DINSECURE_DUT="{os.path.abspath(insecure_code_path)}"',
         testbench_path,
         "-o", output_binary,
-    ]
+    ])
 
     if extra_include_dirs:
         for d in extra_include_dirs:

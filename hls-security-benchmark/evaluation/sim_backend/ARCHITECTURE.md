@@ -26,22 +26,74 @@ that each address a different evaluation dimension:
 
 | Tool | Purpose | Install |
 |------|---------|---------|
+| PandA-bambu | **Primary HLS synthesis + co-simulation** | AppImage from GitHub releases |
+| Verilator | RTL co-simulation backend for bambu | `apt install verilator` |
 | Clang 14+ | AST parsing via libTooling or python bindings | `apt install clang libclang-dev` |
 | `libclang` Python bindings | AST traversal from Python | `pip install libclang` |
-| g++ with HLS stubs | Compile testbenches without Vitis | See `sim_backend/hls_stubs/` |
-| Vitis HLS (optional) | Full synthesis pass verification | Xilinx install |
+| g++ with HLS stubs | Compile testbenches without any HLS tool | See `sim_backend/hls_stubs/` |
 
-### Running WITHOUT Vitis HLS
+### PandA-bambu (primary synthesis backend)
 
-Most evaluation can run without a Vitis license. The `hls_stubs/` directory provides
-minimal header-only implementations of `ap_int.h`, `ap_uint.h`, and `hls_stream.h`
-that let the code compile with standard g++. This covers:
+PandA-bambu is an open-source HLS framework from Politecnico di Milano that
+accepts standard C/C++ and generates Verilog/VHDL. It replaces Vitis HLS
+entirely — no Xilinx license needed.
 
-- Layer 1 (AST analysis) — fully supported via Clang
-- Layer 2 (C-simulation) — fully supported via g++ with stubs
-- Layer 3 (security properties) — fully supported
+**Install via AppImage (easiest):**
+```bash
+# Download latest release
+wget https://github.com/ferrandi/PandA-bambu/releases/latest/download/bambu-Ubuntu_22.04.AppImage
+chmod +x bambu-Ubuntu_22.04.AppImage
+sudo mv bambu-Ubuntu_22.04.AppImage /usr/local/bin/bambu
 
-Only the "actual synthesis pass" sub-score in Layer 1 requires Vitis HLS.
+# Install co-simulation backend
+sudo apt install verilator
+
+# Verify
+bambu --version
+```
+
+**Install from source (for development):**
+```bash
+git clone https://github.com/ferrandi/PandA-bambu.git
+cd PandA-bambu && mkdir build && cd build
+../configure --prefix=/opt/panda --enable-opt --enable-release
+make -j$(nproc) && make install
+export PATH=/opt/panda/bin:$PATH
+```
+
+**What bambu gives us that Vitis doesn't (for free):**
+- Actual RTL synthesis from C/C++ (Verilog output)
+- Co-simulation via Verilator (compares RTL behavior to C golden model)
+- Latency and area estimates
+- Support for `#pragma HLS` interface/unroll/pipeline/inline
+- Initial support for `ap_uint`/`ap_int` types (since PandA 2024.10)
+- Targets: Xilinx, Intel/Altera, Lattice, NanoXplore FPGAs + ASIC via OpenROAD
+
+**How bambu is invoked for each benchmark example:**
+```bash
+# Basic synthesis (generates Verilog)
+bambu secure.cpp --top-fname=aes_encrypt \
+    --clock-period=10 \
+    --device-name=xc7z020-1clg484-VVD \
+    --generate-interface=INFER \
+    --experimental-setup=BAMBU-BALANCED
+
+# Synthesis + co-simulation (verifies RTL matches C)
+bambu secure.cpp --top-fname=aes_encrypt \
+    --clock-period=10 \
+    --device-name=xc7z020-1clg484-VVD \
+    --generate-interface=INFER \
+    --simulate --simulator=VERILATOR
+```
+
+### Running WITHOUT bambu
+
+If bambu is not installed, the evaluation framework automatically falls back to:
+- Layer 1 (AST analysis via Clang) — for synthesis compatibility static checks
+- Layer 2 (C-simulation via g++ with stubs) — for functional equivalence
+- Layer 3 (security verification via AST) — fully supported
+
+This covers everything except the "actual RTL was generated" confirmation.
 
 ---
 
@@ -236,25 +288,25 @@ def evaluate_example(submission_dir, reference_dir, rubric, use_simulation=True)
 
 ```
 evaluation/
-├── run_evaluation.py          # Updated orchestrator
+├── run_evaluation.py          # Original regex-only evaluator
+├── run_evaluation_v2.py       # Updated: regex / simulate / bambu modes
 ├── scoring_rubric.json        # Unchanged
 ├── evaluation_framework.md    # Unchanged
 │
 ├── sim_backend/
-│   ├── hls_stubs/             # Header-only HLS type stubs for g++
-│   │   ├── ap_int.h
-│   │   ├── hls_stream.h
-│   │   └── README.md
-│   └── compile_and_run.py     # Testbench compiler/runner
+│   ├── ARCHITECTURE.md        # This file
+│   ├── bambu_backend.py       # PandA-bambu synthesis + co-sim integration
+│   ├── compile_and_run.py     # g++ testbench compiler/runner
+│   └── hls_stubs/             # Header-only HLS type stubs for g++
+│       ├── ap_int.h
+│       └── hls_stream.h
 │
 ├── analysis/
 │   ├── ast_analyzer.py        # Clang AST parsing + synthesis checks
 │   └── security_verifier.py   # AST-based security property verification
 │
 └── testbenches/
-    ├── 01_aes_ift/
-    │   └── tb_01_aes_ift.cpp
     ├── 02_memory_access_control/
     │   └── tb_02_memory_access_control.cpp
-    └── ...
+    └── ...                    # One testbench per example
 ```

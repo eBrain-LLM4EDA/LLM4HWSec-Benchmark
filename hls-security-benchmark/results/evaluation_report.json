@@ -1,0 +1,559 @@
+{
+  "model": "unknown",
+  "mode": "simulate",
+  "examples": [
+    {
+      "id": "01_aes_ift",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 1.0,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.333
+      },
+      "composite": 0.9,
+      "grade": "B",
+      "notes": [
+        "bambu: score=0.25, top=aes_encrypt",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "Taint-tracked data type defined",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Security labels assigned at inputs",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Taint propagation through operators",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Taint propagation through lookups",
+          "passed": true,
+          "score": 0.1,
+          "max_score": 0.1
+        },
+        {
+          "description": "Explicit declassification",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "No untracked secret-to-output flows",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        }
+      ]
+    },
+    {
+      "id": "02_memory_access_control",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 1.0,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.4
+      },
+      "composite": 0.91,
+      "grade": "A",
+      "notes": [
+        "bambu: score=0.25, top=memory_controller",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "Access policy function exists",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Policy checked before memory access",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Safe default (zero) on denial",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Access denied feedback in response",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "No debug mode bypass",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        }
+      ]
+    },
+    {
+      "id": "03_constant_time_compare",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 0.8,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.333
+      },
+      "composite": 0.85,
+      "grade": "B",
+      "notes": [
+        "Property not met: All loops have fixed iteration count",
+        "bambu: score=0.25, top=token_compare",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "No early exit (break/return) in loops",
+          "passed": true,
+          "score": 0.3,
+          "max_score": 0.3
+        },
+        {
+          "description": "All loops have fixed iteration count",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.2
+        },
+        {
+          "description": "Constant operations per loop iteration",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Branchless conditional operations",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "HLS pragmas enforce fixed pipeline",
+          "passed": true,
+          "score": 0.1,
+          "max_score": 0.1
+        }
+      ]
+    },
+    {
+      "id": "04_key_schedule_isolation",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 1.0,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.4
+      },
+      "composite": 0.91,
+      "grade": "A",
+      "notes": [
+        "bambu: score=0.25, top=crypto_engine",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "Separate storage (4 static arrays found)",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Sanitization on context switch / reset",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Stale data cleared after use",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "No cross-domain timing interference",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "Zeroization command available",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        }
+      ]
+    },
+    {
+      "id": "05_dma_access_policy",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 0.65,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.333
+      },
+      "composite": 0.812,
+      "grade": "B",
+      "notes": [
+        "Property not met: Safe default (zero) on denial",
+        "Property not met: No debug mode bypass",
+        "bambu: score=0.5, top=dma_controller",
+        "bambu error: /tmp/bambu_eval_djh8ji6l/bambu_wrapper.cpp:67:23: error: Invalid HLS interface mode",
+        "bambu: returncode=4 error mentions",
+        "bambu note: bambu synthesis failed (backend error)",
+        "bambu note:   \u2192 /tmp/bambu_eval_djh8ji6l/bambu_wrapper.cpp:67:23: error: Invalid HLS interface mode"
+      ],
+      "property_details": [
+        {
+          "description": "Access policy function exists",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Policy checked before memory access",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Safe default (zero) on denial",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.2
+        },
+        {
+          "description": "Access denied feedback in response",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "No debug mode bypass",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.15
+        }
+      ]
+    },
+    {
+      "id": "06_sha256_ift",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 0.9,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.714
+      },
+      "composite": 0.932,
+      "grade": "A",
+      "notes": [
+        "Property not met: Taint propagation through lookups",
+        "bambu: score=0.25, top=hmac_sha256",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "Taint-tracked data type defined",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Security labels assigned at inputs",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Taint propagation through operators",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Taint propagation through lookups",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.1
+        },
+        {
+          "description": "Explicit declassification",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "No untracked secret-to-output flows",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        }
+      ]
+    },
+    {
+      "id": "07_register_file_rbac",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 1.0,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.857
+      },
+      "composite": 0.979,
+      "grade": "A",
+      "notes": [
+        "bambu: score=0.25, top=register_file",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "Access policy function exists",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Policy checked before memory access",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Safe default (zero) on denial",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Access denied feedback in response",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "No debug mode bypass",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        }
+      ]
+    },
+    {
+      "id": "08_modexp_side_channel",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 1.0,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.4
+      },
+      "composite": 0.91,
+      "grade": "A",
+      "notes": [
+        "bambu: score=0.25, top=modular_exp",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "No early exit (break/return) in loops",
+          "passed": true,
+          "score": 0.3,
+          "max_score": 0.3
+        },
+        {
+          "description": "All loops have fixed iteration count",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Constant operations per loop iteration",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "Branchless conditional operations",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "HLS pragmas enforce fixed pipeline",
+          "passed": true,
+          "score": 0.1,
+          "max_score": 0.1
+        }
+      ]
+    },
+    {
+      "id": "09_fifo_data_sanitization",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 0.75,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.333
+      },
+      "composite": 0.837,
+      "grade": "B",
+      "notes": [
+        "Property not met: Separate storage (1 static arrays found)",
+        "bambu: score=0.25, top=shared_fifo",
+        "bambu out: Total cells    : 3931",
+        "bambu out: - combinational: 0",
+        "bambu out: - others: 3931",
+        "bambu out: error -> Parse error",
+        "bambu out: error -> Error in tree parsing",
+        "bambu: returncode=3 error mentions"
+      ],
+      "property_details": [
+        {
+          "description": "Separate storage (1 static arrays found)",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.25
+        },
+        {
+          "description": "Sanitization on context switch / reset",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Stale data cleared after use",
+          "passed": true,
+          "score": 0.2,
+          "max_score": 0.2
+        },
+        {
+          "description": "No cross-domain timing interference",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "Zeroization command available",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        }
+      ]
+    },
+    {
+      "id": "10_bus_arbiter_isolation",
+      "scores": {
+        "detection_rate": 1.0,
+        "flow_correctness": 0.4,
+        "synthesis_pass": 1.0,
+        "functional_equivalence": 1.0,
+        "security_completeness": 0.667
+      },
+      "composite": 0.8,
+      "grade": "B",
+      "notes": [
+        "Property not met: Sanitization on context switch / reset",
+        "Property not met: Stale data cleared after use",
+        "Property not met: Zeroization command available",
+        "bambu: score=0.5, top=bus_arbiter",
+        "bambu error: /tmp/bambu_eval_gvj734x8/bambu_wrapper.cpp:46:47: error: Unexpected token",
+        "bambu error: /tmp/bambu_eval_gvj734x8/bambu_wrapper.cpp:47:47: error: Unexpected token",
+        "bambu error: /tmp/bambu_eval_gvj734x8/bambu_wrapper.cpp:48:47: error: Unexpected token",
+        "bambu: returncode=12 error mentions",
+        "bambu note: bambu synthesis failed (backend error)",
+        "bambu note:   \u2192 /tmp/bambu_eval_gvj734x8/bambu_wrapper.cpp:46:47: error: Unexpected token"
+      ],
+      "property_details": [
+        {
+          "description": "Separate storage (2 static arrays found)",
+          "passed": true,
+          "score": 0.25,
+          "max_score": 0.25
+        },
+        {
+          "description": "Sanitization on context switch / reset",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.25
+        },
+        {
+          "description": "Stale data cleared after use",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.2
+        },
+        {
+          "description": "No cross-domain timing interference",
+          "passed": true,
+          "score": 0.15,
+          "max_score": 0.15
+        },
+        {
+          "description": "Zeroization command available",
+          "passed": false,
+          "score": 0.0,
+          "max_score": 0.15
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "mean_composite": 0.884,
+    "difficulty_weighted": 0.889,
+    "grade": "B"
+  }
+}
