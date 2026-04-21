@@ -1,4 +1,4 @@
-# GateLift-Bench: A Benchmark for LLM-Driven Hardware Reverse Engineering
+# GateReverse-Bench: A Benchmark for LLM-Driven Hardware Reverse Engineering
 
 To evaluate an LLM's ability to lift gate-level netlists back to word-level or functional RTL, we must construct a benchmark that tests spatial reasoning, graph comprehension, and hardware semantics. Because standard NLP metrics (like BLEU or ROUGE) are inadequate for proving hardware correctness, this benchmark pairs structured prompt engineering with rigorous formal verification.
 
