@@ -1,0 +1,46 @@
+{
+  "allow_execution": true,
+  "steps": [
+    {
+      "command": "bash tests/run_csim.sh",
+      "duration_seconds": 0.05,
+      "name": "csim",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "=== C Simulation ===\nCompiling functional testbench...\nclang++: error: no such file or directory: 'src/impl.cpp'\n"
+    },
+    {
+      "command": "bash tests/run_synth.sh",
+      "duration_seconds": 0.011,
+      "name": "synth",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "=== HLS Synthesis ===\n[FAIL] bambu command not found. PandA-Bambu is required for synthesis.\n"
+    },
+    {
+      "command": "bash tests/run_cosim.sh",
+      "duration_seconds": 0.009,
+      "name": "cosim",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "=== Co-Simulation ===\n[FAIL] bambu command not found. PandA-Bambu is required for co-simulation.\n"
+    },
+    {
+      "command": "bash tests/run_rtl_security.sh",
+      "duration_seconds": 0.082,
+      "name": "rtl_security",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "grep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\nsed: 1: \",-1p\": invalid command code ,\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\nsed: 1: \",-1p\": invalid command code ,\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\nsed: 1: \",-1p\": invalid command code ,\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\ngrep: src/impl.cpp: No such file or directory\ntests/run_rtl_security.sh: line 63: [: -gt: unary operator expected\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\n",
+      "stdout": "=== RTL Security Checks ===\nChecking SR2: No early return from comparison loop...\n[PASS] SR2\nChecking SR3: No conditional branches on byte comparisons...\n[PASS] SR3\nChecking SR4: Result computed after loop completes...\n[FAIL] SR4: Return statement not after loop completion\nChecking SR5: Loop bound is constant 16...\n[FAIL] SR5: Loop bound is not constant 16\n[WARN] Missing HLS loop_bound pragma (recommended)\n=== Security Checks Failed ===\n"
+    }
+  ],
+  "workspace": "/Volumes/SAVE HERE/Seraph/LLM4HWSec-Benchmark/hls-bench-agentic/runs/demo/hls_cwe385_const_time_compare"
+}

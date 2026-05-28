@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "content": "/*\n * Constant-Time Token Comparison Implementation\n * Security Rationale:\n * - Uses bitwise OR accumulation to combine all byte comparison results without early exit\n * - Loop executes exactly 16 iterations regardless of input values (annotated with #pragma HLS loop_bound)\n * - No conditional branches or early returns based on comparison results\n * - Final result computed only after all 16 bytes examined\n * - All operations have fixed latency independent of data values\n * - Synthesizes to constant-time hardware circuit with no data-dependent control flow\n */\n\n#include <stdint.h>\n#include \"compare_token.h\"\n\nuint8_t compare_token(uint8_t input_token[16], uint8_t reference_token[16]) {\n    uint8_t mismatch = 0;\n    uint8_t i;\n    \n    #pragma HLS loop_bound min=16 max=16\n    for (i = 0; i < 16; i++) {\n        uint8_t diff = input_token[i] ^ reference_token[i];\n        mismatch |= diff;\n    }\n    \n    uint8_t result = (mismatch == 0) ? 1 : 0;\n    return result;\n}\n",
+      "path": "compare_token.c"
+    },
+    {
+      "content": "#ifndef COMPARE_TOKEN_H\n#define COMPARE_TOKEN_H\n\n#include <stdint.h>\n\n/*\n * compare_token - Constant-time comparison of 16-byte tokens\n *\n * Parameters:\n *   input_token: array of 16 bytes representing the input token to verify\n *   reference_token: array of 16 bytes representing the stored reference token\n *\n * Returns:\n *   1 if input_token matches reference_token exactly\n *   0 if any byte differs\n *\n * Security Properties:\n *   - Executes in constant time regardless of input values\n *   - No early exit or data-dependent control flow\n *   - Processes all 16 bytes for every invocation\n */\nuint8_t compare_token(uint8_t input_token[16], uint8_t reference_token[16]);\n\n#endif /* COMPARE_TOKEN_H */\n",
+      "path": "compare_token.h"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "compare_token.c",
+      "purpose": "Main implementation of constant-time token comparison function"
+    },
+    {
+      "path": "compare_token.h",
+      "purpose": "Header file declaring the compare_token function interface"
+    }
+  ]
+}

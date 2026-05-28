@@ -1,0 +1,46 @@
+{
+  "cwe_ids": [
+    "CWE-385",
+    "CWE-208"
+  ],
+  "difficulty": "medium",
+  "forbidden_patterns": [
+    "Early return statement inside the comparison loop before all 16 bytes processed",
+    "Short-circuit logical operators (&&, ||) applied to byte comparison results",
+    "Break or continue statements based on mismatch detection",
+    "If-else branches where branch selection depends on input_token or reference_token values",
+    "Variable loop bounds that depend on input data values",
+    "Conditional assignment using ternary operator (? :) on secret-dependent comparison results",
+    "Function calls to memcmp or strcmp that may have data-dependent timing"
+  ],
+  "oracle_notes": "Detection strategy combines static analysis and dynamic simulation. Static checks verify absence of forbidden control flow patterns (early returns, data-dependent branches, short-circuit operators). Dynamic verification uses RTL simulation with comprehensive test vectors: tokens matching at all positions, mismatching at each individual byte position (16 cases), and random mismatches. Cycle-accurate timing measurements must show identical latency across all test cases. Mutation testing should introduce early-exit logic and verify timing differences become detectable. Key insight: constant-time property requires bitwise accumulation of mismatch flags (e.g., diff |= (input[i] ^ reference[i])) rather than boolean short-circuit evaluation.",
+  "security_domain": "side_channel",
+  "security_requirements": [
+    {
+      "detection_strategy": "RTL simulation with cycle-accurate timing measurements across test vectors with mismatches at different byte positions; verify all executions complete in identical cycle count",
+      "id": "SR1",
+      "requirement": "Execution latency must be identical for all possible input token values regardless of where mismatches occur"
+    },
+    {
+      "detection_strategy": "Static analysis: grep for 'return' or 'break' statements inside loop body; AST analysis to verify no control flow exits before processing all 16 bytes",
+      "id": "SR2",
+      "requirement": "No early return or break statements based on comparison results within the comparison loop"
+    },
+    {
+      "detection_strategy": "Static analysis: verify loop bound is constant expression evaluating to 16; RTL simulation confirms loop always executes exactly 16 iterations",
+      "id": "SR3",
+      "requirement": "Loop iteration count must be constant at exactly 16 iterations independent of data values"
+    },
+    {
+      "detection_strategy": "Static analysis: check for if-else statements where condition depends on input_token or reference_token byte values; verify no ternary operators on comparison results used in control flow",
+      "id": "SR4",
+      "requirement": "No secret-dependent conditional branches that affect control flow timing"
+    },
+    {
+      "detection_strategy": "Static analysis: verify result is computed via bitwise OR/AND of all byte comparison results; no intermediate result used in control flow decisions",
+      "id": "SR5",
+      "requirement": "Comparison result must only be computed after all 16 bytes have been processed using bitwise accumulation"
+    }
+  ],
+  "threat_model": "Attacker can measure execution latency of the compare_token function with microsecond precision through timing side channels. By submitting tokens with known byte values at specific positions and measuring response times, attacker attempts to infer reference_token bytes through statistical timing analysis. A vulnerable implementation with early-exit logic will exhibit measurably different latencies when mismatches occur at byte 0 versus byte 15, leaking information about reference token contents. The attacker model assumes black-box access to synthesized hardware with cycle-accurate timing observation but no access to internal state or power consumption."
+}

@@ -1,0 +1,76 @@
+{
+  "failure_classes": [
+    "infrastructure",
+    "synthesis",
+    "rtl-security"
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the compilation issue around 'diff_acc |= d;': use an expression form likely supported by both the shim and Bambu (e.g., 'diff_acc = diff_acc | d;' or cast RHS explicitly: 'diff_acc |= ap_uint<8>(d);' or compute 'diff_acc |= (in_token[i] ^ expected[i]);' without an intermediate const).",
+    "If using a generated ap_int.h shim, add/repair operator overloads for '|=' (including const-correctness) and verify it matches the intended ap_uint behavior for basic bitwise ops.",
+    "Re-run tests/run_csim.sh and tests/run_synth.sh after the fix; then re-run tests/run_cosim.sh to obtain SR-1 constant-latency evidence across match + 16 single-byte mismatches.",
+    "Add a small compile-only CI check that builds src/token_checker.cpp with both g++ (using the shim) and the target HLS tool header set to catch operator/header incompatibilities early."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "C-simulation did not compile, so functional correctness tests were not executed. g++ error: src/token_checker.cpp:17:14: no match for 'operator|=' (operand types are 'ap_uint<8>' and 'const ap_uint<8>') at 'diff_acc |= d;'.",
+      "issue_class": "infrastructure",
+      "requirement_id": "FR-1",
+      "status": "not_run"
+    },
+    {
+      "evidence": "Static security scan (tests/run_rtl_security.sh) reports [PASS] FR-2 (no early-exit constructs / variable-bound loop patterns detected).",
+      "issue_class": "security",
+      "requirement_id": "FR-2",
+      "status": "pass"
+    },
+    {
+      "evidence": "PandA-Bambu synthesis failed due to front-end compilation error: src/token_checker.cpp:17:14: error: no viable overloaded '|=' at 'diff_acc |= d;'. tests/run_synth.sh: [FAIL] FR-3: bambu synthesis failed (rc=11).",
+      "issue_class": "synthesis",
+      "requirement_id": "FR-3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] FR-4 (no obvious extra outputs/side-effect constructs detected). Note: csim compilation failed, limiting dynamic/interface validation.",
+      "issue_class": "security",
+      "requirement_id": "FR-4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Re-entrancy test is in the C-sim testbench, but C-simulation failed to compile (same '|=' operator error), so FR-5 was not executed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "FR-5",
+      "status": "not_run"
+    },
+    {
+      "evidence": "RTL constant-latency evidence was not produced because RTL generation/cosim was skipped due to bambu compilation failure. tests/run_cosim.sh: [SKIP] SR-1: bambu run failed (rc=11). Static scan also reports [SKIP] SR-1 pending RTL latency evidence.",
+      "issue_class": "rtl-security",
+      "requirement_id": "SR-1",
+      "status": "not_run"
+    },
+    {
+      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] SR-2 (no secret-/mismatch-dependent addressing patterns detected).",
+      "issue_class": "security",
+      "requirement_id": "SR-2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] SR-3 (no obvious printf/iostream/volatile/extern debug/status leak patterns detected).",
+      "issue_class": "security",
+      "requirement_id": "SR-3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] SR-4 (no static/global mutable secret retention patterns detected). Note: re-entrancy behavioral check did not run due to csim compile failure.",
+      "issue_class": "security",
+      "requirement_id": "SR-4",
+      "status": "pass"
+    }
+  ],
+  "validity_threats": [
+    "C-simulation failed to compile, so FR-1/FR-5 functional coverage goals (mismatch positions, random vectors, corner cases, re-entrancy) were not actually exercised.",
+    "Bambu synthesis failed on the same operator overload issue, preventing SR-1 timing/latency verification via RTL/cosim.",
+    "The ap_int/ap_uint implementation (vendor header vs generated shim) may differ in operator support (e.g., '|=' with const RHS), risking false negatives/positives unless the shim closely matches intended HLS semantics.",
+    "SR-1 is effectively unvalidated (only partial static scan), leaving the primary timing side-channel requirement unproven."
+  ]
+}

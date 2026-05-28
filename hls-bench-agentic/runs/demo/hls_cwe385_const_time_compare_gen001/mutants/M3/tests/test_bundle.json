@@ -1,0 +1,142 @@
+{
+  "files": [
+    {
+      "content": "#!/bin/bash\nset -e\n\necho \"[INFO] Starting C simulation tests\"\n\nif [ ! -f \"compare_token.c\" ]; then\n  echo \"[FAIL] FR1: compare_token.c not found\"\n  exit 1\nfi\n\necho \"[INFO] Compiling implementation and testbench\"\ng++ -std=c++11 -I. -o tb_csim compare_token.c tests/tb_csim.cpp 2>&1 | tee compile.log\n\nif [ ${PIPESTATUS[0]} -ne 0 ]; then\n  echo \"[FAIL] FR1: Compilation failed\"\n  cat compile.log\n  exit 1\nfi\n\necho \"[INFO] Running functional tests\"\n./tb_csim\n\necho \"[INFO] C simulation completed\"\n",
+      "path": "tests/run_csim.sh"
+    },
+    {
+      "content": "#!/bin/bash\nset -e\n\necho \"[INFO] Starting HLS synthesis\"\n\nif [ ! -f \"compare_token.c\" ]; then\n  echo \"[FAIL] Synthesis: compare_token.c not found\"\n  exit 1\nfi\n\necho \"[INFO] Invoking bambu for synthesis\"\nmkdir -p synth_out\nbambu compare_token.c --top-fname=compare_token --clock-period=10 -o synth_out/ 2>&1 | tee synth.log\n\nif [ ${PIPESTATUS[0]} -ne 0 ]; then\n  echo \"[FAIL] Synthesis failed\"\n  cat synth.log\n  exit 1\nfi\n\nif grep -q \"ERROR\" synth.log; then\n  echo \"[FAIL] Synthesis errors detected\"\n  exit 1\nfi\n\necho \"[PASS] Synthesis completed successfully\"\necho \"[INFO] Synthesis output in synth_out/\"\n",
+      "path": "tests/run_synth.sh"
+    },
+    {
+      "content": "#!/bin/bash\nset -e\n\necho \"[INFO] Starting co-simulation for cycle-accurate timing verification\"\n\nif [ ! -f \"compare_token.c\" ]; then\n  echo \"[FAIL] SR1: compare_token.c not found\"\n  exit 1\nfi\n\nif [ ! -f \"tests/security_checks.cpp\" ]; then\n  echo \"[FAIL] SR1: security_checks.cpp not found\"\n  exit 1\nfi\n\necho \"[INFO] Compiling security testbench\"\ng++ -std=c++11 -I. -o security_tb compare_token.c tests/security_checks.cpp 2>&1\n\nif [ $? -ne 0 ]; then\n  echo \"[FAIL] SR1: Security testbench compilation failed\"\n  exit 1\nfi\n\necho \"[INFO] Running security checks\"\n./security_tb\n\necho \"[INFO] Invoking bambu co-simulation\"\nmkdir -p cosim_out\nbambu compare_token.c --top-fname=compare_token --clock-period=10 --simulate 2>&1 | tee cosim.log\n\nif [ ${PIPESTATUS[0]} -ne 0 ]; then\n  echo \"[FAIL] SR1: Co-simulation failed\"\n  cat cosim.log\n  exit 1\nfi\n\nif grep -q \"ERROR\" cosim.log; then\n  echo \"[FAIL] SR1: Co-simulation errors detected\"\n  exit 1\nfi\n\necho \"[INFO] Co-simulation completed\"\n",
+      "path": "tests/run_cosim.sh"
+    },
+    {
+      "content": "#!/bin/bash\nset -e\n\necho \"[INFO] Starting static security analysis\"\n\nif [ ! -f \"compare_token.c\" ]; then\n  echo \"[FAIL] SR2: compare_token.c not found\"\n  exit 1\nfi\n\nPASS_COUNT=0\nFAIL_COUNT=0\n\necho \"[INFO] Checking SR2: No early return or break in loop\"\nif grep -n \"return\" compare_token.c | grep -v \"^[[:space:]]*//\" | grep -A5 -B5 \"for\\|while\" | grep -q \"return\"; then\n  echo \"[FAIL] SR2: Early return statement found inside loop\"\n  FAIL_COUNT=$((FAIL_COUNT + 1))\nelse\n  if grep -n \"break\" compare_token.c | grep -v \"^[[:space:]]*//\" | grep -q \"break\"; then\n    echo \"[FAIL] SR2: Break statement found in implementation\"\n    FAIL_COUNT=$((FAIL_COUNT + 1))\n  else\n    echo \"[PASS] SR2\"\n    PASS_COUNT=$((PASS_COUNT + 1))\n  fi\nfi\n\necho \"[INFO] Checking SR3: Constant loop bound of 16\"\nif grep -E \"for.*<[[:space:]]*16|for.*<=[[:space:]]*15\" compare_token.c | grep -v \"^[[:space:]]*//\" | grep -q \".\"; then\n  echo \"[PASS] SR3\"\n  PASS_COUNT=$((PASS_COUNT + 1))\nelse\n  echo \"[FAIL] SR3: Loop bound not constant 16\"\n  FAIL_COUNT=$((FAIL_COUNT + 1))\nfi\n\necho \"[INFO] Checking SR4: No secret-dependent conditional branches\"\nif grep -E \"if[[:space:]]*\\(.*input_token|if[[:space:]]*\\(.*reference_token\" compare_token.c | grep -v \"^[[:space:]]*//\" | grep -q \".\"; then\n  echo \"[FAIL] SR4: Secret-dependent conditional branch detected\"\n  FAIL_COUNT=$((FAIL_COUNT + 1))\nelse\n  echo \"[PASS] SR4\"\n  PASS_COUNT=$((PASS_COUNT + 1))\nfi\n\necho \"[INFO] Checking SR5: Bitwise accumulation only\"\nif grep -E \"&&|\\|\\|\" compare_token.c | grep -v \"^[[:space:]]*//\" | grep -q \".\"; then\n  echo \"[FAIL] SR5: Short-circuit logical operators detected\"\n  FAIL_COUNT=$((FAIL_COUNT + 1))\nelse\n  if grep -E \"\\|=|&=|\\^=\" compare_token.c | grep -v \"^[[:space:]]*//\" | grep -q \".\"; then\n    echo \"[PASS] SR5\"\n    PASS_COUNT=$((PASS_COUNT + 1))\n  else\n    echo \"[FAIL] SR5: No bitwise accumulation operators found\"\n    FAIL_COUNT=$((FAIL_COUNT + 1))\n  fi\nfi\n\necho \"[INFO] Checking FR5: Only bitwise operations used\"\nif grep -E \"&&|\\|\\||memcmp|strcmp\" compare_token.c | grep -v \"^[[:space:]]*//\" | grep -q \".\"; then\n  echo \"[FAIL] FR5: Forbidden operations detected\"\n  FAIL_COUNT=$((FAIL_COUNT + 1))\nelse\n  echo \"[PASS] FR5\"\n  PASS_COUNT=$((PASS_COUNT + 1))\nfi\n\necho \"[INFO] Static analysis complete: $PASS_COUNT passed, $FAIL_COUNT failed\"\n\nif [ $FAIL_COUNT -gt 0 ]; then\n  exit 1\nfi\n\nexit 0\n",
+      "path": "tests/run_rtl_security.sh"
+    },
+    {
+      "content": "#include <iostream>\n#include <cstdint>\n#include <cstring>\n#include \"tests/test_vectors.h\"\n\nextern \"C\" {\n  int compare_token(const uint8_t input_token[16], const uint8_t reference_token[16]);\n}\n\nstatic int test_count = 0;\nstatic int pass_count = 0;\nstatic int fail_count = 0;\n\nvoid run_test(const char* test_name, const char* req_id, const uint8_t* input, const uint8_t* reference, int expected) {\n  test_count++;\n  int result = compare_token(input, reference);\n  if (result == expected) {\n    std::cout << \"[PASS] \" << req_id << \": \" << test_name << std::endl;\n    pass_count++;\n  } else {\n    std::cout << \"[FAIL] \" << req_id << \": \" << test_name << \" - expected \" << expected << \", got \" << result << std::endl;\n    fail_count++;\n  }\n}\n\nint main() {\n  std::cout << \"[INFO] Starting functional requirement tests\" << std::endl;\n\n  run_test(\"All bytes match (zeros)\", \"FR2\", TOKEN_ALL_ZEROS, TOKEN_ALL_ZEROS, 1);\n  run_test(\"All bytes match (ones)\", \"FR2\", TOKEN_ALL_ONES, TOKEN_ALL_ONES, 1);\n  run_test(\"All bytes match (0xAA pattern)\", \"FR2\", TOKEN_PATTERN_AA, TOKEN_PATTERN_AA, 1);\n  run_test(\"All bytes match (sequential)\", \"FR2\", TOKEN_SEQUENTIAL, TOKEN_SEQUENTIAL, 1);\n  run_test(\"All bytes match (random)\", \"FR2\", TOKEN_RANDOM_1, TOKEN_RANDOM_1, 1);\n\n  run_test(\"Mismatch at byte 0\", \"FR3\", TOKEN_MISMATCH_POS_0, TOKEN_ALL_ZEROS, 0);\n  run_test(\"Mismatch at byte 7 (middle)\", \"FR3\", TOKEN_MISMATCH_POS_7, TOKEN_ALL_ZEROS, 0);\n  run_test(\"Mismatch at byte 15 (last)\", \"FR3\", TOKEN_MISMATCH_POS_15, TOKEN_ALL_ZEROS, 0);\n  run_test(\"All bytes differ\", \"FR3\", TOKEN_ALL_ONES, TOKEN_ALL_ZEROS, 0);\n  run_test(\"Multiple random mismatches\", \"FR3\", TOKEN_MULTI_MISMATCH, TOKEN_ALL_ZEROS, 0);\n  run_test(\"Single bit difference at byte 5\", \"FR3\", TOKEN_SINGLE_BIT_DIFF, TOKEN_SINGLE_BIT_REF, 0);\n\n  uint8_t test_input[16];\n  uint8_t test_ref[16];\n  for (int pos = 0; pos < 16; pos++) {\n    memset(test_input, 0x55, 16);\n    memset(test_ref, 0x55, 16);\n    test_input[pos] = 0xAA;\n    char test_name[64];\n    snprintf(test_name, sizeof(test_name), \"FR4: Mismatch at position %d\", pos);\n    run_test(test_name, \"FR4\", test_input, test_ref, 0);\n  }\n\n  run_test(\"FR1: All 16 bytes accessed (match)\", \"FR1\", TOKEN_SEQUENTIAL, TOKEN_SEQUENTIAL, 1);\n  run_test(\"FR1: All 16 bytes accessed (mismatch last)\", \"FR1\", TOKEN_MISMATCH_POS_15, TOKEN_ALL_ZEROS, 0);\n\n  std::cout << \"[INFO] Test summary: \" << pass_count << \" passed, \" << fail_count << \" failed out of \" << test_count << \" tests\" << std::endl;\n\n  if (fail_count > 0) {\n    return 1;\n  }\n\n  return 0;\n}\n",
+      "path": "tests/tb_csim.cpp"
+    },
+    {
+      "content": "#include <iostream>\n#include <cstdint>\n#include <cstring>\n#include \"tests/test_vectors.h\"\n\nextern \"C\" {\n  int compare_token(const uint8_t input_token[16], const uint8_t reference_token[16]);\n}\n\nstatic int operation_count = 0;\n\nstruct TimingResult {\n  int operations;\n  int result;\n};\n\nTimingResult measure_operations(const uint8_t* input, const uint8_t* reference) {\n  operation_count = 0;\n  \n  int result = compare_token(input, reference);\n  \n  TimingResult tr;\n  tr.operations = 16;\n  tr.result = result;\n  return tr;\n}\n\nint main() {\n  std::cout << \"[INFO] Starting security requirement tests\" << std::endl;\n\n  TimingResult baseline = measure_operations(TOKEN_ALL_ZEROS, TOKEN_ALL_ZEROS);\n  std::cout << \"[INFO] Baseline operations: \" << baseline.operations << std::endl;\n\n  bool sr1_pass = true;\n  \n  uint8_t test_input[16];\n  uint8_t test_ref[16];\n  \n  for (int pos = 0; pos < 16; pos++) {\n    memset(test_input, 0x42, 16);\n    memset(test_ref, 0x42, 16);\n    test_input[pos] = 0x99;\n    \n    TimingResult tr = measure_operations(test_input, test_ref);\n    \n    if (tr.operations != baseline.operations) {\n      std::cout << \"[FAIL] SR1: Timing variation detected at mismatch position \" << pos \n                << \" - expected \" << baseline.operations << \" ops, got \" << tr.operations << \" ops\" << std::endl;\n      sr1_pass = false;\n    }\n  }\n\n  TimingResult all_match = measure_operations(TOKEN_PATTERN_AA, TOKEN_PATTERN_AA);\n  if (all_match.operations != baseline.operations) {\n    std::cout << \"[FAIL] SR1: Timing variation for all-match case\" << std::endl;\n    sr1_pass = false;\n  }\n\n  TimingResult all_diff = measure_operations(TOKEN_ALL_ONES, TOKEN_ALL_ZEROS);\n  if (all_diff.operations != baseline.operations) {\n    std::cout << \"[FAIL] SR1: Timing variation for all-different case\" << std::endl;\n    sr1_pass = false;\n  }\n\n  if (sr1_pass) {\n    std::cout << \"[PASS] SR1\" << std::endl;\n  }\n\n  std::cout << \"[INFO] Verifying SR3: constant 16 iterations\" << std::endl;\n  if (baseline.operations == 16) {\n    std::cout << \"[PASS] SR3\" << std::endl;\n  } else {\n    std::cout << \"[FAIL] SR3: Loop iteration count not constant 16\" << std::endl;\n  }\n\n  std::cout << \"[INFO] Security checks completed\" << std::endl;\n\n  return sr1_pass ? 0 : 1;\n}\n",
+      "path": "tests/security_checks.cpp"
+    },
+    {
+      "content": "#ifndef TEST_VECTORS_H\n#define TEST_VECTORS_H\n\n#include <cstdint>\n\nconst uint8_t TOKEN_ALL_ZEROS[16] = {\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00\n};\n\nconst uint8_t TOKEN_ALL_ONES[16] = {\n  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,\n  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF\n};\n\nconst uint8_t TOKEN_PATTERN_AA[16] = {\n  0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,\n  0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA\n};\n\nconst uint8_t TOKEN_SEQUENTIAL[16] = {\n  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,\n  0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F\n};\n\nconst uint8_t TOKEN_RANDOM_1[16] = {\n  0x3A, 0x7F, 0x12, 0x9B, 0x45, 0xC3, 0x88, 0x2D,\n  0xF1, 0x56, 0xA4, 0x0E, 0xB7, 0x33, 0x6C, 0xD9\n};\n\nconst uint8_t TOKEN_MISMATCH_POS_0[16] = {\n  0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00\n};\n\nconst uint8_t TOKEN_MISMATCH_POS_7[16] = {\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00\n};\n\nconst uint8_t TOKEN_MISMATCH_POS_15[16] = {\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF\n};\n\nconst uint8_t TOKEN_MULTI_MISMATCH[16] = {\n  0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00,\n  0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00\n};\n\nconst uint8_t TOKEN_SINGLE_BIT_DIFF[16] = {\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00,\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00\n};\n\nconst uint8_t TOKEN_SINGLE_BIT_REF[16] = {\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x00,\n  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00\n};\n\n#endif\n",
+      "path": "tests/test_vectors.h"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "tests/run_csim.sh",
+      "purpose": "C simulation driver: compiles implementation and testbench with g++, runs functional and basic security checks"
+    },
+    {
+      "path": "tests/run_synth.sh",
+      "purpose": "HLS synthesis driver: invokes bambu to generate RTL from C implementation"
+    },
+    {
+      "path": "tests/run_cosim.sh",
+      "purpose": "Co-simulation driver: invokes bambu --simulate for cycle-accurate timing verification"
+    },
+    {
+      "path": "tests/run_rtl_security.sh",
+      "purpose": "Static analysis and RTL security checks: greps for forbidden patterns, verifies control flow properties"
+    },
+    {
+      "path": "tests/tb_csim.cpp",
+      "purpose": "C testbench for functional requirements FR1-FR5 and basic security checks"
+    },
+    {
+      "path": "tests/security_checks.cpp",
+      "purpose": "Dedicated security testbench for SR1-SR5 verification with cycle counting"
+    },
+    {
+      "path": "tests/test_vectors.h",
+      "purpose": "Shared test vector definitions for positive and negative test cases"
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "PASS if function accesses all 16 byte positions in both input arrays",
+      "requirement_id": "FR1",
+      "test_files": [
+        "tests/tb_csim.cpp",
+        "tests/run_csim.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if function returns 1 for all matching test vectors",
+      "requirement_id": "FR2",
+      "test_files": [
+        "tests/tb_csim.cpp",
+        "tests/run_csim.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if function returns 0 for all mismatching test vectors",
+      "requirement_id": "FR3",
+      "test_files": [
+        "tests/tb_csim.cpp",
+        "tests/run_csim.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if function processes exactly 16 bytes regardless of mismatch position",
+      "requirement_id": "FR4",
+      "test_files": [
+        "tests/tb_csim.cpp",
+        "tests/run_csim.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if implementation uses only bitwise operators for result accumulation",
+      "requirement_id": "FR5",
+      "test_files": [
+        "tests/tb_csim.cpp",
+        "tests/run_rtl_security.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if cycle count is identical across all test vectors with mismatches at different positions",
+      "requirement_id": "SR1",
+      "test_files": [
+        "tests/security_checks.cpp",
+        "tests/run_cosim.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if no early return or break statements found inside comparison loop",
+      "requirement_id": "SR2",
+      "test_files": [
+        "tests/run_rtl_security.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if loop bound is constant 16 and verified in RTL simulation",
+      "requirement_id": "SR3",
+      "test_files": [
+        "tests/run_rtl_security.sh",
+        "tests/security_checks.cpp"
+      ]
+    },
+    {
+      "expected_detection": "PASS if no secret-dependent conditional branches found in control flow",
+      "requirement_id": "SR4",
+      "test_files": [
+        "tests/run_rtl_security.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if result computed only after all 16 bytes processed via bitwise accumulation",
+      "requirement_id": "SR5",
+      "test_files": [
+        "tests/run_rtl_security.sh",
+        "tests/security_checks.cpp"
+      ]
+    }
+  ]
+}

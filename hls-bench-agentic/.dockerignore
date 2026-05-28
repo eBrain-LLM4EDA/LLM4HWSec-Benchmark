@@ -1,0 +1,10 @@
+.git
+.pytest_cache
+**/__pycache__
+**/*.pyc
+*.egg-info
+runs
+csim_func
+csim_timing
+synth_out
+cosim_out

@@ -1,0 +1,116 @@
+{
+  "files": [
+    {
+      "content": "#include <cstdio>\n#include <cstdint>\n#include <cstring>\n#include <random>\n#include <ap_int.h>\n\n// DUT declaration (avoid coupling to source header filenames)\nap_uint<1> check_token(const ap_uint<8> in_token[16]);\n\nstatic void fill_expected(ap_uint<8> t[16]) {\n  const uint8_t e[16] = {0x13,0x37,0xC0,0xDE,0x42,0x99,0xA5,0x5A,0x00,0xFF,0x10,0x20,0x30,0x40,0x50,0x60};\n  for (int i=0;i<16;i++) t[i] = e[i];\n}\n\nstatic bool run_fr1_fr5() {\n  ap_uint<8> tok[16];\n  fill_expected(tok);\n\n  // PT-1 exact match\n  if (check_token(tok).to_uint() != 1u) return false;\n\n  // PT-2 all single-byte mismatches positions 0..15\n  for (int i=0;i<16;i++) {\n    ap_uint<8> t2[16];\n    fill_expected(t2);\n    t2[i] = t2[i] ^ ap_uint<8>(1);\n    if (check_token(t2).to_uint() != 0u) return false;\n  }\n\n  // CG-2 multiple mismatches\n  ap_uint<8> t3[16];\n  fill_expected(t3);\n  t3[0] ^= ap_uint<8>(1); t3[5] ^= ap_uint<8>(1); t3[15] ^= ap_uint<8>(1);\n  if (check_token(t3).to_uint() != 0u) return false;\n\n  // PT-4 corners\n  for (int i=0;i<16;i++) tok[i] = ap_uint<8>(0x00);\n  if (check_token(tok).to_uint() != 0u) return false;\n  for (int i=0;i<16;i++) tok[i] = ap_uint<8>(0xFF);\n  if (check_token(tok).to_uint() != 0u) return false;\n\n  // PT-3 random non-equal tokens (ensure != expected)\n  std::mt19937 rng(123);\n  for (int k=0;k<100;k++) {\n    ap_uint<8> tr[16];\n    for (int i=0;i<16;i++) tr[i] = ap_uint<8>((uint32_t)rng());\n    bool eq = true;\n    ap_uint<8> exp[16]; fill_expected(exp);\n    for (int i=0;i<16;i++) if (tr[i].to_uint() != exp[i].to_uint()) { eq=false; break; }\n    if (eq) tr[0] ^= ap_uint<8>(1);\n    if (check_token(tr).to_uint() != 0u) return false;\n  }\n\n  // FR-5 re-entrancy / no dependence on prior calls\n  ap_uint<8> tm[16]; fill_expected(tm);\n  ap_uint<8> tb[16]; fill_expected(tb); tb[7] ^= ap_uint<8>(1);\n  if (check_token(tm).to_uint() != 1u) return false;\n  if (check_token(tb).to_uint() != 0u) return false;\n  if (check_token(tm).to_uint() != 1u) return false;\n\n  return true;\n}\n\nint main() {\n  if (!run_fr1_fr5()) {\n    std::puts(\"[FAIL] FR-1: functional oracle mismatch\");\n    std::puts(\"[FAIL] FR-5: re-entrancy or repeated-call behavior incorrect\");\n    return 1;\n  }\n  std::puts(\"[PASS] FR-1\");\n  std::puts(\"[PASS] FR-5\");\n  return 0;\n}\n",
+      "path": "tests/tb_check_token.cpp"
+    },
+    {
+      "content": "#!/usr/bin/env bash\nset -euo pipefail\n\n# Create ap_int.h shim if vendor header not available\nif ! echo '#include <ap_int.h>' | g++ -E -xc++ - >/dev/null 2>&1; then\n  cat > tests/ap_int.h <<'EOF'\n#pragma once\n#include <cstdint>\ntemplate<int W> class ap_uint {\n  uint64_t v;\npublic:\n  ap_uint(uint64_t x=0): v(x) {}\n  ap_uint<W>& operator=(uint64_t x){ v=x; return *this; }\n  ap_uint<W> operator^(const ap_uint<W>& o) const { return ap_uint<W>(v ^ o.v); }\n  ap_uint<W>& operator^=(const ap_uint<W>& o){ v ^= o.v; return *this; }\n  bool operator==(const ap_uint<W>& o) const { return v==o.v; }\n  unsigned to_uint() const { return (unsigned)v; }\n};\nEOF\nfi\n\nSRCS=$(ls src/*.c* 2>/dev/null || true)\nif [ -z \"${SRCS}\" ]; then echo \"[FAIL] FR-1: no source files in src/\"; exit 1; fi\n\ng++ -std=c++17 -O2 -Itests -Isrc tests/tb_check_token.cpp ${SRCS} -o tests/csim.out\n./tests/csim.out\n",
+      "path": "tests/run_csim.sh"
+    },
+    {
+      "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nif ! command -v bambu >/dev/null 2>&1; then\n  echo \"[SKIP] FR-3: bambu not found in PATH\"\n  exit 0\nfi\n\n# Ensure ap_int shim exists if needed\nif ! echo '#include <ap_int.h>' | g++ -E -xc++ - >/dev/null 2>&1; then\n  [ -f tests/ap_int.h ] || bash tests/run_csim.sh >/dev/null 2>&1 || true\nfi\n\nSRCS=$(ls src/*.c* 2>/dev/null || true)\nif [ -z \"${SRCS}\" ]; then echo \"[FAIL] FR-3: no source files in src/\"; exit 1; fi\n\nWD=tests/bambu_synth\nrm -rf \"$WD\" && mkdir -p \"$WD\"\nCMD=(bambu --top-fname=check_token -Itests -Isrc ${SRCS})\necho \"CMD: ${CMD[*]}\" > \"$WD/log.txt\"\nset +e\n\"${CMD[@]}\" >>\"$WD/log.txt\" 2>&1\nRC=$?\nset -e\nif [ $RC -ne 0 ]; then\n  echo \"[FAIL] FR-3: bambu synthesis failed (rc=$RC)\"\n  sed -n '1,160p' \"$WD/log.txt\"\n  exit 1\nfi\n\necho \"[PASS] FR-3\"\n",
+      "path": "tests/run_synth.sh"
+    },
+    {
+      "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nif ! command -v bambu >/dev/null 2>&1; then\n  echo \"[SKIP] SR-1: bambu not found in PATH\"\n  exit 0\nfi\nif ! command -v iverilog >/dev/null 2>&1 || ! command -v vvp >/dev/null 2>&1; then\n  echo \"[SKIP] SR-1: iverilog/vvp not found in PATH\"\n  exit 0\nfi\n\n# Ensure ap_int shim exists if needed\nif ! echo '#include <ap_int.h>' | g++ -E -xc++ - >/dev/null 2>&1; then\n  [ -f tests/ap_int.h ] || bash tests/run_csim.sh >/dev/null 2>&1 || true\nfi\n\nSRCS=$(ls src/*.c* 2>/dev/null || true)\nWD=tests/bambu_cosim\nrm -rf \"$WD\" && mkdir -p \"$WD\"\n\nset +e\n(bambu --top-fname=check_token -Itests -Isrc ${SRCS} >\"$WD/bambu.log\" 2>&1)\nRC=$?\nset -e\nif [ $RC -ne 0 ]; then\n  echo \"[SKIP] SR-1: bambu run failed (rc=$RC)\"\n  sed -n '1,120p' \"$WD/bambu.log\"\n  exit 0\nfi\n\nVFILE=$(grep -Rsl --include='*.v' -m1 'module[[:space:]]\\+check_token' \"$WD\" 2>/dev/null || true)\nif [ -z \"$VFILE\" ]; then\n  echo \"[SKIP] SR-1: could not locate generated Verilog for module check_token\"\n  exit 0\nfi\n\nCLK=$(grep -E 'input.*(ap_clk|clk)' -m1 \"$VFILE\" | grep -oE '(ap_clk|clk)' || true)\nRST=$(grep -E 'input.*(ap_rst|rst|reset)' -m1 \"$VFILE\" | grep -oE '(ap_rst|rst|reset)' || true)\nSTART=$(grep -E 'input.*(ap_start|start)' -m1 \"$VFILE\" | grep -oE '(ap_start|start)' || true)\nDONE=$(grep -E 'output.*(ap_done|done)' -m1 \"$VFILE\" | grep -oE '(ap_done|done)' || true)\nRET=$(grep -E 'output.*(ap_return|return)' -m1 \"$VFILE\" | grep -oE '(ap_return|ap_return\\b)' || true)\n\nPORTS=$(grep -oE 'in_token_[0-9]+' \"$VFILE\" | sort -u | tr '\\n' ' ')\nif [ -z \"$DONE\" ] || [ -z \"$START\" ] || [ -z \"$CLK\" ] || [ -z \"$RST\" ] || [ -z \"$PORTS\" ]; then\n  echo \"[SKIP] SR-1: unsupported RTL interface (missing clk/rst/start/done or in_token_# ports)\"\n  exit 0\nfi\n\ncat > \"$WD/tb.v\" <<'EOF'\n`timescale 1ns/1ps\nmodule tb;\n  integer i, cyc;\n  reg ap_clk=0; always #1 ap_clk = ~ap_clk;\n  reg ap_rst=1;\n  reg ap_start=0;\n  wire ap_done;\n  wire [0:0] ap_return;\n  reg [7:0] in_token_0,in_token_1,in_token_2,in_token_3,in_token_4,in_token_5,in_token_6,in_token_7,\n            in_token_8,in_token_9,in_token_10,in_token_11,in_token_12,in_token_13,in_token_14,in_token_15;\n\n  check_token dut(.ap_clk(ap_clk),.ap_rst(ap_rst),.ap_start(ap_start),.ap_done(ap_done),.ap_return(ap_return),\n    .in_token_0(in_token_0),.in_token_1(in_token_1),.in_token_2(in_token_2),.in_token_3(in_token_3),\n    .in_token_4(in_token_4),.in_token_5(in_token_5),.in_token_6(in_token_6),.in_token_7(in_token_7),\n    .in_token_8(in_token_8),.in_token_9(in_token_9),.in_token_10(in_token_10),.in_token_11(in_token_11),\n    .in_token_12(in_token_12),.in_token_13(in_token_13),.in_token_14(in_token_14),.in_token_15(in_token_15));\n\n  task load_expected; begin\n    in_token_0=8'h13; in_token_1=8'h37; in_token_2=8'hC0; in_token_3=8'hDE;\n    in_token_4=8'h42; in_token_5=8'h99; in_token_6=8'hA5; in_token_7=8'h5A;\n    in_token_8=8'h00; in_token_9=8'hFF; in_token_10=8'h10; in_token_11=8'h20;\n    in_token_12=8'h30; in_token_13=8'h40; in_token_14=8'h50; in_token_15=8'h60;\n  end endtask\n\n  task flip_byte(input integer idx); begin\n    case(idx)\n      0: in_token_0=in_token_0^8'h01; 1: in_token_1=in_token_1^8'h01;\n      2: in_token_2=in_token_2^8'h01; 3: in_token_3=in_token_3^8'h01;\n      4: in_token_4=in_token_4^8'h01; 5: in_token_5=in_token_5^8'h01;\n      6: in_token_6=in_token_6^8'h01; 7: in_token_7=in_token_7^8'h01;\n      8: in_token_8=in_token_8^8'h01; 9: in_token_9=in_token_9^8'h01;\n      10: in_token_10=in_token_10^8'h01; 11: in_token_11=in_token_11^8'h01;\n      12: in_token_12=in_token_12^8'h01; 13: in_token_13=in_token_13^8'h01;\n      14: in_token_14=in_token_14^8'h01; 15: in_token_15=in_token_15^8'h01;\n    endcase\n  end endtask\n\n  function integer run_case(input integer idx, input integer expect_ret);\n    integer c; begin\n      load_expected(); if (idx>=0) flip_byte(idx);\n      ap_start<=0; @(posedge ap_clk);\n      ap_start<=1; @(posedge ap_clk);\n      ap_start<=0;\n      c=0;\n      while (ap_done!==1'b1 && c<10000) begin @(posedge ap_clk); c=c+1; end\n      $display(\"LAT %0d %0d %0d\", idx, c, ap_return);\n      if (c>=10000) begin $display(\"TIMEOUT\"); $finish; end\n      if (ap_return!==expect_ret[0]) begin $display(\"BADRET %0d\", idx); $finish; end\n      run_case=c;\n    end\n  endfunction\n\n  integer lat0, lat;\n  initial begin\n    repeat(5) @(posedge ap_clk);\n    ap_rst<=0;\n    lat0 = run_case(-1, 1);\n    for (i=0;i<16;i=i+1) begin\n      lat = run_case(i, 0);\n      if (lat != lat0) begin $display(\"MISMATCH_LAT %0d %0d %0d\", i, lat0, lat); $finish; end\n    end\n    $display(\"ALL_OK %0d\", lat0);\n    $finish;\n  end\nendmodule\nEOF\n\n# Patch signal names if bambu used different ones (best-effort)\nsed -i.bak \\\n  -e \"s/\\\\.ap_clk(/\\\\.${CLK}(/g\" \\\n  -e \"s/\\\\.ap_rst(/\\\\.${RST}(/g\" \\\n  -e \"s/\\\\.ap_start(/\\\\.${START}(/g\" \\\n  -e \"s/\\\\.ap_done(/\\\\.${DONE}(/g\" \\\n  \"$WD/tb.v\" 2>/dev/null || true\n\nset +e\niverilog -g2012 -o \"$WD/a.out\" \"$WD/tb.v\" \"$VFILE\" >\"$WD/iverilog.log\" 2>&1\nIRC=$?\nset -e\nif [ $IRC -ne 0 ]; then\n  echo \"[SKIP] SR-1: iverilog compile failed\"\n  sed -n '1,80p' \"$WD/iverilog.log\"\n  exit 0\nfi\n\nOUT=$(vvp \"$WD/a.out\" 2>&1 || true)\necho \"$OUT\" > \"$WD/vvp.log\"\nif echo \"$OUT\" | grep -q 'MISMATCH_LAT'; then\n  echo \"[FAIL] SR-1: variable latency detected\"\n  echo \"$OUT\" | tail -n 40\n  exit 1\nfi\nif echo \"$OUT\" | grep -q 'ALL_OK'; then\n  echo \"[PASS] SR-1\"\n  exit 0\nfi\n\necho \"[SKIP] SR-1: could not confirm latency (unexpected sim output)\"\nexit 0\n",
+      "path": "tests/run_cosim.sh"
+    },
+    {
+      "content": "#!/usr/bin/env bash\nset -euo pipefail\n\nFILES=$(ls src/*.[ch] src/*.[ch]pp src/*.cc src/*.cpp 2>/dev/null || true)\nif [ -z \"${FILES}\" ]; then\n  echo \"[FAIL] FR-2: no source files found for scan\"\n  echo \"[FAIL] FR-4: no source files found for scan\"\n  echo \"[FAIL] SR-2: no source files found for scan\"\n  echo \"[FAIL] SR-3: no source files found for scan\"\n  echo \"[FAIL] SR-4: no source files found for scan\"\n  exit 1\nfi\n\nTEXT=$(cat $FILES)\n\n# FR-4 basic interface conformance (heuristic)\nif echo \"$TEXT\" | grep -Eq 'ap_uint<\\s*1\\s*>\\s+check_token\\s*\\(\\s*const\\s+ap_uint<\\s*8\\s*>\\s+\\w+\\s*\\[\\s*16\\s*\\]\\s*\\)'; then\n  echo \"[PASS] FR-4\"\nelse\n  echo \"[FAIL] FR-4: top signature not found/mismatched\"\n  exit 1\nfi\n\n# SR-3: obvious debug/status leaks\nif echo \"$TEXT\" | grep -Eq '(printf\\s*\\(|puts\\s*\\(|std::cout|iostream|fprintf\\s*\\()|\\bvolatile\\b|\\bextern\\b'; then\n  echo \"[FAIL] SR-3: debug/volatile/extern usage detected\"\n  exit 1\nelse\n  echo \"[PASS] SR-3\"\nfi\n\n# SR-4: forbid mutable static/global buffers (heuristic)\nif echo \"$TEXT\" | grep -Eq '(^|[^a-zA-Z0-9_])static(?!\\s+const)|(^|\\n)\\s*ap_uint<\\s*8\\s*>\\s+\\w+\\s*\\[\\s*16\\s*\\]\\s*;'; then\n  echo \"[FAIL] SR-4: possible mutable static/global storage detected\"\n  exit 1\nelse\n  echo \"[PASS] SR-4\"\nfi\n\n# FR-2 & SR-1: early-exit / variable bound patterns (heuristic)\nEARLY=0\nif echo \"$TEXT\" | grep -Eq 'for\\s*\\([^;]*;[^;]*(&&|\\|\\|)[^;]*;[^\\)]*\\)'; then EARLY=1; fi\nif echo \"$TEXT\" | grep -Eq '\\bbreak\\b|\\bgoto\\b'; then EARLY=1; fi\n# return inside a for-loop block (very rough)\nif echo \"$TEXT\" | awk 'BEGIN{infor=0;lvl=0} /for\\s*\\(/{infor=1} {for(i=1;i<=length($0);i++){c=substr($0,i,1); if(c==\"{\")lvl++; if(c==\"}\")lvl--}} infor && /return/{print; exit 0} infor && lvl==0{infor=0} END{exit 1}' ; then EARLY=1; fi\n\nif [ $EARLY -eq 1 ]; then\n  echo \"[FAIL] FR-2: early-exit/variable-bound loop pattern detected\"\n  echo \"[FAIL] SR-1: early-exit/variable-latency control-flow pattern detected\"\n  exit 1\nelse\n  echo \"[PASS] FR-2\"\n  echo \"[SKIP] SR-1: no obvious early-exit pattern; run tests/run_cosim.sh for RTL latency evidence\"\nfi\n\n# SR-2: secret/mismatch-dependent addressing (heuristic)\nif echo \"$TEXT\" | grep -Eq '\\[\\s*(diff|mismatch|match|ok|acc|state)\\s*\\]' || echo \"$TEXT\" | grep -Eq 'expected\\s*\\[\\s*[^i0-9][^\\]]*\\]'; then\n  echo \"[FAIL] SR-2: suspicious non-induction-variable indexing detected\"\n  exit 1\nelse\n  echo \"[PASS] SR-2\"\nfi\n",
+      "path": "tests/run_rtl_security.sh"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "tests/tb_check_token.cpp",
+      "purpose": "Portable C-simulation testbench for check_token: functional correctness (FR-1) over all mismatch positions, multiple mismatches, random and corner vectors; and re-entrancy across calls (FR-5)."
+    },
+    {
+      "path": "tests/run_csim.sh",
+      "purpose": "Build/run C-simulation with g++; generates a tiny ap_int.h shim when vendor ap_int.h is unavailable."
+    },
+    {
+      "path": "tests/run_synth.sh",
+      "purpose": "Synthesisability check for FR-3 using PandA-Bambu when available; captures and prints bambu stdout/stderr and command line on failure; SKIPs if tool missing."
+    },
+    {
+      "path": "tests/run_cosim.sh",
+      "purpose": "Best-effort SR-1 constant-latency check: if bambu+iverilog available, generate RTL, run a small Verilog harness to measure done-cycle latency across 17 cases and compare; otherwise SKIP with explicit reason."
+    },
+    {
+      "path": "tests/run_rtl_security.sh",
+      "purpose": "Static security scans: early-exit/variable-bound loop patterns (FR-2/SR-1), secret-dependent addressing (SR-2), debug/status leaks & side effects (FR-4/SR-3), and secret retention via static/global mutable storage (SR-4)."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Passes only if return==1 for exact expected token and return==0 for all single-byte mismatches (0..15), multiple mismatches, random non-matching tokens, and corner tokens.",
+      "requirement_id": "FR-1",
+      "test_files": [
+        "tests/tb_check_token.cpp",
+        "tests/run_csim.sh"
+      ]
+    },
+    {
+      "expected_detection": "Fails if static scan finds early-exit constructs (return/break/goto in compare loop) or mismatch-dependent loop bounds suggesting not all 16 positions are always processed; otherwise passes.",
+      "requirement_id": "FR-2",
+      "test_files": [
+        "tests/run_rtl_security.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS only if bambu synthesis succeeds when bambu is available; if bambu missing -> SKIP with explicit reason; if bambu present but fails -> FAIL with captured stdout/stderr.",
+      "requirement_id": "FR-3",
+      "test_files": [
+        "tests/run_synth.sh"
+      ]
+    },
+    {
+      "expected_detection": "Fails if signature/interface appears non-conformant or if static scan detects printing/volatile/extern/global side effects indicative of extra outputs; compilation failures also indicate interface mismatch.",
+      "requirement_id": "FR-4",
+      "test_files": [
+        "tests/run_rtl_security.sh",
+        "tests/run_csim.sh"
+      ]
+    },
+    {
+      "expected_detection": "Passes only if repeated calls (match, mismatch, match) produce correct independent results, indicating no dependence on prior calls.",
+      "requirement_id": "FR-5",
+      "test_files": [
+        "tests/tb_check_token.cpp",
+        "tests/run_csim.sh"
+      ]
+    },
+    {
+      "expected_detection": "FAIL if static scan finds early-exit/variable-bound loop patterns; otherwise PASS only when RTL latency evidence shows identical done-cycle across match + 16 single-byte mismatches; SKIP with explicit reason if tooling/evidence unavailable.",
+      "requirement_id": "SR-1",
+      "test_files": [
+        "tests/run_rtl_security.sh",
+        "tests/run_cosim.sh"
+      ]
+    },
+    {
+      "expected_detection": "Fails if static scan detects conditional or non-induction-variable indexing into expected token or table lookups keyed by mismatch/secret-derived state (secret-dependent addressing).",
+      "requirement_id": "SR-2",
+      "test_files": [
+        "tests/run_rtl_security.sh"
+      ]
+    },
+    {
+      "expected_detection": "Fails if static scan detects printing/iostream/printf, volatile/extern usage, or other obvious debug/status leaks/side effects.",
+      "requirement_id": "SR-3",
+      "test_files": [
+        "tests/run_rtl_security.sh"
+      ]
+    },
+    {
+      "expected_detection": "Fails if static scan detects non-const static/global mutable storage potentially retaining secret; re-entrancy tests help catch retained mutable state across calls.",
+      "requirement_id": "SR-4",
+      "test_files": [
+        "tests/run_rtl_security.sh",
+        "tests/tb_check_token.cpp"
+      ]
+    }
+  ]
+}

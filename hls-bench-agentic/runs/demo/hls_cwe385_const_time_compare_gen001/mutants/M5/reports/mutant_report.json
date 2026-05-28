@@ -1,0 +1,56 @@
+{
+  "execution_results": {
+    "allow_execution": true,
+    "steps": [
+      {
+        "command": "bash tests/run_csim.sh",
+        "duration_seconds": 0.266,
+        "name": "csim",
+        "required": false,
+        "returncode": 1,
+        "status": "fail",
+        "stderr": "",
+        "stdout": "[INFO] Starting C simulation tests\n[INFO] Compiling implementation and testbench\nclang++: warning: treating 'c' input as 'c++' when in C++ mode, this behavior is deprecated [-Wdeprecated]\nUndefined symbols for architecture arm64:\n  \"_compare_token\", referenced from:\n      run_test(char const*, char const*, unsigned char const*, unsigned char const*, int) in tb_csim-21f228.o\nld: symbol(s) not found for architecture arm64\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)\n[FAIL] FR1: Compilation failed\nclang++: warning: treating 'c' input as 'c++' when in C++ mode, this behavior is deprecated [-Wdeprecated]\nUndefined symbols for architecture arm64:\n  \"_compare_token\", referenced from:\n      run_test(char const*, char const*, unsigned char const*, unsigned char const*, int) in tb_csim-21f228.o\nld: symbol(s) not found for architecture arm64\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)\n"
+      },
+      {
+        "command": "bash tests/run_synth.sh",
+        "duration_seconds": 0.016,
+        "name": "synth",
+        "required": false,
+        "returncode": 1,
+        "status": "fail",
+        "stderr": "",
+        "stdout": "[INFO] Starting HLS synthesis\n[INFO] Invoking bambu for synthesis\ntests/run_synth.sh: line 13: bambu: command not found\n[FAIL] Synthesis failed\ntests/run_synth.sh: line 13: bambu: command not found\n"
+      },
+      {
+        "command": "bash tests/run_cosim.sh",
+        "duration_seconds": 0.249,
+        "name": "cosim",
+        "required": false,
+        "returncode": 1,
+        "status": "fail",
+        "stderr": "",
+        "stdout": "[INFO] Starting co-simulation for cycle-accurate timing verification\n[INFO] Compiling security testbench\nclang++: warning: treating 'c' input as 'c++' when in C++ mode, this behavior is deprecated [-Wdeprecated]\nUndefined symbols for architecture arm64:\n  \"_compare_token\", referenced from:\n      measure_operations(unsigned char const*, unsigned char const*) in security_checks-c0462a.o\nld: symbol(s) not found for architecture arm64\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)\n"
+      },
+      {
+        "command": "bash tests/run_rtl_security.sh",
+        "duration_seconds": 0.037,
+        "name": "rtl_security",
+        "required": false,
+        "returncode": 1,
+        "status": "fail",
+        "stderr": "",
+        "stdout": "[INFO] Starting static security analysis\n[INFO] Checking SR2: No early return or break in loop\n[FAIL] SR2: Break statement found in implementation\n[INFO] Checking SR3: Constant loop bound of 16\n[PASS] SR3\n[INFO] Checking SR4: No secret-dependent conditional branches\n[PASS] SR4\n[INFO] Checking SR5: Bitwise accumulation only\n[PASS] SR5\n[INFO] Checking FR5: Only bitwise operations used\n[PASS] FR5\n[INFO] Static analysis complete: 4 passed, 1 failed\n"
+      }
+    ],
+    "workspace": "/Volumes/SAVE HERE/Seraph/LLM4HWSec-Benchmark/hls-bench-agentic/runs/demo/hls_cwe385_const_time_compare_gen001/mutants/M5"
+  },
+  "mutants": [
+    {
+      "detected": true,
+      "expected_detection": "Static analysis detects break statement inside loop body. RTL simulation timing measurements show dramatically different cycle counts for test vectors with mismatches at different positions (byte 0 vs byte 15). Test case [FAIL] SR2 should trigger.",
+      "mutant_id": "M5",
+      "target_requirement_id": "SR2"
+    }
+  ]
+}

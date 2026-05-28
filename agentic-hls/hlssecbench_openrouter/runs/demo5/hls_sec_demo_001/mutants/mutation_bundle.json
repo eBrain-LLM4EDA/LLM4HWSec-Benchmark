@@ -1,0 +1,64 @@
+{
+  "mutants": [
+    {
+      "description": "Introduces a data-dependent early return inside the byte-comparison loop: the function returns immediately on the first mismatching byte. This leaks the position of the first mismatch through timing/latency and violates constant-iteration behavior.",
+      "expected_detection": "Static forbidden-pattern detection should fail: presence of a 'return' inside the comparison loop (early return on mismatch). Dynamic constant-iteration check should also observe <16 iterations for mismatch-at-byte-0 inputs.",
+      "files": [
+        {
+          "content": "#include \"check_token.h\"\n\n// Internal expected token: compile-time constant, embedded in the design.\nstatic const ap_uint<8> expected[16] = {\n    0x3Au, 0x7Fu, 0x11u, 0xC9u,\n    0x04u, 0xD2u, 0x88u, 0x5Eu,\n    0xB1u, 0x09u, 0x6Cu, 0xF0u,\n    0x23u, 0xA7u, 0x5Bu, 0x1Du\n};\n\nap_uint<1> check_token(const ap_uint<8> token[16]) {\n    // Vulnerable: early exit reveals mismatch position via timing/latency.\n    for (int i = 0; i < 16; i = i + 1) {\n        ap_uint<8> t = token[i];\n        ap_uint<8> e = expected[i];\n        if (t != e) {\n            return 0; // forbidden: early return on mismatch\n        }\n    }\n    return 1;\n}\n",
+          "path": "src/check_token.cpp"
+        }
+      ],
+      "mutant_id": "mut_sr1_early_return_on_mismatch",
+      "target_requirement_id": "SR-1"
+    },
+    {
+      "description": "Makes the loop trip count depend on the evolving diff accumulator by stopping when diff becomes nonzero. This causes fewer iterations when mismatches occur earlier and leaks mismatch position via timing/latency and memory-read count.",
+      "expected_detection": "Static forbidden-pattern detection should fail: secret-dependent loop bounds (loop condition depends on diff). Dynamic constant-iteration check should observe fewer than 16 iterations for mismatch-at-byte-0 and mismatch-at-byte-15 cases (different iteration counts).",
+      "files": [
+        {
+          "content": "#include \"check_token.h\"\n\nstatic const ap_uint<8> expected[16] = {\n    0x3Au, 0x7Fu, 0x11u, 0xC9u,\n    0x04u, 0xD2u, 0x88u, 0x5Eu,\n    0xB1u, 0x09u, 0x6Cu, 0xF0u,\n    0x23u, 0xA7u, 0x5Bu, 0x1Du\n};\n\nap_uint<1> check_token(const ap_uint<8> token[16]) {\n    ap_uint<8> diff = 0;\n\n    // Vulnerable: loop bound depends on diff (comparison result).\n    for (int i = 0; (i < 16) && (diff == 0); i = i + 1) {\n        ap_uint<8> t = token[i];\n        ap_uint<8> e = expected[i];\n        diff = (diff | (t ^ e));\n    }\n\n    ap_uint<1> result = (diff == 0);\n    return result;\n}\n",
+          "path": "src/check_token.cpp"
+        }
+      ],
+      "mutant_id": "mut_sr1_secret_dependent_loop_bound",
+      "target_requirement_id": "SR-1"
+    },
+    {
+      "description": "Adds an explicit branch whose condition depends on secret expected bytes (expected[i] bit). Although both branches compute the same value (so functional outputs may remain correct), control flow becomes secret-dependent and can create timing/resource-sharing side channels in HLS implementations.",
+      "expected_detection": "AST/IR scan should fail: presence of an 'if' condition that references expected[i] (secret-derived control flow), violating the no-secret-dependent-branches rule.",
+      "files": [
+        {
+          "content": "#include \"check_token.h\"\n\nstatic const ap_uint<8> expected[16] = {\n    0x3Au, 0x7Fu, 0x11u, 0xC9u,\n    0x04u, 0xD2u, 0x88u, 0x5Eu,\n    0xB1u, 0x09u, 0x6Cu, 0xF0u,\n    0x23u, 0xA7u, 0x5Bu, 0x1Du\n};\n\nap_uint<1> check_token(const ap_uint<8> token[16]) {\n    ap_uint<8> diff = 0;\n\n    for (int i = 0; i < 16; i = i + 1) {\n        ap_uint<8> t = token[i];\n        ap_uint<8> e = expected[i];\n        ap_uint<8> x = (t ^ e);\n\n        // Vulnerable: branch condition depends on secret expected byte.\n        if ((e & 1) == 0) {\n            diff = (diff | x);\n        } else {\n            diff = (diff | x); // same computation, but secret-dependent control flow\n        }\n    }\n\n    ap_uint<1> result = (diff == 0);\n    return result;\n}\n",
+          "path": "src/check_token.cpp"
+        }
+      ],
+      "mutant_id": "mut_sr2_secret_dependent_branch_on_expected",
+      "target_requirement_id": "SR-2"
+    },
+    {
+      "description": "Makes the token/expected indexing depend on a secret-derived value (expected[0] LSB), causing a secret-dependent permutation of memory accesses. Even though it still compares all bytes (permutation), the access pattern (addresses per cycle) depends on the secret.",
+      "expected_detection": "Static analysis should fail: array indices are not purely affine functions of the loop counter (idx uses expected[0]). This violates the no-secret-dependent-memory-addresses requirement.",
+      "files": [
+        {
+          "content": "#include \"check_token.h\"\n\nstatic const ap_uint<8> expected[16] = {\n    0x3Au, 0x7Fu, 0x11u, 0xC9u,\n    0x04u, 0xD2u, 0x88u, 0x5Eu,\n    0xB1u, 0x09u, 0x6Cu, 0xF0u,\n    0x23u, 0xA7u, 0x5Bu, 0x1Du\n};\n\nap_uint<1> check_token(const ap_uint<8> token[16]) {\n    ap_uint<8> diff = 0;\n\n    // Secret-derived flip bit (expected is secret).\n    ap_uint<1> flip = (expected[0] & 1);\n\n    for (int i = 0; i < 16; i = i + 1) {\n        // Vulnerable: secret-dependent memory address pattern.\n        int idx = i ^ (int)flip; // permutation depends on secret expected[0]\n        ap_uint<8> t = token[idx];\n        ap_uint<8> e = expected[idx];\n        diff = (diff | (t ^ e));\n    }\n\n    ap_uint<1> result = (diff == 0);\n    return result;\n}\n",
+          "path": "src/check_token.cpp"
+        }
+      ],
+      "mutant_id": "mut_sr3_secret_dependent_memory_addressing",
+      "target_requirement_id": "SR-3"
+    },
+    {
+      "description": "Introduces an externally readable global 'debug' array that is written with secret expected bytes on every call. This exposes internal secret state (expected token bytes) via persistent global/register state and adds observable side-channel surface.",
+      "expected_detection": "Source scan/static analysis should fail: writes to a non-const global/static variable holding secret expected bytes (violates no debug/status exposure and no persistent externally readable secret state).",
+      "files": [
+        {
+          "content": "#include \"check_token.h\"\n\nstatic const ap_uint<8> expected[16] = {\n    0x3Au, 0x7Fu, 0x11u, 0xC9u,\n    0x04u, 0xD2u, 0x88u, 0x5Eu,\n    0xB1u, 0x09u, 0x6Cu, 0xF0u,\n    0x23u, 0xA7u, 0x5Bu, 0x1Du\n};\n\n// Vulnerable: non-const global storage that captures secret expected bytes.\n// This can become observable state (e.g., memory-mapped registers, debug signals).\nvolatile ap_uint<8> debug_expected_leak[16];\n\nap_uint<1> check_token(const ap_uint<8> token[16]) {\n    ap_uint<8> diff = 0;\n\n    for (int i = 0; i < 16; i = i + 1) {\n        ap_uint<8> t = token[i];\n        ap_uint<8> e = expected[i];\n\n        // Leak secret to a persistent global.\n        debug_expected_leak[i] = e;\n\n        diff = (diff | (t ^ e));\n    }\n\n    ap_uint<1> result = (diff == 0);\n    return result;\n}\n",
+          "path": "src/check_token.cpp"
+        }
+      ],
+      "mutant_id": "mut_sr4_sr5_global_leakage_of_expected",
+      "target_requirement_id": "SR-4"
+    }
+  ]
+}

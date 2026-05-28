@@ -1,0 +1,89 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "title", "public_spec", "hidden_spec", "evaluation_plan"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "title":   {"type": "string"},
+
+    "public_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language", "top_function", "description",
+        "interface", "functional_requirements",
+        "constraints", "allowed_pragmas"
+      ],
+      "properties": {
+        "language":     {"type": "string"},
+        "top_function": {"type": "string"},
+        "description":  {"type": "string"},
+        "interface":    {"type": "string"},
+        "functional_requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "requirement"],
+            "properties": {
+              "id":          {"type": "string"},
+              "requirement": {"type": "string"}
+            }
+          }
+        },
+        "constraints":     {"type": "array", "items": {"type": "string"}},
+        "allowed_pragmas": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+
+    "hidden_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cwe_ids", "security_domain", "difficulty",
+        "security_requirements", "forbidden_patterns",
+        "threat_model", "oracle_notes"
+      ],
+      "properties": {
+        "cwe_ids": {"type": "array", "items": {"type": "string"}},
+        "security_domain": {
+          "type": "string",
+          "enum": ["information_flow_tracking", "access_control", "side_channel",
+                   "resource_isolation", "generic"]
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard"]
+        },
+        "security_requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "requirement", "detection_strategy"],
+            "properties": {
+              "id":                 {"type": "string"},
+              "requirement":        {"type": "string"},
+              "detection_strategy": {"type": "string"}
+            }
+          }
+        },
+        "forbidden_patterns": {"type": "array", "items": {"type": "string"}},
+        "threat_model":        {"type": "string"},
+        "oracle_notes":        {"type": "string"}
+      }
+    },
+
+    "evaluation_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["positive_tests", "negative_tests", "coverage_goals", "mutation_goals"],
+      "properties": {
+        "positive_tests":  {"type": "array", "items": {"type": "string"}},
+        "negative_tests":  {"type": "array", "items": {"type": "string"}},
+        "coverage_goals":  {"type": "array", "items": {"type": "string"}},
+        "mutation_goals":  {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

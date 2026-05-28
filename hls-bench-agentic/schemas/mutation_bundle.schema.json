@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mutants"],
+  "properties": {
+    "mutants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mutant_id", "target_requirement_id",
+          "description", "expected_detection", "files"
+        ],
+        "properties": {
+          "mutant_id":              {"type": "string"},
+          "target_requirement_id":  {"type": "string"},
+          "description":            {"type": "string"},
+          "expected_detection":     {"type": "string"},
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "content"],
+              "properties": {
+                "path":    {"type": "string"},
+                "content": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

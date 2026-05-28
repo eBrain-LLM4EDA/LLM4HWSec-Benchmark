@@ -1,0 +1,38 @@
+{
+  "allowed_pragmas": [
+    "HLS PIPELINE",
+    "HLS INLINE",
+    "HLS ARRAY_PARTITION"
+  ],
+  "constraints": [
+    "no dynamic memory",
+    "no recursion",
+    "no C++ exceptions",
+    "bounded loops only",
+    "synthesizable by common HLS tools",
+    "top function must be named check_token with the specified signature",
+    "only the following pragmas may be used if desired: HLS PIPELINE, HLS INLINE, HLS ARRAY_PARTITION"
+  ],
+  "description": "Implement an HLS-compatible C++ top function that compares a provided 16-byte token against a built-in 16-byte expected token and returns whether they match (1) or not (0). The function must be synthesizable by common HLS tools and must not use dynamic memory, recursion, or exceptions.",
+  "functional_requirements": [
+    {
+      "id": "FR-1",
+      "requirement": "Return 1 if and only if all 16 bytes of the input token equal the corresponding 16 bytes of the expected token; otherwise return 0."
+    },
+    {
+      "id": "FR-2",
+      "requirement": "The implementation must compare exactly 16 bytes (fixed length) and must be synthesizable with bounded loops only."
+    },
+    {
+      "id": "FR-3",
+      "requirement": "The design must not allocate dynamic memory, use recursion, or throw/catch C++ exceptions."
+    },
+    {
+      "id": "FR-4",
+      "requirement": "The expected token must be encoded internally in the design (e.g., as a local constant array) and must not be provided as an additional input port."
+    }
+  ],
+  "interface": "Use the following top-level function signature:\n\nap_uint<1> check_token(const ap_uint<8> token[16]);\n\n- Input: token[16] is the candidate token (16 bytes).\n- Output: return 1 if token matches the expected 16-byte token exactly; otherwise return 0.\n\nThe expected token bytes (index 0..15) must be exactly:\n{ 0x53, 0x45, 0x43, 0x55, 0x52, 0x45, 0x5F, 0x54, 0x4F, 0x4B, 0x45, 0x4E, 0x5F, 0x31, 0x36, 0x21 }\n(ASCII: \"SECURE_TOKEN_16!\")\n\nNotes:\n- The function must be purely combinational or sequential as produced by HLS; it must not perform any I/O beyond the return value.\n- You may use ap_uint from common HLS headers (e.g., ap_int.h).",
+  "language": "C++ HLS",
+  "top_function": "check_token"
+}

@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "requirement_map", "files"],
+  "properties": {
+    "manifest": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "purpose"],
+        "properties": {
+          "path":    {"type": "string"},
+          "purpose": {"type": "string"}
+        }
+      }
+    },
+    "requirement_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement_id", "test_files", "expected_detection"],
+        "properties": {
+          "requirement_id":    {"type": "string"},
+          "test_files":        {"type": "array", "items": {"type": "string"}},
+          "expected_detection": {"type": "string"}
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "content"],
+        "properties": {
+          "path":    {"type": "string"},
+          "content": {"type": "string"}
+        }
+      }
+    }
+  }
+}

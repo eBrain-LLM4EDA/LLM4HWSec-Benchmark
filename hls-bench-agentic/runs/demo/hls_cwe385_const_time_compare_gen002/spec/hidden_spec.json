@@ -1,0 +1,46 @@
+{
+  "cwe_ids": [
+    "CWE-385",
+    "CWE-208"
+  ],
+  "difficulty": "medium",
+  "forbidden_patterns": [
+    "return statement inside the comparison loop body before all 16 iterations complete",
+    "break or continue statements dependent on comparison results within the loop",
+    "Short-circuit logical operators (&&, ||) applied to secret byte comparisons",
+    "Conditional branches (if/else) where the condition depends on input_token or reference_token byte values",
+    "Variable loop bounds that depend on token content or comparison results",
+    "Early exit from function before loop counter reaches 16",
+    "Ternary operator (? :) with condition dependent on secret token bytes"
+  ],
+  "oracle_notes": "The oracle must verify constant-time execution by simulating the synthesized RTL with multiple test vectors and measuring cycle counts. Key test cases: (1) exact match, (2) mismatch in first byte, (3) mismatch in last byte, (4) mismatch in middle byte, (5) all bytes different. All cases must complete in identical cycle count. Static analysis should flag any control flow that depends on token byte values. Acceptable implementations typically use bitwise XOR to compute differences, bitwise OR to accumulate any difference flag, and return the negation of the accumulated flag only after the loop completes. The oracle should also verify that HLS pragmas do not introduce resource sharing that could cause timing variation.",
+  "security_domain": "side_channel",
+  "security_requirements": [
+    {
+      "detection_strategy": "Simulate with multiple input pairs (all-match, first-byte-mismatch, last-byte-mismatch, middle-byte-mismatch) and measure cycle counts. All cases must complete in identical cycle count.",
+      "id": "SR1",
+      "requirement": "Execution latency must be constant for all possible input token values"
+    },
+    {
+      "detection_strategy": "Static analysis: grep for 'return' statements inside loop body. AST analysis to detect break/continue statements within comparison loop.",
+      "id": "SR2",
+      "requirement": "No early termination when a mismatching byte is found"
+    },
+    {
+      "detection_strategy": "RTL simulation trace analysis: verify loop counter reaches 16 for all test cases. Check that loop bound pragmas specify min=16 max=16.",
+      "id": "SR3",
+      "requirement": "Loop iteration count must be fixed at 16 regardless of input content"
+    },
+    {
+      "detection_strategy": "Static analysis: detect if-statements where condition depends on byte comparison results (input_token[i] == reference_token[i] or similar). Check for short-circuit operators && or || applied to comparison results.",
+      "id": "SR4",
+      "requirement": "No secret-dependent conditional branches that affect control flow"
+    },
+    {
+      "detection_strategy": "Code review: verify implementation uses bitwise operations (XOR, OR, AND) to accumulate mismatch information rather than conditional logic. Check that final result is computed from accumulated value after loop completion.",
+      "id": "SR5",
+      "requirement": "Comparison result must accumulate differences without branching"
+    }
+  ],
+  "threat_model": "Attacker can measure execution time of the compare_token function with microsecond precision through side-channel observation (power analysis, EM emanation, or timing measurement of hardware module). Attacker controls input_token and attempts to learn information about reference_token by observing timing variations. A vulnerable implementation that exits early on the first mismatch leaks the position of the first differing byte, enabling byte-by-byte brute force attacks. For a 16-byte token, this reduces attack complexity from 2^128 to 16*256 = 4096 attempts. The attacker's goal is to extract the reference_token value or successfully forge a matching token."
+}

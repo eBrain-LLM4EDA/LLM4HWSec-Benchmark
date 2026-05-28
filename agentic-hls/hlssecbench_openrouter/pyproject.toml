@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hlssecbench-openrouter"
+version = "0.1.0"
+description = "Agentic HLS security benchmark generator using OpenRouter"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.52.0",
+  "PyYAML>=6.0.1",
+  "jsonschema>=4.23.0",
+  "python-dotenv>=1.0.1",
+  "rich>=13.7.1"
+]
+
+[project.scripts]
+hlssecbench = "hlssecbench_openrouter.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

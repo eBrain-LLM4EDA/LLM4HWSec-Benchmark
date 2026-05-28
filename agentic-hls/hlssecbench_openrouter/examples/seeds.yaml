@@ -1,0 +1,29 @@
+- seed_id: hls_sec_demo_001
+  title: Constant-time HLS password token checker
+  vulnerability_theme: secret-dependent early exit and timing leakage
+  algorithm: fixed-length token comparison
+  language: C++ HLS
+  top_function_hint: check_token
+  public_description: >
+    Implement an HLS-compatible C++ function that compares a provided 16-byte token
+    against an internal 16-byte expected token and returns whether they match.
+  security_goals:
+    - latency must not depend on the first mismatching byte
+    - no secret-dependent memory addresses
+    - no debug/status output exposes internal token bytes
+    - reset or transaction completion must not leave externally readable secret state
+  constraints:
+    - no dynamic memory
+    - no recursion
+    - no C++ exceptions
+    - bounded loops only
+    - synthesizable by common HLS tools
+  allowed_pragmas:
+    - HLS PIPELINE
+    - HLS INLINE
+    - HLS ARRAY_PARTITION
+  forbidden_patterns:
+    - early return on mismatch
+    - break on mismatch
+    - secret-dependent loop bounds
+    - printing or exposing token bytes

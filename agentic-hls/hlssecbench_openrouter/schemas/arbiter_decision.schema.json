@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["root_cause", "retain_task", "artifact_to_revise", "revision_instructions", "rationale"],
+  "properties": {
+    "root_cause": {
+      "type": "string",
+      "enum": [
+        "specification_bug",
+        "expert_implementation_bug",
+        "tester_bug",
+        "hls_transformation_issue",
+        "infrastructure_issue",
+        "insufficient_evidence"
+      ]
+    },
+    "retain_task": {"type": "boolean"},
+    "artifact_to_revise": {
+      "type": "string",
+      "enum": ["none", "specification", "expert", "tester", "tool_config", "mutator"]
+    },
+    "revision_instructions": {"type": "string"},
+    "rationale": {"type": "string"}
+  }
+}

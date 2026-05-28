@@ -1,0 +1,24 @@
+ ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu -O3 -I./src -I./tests --top-fname=check_token -o tests/bambu_lat src/token_checker.cpp 
+
+
+********************************************************************************
+                    ____                  _
+                   | __ )  __ _ _ __ ___ | |_   _   _
+                   |  _ \ / _` | '_ ` _ \| '_ \| | | |
+                   | |_) | (_| | | | | | | |_) | |_| |
+                   |____/ \__,_|_| |_| |_|_.__/ \__,_|
+
+********************************************************************************
+                         High-Level Synthesis Tool
+
+                         Politecnico di Milano - DEIB
+                          System Architectures Group
+********************************************************************************
+                Copyright (C) 2004-2024 Politecnico di Milano
+ Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main
+
+  Analyzing function _Z11check_tokenPK7ap_uintILi8EE
+    Parameter @428533 P0
+map::at
+Please report bugs to <panda-info@polimi.it>
+

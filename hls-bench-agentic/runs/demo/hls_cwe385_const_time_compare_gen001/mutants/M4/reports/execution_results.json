@@ -1,0 +1,46 @@
+{
+  "allow_execution": true,
+  "steps": [
+    {
+      "command": "bash tests/run_csim.sh",
+      "duration_seconds": 0.254,
+      "name": "csim",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[INFO] Starting C simulation tests\n[INFO] Compiling implementation and testbench\nclang++: warning: treating 'c' input as 'c++' when in C++ mode, this behavior is deprecated [-Wdeprecated]\nUndefined symbols for architecture arm64:\n  \"_compare_token\", referenced from:\n      run_test(char const*, char const*, unsigned char const*, unsigned char const*, int) in tb_csim-e3463a.o\nld: symbol(s) not found for architecture arm64\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)\n[FAIL] FR1: Compilation failed\nclang++: warning: treating 'c' input as 'c++' when in C++ mode, this behavior is deprecated [-Wdeprecated]\nUndefined symbols for architecture arm64:\n  \"_compare_token\", referenced from:\n      run_test(char const*, char const*, unsigned char const*, unsigned char const*, int) in tb_csim-e3463a.o\nld: symbol(s) not found for architecture arm64\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)\n"
+    },
+    {
+      "command": "bash tests/run_synth.sh",
+      "duration_seconds": 0.014,
+      "name": "synth",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[INFO] Starting HLS synthesis\n[INFO] Invoking bambu for synthesis\ntests/run_synth.sh: line 13: bambu: command not found\n[FAIL] Synthesis failed\ntests/run_synth.sh: line 13: bambu: command not found\n"
+    },
+    {
+      "command": "bash tests/run_cosim.sh",
+      "duration_seconds": 0.247,
+      "name": "cosim",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[INFO] Starting co-simulation for cycle-accurate timing verification\n[INFO] Compiling security testbench\nclang++: warning: treating 'c' input as 'c++' when in C++ mode, this behavior is deprecated [-Wdeprecated]\nUndefined symbols for architecture arm64:\n  \"_compare_token\", referenced from:\n      measure_operations(unsigned char const*, unsigned char const*) in security_checks-201faa.o\nld: symbol(s) not found for architecture arm64\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)\n"
+    },
+    {
+      "command": "bash tests/run_rtl_security.sh",
+      "duration_seconds": 0.04,
+      "name": "rtl_security",
+      "required": false,
+      "returncode": 0,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[INFO] Starting static security analysis\n[INFO] Checking SR2: No early return or break in loop\n[PASS] SR2\n[INFO] Checking SR3: Constant loop bound of 16\n[PASS] SR3\n[INFO] Checking SR4: No secret-dependent conditional branches\n[PASS] SR4\n[INFO] Checking SR5: Bitwise accumulation only\n[PASS] SR5\n[INFO] Checking FR5: Only bitwise operations used\n[PASS] FR5\n[INFO] Static analysis complete: 5 passed, 0 failed\n"
+    }
+  ],
+  "workspace": "/Volumes/SAVE HERE/Seraph/LLM4HWSec-Benchmark/hls-bench-agentic/runs/demo/hls_cwe385_const_time_compare_gen001/mutants/M4"
+}

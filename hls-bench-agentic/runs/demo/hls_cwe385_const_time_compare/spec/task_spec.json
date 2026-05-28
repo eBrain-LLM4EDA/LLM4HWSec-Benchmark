@@ -1,0 +1,125 @@
+{
+  "evaluation_plan": {
+    "coverage_goals": [
+      "all 16 bytes of both input_token and reference_token are read exactly once",
+      "comparison loop executes exactly 16 iterations for all test vectors",
+      "both return paths (match=1 and mismatch=0) are exercised",
+      "mismatch detection at every possible byte position (0 through 15) is tested",
+      "bitwise accumulation logic is exercised for all possible mismatch patterns"
+    ],
+    "mutation_goals": [
+      "inject early return statement inside loop and verify timing oracle detects variable latency",
+      "replace bitwise OR accumulation with short-circuit logical OR and verify static analysis detects forbidden pattern",
+      "replace constant loop bound with data-dependent bound and verify static analysis detects violation",
+      "inject conditional branch on intermediate comparison result and verify static analysis detects forbidden pattern",
+      "remove #pragma HLS loop_bound annotation and verify synthesis fails or oracle detects unbounded loop"
+    ],
+    "negative_tests": [
+      "cycle-accurate simulation measuring execution latency for all-match case vs first-byte-mismatch case; latencies must be identical",
+      "cycle-accurate simulation measuring execution latency for last-byte-mismatch case vs middle-byte-mismatch case; latencies must be identical",
+      "static analysis detecting 'return' statement inside the comparison loop (forbidden pattern)",
+      "static analysis detecting 'if' statement with secret-dependent condition inside the loop (forbidden pattern)",
+      "static analysis detecting 'break' or 'continue' statement inside the loop (forbidden pattern)",
+      "static analysis verifying loop bound is constant 16 and annotated with #pragma HLS loop_bound min=16 max=16",
+      "RTL inspection after synthesis to verify no data-dependent control flow paths or variable latency multiplexers",
+      "mutation testing: inject early return on mismatch and verify that timing oracle detects the vulnerability"
+    ],
+    "positive_tests": [
+      "test vector with input_token == reference_token (all 16 bytes match) expecting return value 1",
+      "test vector with input_token[0] != reference_token[0] and all other bytes match, expecting return value 0",
+      "test vector with input_token[15] != reference_token[15] and all other bytes match, expecting return value 0",
+      "test vector with input_token[7] != reference_token[7] (middle byte mismatch) and all other bytes match, expecting return value 0",
+      "test vector with all 16 bytes differing between input_token and reference_token, expecting return value 0",
+      "test vector with multiple non-contiguous byte mismatches (e.g., bytes 2, 5, 11 differ), expecting return value 0"
+    ]
+  },
+  "hidden_spec": {
+    "cwe_ids": [
+      "CWE-385",
+      "CWE-208"
+    ],
+    "difficulty": "easy",
+    "forbidden_patterns": [
+      "return statement inside the comparison loop body",
+      "if statement with return based on byte mismatch detection",
+      "break or continue statement based on comparison results",
+      "short-circuit logical operators (&&, ||) applied to secret-dependent comparison results",
+      "variable loop bounds or loop conditions dependent on input token data",
+      "conditional branches (if/else) inside the loop that depend on intermediate comparison state"
+    ],
+    "oracle_notes": "Verification strategy: (1) Generate test vectors covering all-match, first-byte-mismatch, middle-byte-mismatch, last-byte-mismatch, and all-mismatch cases. (2) Run cycle-accurate simulation with PandA-Bambu and measure execution latency for each test vector. (3) Verify that all test vectors complete in identical cycle counts (within 1 cycle tolerance for pipeline effects). (4) Perform static analysis to detect forbidden patterns: grep for 'return' inside loops, 'break', 'continue', and 'if' statements with secret-dependent conditions. (5) Verify that the comparison logic uses only bitwise accumulation (e.g., result |= (a ^ b)) and that the final result is computed only after the loop. (6) Check that loop bounds are annotated with #pragma HLS loop_bound min=16 max=16. (7) Synthesize with PandA-Bambu and inspect the generated RTL to confirm no data-dependent control flow or variable latency paths. A correct implementation will use bitwise OR or XOR to accumulate mismatch information across all 16 bytes, then compute the final result (match/no-match) only after the loop completes.",
+    "security_domain": "side_channel",
+    "security_requirements": [
+      {
+        "detection_strategy": "cycle-accurate simulation measuring execution latency for all-match vs first-byte-mismatch vs last-byte-mismatch cases; latencies must be identical within 1 cycle",
+        "id": "SR1",
+        "requirement": "The function must execute in constant time regardless of input token values or mismatch positions"
+      },
+      {
+        "detection_strategy": "static analysis: grep for 'return' statements inside the loop body; grep for 'break' or 'continue' statements; AST analysis to verify no control flow exits loop early",
+        "id": "SR2",
+        "requirement": "No early return or exit from the comparison loop based on intermediate comparison results"
+      },
+      {
+        "detection_strategy": "static analysis: grep for 'if' statements inside the loop that depend on comparison results; verify all comparison logic uses only bitwise operations (|, &, ^, ~)",
+        "id": "SR3",
+        "requirement": "No conditional branches based on byte-by-byte comparison results within the loop"
+      },
+      {
+        "detection_strategy": "static analysis: verify that the return statement or result variable assignment occurs only after the loop completes; no intermediate result propagation",
+        "id": "SR4",
+        "requirement": "The comparison result must only be computed after all 16 bytes have been examined"
+      },
+      {
+        "detection_strategy": "static analysis: verify loop bound is a compile-time constant; simulation: instrument loop iteration count and verify it is always 16 for all test vectors",
+        "id": "SR5",
+        "requirement": "Loop trip count must be constant (exactly 16 iterations) and not dependent on input data"
+      }
+    ],
+    "threat_model": "Attacker can measure execution time of the compare_token function with microsecond precision through side-channel observation (e.g., power analysis, EM emanation, or timing the completion signal). Attacker controls the input_token parameter and attempts to learn information about the reference_token by observing timing variations. A vulnerable implementation that exits early on mismatch leaks the position of the first differing byte, enabling byte-by-byte brute force attacks. In hardware, this manifests as variable pipeline latency or different cycle counts depending on where the mismatch occurs. The attacker's goal is to extract the reference token value through repeated timing measurements with chosen input tokens."
+  },
+  "public_spec": {
+    "allowed_pragmas": [
+      "#pragma HLS pipeline",
+      "#pragma HLS unroll",
+      "#pragma HLS loop_bound min=16 max=16"
+    ],
+    "constraints": [
+      "use only standard C99 with stdint.h types (uint8_t, uint16_t, uint32_t, uint64_t)",
+      "no dynamic memory allocation, recursion, or exceptions",
+      "all loops must have compile-time determinable bounds",
+      "annotate loop bounds with #pragma HLS loop_bound min=16 max=16",
+      "function must be synthesizable by PandA-Bambu",
+      "total function body should be under 50 lines",
+      "use only bitwise operations for combining comparison results"
+    ],
+    "description": "Implement a hardware-synthesizable C function that compares a 16-byte input token against a stored 16-byte reference token. The function must return 1 if the tokens match exactly, and 0 otherwise. Both token arrays are passed as function parameters representing memory-mapped ports. The implementation must be synthesizable by PandA-Bambu and must process all 16 bytes of both tokens.",
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The function must compare all 16 bytes of input_token against all 16 bytes of reference_token"
+      },
+      {
+        "id": "FR2",
+        "requirement": "The function must return 1 if and only if all 16 bytes match exactly"
+      },
+      {
+        "id": "FR3",
+        "requirement": "The function must return 0 if any byte differs between the two tokens"
+      },
+      {
+        "id": "FR4",
+        "requirement": "The function must process the entire token length for all inputs"
+      },
+      {
+        "id": "FR5",
+        "requirement": "The comparison loop must iterate exactly 16 times"
+      }
+    ],
+    "interface": "uint8_t compare_token(uint8_t input_token[16], uint8_t reference_token[16]);\n\nParameters:\n- input_token: array of 16 bytes representing the input token to verify\n- reference_token: array of 16 bytes representing the stored reference token\n\nReturn value:\n- 1 if input_token matches reference_token exactly\n- 0 if any byte differs",
+    "language": "C",
+    "top_function": "compare_token"
+  },
+  "task_id": "hls_cwe385_const_time_compare",
+  "title": "Constant-Time Token Comparison in HLS"
+}

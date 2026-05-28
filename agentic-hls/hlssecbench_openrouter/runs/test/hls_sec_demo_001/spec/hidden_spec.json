@@ -1,0 +1,46 @@
+{
+  "forbidden_patterns": [
+    "early return on mismatch",
+    "break on mismatch",
+    "secret-dependent loop bounds",
+    "printing or exposing token bytes",
+    "memcmp/strncmp or other library calls that may early-exit or be variable-latency",
+    "short-circuit boolean reductions that can be synthesized into data-dependent gating (e.g., combining equality with '&&' in a way that may skip work)",
+    "data-dependent array indexing (e.g., expected[token[i]] or token[diff])",
+    "mutable static/global storage of prior tokens or intermediate diffs"
+  ],
+  "oracle_notes": "Functional oracle: match if token bytes equal the fixed ASCII string \"SECURE_TOKEN_16!\". Security oracle: all invocations must have identical latency regardless of mismatch position; no extra outputs; no mutable persistent state. Implementations that always iterate 16 times and combine per-byte XOR/OR into a single diff are expected to pass.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Synthesize and run RTL co-simulation on a set of tokens that mismatch at each index 0..15 plus a fully matching token; assert that the measured latency is identical across all cases. Additionally, static source scan for 'break', 'return' (inside compare loop), short-circuit constructs, or conditional loop termination tied to comparison results.",
+      "id": "SR-1",
+      "requirement": "Latency (cycle count from start to done) must not depend on the position of the first mismatching byte; the design must execute a full 16-byte comparison for every invocation without data-dependent early termination."
+    },
+    {
+      "detection_strategy": "Static analysis of the compare loop body to ensure no if/ternary that conditionally skips work based on intermediate equality; inspect HLS schedule/IR (where available) for data-dependent enable conditions that gate later iterations or operations.",
+      "id": "SR-2",
+      "requirement": "No secret-dependent control flow: there must be no branches whose condition depends on comparison results or any expected-token byte values in a way that could alter scheduling/latency."
+    },
+    {
+      "detection_strategy": "Static scan to ensure token[i] and expected[i] are only indexed by the loop induction variable over a fixed range 0..15; reject implementations that compute indices from token bytes, partial diff, or equality flags.",
+      "id": "SR-3",
+      "requirement": "No secret-dependent memory addresses: array indices used to access either the input token or the expected token must be independent of secret data (expected token and comparison results)."
+    },
+    {
+      "detection_strategy": "Interface check: top function must have exactly one input port (token[16]) and a 1-bit return. Static scan forbids additional outputs, global non-const arrays holding the expected token that could be linked externally, and any printing/logging calls.",
+      "id": "SR-4",
+      "requirement": "No debug/status outputs may expose the expected token or any of its bytes (directly or indirectly) through additional outputs, globals, or side channels in the C model."
+    },
+    {
+      "detection_strategy": "Static scan for 'static' (non-const) variables, global mutable variables, or stateful caches. If state exists, fail unless it is provably constant (e.g., static const expected[16]).",
+      "id": "SR-5",
+      "requirement": "No externally readable persistent secret state: the design must not retain prior input tokens, intermediate comparison state, or expected-token bytes in mutable static/global storage across invocations."
+    },
+    {
+      "detection_strategy": "Source scan for disallowed pragmas/directives. For allowed pragmas, run RTL co-sim latency check (SR-1) to ensure scheduling does not create data-dependent completion.",
+      "id": "SR-6",
+      "requirement": "Only allowed pragmas may be used; pragmas must not introduce data-dependent done/valid behavior or conditional execution based on token contents."
+    }
+  ],
+  "threat_model": "Adversary can repeatedly invoke the hardware block with chosen 16-byte tokens and can observe (a) total completion latency (ap_done timing) and (b) any externally visible I/O activity. Goal is to infer information about the expected token or the first mismatching position via timing or microarchitectural differences. The attacker cannot read internal nets directly but benefits from any state that persists across invocations and is externally observable."
+}

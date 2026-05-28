@@ -1,0 +1,52 @@
+agents_config: config/agents.yaml
+
+openrouter:
+  base_url: https://openrouter.ai/api/v1
+  referer_env: OPENROUTER_REFERER
+  title_env: OPENROUTER_TITLE
+
+pipeline:
+  # Run idea_generator to enrich raw seeds before architecture.
+  expand_seeds: true
+  # How many times the arbiter may send a task back for repair.
+  max_repair_rounds: 2
+  generate_mutants: true
+  mutants_per_task: 5
+
+execution:
+  # Set true only inside a sandbox/container — this executes LLM-generated shell scripts.
+  allow_execution: true
+  timeout_seconds: 180
+
+  docker:
+    # PandA-Bambu official image — use this for sandboxed synthesis and co-simulation.
+    # Pull once with: docker pull bambuhls/bambu:latest
+    enabled: false
+    image: "bambuhls/bambu:latest"
+
+  # Commands are run from each task workspace root.
+  # These are intentionally config-controlled, not LLM-controlled.
+  # C simulation (run_csim.sh) uses g++ only and needs no HLS tool.
+  # Synthesis / co-simulation (run_synth.sh, run_cosim.sh) call bambu.
+  # RTL security (run_rtl_security.sh) runs grep-based static checks + any RTL assertions.
+  steps:
+    - name: csim
+      command: "bash tests/run_csim.sh"
+      required: false
+    - name: synth
+      command: "bash tests/run_synth.sh"
+      required: false
+    - name: cosim
+      command: "bash tests/run_cosim.sh"
+      required: false
+    - name: rtl_security
+      command: "bash tests/run_rtl_security.sh"
+      required: false
+
+quality_gates:
+  require_secure_reference_pass: true
+  min_c_coverage: 0.80
+  min_rtl_coverage: 0.70
+  # Fraction of mutants that must be detected by security tests.
+  min_security_mutation_score: 0.60
+  require_one_mutant_detected_per_security_requirement: true

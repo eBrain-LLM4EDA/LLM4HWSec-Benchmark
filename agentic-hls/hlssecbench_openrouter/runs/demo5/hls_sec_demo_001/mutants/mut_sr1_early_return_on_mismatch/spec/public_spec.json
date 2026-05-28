@@ -1,0 +1,41 @@
+{
+  "allowed_pragmas": [
+    "HLS PIPELINE",
+    "HLS INLINE",
+    "HLS ARRAY_PARTITION"
+  ],
+  "constraints": [
+    "no dynamic memory",
+    "no recursion",
+    "no C++ exceptions",
+    "bounded loops only",
+    "synthesizable by common HLS tools",
+    "expected token must be a compile-time constant 16-byte array (const/static const); do not load it from external memory-mapped interfaces"
+  ],
+  "description": "Implement an HLS-compatible C++ function that compares a provided 16-byte token against an internal 16-byte expected token and returns whether they match. The comparison must be performed in a constant-iteration manner suitable for HLS (no early exit on mismatch).",
+  "functional_requirements": [
+    {
+      "id": "FR-1",
+      "requirement": "Compare the 16 input bytes token[0..15] against an internal compile-time constant expected[0..15] and return 1 only if all 16 bytes match; otherwise return 0."
+    },
+    {
+      "id": "FR-2",
+      "requirement": "The comparison logic must process all 16 bytes every call (no early termination)."
+    },
+    {
+      "id": "FR-3",
+      "requirement": "Use only fixed-size, synthesizable types and structures; the design must not allocate dynamic memory, use recursion, or use C++ exceptions."
+    },
+    {
+      "id": "FR-4",
+      "requirement": "All loops must have statically bounded, constant trip counts (exactly 16 iterations for the byte comparison loop)."
+    },
+    {
+      "id": "FR-5",
+      "requirement": "The function must not emit any debug/status information or additional outputs beyond the single-bit match result."
+    }
+  ],
+  "interface": "Top function signature must be:\n\nap_uint<1> check_token(const ap_uint<8> token[16]);\n\n- token: 16-byte input token.\n- return value: 1 if token matches the internal expected token exactly, else 0.\n\nNotes:\n- The internal expected token must be embedded in the design as a compile-time constant 16-byte array defined in the same translation unit (e.g., static const ap_uint<8> expected[16] = {...};).\n- The function must be synthesizable by common HLS tools (e.g., Vitis HLS / Vivado HLS style ap_uint types).",
+  "language": "C++ HLS",
+  "top_function": "check_token"
+}

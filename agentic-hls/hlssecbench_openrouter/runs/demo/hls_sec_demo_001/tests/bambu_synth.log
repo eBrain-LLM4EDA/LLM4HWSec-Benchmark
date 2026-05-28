@@ -1,0 +1,36 @@
+ ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu --top-fname=check_token -O3 -o tests/bambu_synth_out src/token_checker.cpp 
+
+
+********************************************************************************
+                    ____                  _
+                   | __ )  __ _ _ __ ___ | |_   _   _
+                   |  _ \ / _` | '_ ` _ \| '_ \| | | |
+                   | |_) | (_| | | | | | | |_) | |_| |
+                   |____/ \__,_|_| |_| |_|_.__/ \__,_|
+
+********************************************************************************
+                         High-Level Synthesis Tool
+
+                         Politecnico di Milano - DEIB
+                          System Architectures Group
+********************************************************************************
+                Copyright (C) 2004-2024 Politecnico di Milano
+ Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main
+
+Error in compilation
+In file included from src/token_checker.cpp:1:
+In file included from src/token_checker.h:3:
+In file included from /opt/bambu/squashfs/usr/share/panda/ac_types/include/ap_int.h:43:
+In file included from /opt/bambu/squashfs/usr/share/panda/ac_types/include/ac_int.h:145:
+In file included from /opt/bambu/squashfs/usr/bin/../lib/gcc/x86_64-linux-gnu/8.5.0/../../../../include/c++/8.5.0/string:52:
+In file included from /opt/bambu/squashfs/usr/bin/../lib/gcc/x86_64-linux-gnu/8.5.0/../../../../include/c++/8.5.0/bits/basic_string.h:6404:
+In file included from /opt/bambu/squashfs/usr/bin/../lib/gcc/x86_64-linux-gnu/8.5.0/../../../../include/c++/8.5.0/ext/string_conversions.h:44:
+In file included from /opt/bambu/squashfs/usr/bin/../lib/gcc/x86_64-linux-gnu/8.5.0/../../../../include/c++/8.5.0/cerrno:42:
+In file included from /usr/include/errno.h:28:
+In file included from /usr/include/bits/errno.h:26:
+/usr/include/linux/errno.h:1:10: fatal error: 'asm/errno.h' file not found
+#include <asm/errno.h>
+         ^~~~~~~~~~~~~
+1 error generated.
+error -> Front-end compiler returns an error during compilation 2
+

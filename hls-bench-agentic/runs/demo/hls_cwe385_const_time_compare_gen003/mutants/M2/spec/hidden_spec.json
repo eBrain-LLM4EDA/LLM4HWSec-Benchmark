@@ -1,0 +1,47 @@
+{
+  "cwe_ids": [
+    "CWE-385",
+    "CWE-208"
+  ],
+  "difficulty": "medium",
+  "forbidden_patterns": [
+    "return statement inside the comparison loop body",
+    "break or continue statements based on comparison results",
+    "short-circuit logical operators (&&, ||) applied to secret byte comparisons",
+    "if statements with secret-dependent branches that return early or modify control flow",
+    "variable loop bounds dependent on input data",
+    "ternary operators (? :) that create secret-dependent data flow",
+    "secret-dependent array indexing that varies execution path",
+    "early exit conditions based on accumulated mismatch flags"
+  ],
+  "oracle_notes": "Correct implementations must use an accumulator variable (e.g., uint8_t mismatch = 0) and update it with bitwise operations inside a fixed 16-iteration loop (mismatch |= input_token[i] ^ reference_token[i]). The return value is computed from the accumulated mismatch flag after the loop completes (return mismatch == 0 ? 1 : 0). Timing verification requires cycle-accurate simulation with at least 4 test cases: (1) all bytes match, (2) first byte differs, (3) last byte differs, (4) middle byte differs. All cases must show identical cycle counts. Static analysis must confirm no return/break/continue inside loop and exactly one return at function end. RTL analysis should show no data-dependent branch instructions, only fixed-latency XOR and OR operations.",
+  "security_domain": "side_channel",
+  "security_requirements": [
+    {
+      "detection_strategy": "Simulate with multiple input patterns (all matching, first byte mismatch, last byte mismatch, random mismatches) and measure cycle counts. All test cases must complete in exactly the same number of clock cycles.",
+      "id": "SR1",
+      "requirement": "Execution latency must be identical for all possible input token values, preventing timing side-channel attacks."
+    },
+    {
+      "detection_strategy": "Static analysis: verify loop has fixed bound of 16 with #pragma HLS loop_bound min=16 max=16. Dynamic analysis: instrument loop counter and verify it reaches 16 for all test inputs.",
+      "id": "SR2",
+      "requirement": "The comparison loop must execute exactly 16 iterations for all inputs, with no early termination."
+    },
+    {
+      "detection_strategy": "Static analysis: grep for return statements inside loop body, break/continue statements, and if statements with secret-dependent conditions that affect control flow. RTL analysis: verify no data-dependent branch instructions in synthesized hardware.",
+      "id": "SR3",
+      "requirement": "No conditional branches based on byte comparison results that could create control-flow timing variations."
+    },
+    {
+      "detection_strategy": "Static analysis: verify single return statement at function end. Dynamic analysis: trace execution and verify no early exit paths exist for any input combination.",
+      "id": "SR4",
+      "requirement": "Comparison result must only be computed and returned after all 16 bytes have been processed."
+    },
+    {
+      "detection_strategy": "Static analysis: verify use of bitwise OR or AND operations to accumulate comparison results. Verify absence of short-circuit logical operators (&&, ||) on byte comparison results.",
+      "id": "SR5",
+      "requirement": "Implementation must use accumulator pattern with bitwise operations to collect mismatch information without branching."
+    }
+  ],
+  "threat_model": "Attacker can measure execution time of the compare_token function with microsecond precision. Attacker controls the input_token parameter and can submit arbitrary 16-byte values. Attacker knows the function interface but not the reference_token value. Goal: attacker attempts to recover reference_token bytes by measuring timing differences across multiple invocations with crafted inputs. A vulnerable implementation that exits early on mismatch allows byte-by-byte recovery: attacker fixes first N bytes to correct values and brute-forces byte N+1, using timing to detect when byte N+1 matches (causing later exit and longer execution time)."
+}

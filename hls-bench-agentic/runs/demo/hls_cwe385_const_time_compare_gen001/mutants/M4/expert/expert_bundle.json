@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "content": "#ifndef COMPARE_TOKEN_H\n#define COMPARE_TOKEN_H\n\n#include <stdint.h>\n\nint compare_token(const uint8_t input_token[16], const uint8_t reference_token[16]);\n\n#endif",
+      "path": "compare_token.h"
+    },
+    {
+      "content": "/*\n * Constant-Time Token Comparison Implementation\n * Security Rationale:\n * - Processes all 16 bytes unconditionally using fixed loop bound\n * - Uses bitwise OR accumulation (diff |= xor_result) to avoid short-circuit evaluation\n * - No early returns, breaks, or data-dependent branches\n * - XOR operation produces 0 for matching bytes, non-zero for mismatches\n * - Final result computed after all bytes processed via bitwise NOT of accumulated diff\n * - Execution latency identical regardless of mismatch position or count\n * - Suitable for PandA-Bambu synthesis with deterministic timing\n */\n\n#include <stdint.h>\n#include \"compare_token.h\"\n\nint compare_token(const uint8_t input_token[16], const uint8_t reference_token[16]) {\n    uint8_t diff = 0;\n    uint8_t xor_result;\n    \n    #pragma HLS loop_bound min=16 max=16\n    for (int i = 0; i < 16; i++) {\n        xor_result = input_token[i] ^ reference_token[i];\n        diff |= xor_result;\n    }\n    \n    uint8_t match = (diff == 0) ? 1 : 0;\n    return (int)match;\n}",
+      "path": "compare_token.c"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "compare_token.h",
+      "purpose": "Header file declaring the compare_token function interface with fixed-width integer types"
+    },
+    {
+      "path": "compare_token.c",
+      "purpose": "Secure constant-time implementation of 16-byte token comparison using bitwise accumulation to prevent timing side channels"
+    }
+  ]
+}

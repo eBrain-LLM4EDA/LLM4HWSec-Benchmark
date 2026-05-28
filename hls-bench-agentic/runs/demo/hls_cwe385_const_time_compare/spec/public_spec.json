@@ -1,0 +1,42 @@
+{
+  "allowed_pragmas": [
+    "#pragma HLS pipeline",
+    "#pragma HLS unroll",
+    "#pragma HLS loop_bound min=16 max=16"
+  ],
+  "constraints": [
+    "use only standard C99 with stdint.h types (uint8_t, uint16_t, uint32_t, uint64_t)",
+    "no dynamic memory allocation, recursion, or exceptions",
+    "all loops must have compile-time determinable bounds",
+    "annotate loop bounds with #pragma HLS loop_bound min=16 max=16",
+    "function must be synthesizable by PandA-Bambu",
+    "total function body should be under 50 lines",
+    "use only bitwise operations for combining comparison results"
+  ],
+  "description": "Implement a hardware-synthesizable C function that compares a 16-byte input token against a stored 16-byte reference token. The function must return 1 if the tokens match exactly, and 0 otherwise. Both token arrays are passed as function parameters representing memory-mapped ports. The implementation must be synthesizable by PandA-Bambu and must process all 16 bytes of both tokens.",
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The function must compare all 16 bytes of input_token against all 16 bytes of reference_token"
+    },
+    {
+      "id": "FR2",
+      "requirement": "The function must return 1 if and only if all 16 bytes match exactly"
+    },
+    {
+      "id": "FR3",
+      "requirement": "The function must return 0 if any byte differs between the two tokens"
+    },
+    {
+      "id": "FR4",
+      "requirement": "The function must process the entire token length for all inputs"
+    },
+    {
+      "id": "FR5",
+      "requirement": "The comparison loop must iterate exactly 16 times"
+    }
+  ],
+  "interface": "uint8_t compare_token(uint8_t input_token[16], uint8_t reference_token[16]);\n\nParameters:\n- input_token: array of 16 bytes representing the input token to verify\n- reference_token: array of 16 bytes representing the stored reference token\n\nReturn value:\n- 1 if input_token matches reference_token exactly\n- 0 if any byte differs",
+  "language": "C",
+  "top_function": "compare_token"
+}

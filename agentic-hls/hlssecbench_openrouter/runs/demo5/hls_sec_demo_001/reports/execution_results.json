@@ -1,0 +1,46 @@
+{
+  "allow_execution": true,
+  "steps": [
+    {
+      "command": "bash tests/run_csim.sh",
+      "duration_seconds": 1.914,
+      "name": "csim",
+      "required": false,
+      "returncode": 0,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[INFO] Using tests/ap_int.h compatibility header\n[PASS] FR-1\n"
+    },
+    {
+      "command": "bash tests/run_synth.sh",
+      "duration_seconds": 3.934,
+      "name": "synth",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[FAIL] FR-4: bambu synthesis failed (see tests/bambu.log)\n"
+    },
+    {
+      "command": "bash tests/run_cosim.sh",
+      "duration_seconds": 0.217,
+      "name": "cosim",
+      "required": false,
+      "returncode": 0,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[INFO] cosim: not executed (tool-specific stub)\n"
+    },
+    {
+      "command": "bash tests/run_rtl_security.sh",
+      "duration_seconds": 0.288,
+      "name": "rtl_security",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[PASS] FR-5\n[PASS] FR-3\n[PASS] SR-4\n[PASS] FR-4\n[PASS] SR-1\n[PASS] FR-2\n[PASS] SR-2\n[FAIL] SR-3: non-fixed index used for expected/token access\n[PASS] SR-5\n"
+    }
+  ],
+  "workspace": "/Volumes/SAVE HERE/Seraph/LLM4HWSec-Benchmark/agentic-hls/hlssecbench_openrouter/runs/demo5/hls_sec_demo_001"
+}

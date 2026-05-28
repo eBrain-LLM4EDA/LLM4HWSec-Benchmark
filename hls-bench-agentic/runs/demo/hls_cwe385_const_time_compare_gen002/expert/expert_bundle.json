@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "content": "#ifndef COMPARE_TOKEN_H\n#define COMPARE_TOKEN_H\n\n#include <stdint.h>\n\nuint8_t compare_token(const uint8_t input_token[16], const uint8_t reference_token[16]);\n\n#endif",
+      "path": "compare_token.h"
+    },
+    {
+      "content": "/*\n * Constant-Time Token Comparison Implementation\n * \n * Security Rationale:\n * This implementation ensures constant-time execution by:\n * 1. Using a fixed-iteration loop (exactly 16 iterations) with #pragma HLS loop_bound\n * 2. Avoiding all secret-dependent control flow (no if/else, break, continue, early return)\n * 3. Using bitwise XOR to compute byte differences without branching\n * 4. Accumulating differences with bitwise OR to preserve constant timing\n * 5. Computing final result only after loop completion using bitwise NOT\n * \n * The loop always executes 16 times regardless of input values, preventing\n * timing side-channels that could leak information about token mismatch positions.\n */\n\n#include \"compare_token.h\"\n#include <stdint.h>\n\nuint8_t compare_token(const uint8_t input_token[16], const uint8_t reference_token[16]) {\n    uint8_t diff = 0;\n    uint8_t i;\n    \n    #pragma HLS loop_bound min=16 max=16\n    for (i = 0; i < 16; i++) {\n        diff |= input_token[i] ^ reference_token[i];\n    }\n    \n    return (diff == 0) ? 1 : 0;\n}",
+      "path": "compare_token.c"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "compare_token.h",
+      "purpose": "Header file declaring the compare_token function interface"
+    },
+    {
+      "path": "compare_token.c",
+      "purpose": "Implementation of constant-time token comparison using bitwise operations to avoid secret-dependent control flow"
+    }
+  ]
+}

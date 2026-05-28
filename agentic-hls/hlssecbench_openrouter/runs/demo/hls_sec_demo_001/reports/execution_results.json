@@ -1,0 +1,46 @@
+{
+  "allow_execution": true,
+  "steps": [
+    {
+      "command": "bash tests/run_csim.sh",
+      "duration_seconds": 0.971,
+      "name": "csim",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "src/token_checker.cpp: In function 'ap_uint<1> check_token(const ap_uint<8>*)':\nsrc/token_checker.cpp:17:14: error: no match for 'operator|=' (operand types are 'ap_uint<8>' and 'const ap_uint<8>')\n   17 |     diff_acc |= d;\n      |     ~~~~~~~~~^~~~\n",
+      "stdout": ""
+    },
+    {
+      "command": "bash tests/run_synth.sh",
+      "duration_seconds": 3.223,
+      "name": "synth",
+      "required": false,
+      "returncode": 1,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[FAIL] FR-3: bambu synthesis failed (rc=11)\nCMD: bambu --top-fname=check_token -Itests -Isrc src/token_checker.cpp\n ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu --top-fname=check_token -Itests -Isrc src/token_checker.cpp \n\n\n********************************************************************************\n                    ____                  _\n                   | __ )  __ _ _ __ ___ | |_   _   _\n                   |  _ \\ / _` | '_ ` _ \\| '_ \\| | | |\n                   | |_) | (_| | | | | | | |_) | |_| |\n                   |____/ \\__,_|_| |_| |_|_.__/ \\__,_|\n\n********************************************************************************\n                         High-Level Synthesis Tool\n\n                         Politecnico di Milano - DEIB\n                          System Architectures Group\n********************************************************************************\n                Copyright (C) 2004-2024 Politecnico di Milano\n Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main\n\nError in compilation\nsrc/token_checker.cpp:17:14: error: no viable overloaded '|='\n    diff_acc |= d;\n    ~~~~~~~~ ^  ~\n1 error generated.\nerror -> Front-end compiler returns an error during compilation 2\n\n"
+    },
+    {
+      "command": "bash tests/run_cosim.sh",
+      "duration_seconds": 3.215,
+      "name": "cosim",
+      "required": false,
+      "returncode": 0,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[SKIP] SR-1: bambu run failed (rc=11)\n ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu --top-fname=check_token -Itests -Isrc src/token_checker.cpp \n\n\n********************************************************************************\n                    ____                  _\n                   | __ )  __ _ _ __ ___ | |_   _   _\n                   |  _ \\ / _` | '_ ` _ \\| '_ \\| | | |\n                   | |_) | (_| | | | | | | |_) | |_| |\n                   |____/ \\__,_|_| |_| |_|_.__/ \\__,_|\n\n********************************************************************************\n                         High-Level Synthesis Tool\n\n                         Politecnico di Milano - DEIB\n                          System Architectures Group\n********************************************************************************\n                Copyright (C) 2004-2024 Politecnico di Milano\n Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main\n\nError in compilation\nsrc/token_checker.cpp:17:14: error: no viable overloaded '|='\n    diff_acc |= d;\n    ~~~~~~~~ ^  ~\n1 error generated.\nerror -> Front-end compiler returns an error during compilation 2\n\n"
+    },
+    {
+      "command": "bash tests/run_rtl_security.sh",
+      "duration_seconds": 0.369,
+      "name": "rtl_security",
+      "required": false,
+      "returncode": 0,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[PASS] FR-4\n[PASS] SR-3\n[PASS] SR-4\n[PASS] FR-2\n[SKIP] SR-1: no obvious early-exit pattern; run tests/run_cosim.sh for RTL latency evidence\n[PASS] SR-2\n"
+    }
+  ],
+  "workspace": "/Volumes/SAVE HERE/Seraph/LLM4HWSec-Benchmark/agentic-hls/hlssecbench_openrouter/runs/demo/hls_sec_demo_001"
+}

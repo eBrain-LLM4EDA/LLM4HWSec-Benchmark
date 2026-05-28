@@ -1,0 +1,43 @@
+{
+  "allowed_pragmas": [
+    "#pragma HLS pipeline",
+    "#pragma HLS unroll",
+    "#pragma HLS loop_bound"
+  ],
+  "constraints": [
+    "No dynamic memory allocation (malloc, calloc, realloc, free)",
+    "No recursion",
+    "No exception handling (try, catch, throw)",
+    "All loops must have compile-time determinable bounds",
+    "Maximum function size: 50 lines of C code",
+    "Must be synthesizable by PandA-Bambu to RTL",
+    "Use only standard C99 with stdint.h types",
+    "No floating-point operations"
+  ],
+  "description": "Implement a hardware-synthesizable C function that compares a 16-byte input token against a 16-byte reference token. The function must return 1 if the tokens match exactly, or 0 if they differ. The implementation must be suitable for synthesis with PandA-Bambu and execute the comparison for all 16 bytes regardless of intermediate results.",
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The function must compare all 16 bytes of input_token against reference_token"
+    },
+    {
+      "id": "FR2",
+      "requirement": "Return value must be 1 if and only if all 16 bytes match exactly"
+    },
+    {
+      "id": "FR3",
+      "requirement": "Return value must be 0 if any byte position differs"
+    },
+    {
+      "id": "FR4",
+      "requirement": "The function must process the entire 16-byte length for every invocation"
+    },
+    {
+      "id": "FR5",
+      "requirement": "Use only standard C99 integer types from stdint.h (uint8_t, uint16_t, uint32_t, uint64_t)"
+    }
+  ],
+  "interface": "uint8_t compare_token(const uint8_t input_token[16], const uint8_t reference_token[16])\n\nParameters:\n- input_token: pointer to 16-byte array containing the token to verify\n- reference_token: pointer to 16-byte array containing the expected token value\n\nReturns:\n- 1 if all 16 bytes match\n- 0 if any byte differs",
+  "language": "C",
+  "top_function": "compare_token"
+}

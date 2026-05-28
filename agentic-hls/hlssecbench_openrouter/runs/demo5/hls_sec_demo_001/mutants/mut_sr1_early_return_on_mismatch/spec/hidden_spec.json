@@ -1,0 +1,40 @@
+{
+  "forbidden_patterns": [
+    "early return on mismatch",
+    "break on mismatch",
+    "secret-dependent loop bounds",
+    "printing or exposing token bytes",
+    "continue on mismatch inside the comparison loop",
+    "conditional memory reads of expected[i] or token[i] based on comparison results",
+    "writing expected bytes or intermediate diffs to global/static variables"
+  ],
+  "oracle_notes": "Reference constant-time approach: compute an 8-bit diff accumulator via bitwise OR of (token[i] XOR expected[i]) over i=0..15, then return (diff==0). Ensure no branch depends on diff during the loop; any final comparison to produce the 1-bit result must occur after all bytes are processed.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Static checks: reject any 'return' inside the comparison loop; reject any 'break'/'continue' inside the comparison loop; require exactly one loop with constant bound 16 that always executes fully; require all expected[i] and token[i] reads for i=0..15 are present on all paths (no conditional guarding of any index). Dynamic check: instrumented C-simulation counts loop iterations and validates 16 iterations for multiple inputs (match, mismatch at byte 0, mismatch at byte 15, random).",
+      "id": "SR-1",
+      "requirement": "Latency/operation count must not depend on the first mismatching byte (no data-dependent early exit; the same sequence of iterations and memory reads must occur for all inputs)."
+    },
+    {
+      "detection_strategy": "AST/IR scan: reject 'if', '?:', 'switch' conditions that reference expressions involving expected[...] or values computed from expected[...] (e.g., diff, xor, equality). Permit only unconditional loop control and constant-condition pragmas/guards.",
+      "id": "SR-2",
+      "requirement": "No secret-dependent branches: control flow must not branch on values derived from the internal expected token bytes (directly or via comparisons/xors)."
+    },
+    {
+      "detection_strategy": "Static analysis: verify expected and token indexing expressions are affine functions of the loop counter with fixed range [0,15] and are not influenced by expected contents or diff values; reject any table lookup where index depends on expected[...] or a comparison result.",
+      "id": "SR-3",
+      "requirement": "No secret-dependent memory addresses: accesses to expected and token arrays must use only public, fixed indices (0..15 in a simple counted loop) and must not compute addresses based on secret-derived values."
+    },
+    {
+      "detection_strategy": "Source scan: reject any additional output arguments, global variables intended as observable state, logging/printing calls, or arrays/ports that expose expected bytes or per-byte diffs. Ensure only a single-bit return value is produced.",
+      "id": "SR-4",
+      "requirement": "No debug/status/register exposure of internal expected token bytes or intermediate per-byte comparison results."
+    },
+    {
+      "detection_strategy": "Static checks: reject non-const global/static variables of array/integer types that are written; reject static buffers holding token, expected, or diff; require all temporaries are local (automatic storage) and not exposed via pointers/references.",
+      "id": "SR-5",
+      "requirement": "No externally readable secret state persists across calls beyond the embedded compile-time constant expected token (i.e., do not store expected or per-call intermediate values in non-const static/global variables)."
+    }
+  ],
+  "threat_model": "Attacker controls token[16] inputs and can observe completion timing/latency and any externally visible outputs/ports. The internal expected token is secret. The attacker aims to learn the expected token via timing differences, secret-dependent control flow, secret-dependent memory access patterns, or exposed debug/status state."
+}
