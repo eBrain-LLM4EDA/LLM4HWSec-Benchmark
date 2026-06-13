@@ -59,6 +59,13 @@ class ToolRunner:
             )
         return step.command
 
+    @staticmethod
+    def classify_result(returncode: int, stdout: str, stderr: str) -> str:
+        output = f"{stdout}\n{stderr}"
+        if "[NOT_RUN]" in output:
+            return "not_run"
+        return "pass" if returncode == 0 else "fail"
+
     def run_all(self, workspace: str | Path) -> dict[str, Any]:
         workspace = Path(workspace).resolve()
         results: dict[str, Any] = {
@@ -96,7 +103,7 @@ class ToolRunner:
                 results["steps"].append({
                     "name": step.name,
                     "command": step.command,
-                    "status": "pass" if proc.returncode == 0 else "fail",
+                    "status": self.classify_result(proc.returncode, proc.stdout, proc.stderr),
                     "required": step.required,
                     "stdout": proc.stdout[-20_000:],
                     "stderr": proc.stderr[-20_000:],

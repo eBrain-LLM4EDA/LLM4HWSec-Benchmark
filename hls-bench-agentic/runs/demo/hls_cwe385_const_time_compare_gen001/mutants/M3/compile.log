@@ -1,6 +1,0 @@
-clang++: warning: treating 'c' input as 'c++' when in C++ mode, this behavior is deprecated [-Wdeprecated]
-Undefined symbols for architecture arm64:
-  "_compare_token", referenced from:
-      run_test(char const*, char const*, unsigned char const*, unsigned char const*, int) in tb_csim-fe7f52.o
-ld: symbol(s) not found for architecture arm64
-clang++: error: linker command failed with exit code 1 (use -v to see invocation)

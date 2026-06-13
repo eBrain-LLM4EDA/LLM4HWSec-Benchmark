@@ -1,1 +1,118 @@
-tests/run_synth.sh: line 16: bambu: command not found
+ ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu --top-fname=compare_token --clock-period=10 -o synth_out/ src/impl.cpp 
+
+
+********************************************************************************
+                    ____                  _
+                   | __ )  __ _ _ __ ___ | |_   _   _
+                   |  _ \ / _` | '_ ` _ \| '_ \| | | |
+                   | |_) | (_| | | | | | | |_) | |_| |
+                   |____/ \__,_|_| |_| |_|_.__/ \__,_|
+
+********************************************************************************
+                         High-Level Synthesis Tool
+
+                         Politecnico di Milano - DEIB
+                          System Architectures Group
+********************************************************************************
+                Copyright (C) 2004-2024 Politecnico di Milano
+ Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main
+
+  Analyzing function compare_token
+    Parameter @428533 input
+    Interface specification:
+      Parameter : input
+      Protocol  : default
+      Direction : IN
+      Bundle    : input
+      Bitwidth  : 32
+      Size      : 16
+      Alignment : 4
+    Parameter @428534 reference
+    Interface specification:
+      Parameter : reference
+      Protocol  : default
+      Direction : IN
+      Bundle    : reference
+      Bitwidth  : 32
+      Size      : 16
+      Alignment : 4
+  Analyzed function compare_token
+
+  Functions to be synthesized:
+    compare_token
+
+
+  Memory allocation information:
+Warning: This function uses unknown addresses: compare_token
+    BRAM bitsize: 8
+    Spec may not exploit DATA bus width
+    Spec accesses data having an address unknown at compile time
+    Internal data is not externally accessible
+    DATA bus bitsize: 8
+    ADDRESS bus bitsize: 32
+    SIZE bus bitsize: 4
+    Internally allocated memory (no private memories): 0
+    Internally allocated memory: 0
+  Time to perform memory allocation: 0.01 seconds
+
+
+  Module allocation information for function compare_token:
+    Number of complex operations: 32
+    Number of complex operations: 32
+  Time to perform module allocation: 0.01 seconds
+
+
+  Scheduling Information of function compare_token:
+    Number of control steps: 19
+    Minimum slack: 3.7879999960000044
+    Estimated max frequency (MHz): 160.97875070123723
+  Time to perform scheduling: 0.04 seconds
+
+
+  State Transition Graph Information of function compare_token:
+    Number of states: 17
+    Minimum number of cycles: 17
+    Maximum number of cycles 17
+    Done port is registered
+  Time to perform creation of STG: 0.00 seconds
+
+
+  Easy binding information for function compare_token:
+    Bound operations:328/390
+  Time to perform easy binding: 0.00 seconds
+
+
+  Storage Value Information of function compare_token:
+    Number of storage values inserted: 45
+  Time to compute storage value information: 0.00 seconds
+
+  Slack computed in 0.00 seconds
+  Weight computation completed in 0.01 seconds
+  False-loop computation completed in 0.00 seconds
+
+  Register binding information for function compare_token:
+    Register allocation algorithm obtains a sub-optimal result: 45 registers(LB:30)
+  Time to perform register binding: 0.00 seconds
+
+  Clique covering computation completed in 0.00 seconds
+
+  Module binding information for function compare_token:
+    Number of modules instantiated: 360
+    Number of performance conflicts: 0
+    Estimated resources area (no Muxes and address logic): 4943
+    Estimated area of MUX21: 276
+    Total estimated area: 5219
+    Estimated number of DSPs: 0
+  Time to perform module binding: 0.02 seconds
+
+
+  Register binding information for function compare_token:
+    Register allocation algorithm obtains a sub-optimal result: 45 registers(LB:30)
+  Time to perform register binding: 0.00 seconds
+
+
+  Connection Binding Information for function compare_token:
+    Number of allocated multiplexers (2-to-1 equivalent): 30
+  Time to perform interconnection binding: 0.01 seconds
+
+  Total number of flip-flops in function compare_token: 975

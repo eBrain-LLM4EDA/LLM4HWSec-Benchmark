@@ -2,9 +2,30 @@
 
 Agentic HLS security benchmark generator and evaluator.
 
+## Generate Benchmarks
+
+The default pipeline is safe-by-default: generated code and shell scripts are
+written to disk, but tool execution is disabled unless you opt into it.
+
+```bash
+cd hls-bench-agentic
+hlsbench generate --seed examples/cwe_seeds.yaml --out runs/demo --config config/pipeline.yaml
+```
+
+OpenRouter calls are bounded by `openrouter.timeout_seconds` and
+`openrouter.max_retries` in the pipeline config. You can override them with
+`OPENROUTER_TIMEOUT_SECONDS` and `OPENROUTER_MAX_RETRIES`.
+
 ## Run Bambu Tests With Docker
 
-The generated benchmark test scripts expect `bambu` for synthesis and co-simulation. To avoid host-specific installs, use the included Docker Compose runner.
+The generated benchmark test scripts expect `bambu` for synthesis and co-simulation. To avoid host-specific installs, use the shared Docker image built by `agentic-hls`.
+
+Build the shared image once:
+
+```bash
+cd ../agentic-hls/hlssecbench_openrouter
+docker compose build bambu-runner
+```
 
 Build and run all tests for the demo workspace:
 
@@ -31,11 +52,12 @@ Equivalent direct Compose usage:
 cd hls-bench-agentic
 export HLS_BENCH_WORKSPACE="$PWD/runs/demo/hls_cwe385_const_time_compare"
 export HLS_BENCH_TEST_COMMAND="bash tests/run_csim.sh && bash tests/run_synth.sh"
-docker compose build bambu-tests
 docker compose run --rm bambu-tests
 ```
 
-The image is built from `bambuhls/bambu:latest` and mounts the directory named by `HLS_BENCH_WORKSPACE` at `/workspace`, so it can run any generated task workspace. Test outputs such as `synth_out/`, `cosim_out/`, and logs are written back into that mounted workspace on the host.
+The compose service uses `hlssecbench-openrouter-bambu:latest` by default and mounts the directory named by `HLS_BENCH_WORKSPACE` at `/workspace`, so it can run any generated task workspace. Test outputs such as `synth_out/`, `cosim_out/`, and logs are written back into that mounted workspace on the host.
+
+To use a different local image, set `HLS_BENCH_BAMBU_IMAGE`.
 
 ## Use Docker During Generation
 
@@ -43,7 +65,6 @@ The normal pipeline config assumes generated scripts run on the host. To run too
 
 ```bash
 cd hls-bench-agentic
-docker compose build bambu-tests
 hlsbench generate --seed examples/cwe_seeds.yaml --out runs/demo --config config/pipeline.docker.yaml
 ```
 

@@ -1,46 +1,60 @@
 {
+  "cosim_harness_manifest": [
+    {
+      "path": "tests/run_cosim.sh",
+      "purpose": "Bambu co-simulation driver with Verilator backend for cycle-accurate timing verification"
+    },
+    {
+      "path": "tests/tb_cosim.cpp",
+      "purpose": "Self-contained C testbench for Bambu co-simulation with representative test vectors for SR1 and SR5"
+    }
+  ],
   "execution_results": {
     "allow_execution": true,
     "steps": [
       {
         "command": "bash tests/run_csim.sh",
-        "duration_seconds": 0.05,
+        "duration_seconds": 0.607,
+        "enabled": true,
         "name": "csim",
         "required": false,
-        "returncode": 1,
-        "status": "fail",
+        "returncode": 0,
+        "status": "pass",
         "stderr": "",
-        "stdout": "=== C Simulation ===\nCompiling functional testbench...\nclang++: error: no such file or directory: 'src/impl.cpp'\n"
+        "stdout": "[INFO] Starting C simulation for functional requirements\nsrc/impl.cpp:23: warning: ignoring '#pragma HLS loop_bound' [-Wunknown-pragmas]\n   23 |     #pragma HLS loop_bound min 16 max 16\n      | \n[INFO] Running functional testbench\n[INFO] Starting functional testbench\n[PASS] FR1: Function signature accepts two uint8_t[16] arrays\n[PASS] FR2: All bytes match (0xAA)\n[PASS] FR2: All bytes match (0x00)\n[PASS] FR2: All bytes match (0xFF)\n[PASS] FR2: All bytes match (0x00-0x0F pattern)\n[PASS] FR3: First byte differs\n[PASS] FR3: Last byte differs\n[PASS] FR3: Middle byte differs\n[PASS] FR3: All bytes differ\n[PASS] FR3: Multiple bytes differ\n[PASS] FR4: All 16 bytes examined (verified by position-specific tests)\n[PASS] FR5: Code compiles with standard C99/C++14 constructs\n[INFO] FR6: Loop bounds determinability verified in synthesis phase\n\n[INFO] Functional tests completed: 9/9 passed\n[INFO] C simulation completed successfully\n"
       },
       {
         "command": "bash tests/run_synth.sh",
-        "duration_seconds": 0.011,
+        "duration_seconds": 4.367,
+        "enabled": true,
         "name": "synth",
         "required": false,
-        "returncode": 1,
-        "status": "fail",
+        "returncode": 0,
+        "status": "pass",
         "stderr": "",
-        "stdout": "=== HLS Synthesis ===\n[FAIL] bambu command not found. PandA-Bambu is required for synthesis.\n"
+        "stdout": "[INFO] Starting HLS synthesis\n[INFO] Invoking bambu for synthesis\n ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu --top-fname=compare_token --clock-period=10 -o synth_out/ src/impl.cpp \n\n\n********************************************************************************\n                    ____                  _\n                   | __ )  __ _ _ __ ___ | |_   _   _\n                   |  _ \\ / _` | '_ ` _ \\| '_ \\| | | |\n                   | |_) | (_| | | | | | | |_) | |_| |\n                   |____/ \\__,_|_| |_| |_|_.__/ \\__,_|\n\n********************************************************************************\n                         High-Level Synthesis Tool\n\n                         Politecnico di Milano - DEIB\n                          System Architectures Group\n********************************************************************************\n                Copyright (C) 2004-2024 Politecnico di Milano\n Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main\n\n  Analyzing function compare_token\n    Parameter @428533 input\n    Interface specification:\n      Parameter : input\n      Protocol  : default\n      Direction : IN\n      Bundle    : input\n      Bitwidth  : 32\n      Size      : 16\n      Alignment : 4\n    Parameter @428534 reference\n    Interface specification:\n      Parameter : reference\n      Protocol  : default\n      Direction : IN\n      Bundle    : reference\n      Bitwidth  : 32\n      Size      : 16\n      Alignment : 4\n  Analyzed function compare_token\n\n  Functions to be synthesized:\n    compare_token\n\n\n  Memory allocation information:\nWarning: This function uses unknown addresses: compare_token\n    BRAM bitsize: 8\n    Spec may not exploit DATA bus width\n    Spec accesses data having an address unknown at compile time\n    Internal data is not externally accessible\n    DATA bus bitsize: 8\n    ADDRESS bus bitsize: 32\n    SIZE bus bitsize: 4\n    Internally allocated memory (no private memories): 0\n    Internally allocated memory: 0\n  Time to perform memory allocation: 0.01 seconds\n\n\n  Module allocation information for function compare_token:\n    Number of complex operations: 32\n    Number of complex operations: 32\n  Time to perform module allocation: 0.01 seconds\n\n\n  Scheduling Information of function compare_token:\n    Number of control steps: 19\n    Minimum slack: 3.7879999960000044\n    Estimated max frequency (MHz): 160.97875070123723\n  Time to perform scheduling: 0.04 seconds\n\n\n  State Transition Graph Information of function compare_token:\n    Number of states: 17\n    Minimum number of cycles: 17\n    Maximum number of cycles 17\n    Done port is registered\n  Time to perform creation of STG: 0.00 seconds\n\n\n  Easy binding information for function compare_token:\n    Bound operations:328/390\n  Time to perform easy binding: 0.00 seconds\n\n\n  Storage Value Information of function compare_token:\n    Number of storage values inserted: 45\n  Time to compute storage value information: 0.00 seconds\n\n  Slack computed in 0.00 seconds\n  Weight computation completed in 0.01 seconds\n  False-loop computation completed in 0.00 seconds\n\n  Register binding information for function compare_token:\n    Register allocation algorithm obtains a sub-optimal result: 45 registers(LB:30)\n  Time to perform register binding: 0.00 seconds\n\n  Clique covering computation completed in 0.00 seconds\n\n  Module binding information for function compare_token:\n    Number of modules instantiated: 360\n    Number of performance conflicts: 0\n    Estimated resources area (no Muxes and address logic): 4943\n    Estimated area of MUX21: 276\n    Total estimated area: 5219\n    Estimated number of DSPs: 0\n  Time to perform module binding: 0.02 seconds\n\n\n  Register binding information for function compare_token:\n    Register allocation algorithm obtains a sub-optimal result: 45 registers(LB:30)\n  Time to perform register binding: 0.00 seconds\n\n\n  Connection Binding Information for function compare_token:\n    Number of allocated multiplexers (2-to-1 equivalent): 30\n  Time to perform interconnection binding: 0.01 seconds\n\n  Total number of flip-flops in function compare_token: 975\n[INFO] Searching for generated Verilog files\n[INFO] Found compare_token.v at workspace root\n[PASS] FR6: Synthesis completed successfully with determinable loop bounds\n"
       },
       {
         "command": "bash tests/run_cosim.sh",
-        "duration_seconds": 0.009,
+        "duration_seconds": 0.0,
+        "enabled": false,
         "name": "cosim",
         "required": false,
-        "returncode": 1,
-        "status": "fail",
-        "stderr": "",
-        "stdout": "=== Co-Simulation ===\n[FAIL] bambu command not found. PandA-Bambu is required for co-simulation.\n"
+        "returncode": null,
+        "status": "not_run",
+        "stderr": "Step disabled by pipeline configuration.",
+        "stdout": ""
       },
       {
         "command": "bash tests/run_rtl_security.sh",
-        "duration_seconds": 0.082,
+        "duration_seconds": 0.402,
+        "enabled": true,
         "name": "rtl_security",
         "required": false,
-        "returncode": 1,
-        "status": "fail",
-        "stderr": "grep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\nsed: 1: \",-1p\": invalid command code ,\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\nsed: 1: \",-1p\": invalid command code ,\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\nsed: 1: \",-1p\": invalid command code ,\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\ntail: illegal offset -- +: Invalid argument\ngrep: src/impl.cpp: No such file or directory\ntests/run_rtl_security.sh: line 63: [: -gt: unary operator expected\ngrep: src/impl.cpp: No such file or directory\ngrep: src/impl.cpp: No such file or directory\n",
-        "stdout": "=== RTL Security Checks ===\nChecking SR2: No early return from comparison loop...\n[PASS] SR2\nChecking SR3: No conditional branches on byte comparisons...\n[PASS] SR3\nChecking SR4: Result computed after loop completes...\n[FAIL] SR4: Return statement not after loop completion\nChecking SR5: Loop bound is constant 16...\n[FAIL] SR5: Loop bound is not constant 16\n[WARN] Missing HLS loop_bound pragma (recommended)\n=== Security Checks Failed ===\n"
+        "returncode": 0,
+        "status": "pass",
+        "stderr": "",
+        "stdout": "[INFO] Starting static and RTL security checks\n[INFO] Running static security analysis\n[INFO] Performing static analysis for forbidden patterns\n[INFO] Checking for early return statements inside loops\n20:    return result;\n    return result;\n[INFO] Checking for break statements\n[INFO] Checking for continue statements\n[INFO] Checking for short-circuit logical operators\n[INFO] Checking for memcmp usage\n[INFO] Checking for potentially secret-dependent conditional branches\n[PASS] SR2: No forbidden patterns detected\n[PASS] SR4: No obvious secret-dependent control flow violations\n[INFO] Verifying loop bounds in implementation\n[PASS] SR3: Loop bound appears to be statically 16\n[INFO] All static security checks passed\n"
       }
     ],
     "workspace": "/Volumes/SAVE HERE/Seraph/LLM4HWSec-Benchmark/hls-bench-agentic/runs/demo/hls_cwe385_const_time_compare"
@@ -55,12 +69,71 @@
       "purpose": "Header file declaring the compare_token function interface"
     }
   ],
+  "expert_static_review": {
+    "analysis_method": "clang",
+    "comment_stripped": true,
+    "domain": "side_channel",
+    "domain_score": 0.9,
+    "loops": [
+      {
+        "body_branch_count": 0,
+        "has_early_exit": false,
+        "has_fixed_bound": true
+      }
+    ],
+    "properties": [
+      {
+        "evidence": "no early exits in loops",
+        "max_score": 0.3,
+        "name": "no_early_exit",
+        "passed": true,
+        "score": 0.3
+      },
+      {
+        "evidence": "",
+        "max_score": 0.2,
+        "name": "fixed_iteration_count",
+        "passed": true,
+        "score": 0.2
+      },
+      {
+        "evidence": "",
+        "max_score": 0.2,
+        "name": "constant_ops_per_iteration",
+        "passed": true,
+        "score": 0.2
+      },
+      {
+        "evidence": "",
+        "max_score": 0.2,
+        "name": "branchless_conditionals",
+        "passed": true,
+        "score": 0.2
+      },
+      {
+        "evidence": "",
+        "max_score": 0.1,
+        "name": "hls_timing_pragmas",
+        "passed": false,
+        "score": 0.0
+      }
+    ],
+    "source_files": [
+      "compare_token.c",
+      "compare_token.h"
+    ],
+    "status": "ok",
+    "synthesis_reason": "no violations; HLS pragmas present",
+    "synthesis_score": 1.0
+  },
+  "provenance_hints": [],
   "requirement_ids": [
     "FR1",
     "FR2",
     "FR3",
     "FR4",
     "FR5",
+    "FR6",
     "SR1",
     "SR2",
     "SR3",
@@ -69,79 +142,90 @@
   ],
   "requirement_map": [
     {
-      "expected_detection": "[PASS] FR1",
+      "expected_detection": "PASS if function accepts two uint8_t[16] arrays without compilation errors",
       "requirement_id": "FR1",
       "test_files": [
-        "tests/tb_csim.cpp",
-        "tests/run_csim.sh"
+        "tests/run_csim.sh",
+        "tests/tb_csim.cpp"
       ]
     },
     {
-      "expected_detection": "[PASS] FR2",
+      "expected_detection": "PASS if function returns 1 when all 16 bytes match exactly",
       "requirement_id": "FR2",
       "test_files": [
-        "tests/tb_csim.cpp",
-        "tests/run_csim.sh"
+        "tests/run_csim.sh",
+        "tests/tb_csim.cpp"
       ]
     },
     {
-      "expected_detection": "[PASS] FR3",
+      "expected_detection": "PASS if function returns 0 when any byte differs",
       "requirement_id": "FR3",
       "test_files": [
-        "tests/tb_csim.cpp",
-        "tests/run_csim.sh"
+        "tests/run_csim.sh",
+        "tests/tb_csim.cpp"
       ]
     },
     {
-      "expected_detection": "[PASS] FR4",
+      "expected_detection": "PASS if all 16 bytes are accessed in every execution path",
       "requirement_id": "FR4",
       "test_files": [
-        "tests/tb_csim.cpp",
-        "tests/run_csim.sh"
+        "tests/run_csim.sh",
+        "tests/tb_csim.cpp"
       ]
     },
     {
-      "expected_detection": "[PASS] FR5",
+      "expected_detection": "PASS if code compiles with -std=c99 and uses only stdint.h types",
       "requirement_id": "FR5",
       "test_files": [
-        "tests/tb_csim.cpp",
-        "tests/run_csim.sh"
+        "tests/run_csim.sh",
+        "tests/tb_csim.cpp"
       ]
     },
     {
-      "expected_detection": "[PASS] SR1",
+      "expected_detection": "PASS if bambu synthesis succeeds with determinable loop bounds",
+      "requirement_id": "FR6",
+      "test_files": [
+        "tests/run_synth.sh"
+      ]
+    },
+    {
+      "expected_detection": "PASS if cycle counts are identical for all-match, first-byte-mismatch, last-byte-mismatch, and random-mismatch inputs",
       "requirement_id": "SR1",
       "test_files": [
-        "tests/tb_timing.cpp",
-        "tests/run_csim.sh"
+        "tests/run_cosim.sh",
+        "tests/tb_cosim.cpp"
       ]
     },
     {
-      "expected_detection": "[PASS] SR2",
+      "expected_detection": "PASS if no early return, break, or continue statements found inside comparison loop",
       "requirement_id": "SR2",
       "test_files": [
-        "tests/run_rtl_security.sh"
+        "tests/run_rtl_security.sh",
+        "tests/static_security.sh"
       ]
     },
     {
-      "expected_detection": "[PASS] SR3",
+      "expected_detection": "PASS if loop bound is statically 16 and RTL shows fixed iteration count",
       "requirement_id": "SR3",
       "test_files": [
-        "tests/run_rtl_security.sh"
+        "tests/run_rtl_security.sh",
+        "tests/static_security.sh"
       ]
     },
     {
-      "expected_detection": "[PASS] SR4",
+      "expected_detection": "PASS if no secret-dependent conditional branches affecting control flow timing",
       "requirement_id": "SR4",
       "test_files": [
-        "tests/run_rtl_security.sh"
+        "tests/run_rtl_security.sh",
+        "tests/static_security.sh"
       ]
     },
     {
-      "expected_detection": "[PASS] SR5",
+      "expected_detection": "PASS if memory access pattern is identical across different input token values",
       "requirement_id": "SR5",
       "test_files": [
-        "tests/run_rtl_security.sh"
+        "tests/run_cosim.sh",
+        "tests/tb_cosim.cpp"
       ]
     }
   ],
@@ -149,36 +233,33 @@
   "task_spec": {
     "evaluation_plan": {
       "coverage_goals": [
-        "all 16 bytes of both input_token and reference_token are read exactly once",
-        "comparison loop executes exactly 16 iterations for all test vectors",
-        "both return paths (match=1 and mismatch=0) are exercised",
-        "mismatch detection at every possible byte position (0 through 15) is tested",
-        "bitwise accumulation logic is exercised for all possible mismatch patterns"
+        "All 16 loop iterations must execute in every test case",
+        "Both match and mismatch code paths must be exercised",
+        "Boundary conditions: first byte mismatch, last byte mismatch, middle byte mismatch",
+        "Edge case: all bytes match",
+        "Edge case: all bytes differ",
+        "Verify loop bound pragma is respected and loop executes exactly 16 times"
       ],
       "mutation_goals": [
-        "inject early return statement inside loop and verify timing oracle detects variable latency",
-        "replace bitwise OR accumulation with short-circuit logical OR and verify static analysis detects forbidden pattern",
-        "replace constant loop bound with data-dependent bound and verify static analysis detects violation",
-        "inject conditional branch on intermediate comparison result and verify static analysis detects forbidden pattern",
-        "remove #pragma HLS loop_bound annotation and verify synthesis fails or oracle detects unbounded loop"
+        "Insert early return on first mismatch: oracle must detect timing variation",
+        "Replace constant-time accumulation with short-circuit AND: oracle must detect forbidden pattern",
+        "Add break statement on mismatch detection: oracle must reject via static analysis",
+        "Change loop bound from 16 to variable based on mismatch position: oracle must detect non-constant timing",
+        "Replace bitwise accumulation with if-else that skips remaining iterations: oracle must detect control flow violation",
+        "Use memcmp instead of manual loop: oracle must detect forbidden library function"
       ],
       "negative_tests": [
-        "cycle-accurate simulation measuring execution latency for all-match case vs first-byte-mismatch case; latencies must be identical",
-        "cycle-accurate simulation measuring execution latency for last-byte-mismatch case vs middle-byte-mismatch case; latencies must be identical",
-        "static analysis detecting 'return' statement inside the comparison loop (forbidden pattern)",
-        "static analysis detecting 'if' statement with secret-dependent condition inside the loop (forbidden pattern)",
-        "static analysis detecting 'break' or 'continue' statement inside the loop (forbidden pattern)",
-        "static analysis verifying loop bound is constant 16 and annotated with #pragma HLS loop_bound min=16 max=16",
-        "RTL inspection after synthesis to verify no data-dependent control flow paths or variable latency multiplexers",
-        "mutation testing: inject early return on mismatch and verify that timing oracle detects the vulnerability"
+        "Input token differs from reference in byte 0 only: must return 0",
+        "Input token differs from reference in byte 15 only: must return 0",
+        "Input token differs from reference in byte 8 (middle): must return 0",
+        "Input token differs from reference in all 16 bytes: must return 0",
+        "Input token differs from reference in bytes 0, 5, 10, 15: must return 0"
       ],
       "positive_tests": [
-        "test vector with input_token == reference_token (all 16 bytes match) expecting return value 1",
-        "test vector with input_token[0] != reference_token[0] and all other bytes match, expecting return value 0",
-        "test vector with input_token[15] != reference_token[15] and all other bytes match, expecting return value 0",
-        "test vector with input_token[7] != reference_token[7] (middle byte mismatch) and all other bytes match, expecting return value 0",
-        "test vector with all 16 bytes differing between input_token and reference_token, expecting return value 0",
-        "test vector with multiple non-contiguous byte mismatches (e.g., bytes 2, 5, 11 differ), expecting return value 0"
+        "Input token matches reference token exactly (all 16 bytes identical): must return 1",
+        "Input token with all zeros matches reference token with all zeros: must return 1",
+        "Input token with pattern 0x00,0x01,0x02,...,0x0F matches identical reference: must return 1",
+        "Input token with all 0xFF bytes matches reference with all 0xFF bytes: must return 1"
       ]
     },
     "hidden_spec": {
@@ -188,84 +269,90 @@
       ],
       "difficulty": "easy",
       "forbidden_patterns": [
-        "return statement inside the comparison loop body",
-        "if statement with return based on byte mismatch detection",
-        "break or continue statement based on comparison results",
-        "short-circuit logical operators (&&, ||) applied to secret-dependent comparison results",
-        "variable loop bounds or loop conditions dependent on input token data",
-        "conditional branches (if/else) inside the loop that depend on intermediate comparison state"
+        "Early return statement inside the comparison loop",
+        "Short-circuit logical operators (&&, ||) on byte comparison results",
+        "Break or continue statements based on byte comparison outcomes",
+        "Secret-dependent loop bounds or iteration counts",
+        "Conditional branches where the condition depends on token byte values and affects control flow",
+        "Variable-length loops that terminate based on mismatch detection",
+        "Use of memcmp or other library functions with data-dependent timing",
+        "If-else statements that skip loop iterations based on comparison results"
       ],
-      "oracle_notes": "Verification strategy: (1) Generate test vectors covering all-match, first-byte-mismatch, middle-byte-mismatch, last-byte-mismatch, and all-mismatch cases. (2) Run cycle-accurate simulation with PandA-Bambu and measure execution latency for each test vector. (3) Verify that all test vectors complete in identical cycle counts (within 1 cycle tolerance for pipeline effects). (4) Perform static analysis to detect forbidden patterns: grep for 'return' inside loops, 'break', 'continue', and 'if' statements with secret-dependent conditions. (5) Verify that the comparison logic uses only bitwise accumulation (e.g., result |= (a ^ b)) and that the final result is computed only after the loop. (6) Check that loop bounds are annotated with #pragma HLS loop_bound min=16 max=16. (7) Synthesize with PandA-Bambu and inspect the generated RTL to confirm no data-dependent control flow or variable latency paths. A correct implementation will use bitwise OR or XOR to accumulate mismatch information across all 16 bytes, then compute the final result (match/no-match) only after the loop completes.",
+      "oracle_notes": "The oracle must perform cycle-accurate simulation with at least the following test vectors: (1) input matching reference exactly, (2) input differing only in byte 0, (3) input differing only in byte 15, (4) input differing in multiple random positions, (5) input with all zeros vs non-zero reference, (6) input with all 0xFF vs different reference. For each test vector, record the exact cycle count from function entry to return. All cycle counts must be identical. Additionally, perform static analysis to detect forbidden patterns: search for 'return' inside loops, 'break'/'continue' statements, and conditional branches on comparison results. The synthesized RTL must show a fixed-latency datapath with no data-dependent control flow. Acceptable implementations typically use bitwise accumulation (e.g., result &= (input[i] == reference[i])) or arithmetic accumulation (e.g., diff |= (input[i] ^ reference[i])) that processes all bytes unconditionally.",
       "security_domain": "side_channel",
       "security_requirements": [
         {
-          "detection_strategy": "cycle-accurate simulation measuring execution latency for all-match vs first-byte-mismatch vs last-byte-mismatch cases; latencies must be identical within 1 cycle",
+          "detection_strategy": "Cycle-accurate simulation measuring clock cycles for multiple input patterns: all-match, first-byte-mismatch, last-byte-mismatch, random-mismatches. All measurements must yield identical cycle counts.",
           "id": "SR1",
-          "requirement": "The function must execute in constant time regardless of input token values or mismatch positions"
+          "requirement": "Execution latency must be identical for all possible input token values to prevent timing side-channel attacks."
         },
         {
-          "detection_strategy": "static analysis: grep for 'return' statements inside the loop body; grep for 'break' or 'continue' statements; AST analysis to verify no control flow exits loop early",
+          "detection_strategy": "Static analysis: grep for 'return' statements inside loops or 'break'/'continue' statements. AST analysis to verify no control flow exits before all 16 iterations complete.",
           "id": "SR2",
-          "requirement": "No early return or exit from the comparison loop based on intermediate comparison results"
+          "requirement": "No early return or break statement based on byte mismatch detection."
         },
         {
-          "detection_strategy": "static analysis: grep for 'if' statements inside the loop that depend on comparison results; verify all comparison logic uses only bitwise operations (|, &, ^, ~)",
+          "detection_strategy": "Static analysis of loop bounds and RTL verification that loop counter always reaches 16. Check synthesized RTL for fixed iteration count.",
           "id": "SR3",
-          "requirement": "No conditional branches based on byte-by-byte comparison results within the loop"
+          "requirement": "Loop iteration count must be statically bounded to exactly 16 iterations regardless of input data."
         },
         {
-          "detection_strategy": "static analysis: verify that the return statement or result variable assignment occurs only after the loop completes; no intermediate result propagation",
+          "detection_strategy": "Static analysis: identify all conditional branches (if/else, ternary operators) and verify conditions do not depend on byte comparison results that would alter execution path. RTL analysis to confirm no data-dependent state machine transitions.",
           "id": "SR4",
-          "requirement": "The comparison result must only be computed after all 16 bytes have been examined"
+          "requirement": "No secret-dependent conditional branches that affect control flow timing."
         },
         {
-          "detection_strategy": "static analysis: verify loop bound is a compile-time constant; simulation: instrument loop iteration count and verify it is always 16 for all test vectors",
+          "detection_strategy": "Simulation trace analysis: verify that array indices and memory addresses accessed are identical across different input token values. Check that all 16 reads from both arrays occur in every execution.",
           "id": "SR5",
-          "requirement": "Loop trip count must be constant (exactly 16 iterations) and not dependent on input data"
+          "requirement": "Memory access pattern must be independent of token content."
         }
       ],
-      "threat_model": "Attacker can measure execution time of the compare_token function with microsecond precision through side-channel observation (e.g., power analysis, EM emanation, or timing the completion signal). Attacker controls the input_token parameter and attempts to learn information about the reference_token by observing timing variations. A vulnerable implementation that exits early on mismatch leaks the position of the first differing byte, enabling byte-by-byte brute force attacks. In hardware, this manifests as variable pipeline latency or different cycle counts depending on where the mismatch occurs. The attacker's goal is to extract the reference token value through repeated timing measurements with chosen input tokens."
+      "threat_model": "An attacker can measure the execution time of the compare_token function with microsecond precision by observing hardware performance counters, power consumption, or electromagnetic emissions. The attacker has the ability to invoke the function with arbitrary chosen input tokens while the reference token remains fixed and secret. By measuring timing differences across many invocations with systematically varied inputs, the attacker attempts to extract information about the reference token byte-by-byte. A vulnerable implementation that exits early on mismatch will reveal the position of the first differing byte through observable latency variations, enabling a byte-at-a-time brute force attack requiring only 16*256=4096 attempts instead of 2^128 attempts."
     },
     "public_spec": {
       "allowed_pragmas": [
         "#pragma HLS pipeline",
         "#pragma HLS unroll",
-        "#pragma HLS loop_bound min=16 max=16"
+        "#pragma HLS loop_bound"
       ],
       "constraints": [
-        "use only standard C99 with stdint.h types (uint8_t, uint16_t, uint32_t, uint64_t)",
-        "no dynamic memory allocation, recursion, or exceptions",
-        "all loops must have compile-time determinable bounds",
-        "annotate loop bounds with #pragma HLS loop_bound min=16 max=16",
-        "function must be synthesizable by PandA-Bambu",
-        "total function body should be under 50 lines",
-        "use only bitwise operations for combining comparison results"
+        "No dynamic memory allocation (malloc/free)",
+        "No recursion",
+        "No exceptions",
+        "Maximum function size: 100 lines of C code",
+        "Must be synthesizable by PandA-Bambu HLS toolchain",
+        "No use of Xilinx-specific types (ap_uint, ap_int, hls::stream)",
+        "No use of standard library functions like memcmp"
       ],
-      "description": "Implement a hardware-synthesizable C function that compares a 16-byte input token against a stored 16-byte reference token. The function must return 1 if the tokens match exactly, and 0 otherwise. Both token arrays are passed as function parameters representing memory-mapped ports. The implementation must be synthesizable by PandA-Bambu and must process all 16 bytes of both tokens.",
+      "description": "Implement a hardware-synthesizable C function that compares a 16-byte input token against a stored 16-byte reference token. The function must return 1 if the tokens match exactly and 0 otherwise. Both tokens are represented as uint8_t arrays of length 16. The implementation must be suitable for synthesis by PandA-Bambu HLS toolchain and must process all 16 bytes of both tokens to produce the result.",
       "functional_requirements": [
         {
           "id": "FR1",
-          "requirement": "The function must compare all 16 bytes of input_token against all 16 bytes of reference_token"
+          "requirement": "The function must accept two uint8_t arrays, each of length 16, representing the input token and reference token."
         },
         {
           "id": "FR2",
-          "requirement": "The function must return 1 if and only if all 16 bytes match exactly"
+          "requirement": "The function must return 1 (uint8_t) if all 16 bytes of the input token match the corresponding bytes of the reference token."
         },
         {
           "id": "FR3",
-          "requirement": "The function must return 0 if any byte differs between the two tokens"
+          "requirement": "The function must return 0 (uint8_t) if any byte of the input token differs from the corresponding byte of the reference token."
         },
         {
           "id": "FR4",
-          "requirement": "The function must process the entire token length for all inputs"
+          "requirement": "The function must examine all 16 bytes of both input arrays during execution."
         },
         {
           "id": "FR5",
-          "requirement": "The comparison loop must iterate exactly 16 times"
+          "requirement": "The function must use only standard C99 constructs with stdint.h types (uint8_t, uint16_t, uint32_t, uint64_t)."
+        },
+        {
+          "id": "FR6",
+          "requirement": "All loops must have compile-time determinable bounds."
         }
       ],
-      "interface": "uint8_t compare_token(uint8_t input_token[16], uint8_t reference_token[16]);\n\nParameters:\n- input_token: array of 16 bytes representing the input token to verify\n- reference_token: array of 16 bytes representing the stored reference token\n\nReturn value:\n- 1 if input_token matches reference_token exactly\n- 0 if any byte differs",
-      "language": "C",
+      "interface": "uint8_t compare_token(uint8_t input[16], uint8_t reference[16])",
+      "language": "C99",
       "top_function": "compare_token"
     },
     "task_id": "hls_cwe385_const_time_compare",
@@ -274,35 +361,35 @@
   "test_manifest": [
     {
       "path": "tests/run_csim.sh",
-      "purpose": "C simulation driver: compiles testbenches with g++ and runs functional and timing tests"
+      "purpose": "C simulation driver: compiles and runs functional testbench with g++"
     },
     {
       "path": "tests/run_synth.sh",
-      "purpose": "HLS synthesis driver: invokes bambu to generate RTL from C implementation"
-    },
-    {
-      "path": "tests/run_cosim.sh",
-      "purpose": "Co-simulation driver: invokes bambu with --simulate flag for cycle-accurate verification"
+      "purpose": "HLS synthesis driver: invokes bambu to generate RTL"
     },
     {
       "path": "tests/run_rtl_security.sh",
-      "purpose": "Static analysis and RTL security checks: grep for forbidden patterns and verify security properties"
+      "purpose": "Static and RTL security checks: grep forbidden patterns, verify loop bounds"
     },
     {
       "path": "tests/tb_csim.cpp",
-      "purpose": "C testbench for functional requirements FR1-FR5: verifies correct return values for all test vectors"
+      "purpose": "C++ testbench for functional requirements FR1-FR6"
     },
     {
-      "path": "tests/tb_timing.cpp",
-      "purpose": "Timing oracle testbench for SR1: measures execution cycles for different mismatch positions"
+      "path": "tests/static_security.sh",
+      "purpose": "Helper script for static analysis of forbidden patterns"
     },
     {
-      "path": "tests/tb_static_analysis.cpp",
-      "purpose": "Static analysis helper: parses source code to detect forbidden patterns for SR2-SR5"
+      "path": "tests/run_cosim.sh",
+      "purpose": "Bambu co-simulation driver with Verilator backend for cycle-accurate timing verification"
     },
     {
-      "path": "src/compare_token.h",
-      "purpose": "Header file declaring the compare_token function interface"
+      "path": "tests/tb_cosim.cpp",
+      "purpose": "Self-contained C testbench for Bambu co-simulation with representative test vectors for SR1 and SR5"
     }
-  ]
+  ],
+  "tester_preflight": {
+    "issues": [],
+    "status": "pass"
+  }
 }

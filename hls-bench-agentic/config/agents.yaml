@@ -33,6 +33,12 @@ agents:
     schema: schemas/test_bundle.schema.json
     temperature: 0.10
 
+  cosim_harness:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/cosim_harness.md
+    schema: schemas/file_bundle.schema.json
+    temperature: 0.05
+
   security_analyzer:
     model: anthropic/claude-sonnet-4.5
     prompt: prompts/security_analyzer.md

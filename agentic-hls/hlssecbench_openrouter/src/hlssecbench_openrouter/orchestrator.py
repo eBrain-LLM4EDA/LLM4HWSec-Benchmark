@@ -16,6 +16,7 @@ from rich.progress import (
 
 from .agents import AgentConfig, JsonAgent
 from .llm import OpenRouterLLM
+from .preflight import preflight_tester_bundle
 from .runner import ToolRunner, parse_execution_config
 from .utils import read_yaml, write_json
 from .workspace import Workspace
@@ -82,6 +83,30 @@ def make_analysis_packet(
         "requirement_map": test_bundle.get("requirement_map", []),
         "execution_results": execution_results,
     }
+
+
+def bundle_file_contents(bundle: dict[str, Any], max_chars_per_file: int = 12000) -> list[dict[str, Any]]:
+    files = []
+    for file_obj in bundle.get("files", []):
+        content = str(file_obj.get("content", ""))
+        files.append({
+            "path": str(file_obj.get("path", "")),
+            "content": content[:max_chars_per_file],
+            "truncated": len(content) > max_chars_per_file,
+        })
+    return files
+
+
+def failure_signature(execution_results: dict[str, Any]) -> str:
+    parts = []
+    for step in execution_results.get("steps", []):
+        status = step.get("status")
+        if status not in {"fail", "timeout"}:
+            continue
+        stderr = " ".join(str(step.get("stderr", "")).split())[:500]
+        stdout = " ".join(str(step.get("stdout", "")).split())[:500]
+        parts.append(f"{step.get('name')}:{status}:{step.get('returncode')}:{stderr}:{stdout}")
+    return "\n".join(parts)
 
 
 def compute_simple_quality_report(
@@ -155,6 +180,27 @@ class HLSBenchmarkOrchestrator:
             if path.is_file():
                 path.unlink()
 
+    def _preflight_execution_results(self, ws: Workspace, report: dict[str, Any]) -> dict[str, Any]:
+        detail = json.dumps(report.get("issues", []), indent=2, sort_keys=True)
+        results = {
+            "allow_execution": self.runner.config.allow_execution,
+            "workspace": str(ws.root),
+            "steps": [
+                {
+                    "name": "tester_preflight",
+                    "command": "internal tester bundle preflight",
+                    "status": "fail",
+                    "required": True,
+                    "stdout": "",
+                    "stderr": detail,
+                    "returncode": 1,
+                    "duration_seconds": 0.0,
+                }
+            ],
+        }
+        write_json(ws.path("reports/execution_results.json"), results)
+        return results
+
     def _run_tools_analyzer_arbiter(
         self,
         *,
@@ -168,12 +214,18 @@ class HLSBenchmarkOrchestrator:
         done_factory,
         fail_factory,
         label_suffix: str = "",
+        tester_preflight: dict[str, Any] | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         suffix = f" {label_suffix}" if label_suffix else ""
 
-        tid = step_factory(f"Tool steps → {task_id}{suffix}")
-        execution_results = self.runner.run_all(ws.root)
-        done_factory(tid, f"Tool steps → {task_id}{suffix}")
+        if tester_preflight and tester_preflight.get("status") != "pass":
+            tid = step_factory(f"Tester preflight → {task_id}{suffix}")
+            execution_results = self._preflight_execution_results(ws, tester_preflight)
+            done_factory(tid, f"Tester preflight → {task_id}{suffix}")
+        else:
+            tid = step_factory(f"Tool steps → {task_id}{suffix}")
+            execution_results = self.runner.run_all(ws.root)
+            done_factory(tid, f"Tool steps → {task_id}{suffix}")
 
         analysis_packet = make_analysis_packet(task_spec, expert_bundle, test_bundle, execution_results)
         ws.write_json("reports/analysis_packet.json", analysis_packet)
@@ -282,6 +334,7 @@ class HLSBenchmarkOrchestrator:
                 ws.write_json("tests/test_bundle.json", test_bundle)
                 ws.write_file_bundle(expert_bundle, base_dir=".")
                 ws.write_file_bundle(test_bundle, base_dir=".")
+                tester_preflight = preflight_tester_bundle(ws, test_bundle)
                 _done(tid, f"Tester → {task_id}")
 
                 execution_results, analyzer_report, arbiter_decision = self._run_tools_analyzer_arbiter(
@@ -294,9 +347,11 @@ class HLSBenchmarkOrchestrator:
                     step_factory=_step,
                     done_factory=_done,
                     fail_factory=_fail,
+                    tester_preflight=tester_preflight,
                 )
 
                 repair_history: list[dict[str, Any]] = []
+                seen_failure_signatures = {failure_signature(execution_results)}
                 max_repair_rounds = int(self.pipeline_config["pipeline"].get("max_repair_rounds", 0))
                 for repair_round in range(1, max_repair_rounds + 1):
                     if arbiter_decision.get("retain_task", False):
@@ -325,6 +380,9 @@ class HLSBenchmarkOrchestrator:
                         "previous_expert_manifest": expert_bundle.get("manifest", []),
                         "previous_test_manifest": test_bundle.get("manifest", []),
                         "previous_requirement_map": test_bundle.get("requirement_map", []),
+                        "previous_expert_files": bundle_file_contents(expert_bundle),
+                        "previous_test_files": bundle_file_contents(test_bundle),
+                        "tester_preflight_report": tester_preflight,
                     }
 
                     if repair_agent == "tester":
@@ -340,6 +398,7 @@ class HLSBenchmarkOrchestrator:
                             raise
                         ws.write_json("tests/test_bundle.json", test_bundle)
                         ws.write_file_bundle(test_bundle, base_dir=".")
+                        tester_preflight = preflight_tester_bundle(ws, test_bundle)
                         _done(tid, f"Repair Tester r{repair_round} → {task_id}")
 
                     elif repair_agent == "expert":
@@ -357,6 +416,7 @@ class HLSBenchmarkOrchestrator:
                         ws.write_json("expert/expert_bundle.json", expert_bundle)
                         ws.write_file_bundle(expert_bundle, base_dir="expert")
                         ws.write_file_bundle(expert_bundle, base_dir=".")
+                        tester_preflight = preflight_tester_bundle(ws, test_bundle)
                         _done(tid, f"Repair Expert r{repair_round} → {task_id}")
 
                     execution_results, analyzer_report, arbiter_decision = self._run_tools_analyzer_arbiter(
@@ -370,15 +430,29 @@ class HLSBenchmarkOrchestrator:
                         done_factory=_done,
                         fail_factory=_fail,
                         label_suffix=f"(repair r{repair_round})",
+                        tester_preflight=tester_preflight,
                     )
+                    sig = failure_signature(execution_results)
+                    repeated_failure = bool(sig and sig in seen_failure_signatures)
+                    seen_failure_signatures.add(sig)
                     repair_history.append({
                         "round": repair_round,
                         "artifact": artifact,
                         "repair_agent": repair_agent,
-                        "status": "retained" if arbiter_decision.get("retain_task", False) else "needs_more_repair",
+                        "status": "retained" if arbiter_decision.get("retain_task", False)
+                        else "repeated_failure_stopped" if repeated_failure
+                        else "needs_more_repair",
                         "triggering_decision": triggering_decision,
                         "arbiter_decision": arbiter_decision,
+                        "failure_signature": sig,
                     })
+                    ws.write_json("reports/repair_history.json", {
+                        "max_repair_rounds": max_repair_rounds,
+                        "repairs": repair_history,
+                        "final_retain_task": bool(arbiter_decision.get("retain_task", False)),
+                    })
+                    if repeated_failure and not arbiter_decision.get("retain_task", False):
+                        break
 
                 ws.write_json("reports/repair_history.json", {
                     "max_repair_rounds": max_repair_rounds,

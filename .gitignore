@@ -1,6 +1,12 @@
-.venv
+.venv/
 __pycache__
+.pytest_cache/
+*.pyc
 .DS_Store
 *.egg-info
 .vscode
 .env
+runs
+venv/
+results
+agnetic-reverse-eng/

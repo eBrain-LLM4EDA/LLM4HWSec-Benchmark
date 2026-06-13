@@ -1,5 +1,5 @@
 # CWE-based seeds for the HLS secure benchmark generator.
-# HLS tool: PandA-Bambu (open-source). Docker image: bambuhls/bambu:latest
+# HLS tool: PandA-Bambu (open-source). Docker image: hlssecbench-openrouter-bambu:latest
 # Each seed is expanded by the IdeaGenerator agent into a detailed benchmark idea
 # before the Architect produces a full task specification.
 #

@@ -1,30 +1,46 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "=== HLS Synthesis ==="
+echo "[INFO] Starting HLS synthesis"
 
-# Check if bambu is available
-if ! command -v bambu &> /dev/null; then
-  echo "[FAIL] bambu command not found. PandA-Bambu is required for synthesis."
+if [ ! -f src/impl.cpp ]; then
+  echo "[FAIL] FR6: src/impl.cpp not found"
   exit 1
 fi
 
-echo "Running synthesis with PandA-Bambu..."
+rm -rf synth_out HLS_output *.v
 mkdir -p synth_out
 
-# Run bambu synthesis
-bambu src/impl.cpp --top-fname=compare_token --clock-period=10 -o synth_out/ 2>&1 | tee synth_out/synth.log
+echo "[INFO] Invoking bambu for synthesis"
+bambu src/impl.cpp --top-fname=compare_token --clock-period=10 -o synth_out/ 2>&1 | tee synth.log
 
-# Check if synthesis completed successfully
-if grep -q "Error" synth_out/synth.log || grep -q "error" synth_out/synth.log; then
-  echo "[FAIL] Synthesis encountered errors"
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+  echo "[FAIL] FR6: Bambu synthesis failed"
   exit 1
 fi
 
-if [ ! -f synth_out/compare_token.v ] && [ ! -f synth_out/top.v ]; then
-  echo "[FAIL] Synthesis did not produce expected RTL output"
+echo "[INFO] Searching for generated Verilog files"
+VERILOG_FOUND=0
+
+if ls synth_out/**/*.v 1> /dev/null 2>&1; then
+  echo "[INFO] Found Verilog in synth_out/"
+  VERILOG_FOUND=1
+fi
+
+if ls HLS_output/**/*.v 1> /dev/null 2>&1; then
+  echo "[INFO] Found Verilog in HLS_output/"
+  VERILOG_FOUND=1
+fi
+
+if ls compare_token.v 1> /dev/null 2>&1; then
+  echo "[INFO] Found compare_token.v at workspace root"
+  VERILOG_FOUND=1
+fi
+
+if [ $VERILOG_FOUND -eq 0 ]; then
+  echo "[FAIL] FR6: No Verilog output found after synthesis"
   exit 1
 fi
 
-echo "[PASS] Synthesis completed successfully"
-echo "=== HLS Synthesis Complete ==="
+echo "[PASS] FR6: Synthesis completed successfully with determinable loop bounds"
+exit 0

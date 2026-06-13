@@ -15,7 +15,10 @@ Rules:
   - All functional requirements pass (or are not_run but plausibly correct from static review).
   - All security requirements pass (or are not_run due to disabled execution, which is acceptable for scaffold mode).
   - No critical validity threats are identified.
-- Set artifact_to_revise to exactly one of: none, specification, expert, tester, tool_config, mutator.
+- Set artifact_to_revise to exactly one of: none, specification, expert, tester, cosim_harness, tool_config, mutator.
+- If the failure is isolated to Bambu co-simulation infrastructure, `tests/run_cosim.sh`,
+  `tests/tb_cosim.cpp`, Bambu simulator invocation, or testbench termination,
+  prefer artifact_to_revise `cosim_harness` over generic `tester`.
 - Write specific, actionable revision_instructions for the next repair round.
 - Never waive a security requirement to make tests pass.
 - Prefer conservative decisions: a false discard wastes compute, but a false retain corrupts the benchmark.

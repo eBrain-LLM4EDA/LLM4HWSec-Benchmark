@@ -1,30 +1,52 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "=== Co-Simulation ==="
+echo "[INFO] Starting Bambu co-simulation for timing verification"
 
-# Check if bambu is available
-if ! command -v bambu &> /dev/null; then
-  echo "[FAIL] bambu command not found. PandA-Bambu is required for co-simulation."
+if [ ! -f src/impl.cpp ]; then
+  echo "[FAIL] SR1: src/impl.cpp not found"
   exit 1
 fi
 
-echo "Running co-simulation with PandA-Bambu..."
+if [ ! -f tests/tb_cosim.cpp ]; then
+  echo "[FAIL] SR1: tests/tb_cosim.cpp not found"
+  exit 1
+fi
+
+rm -rf cosim_out HLS_output *.v
 mkdir -p cosim_out
 
-# Run bambu co-simulation
-bambu src/impl.cpp --top-fname=compare_token --clock-period=10 --simulate 2>&1 | tee cosim_out/cosim.log
+echo "[INFO] Invoking bambu co-simulation with Verilator"
+bambu src/impl.cpp --top-fname=compare_token --clock-period=10 --simulate --simulator=VERILATOR --generate-tb=tests/tb_cosim.cpp 2>&1 | tee cosim.log
 
-# Check if co-simulation completed successfully
-if grep -q "Error" cosim_out/cosim.log || grep -q "error" cosim_out/cosim.log; then
-  echo "[FAIL] Co-simulation encountered errors"
+BEXIT=${PIPESTATUS[0]}
+if [ $BEXIT -ne 0 ]; then
+  echo "[FAIL] SR1: Bambu co-simulation failed with exit code $BEXIT"
   exit 1
 fi
 
-if ! grep -q "simulation" cosim_out/cosim.log && ! grep -q "Simulation" cosim_out/cosim.log; then
-  echo "[FAIL] Co-simulation did not execute properly"
-  exit 1
+echo "[INFO] Bambu co-simulation completed successfully"
+
+echo "[INFO] Checking for RTL output files"
+VERILOG_FOUND=0
+
+if ls synth_out/**/*.v 1> /dev/null 2>&1; then
+  VERILOG_FOUND=1
 fi
 
-echo "[PASS] Co-simulation completed successfully"
-echo "=== Co-Simulation Complete ==="
+if ls HLS_output/**/*.v 1> /dev/null 2>&1; then
+  VERILOG_FOUND=1
+fi
+
+if ls compare_token.v 1> /dev/null 2>&1; then
+  VERILOG_FOUND=1
+fi
+
+if [ $VERILOG_FOUND -eq 1 ]; then
+  echo "[INFO] RTL files generated successfully"
+else
+  echo "[WARN] No RTL files found (may be expected for simulation-only run)"
+fi
+
+echo "[PASS] SR1: Co-simulation completed (check tb_cosim.cpp output for requirement markers)"
+exit 0

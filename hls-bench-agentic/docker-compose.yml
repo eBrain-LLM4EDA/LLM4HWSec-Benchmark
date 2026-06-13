@@ -1,15 +1,13 @@
 services:
   bambu-tests:
-    build:
-      context: .
-      dockerfile: docker/bambu/Dockerfile
-    image: hls-bench-agentic-bambu:latest
+    image: ${HLS_BENCH_BAMBU_IMAGE:-hlssecbench-openrouter-bambu:latest}
+    platform: linux/amd64
     init: true
     working_dir: /workspace
     network_mode: none
     volumes:
       - type: bind
-        source: ${HLS_BENCH_WORKSPACE:?Set HLS_BENCH_WORKSPACE to the task workspace directory}
+        source: ${HLS_BENCH_WORKSPACE:-.}
         target: /workspace
     command:
       - bash

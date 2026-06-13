@@ -1,76 +1,74 @@
 {
   "failure_classes": [
-    "infrastructure",
-    "synthesis",
-    "rtl-security"
+    "infrastructure"
   ],
   "overall_status": "fail",
   "recommendations": [
-    "Fix the compilation issue around 'diff_acc |= d;': use an expression form likely supported by both the shim and Bambu (e.g., 'diff_acc = diff_acc | d;' or cast RHS explicitly: 'diff_acc |= ap_uint<8>(d);' or compute 'diff_acc |= (in_token[i] ^ expected[i]);' without an intermediate const).",
-    "If using a generated ap_int.h shim, add/repair operator overloads for '|=' (including const-correctness) and verify it matches the intended ap_uint behavior for basic bitwise ops.",
-    "Re-run tests/run_csim.sh and tests/run_synth.sh after the fix; then re-run tests/run_cosim.sh to obtain SR-1 constant-latency evidence across match + 16 single-byte mismatches.",
-    "Add a small compile-only CI check that builds src/token_checker.cpp with both g++ (using the shim) and the target HLS tool header set to catch operator/header incompatibilities early."
+    "Fix C-sim compilation: add `#include <cstdio>` (or `<stdio.h>`) to tests/tb_check_token.cpp, and resolve `diff_acc != 0` ambiguity by comparing against an ap_uint literal (e.g., `diff_acc != ap_uint<8>(0)`) or by improving the ap_uint shim to support comparison with integer constants.",
+    "Repair tests/run_rtl_security.sh to be awk-portable (avoid reserved-word variable names like `in`, ensure correct quoting/escaping) and ensure it emits explicit [PASS]/[FAIL] markers for FR2-FR4 and SR1-SR5.",
+    "Align synthesis smoke-check messaging with requirement IDs (currently prints `FR-4` marker) and ensure tool/sysroot availability (or provide a container/toolchain) so FR3/FR4 can be assessed rather than NOT_RUN.",
+    "Add a minimal fallback static checker (e.g., pure grep/sed) if awk is unavailable/broken, to reduce infrastructure sensitivity and improve benchmark robustness."
   ],
   "requirement_results": [
     {
-      "evidence": "C-simulation did not compile, so functional correctness tests were not executed. g++ error: src/token_checker.cpp:17:14: no match for 'operator|=' (operand types are 'ap_uint<8>' and 'const ap_uint<8>') at 'diff_acc |= d;'.",
+      "evidence": "C-sim build failed, so functional tests in tests/tb_check_token.cpp did not execute. Errors include: check_token.cpp:25 ambiguous overload for operator!= between ap_uint<8> and int in `diff_acc != 0`; and multiple `printf` not declared errors in tb_check_token.cpp due to missing `<cstdio>` include.",
       "issue_class": "infrastructure",
-      "requirement_id": "FR-1",
+      "requirement_id": "FR1",
       "status": "not_run"
     },
     {
-      "evidence": "Static security scan (tests/run_rtl_security.sh) reports [PASS] FR-2 (no early-exit constructs / variable-bound loop patterns detected).",
-      "issue_class": "security",
-      "requirement_id": "FR-2",
-      "status": "pass"
-    },
-    {
-      "evidence": "PandA-Bambu synthesis failed due to front-end compilation error: src/token_checker.cpp:17:14: error: no viable overloaded '|=' at 'diff_acc |= d;'. tests/run_synth.sh: [FAIL] FR-3: bambu synthesis failed (rc=11).",
-      "issue_class": "synthesis",
-      "requirement_id": "FR-3",
-      "status": "fail"
-    },
-    {
-      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] FR-4 (no obvious extra outputs/side-effect constructs detected). Note: csim compilation failed, limiting dynamic/interface validation.",
-      "issue_class": "security",
-      "requirement_id": "FR-4",
-      "status": "pass"
-    },
-    {
-      "evidence": "Re-entrancy test is in the C-sim testbench, but C-simulation failed to compile (same '|=' operator error), so FR-5 was not executed.",
+      "evidence": "Static RTL/security check script tests/run_rtl_security.sh failed before producing any per-requirement PASS/FAIL markers due to awk syntax errors: `awk: line 1: syntax error at or near in` (and subsequent lines).",
       "issue_class": "infrastructure",
-      "requirement_id": "FR-5",
+      "requirement_id": "FR2",
       "status": "not_run"
     },
     {
-      "evidence": "RTL constant-latency evidence was not produced because RTL generation/cosim was skipped due to bambu compilation failure. tests/run_cosim.sh: [SKIP] SR-1: bambu run failed (rc=11). Static scan also reports [SKIP] SR-1 pending RTL latency evidence.",
-      "issue_class": "rtl-security",
-      "requirement_id": "SR-1",
+      "evidence": "rtl_security checks did not run due to awk failure. Synthesis smoke-check emitted: `[NOT_RUN] FR-4: synthesis infrastructure error (missing headers/sysroot)`, so no reliable synthesizability/no-IO validation was executed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "FR3",
       "status": "not_run"
     },
     {
-      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] SR-2 (no secret-/mismatch-dependent addressing patterns detected).",
-      "issue_class": "security",
-      "requirement_id": "SR-2",
-      "status": "pass"
+      "evidence": "No loop-bound/static-bounded-loop validation executed: rtl_security script failed (awk syntax errors). Synthesis step also reported `[NOT_RUN] ... missing headers/sysroot`, so FR4 could not be assessed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "FR4",
+      "status": "not_run"
     },
     {
-      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] SR-3 (no obvious printf/iostream/volatile/extern debug/status leak patterns detected).",
-      "issue_class": "security",
-      "requirement_id": "SR-3",
-      "status": "pass"
+      "evidence": "tests/run_rtl_security.sh failed with awk syntax errors and did not emit SR1 result; no early-exit/constant-time static checks were performed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "SR1",
+      "status": "not_run"
     },
     {
-      "evidence": "Static scan (tests/run_rtl_security.sh) reports [PASS] SR-4 (no static/global mutable secret retention patterns detected). Note: re-entrancy behavioral check did not run due to csim compile failure.",
-      "issue_class": "security",
-      "requirement_id": "SR-4",
-      "status": "pass"
+      "evidence": "tests/run_rtl_security.sh failed with awk syntax errors and did not emit SR2 result; no secret-dependent branch checks were performed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "SR2",
+      "status": "not_run"
+    },
+    {
+      "evidence": "tests/run_rtl_security.sh failed with awk syntax errors and did not emit SR3 result; no secret-dependent addressing checks were performed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "SR3",
+      "status": "not_run"
+    },
+    {
+      "evidence": "tests/run_rtl_security.sh failed with awk syntax errors and did not emit SR4 result; interface conformance/no extra I/O checks were not performed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "SR4",
+      "status": "not_run"
+    },
+    {
+      "evidence": "tests/run_rtl_security.sh failed with awk syntax errors and did not emit SR5 result; static non-const state checks were not performed.",
+      "issue_class": "infrastructure",
+      "requirement_id": "SR5",
+      "status": "not_run"
     }
   ],
   "validity_threats": [
-    "C-simulation failed to compile, so FR-1/FR-5 functional coverage goals (mismatch positions, random vectors, corner cases, re-entrancy) were not actually exercised.",
-    "Bambu synthesis failed on the same operator overload issue, preventing SR-1 timing/latency verification via RTL/cosim.",
-    "The ap_int/ap_uint implementation (vendor header vs generated shim) may differ in operator support (e.g., '|=' with const RHS), risking false negatives/positives unless the shim closely matches intended HLS semantics.",
-    "SR-1 is effectively unvalidated (only partial static scan), leaving the primary timing side-channel requirement unproven."
+    "Functional correctness (FR1) cannot be evaluated because C-simulation does not compile (both DUT type-operator mismatch and testbench missing header).",
+    "Security/static requirements (FR2-FR4, SR1-SR5) cannot be evaluated because the rtl_security script fails immediately with awk syntax errors, producing no requirement markers.",
+    "Synthesis-related checks are not informative because the synthesis smoke-check reports missing headers/sysroot and classifies as NOT_RUN; thus synthesizability and loop-bound enforcement are unverified.",
+    "Because most checks are not_run, there is a high risk of undetected non-constant-time behavior (early exit, secret-dependent branches/addressing) even if the intent is correct."
   ]
 }

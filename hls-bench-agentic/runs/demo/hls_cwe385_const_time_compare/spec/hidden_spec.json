@@ -5,41 +5,43 @@
   ],
   "difficulty": "easy",
   "forbidden_patterns": [
-    "return statement inside the comparison loop body",
-    "if statement with return based on byte mismatch detection",
-    "break or continue statement based on comparison results",
-    "short-circuit logical operators (&&, ||) applied to secret-dependent comparison results",
-    "variable loop bounds or loop conditions dependent on input token data",
-    "conditional branches (if/else) inside the loop that depend on intermediate comparison state"
+    "Early return statement inside the comparison loop",
+    "Short-circuit logical operators (&&, ||) on byte comparison results",
+    "Break or continue statements based on byte comparison outcomes",
+    "Secret-dependent loop bounds or iteration counts",
+    "Conditional branches where the condition depends on token byte values and affects control flow",
+    "Variable-length loops that terminate based on mismatch detection",
+    "Use of memcmp or other library functions with data-dependent timing",
+    "If-else statements that skip loop iterations based on comparison results"
   ],
-  "oracle_notes": "Verification strategy: (1) Generate test vectors covering all-match, first-byte-mismatch, middle-byte-mismatch, last-byte-mismatch, and all-mismatch cases. (2) Run cycle-accurate simulation with PandA-Bambu and measure execution latency for each test vector. (3) Verify that all test vectors complete in identical cycle counts (within 1 cycle tolerance for pipeline effects). (4) Perform static analysis to detect forbidden patterns: grep for 'return' inside loops, 'break', 'continue', and 'if' statements with secret-dependent conditions. (5) Verify that the comparison logic uses only bitwise accumulation (e.g., result |= (a ^ b)) and that the final result is computed only after the loop. (6) Check that loop bounds are annotated with #pragma HLS loop_bound min=16 max=16. (7) Synthesize with PandA-Bambu and inspect the generated RTL to confirm no data-dependent control flow or variable latency paths. A correct implementation will use bitwise OR or XOR to accumulate mismatch information across all 16 bytes, then compute the final result (match/no-match) only after the loop completes.",
+  "oracle_notes": "The oracle must perform cycle-accurate simulation with at least the following test vectors: (1) input matching reference exactly, (2) input differing only in byte 0, (3) input differing only in byte 15, (4) input differing in multiple random positions, (5) input with all zeros vs non-zero reference, (6) input with all 0xFF vs different reference. For each test vector, record the exact cycle count from function entry to return. All cycle counts must be identical. Additionally, perform static analysis to detect forbidden patterns: search for 'return' inside loops, 'break'/'continue' statements, and conditional branches on comparison results. The synthesized RTL must show a fixed-latency datapath with no data-dependent control flow. Acceptable implementations typically use bitwise accumulation (e.g., result &= (input[i] == reference[i])) or arithmetic accumulation (e.g., diff |= (input[i] ^ reference[i])) that processes all bytes unconditionally.",
   "security_domain": "side_channel",
   "security_requirements": [
     {
-      "detection_strategy": "cycle-accurate simulation measuring execution latency for all-match vs first-byte-mismatch vs last-byte-mismatch cases; latencies must be identical within 1 cycle",
+      "detection_strategy": "Cycle-accurate simulation measuring clock cycles for multiple input patterns: all-match, first-byte-mismatch, last-byte-mismatch, random-mismatches. All measurements must yield identical cycle counts.",
       "id": "SR1",
-      "requirement": "The function must execute in constant time regardless of input token values or mismatch positions"
+      "requirement": "Execution latency must be identical for all possible input token values to prevent timing side-channel attacks."
     },
     {
-      "detection_strategy": "static analysis: grep for 'return' statements inside the loop body; grep for 'break' or 'continue' statements; AST analysis to verify no control flow exits loop early",
+      "detection_strategy": "Static analysis: grep for 'return' statements inside loops or 'break'/'continue' statements. AST analysis to verify no control flow exits before all 16 iterations complete.",
       "id": "SR2",
-      "requirement": "No early return or exit from the comparison loop based on intermediate comparison results"
+      "requirement": "No early return or break statement based on byte mismatch detection."
     },
     {
-      "detection_strategy": "static analysis: grep for 'if' statements inside the loop that depend on comparison results; verify all comparison logic uses only bitwise operations (|, &, ^, ~)",
+      "detection_strategy": "Static analysis of loop bounds and RTL verification that loop counter always reaches 16. Check synthesized RTL for fixed iteration count.",
       "id": "SR3",
-      "requirement": "No conditional branches based on byte-by-byte comparison results within the loop"
+      "requirement": "Loop iteration count must be statically bounded to exactly 16 iterations regardless of input data."
     },
     {
-      "detection_strategy": "static analysis: verify that the return statement or result variable assignment occurs only after the loop completes; no intermediate result propagation",
+      "detection_strategy": "Static analysis: identify all conditional branches (if/else, ternary operators) and verify conditions do not depend on byte comparison results that would alter execution path. RTL analysis to confirm no data-dependent state machine transitions.",
       "id": "SR4",
-      "requirement": "The comparison result must only be computed after all 16 bytes have been examined"
+      "requirement": "No secret-dependent conditional branches that affect control flow timing."
     },
     {
-      "detection_strategy": "static analysis: verify loop bound is a compile-time constant; simulation: instrument loop iteration count and verify it is always 16 for all test vectors",
+      "detection_strategy": "Simulation trace analysis: verify that array indices and memory addresses accessed are identical across different input token values. Check that all 16 reads from both arrays occur in every execution.",
       "id": "SR5",
-      "requirement": "Loop trip count must be constant (exactly 16 iterations) and not dependent on input data"
+      "requirement": "Memory access pattern must be independent of token content."
     }
   ],
-  "threat_model": "Attacker can measure execution time of the compare_token function with microsecond precision through side-channel observation (e.g., power analysis, EM emanation, or timing the completion signal). Attacker controls the input_token parameter and attempts to learn information about the reference_token by observing timing variations. A vulnerable implementation that exits early on mismatch leaks the position of the first differing byte, enabling byte-by-byte brute force attacks. In hardware, this manifests as variable pipeline latency or different cycle counts depending on where the mismatch occurs. The attacker's goal is to extract the reference token value through repeated timing measurements with chosen input tokens."
+  "threat_model": "An attacker can measure the execution time of the compare_token function with microsecond precision by observing hardware performance counters, power consumption, or electromagnetic emissions. The attacker has the ability to invoke the function with arbitrary chosen input tokens while the reference token remains fixed and secret. By measuring timing differences across many invocations with systematically varied inputs, the attacker attempts to extract information about the reference token byte-by-byte. A vulnerable implementation that exits early on mismatch will reveal the position of the first differing byte through observable latency variations, enabling a byte-at-a-time brute force attack requiring only 16*256=4096 attempts instead of 2^128 attempts."
 }

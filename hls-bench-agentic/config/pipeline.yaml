@@ -4,25 +4,30 @@ openrouter:
   base_url: https://openrouter.ai/api/v1
   referer_env: OPENROUTER_REFERER
   title_env: OPENROUTER_TITLE
+  timeout_seconds: 120
+  max_retries: 3
 
 pipeline:
   # Run idea_generator to enrich raw seeds before architecture.
   expand_seeds: true
   # How many times the arbiter may send a task back for repair.
   max_repair_rounds: 2
+  # Set false to skip CosimHarness generation, relax tester preflight for
+  # run_cosim.sh, and mark the cosim execution step as not_run.
+  enable_cosim: true
   generate_mutants: true
   mutants_per_task: 5
 
 execution:
-  # Set true only inside a sandbox/container — this executes LLM-generated shell scripts.
-  allow_execution: true
+  # Keep false until you are running inside a sandbox/container.
+  # Set to true, or use config/pipeline.docker.yaml, when Docker is available.
+  allow_execution: false
   timeout_seconds: 180
 
   docker:
-    # PandA-Bambu official image — use this for sandboxed synthesis and co-simulation.
-    # Pull once with: docker pull bambuhls/bambu:latest
     enabled: false
-    image: "bambuhls/bambu:latest"
+    image: "hlssecbench-openrouter-bambu:latest"
+    platform: "linux/amd64"
 
   # Commands are run from each task workspace root.
   # These are intentionally config-controlled, not LLM-controlled.
@@ -39,6 +44,7 @@ execution:
     - name: cosim
       command: "bash tests/run_cosim.sh"
       required: false
+      enabled: true
     - name: rtl_security
       command: "bash tests/run_rtl_security.sh"
       required: false

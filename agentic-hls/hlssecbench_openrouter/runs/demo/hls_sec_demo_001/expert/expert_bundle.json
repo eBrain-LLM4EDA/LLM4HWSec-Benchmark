@@ -1,22 +1,14 @@
 {
   "files": [
     {
-      "content": "#pragma once\n\n#include <ap_int.h>\n\n// Returns 1 if in_token[0..15] exactly matches the internal expected token, else 0.\nap_uint<1> check_token(const ap_uint<8> in_token[16]);\n",
-      "path": "src/token_checker.h"
-    },
-    {
-      "content": "#include \"token_checker.h\"\n\nap_uint<1> check_token(const ap_uint<8> in_token[16]) {\n  // Internal expected token (compile-time constant).\n  const ap_uint<8> expected[16] = {\n      ap_uint<8>(0x13), ap_uint<8>(0x37), ap_uint<8>(0xC0), ap_uint<8>(0xDE),\n      ap_uint<8>(0x42), ap_uint<8>(0x99), ap_uint<8>(0xA5), ap_uint<8>(0x5A),\n      ap_uint<8>(0x00), ap_uint<8>(0xFF), ap_uint<8>(0x10), ap_uint<8>(0x20),\n      ap_uint<8>(0x30), ap_uint<8>(0x40), ap_uint<8>(0x50), ap_uint<8>(0x60)};\n\n  // Accumulate all byte differences without early exit.\n  ap_uint<8> diff_acc = ap_uint<8>(0);\n\n  for (int i = 0; i < 16; ++i) {\n    // All operations are data-independent in control flow and address patterns.\n    const ap_uint<8> d = in_token[i] ^ expected[i];\n    diff_acc |= d;\n  }\n\n  // Explicitly-typed literal avoids ambiguous ap_uint<8> vs int overloads.\n  const ap_uint<1> match = (diff_acc == ap_uint<8>(0)) ? ap_uint<1>(1) : ap_uint<1>(0);\n  return match;\n}\n",
-      "path": "src/token_checker.cpp"
+      "content": "#include <ap_int.h>\n\n// Embedded expected token (compile-time constant, 16 bytes).\n// Default oracle value (hex): 00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF\nstatic const ap_uint<8> expected[16] = {\n    0x00, 0x11, 0x22, 0x33,\n    0x44, 0x55, 0x66, 0x77,\n    0x88, 0x99, 0xAA, 0xBB,\n    0xCC, 0xDD, 0xEE, 0xFF\n};\n\nap_uint<1> check_token(const ap_uint<8> token[16]) {\n    ap_uint<8> diff_acc;\n    diff_acc = 0;\n\n    // Fixed-trip loop: always processes all 16 bytes.\n    for (int i = 0; i < 16; ++i) {\n        ap_uint<8> d;\n        d = token[i] ^ expected[i];\n        diff_acc = diff_acc | d;\n    }\n\n    // Branch-free final decision.\n    ap_uint<1> nonzero;\n    nonzero = ap_uint<1>(diff_acc != 0);\n\n    ap_uint<1> one;\n    one = 1;\n\n    ap_uint<1> match;\n    match = one ^ nonzero;\n    return match;\n}\n",
+      "path": "check_token.cpp"
     }
   ],
   "manifest": [
     {
-      "path": "src/token_checker.h",
-      "purpose": "Declares the HLS top function check_token with the required 16-byte ap_uint<8> input array and 1-bit return value."
-    },
-    {
-      "path": "src/token_checker.cpp",
-      "purpose": "Implements a constant-time 16-byte token comparison against a fixed internal compile-time constant expected token, avoiding early exits, secret-dependent control flow, and ambiguous ap_uint-vs-literal comparisons."
+      "path": "check_token.cpp",
+      "purpose": "HLS-synthesizable constant-time 16-byte token checker. Compares the input token against an embedded compile-time constant expected token using full-iteration XOR/OR accumulation (no early-exit, no secret-dependent control flow, no secret-dependent memory addressing) and returns a 1-bit match result."
     }
   ]
 }

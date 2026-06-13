@@ -46,7 +46,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         file \
         ca-certificates \
         libtinfo5 \
+        libstdc++6 \
+        linux-libc-dev \
         squashfs-tools \
+    && { ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/asm 2>/dev/null || true; } \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Download PandA-Bambu AppImage (own layer — cached across rebuilds) ----
@@ -77,7 +80,7 @@ RUN BAMBU_ROOT=/opt/bambu/squashfs \
     && echo '#!/bin/bash'                                                                                                                                                                                                              > /usr/local/bin/bambu \
     && echo "export APPDIR=${BAMBU_ROOT}"                                                                                                                                                                                             >> /usr/local/bin/bambu \
     && echo "export PATH=${BAMBU_ROOT}/usr/bin:${BAMBU_ROOT}/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/bin:${BAMBU_ROOT}/clang+llvm-12.0.1-x86_64-linux-gnu-ubuntu-/bin:\${PATH}"                                             >> /usr/local/bin/bambu \
-    && echo "export LD_LIBRARY_PATH=${BAMBU_ROOT}/usr/lib:${BAMBU_ROOT}/usr/lib/x86_64-linux-gnu:${BAMBU_ROOT}/lib:${BAMBU_ROOT}/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib:${BAMBU_ROOT}/clang+llvm-12.0.1-x86_64-linux-gnu-ubuntu-/lib:\${LD_LIBRARY_PATH}" >> /usr/local/bin/bambu \
+    && echo "export LD_LIBRARY_PATH=${BAMBU_ROOT}/usr/lib:${BAMBU_ROOT}/usr/lib/x86_64-linux-gnu:${BAMBU_ROOT}/lib:${BAMBU_ROOT}/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib:${BAMBU_ROOT}/clang+llvm-12.0.1-x86_64-linux-gnu-ubuntu-/lib:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:\${LD_LIBRARY_PATH}" >> /usr/local/bin/bambu \
     && echo "exec ${BAMBU_ROOT}/usr/bin/bambu \"\$@\""                                                                                                                                                                               >> /usr/local/bin/bambu \
     && chmod +x /usr/local/bin/bambu
 

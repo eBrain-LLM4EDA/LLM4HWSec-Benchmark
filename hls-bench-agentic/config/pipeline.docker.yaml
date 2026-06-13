@@ -4,22 +4,28 @@ openrouter:
   base_url: https://openrouter.ai/api/v1
   referer_env: OPENROUTER_REFERER
   title_env: OPENROUTER_TITLE
+  timeout_seconds: 120
+  max_retries: 3
 
 pipeline:
   expand_seeds: true
-  max_repair_rounds: 2
+  max_repair_rounds: 10
+  # Set false to skip CosimHarness generation, relax tester preflight for
+  # run_cosim.sh, and mark the cosim execution step as not_run.
+  enable_cosim: true
   generate_mutants: true
   mutants_per_task: 5
 
 execution:
   allow_execution: true
-  timeout_seconds: 180
+  timeout_seconds: 300
 
   docker:
-    # Build with:
-    #   docker compose build bambu-tests
+    # Reuse the image built by agentic-hls/hlssecbench_openrouter:
+    #   cd ../agentic-hls/hlssecbench_openrouter && docker compose build bambu-runner
     enabled: true
-    image: "hls-bench-agentic-bambu:latest"
+    image: "hlssecbench-openrouter-bambu:latest"
+    platform: "linux/amd64"
 
   steps:
     - name: csim
@@ -31,6 +37,7 @@ execution:
     - name: cosim
       command: "bash tests/run_cosim.sh"
       required: false
+      enabled: false
     - name: rtl_security
       command: "bash tests/run_rtl_security.sh"
       required: false

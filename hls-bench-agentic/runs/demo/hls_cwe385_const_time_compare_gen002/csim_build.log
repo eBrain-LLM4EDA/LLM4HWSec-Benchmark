@@ -1,5 +1,0 @@
-Undefined symbols for architecture arm64:
-  "_compare_token", referenced from:
-      test_case(char const*, char const*, unsigned char const*, unsigned char const*, unsigned char) in tb_csim-b069ef.o
-ld: symbol(s) not found for architecture arm64
-clang++: error: linker command failed with exit code 1 (use -v to see invocation)

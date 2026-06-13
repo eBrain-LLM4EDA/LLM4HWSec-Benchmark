@@ -1,28 +1,27 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "=== C Simulation ==="
+echo "[INFO] Starting C simulation for functional requirements"
 
-# Compile and run functional testbench
-echo "Compiling functional testbench..."
-g++ -std=c++14 -I. -Isrc -o csim_func tests/tb_csim.cpp src/impl.cpp 2>&1
-if [ $? -ne 0 ]; then
-  echo "[FAIL] Compilation failed"
+if [ ! -f src/impl.cpp ]; then
+  echo "[FAIL] FR1: src/impl.cpp not found"
   exit 1
 fi
 
-echo "Running functional tests..."
-./csim_func
+g++ -std=c++14 -I. -Isrc -Wall -Wextra -o csim tests/tb_csim.cpp src/impl.cpp 2>&1 | tee csim_compile.log
 
-# Compile and run timing testbench
-echo "Compiling timing testbench..."
-g++ -std=c++14 -I. -Isrc -o csim_timing tests/tb_timing.cpp src/impl.cpp 2>&1
-if [ $? -ne 0 ]; then
-  echo "[FAIL] Timing testbench compilation failed"
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+  echo "[FAIL] FR1: Compilation failed"
   exit 1
 fi
 
-echo "Running timing tests..."
-./csim_timing
+echo "[INFO] Running functional testbench"
+./csim 2>&1 | tee csim_run.log
 
-echo "=== C Simulation Complete ==="
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+  echo "[FAIL] Testbench execution failed"
+  exit 1
+fi
+
+echo "[INFO] C simulation completed successfully"
+exit 0

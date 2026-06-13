@@ -11,30 +11,26 @@
     "bounded loops only",
     "synthesizable by common HLS tools"
   ],
-  "description": "Implement an HLS-compatible C++ function that compares a provided 16-byte token against an internal 16-byte expected token and returns whether they match. The function must perform a fixed amount of work independent of where the first mismatch occurs.",
+  "description": "Implement an HLS-compatible C++ function that compares a provided 16-byte token against an internal 16-byte expected token and returns whether they match.",
   "functional_requirements": [
     {
-      "id": "FR-1",
-      "requirement": "Compare exactly 16 bytes of input token data against the internal expected 16-byte token value and return 1 if all bytes match, otherwise return 0."
+      "id": "FR1",
+      "requirement": "Compare the 16 input bytes against an internal expected 16-byte token and return 1 on exact match, else 0."
     },
     {
-      "id": "FR-2",
-      "requirement": "Always process all 16 byte positions for every call (no variable-length comparison)."
+      "id": "FR2",
+      "requirement": "The expected token must be defined inside the function or in the same translation unit as a compile-time constant (e.g., const ap_uint<8> expected[16])."
     },
     {
-      "id": "FR-3",
-      "requirement": "The implementation must be synthesizable by common HLS tools; it must use only bounded loops with compile-time constant bounds."
+      "id": "FR3",
+      "requirement": "The function must be synthesizable as a top-level HLS kernel and must not require any OS/library facilities (no file I/O, no std::cout/printf)."
     },
     {
-      "id": "FR-4",
-      "requirement": "The top function must have no side-effect outputs other than the single 1-bit return value; no additional debug/status interfaces or outputs are permitted."
-    },
-    {
-      "id": "FR-5",
-      "requirement": "The design must be re-entrant across calls at the C/C-simulation level (no dependence on prior calls to produce correct match/mismatch results)."
+      "id": "FR4",
+      "requirement": "All loops must have statically bounded iteration counts."
     }
   ],
-  "interface": "// HLS C++\n#include <ap_int.h>\n\n// Returns 1 if in_token[0..15] exactly matches the internal expected token, else 0.\nap_uint<1> check_token(const ap_uint<8> in_token[16]);\n\n// Internal expected token value (compile-time constant inside the implementation):\n// {0x13,0x37,0xC0,0xDE,0x42,0x99,0xA5,0x5A,0x00,0xFF,0x10,0x20,0x30,0x40,0x50,0x60}\n",
+  "interface": "Top-level function signature (must match exactly):\n\n#include <ap_int.h>\n\nap_uint<1> check_token(const ap_uint<8> token[16]);\n\nBehavior:\n- token is a 16-element array of 8-bit bytes.\n- The function returns 1 if and only if token matches an internal expected 16-byte token exactly; otherwise returns 0.\n- The expected token must be embedded in the design (e.g., a local const array) and must not be provided via additional arguments or external memory.\n\nNotes:\n- The implementation must be synthesizable by common HLS tools.\n- The implementation must not use any additional I/O beyond the single 1-bit return value.",
   "language": "C++ HLS",
   "top_function": "check_token"
 }

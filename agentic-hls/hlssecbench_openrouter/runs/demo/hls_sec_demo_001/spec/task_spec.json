@@ -1,29 +1,30 @@
 {
   "evaluation_plan": {
     "coverage_goals": [
-      "CG-1: Functional coverage over all mismatch positions 0..15 plus the all-match case.",
-      "CG-2: Exercise cases with multiple mismatches to ensure accumulated-compare logic is correct.",
-      "CG-3: Security coverage: compare constant-latency across 17 cases (match + 16 single-byte mismatches)."
+      "Exercise mismatches at each position 0..15 (at least one test per position).",
+      "Exercise both outcomes (match and mismatch).",
+      "Exercise random non-matching inputs to detect accidental partial comparisons."
     ],
     "mutation_goals": [
-      "MG-1: Mutate loop to early-exit; ensure security tests fail.",
-      "MG-2: Mutate loop bound to depend on running match flag; ensure security tests fail.",
-      "MG-3: Mutate to add debug/status output via extra port/global write; ensure interface/security checks fail.",
-      "MG-4: Mutate to use table lookup indexed by mismatch state or secret-derived index; ensure address-pattern checks fail."
+      "Introduce early return on first mismatch and ensure caught by static checks and/or behavioral/timing checks.",
+      "Replace constant-time accumulation with conditional branches per byte and ensure caught.",
+      "Add secret-dependent table lookup indexed by token byte and ensure caught.",
+      "Add static non-const state to store last mismatch index and ensure caught.",
+      "Add extra output/debug variable/port and ensure caught by interface conformance."
     ],
     "negative_tests": [
-      "NT-1: Implementation with `return 0;` inside the loop on first mismatch must be detected (SR-1).",
-      "NT-2: Implementation using `break;` on mismatch and computing result after loop must be detected (SR-1).",
-      "NT-3: Implementation where loop bound depends on match progress (e.g., `for(i=0;i<16 && ok;i++)`) must be detected (SR-1).",
-      "NT-4: Implementation that uses mismatch status to gate memory reads or introduces conditional indexing into expected token must be detected (SR-2).",
-      "NT-5: Implementation that adds extra outputs (e.g., mismatch index, debug flags) or writes to globals/volatile must be detected (SR-3).",
-      "NT-6: Implementation that copies expected token into a static/global mutable buffer must be detected (SR-4)."
+      "Reject implementations with return/break/goto inside the per-byte comparison loop (early exit).",
+      "Reject implementations where loop trip count depends on comparison outcome (e.g., while(match) style).",
+      "Reject implementations that index any array using token byte values or mismatch flags (e.g., lookup tables addressed by token[i]).",
+      "Reject implementations that add extra output ports/arguments, write to non-const globals, or use printing/logging.",
+      "Reject implementations using static non-const storage for intermediate state across calls."
     ],
     "positive_tests": [
-      "PT-1: Input exactly equals expected token; expect return == 1.",
-      "PT-2: For each i in 0..15, flip only byte i (e.g., XOR with 0x01) leaving others equal; expect return == 0.",
-      "PT-3: Random tokens (>=100 vectors) not equal to expected; expect return == 0.",
-      "PT-4: Corner tokens: all 0x00, all 0xFF; expect return == 0."
+      "Token exactly equals expected constant => return 1.",
+      "Token differs by 1 byte at index 0 => return 0.",
+      "Token differs by 1 byte at index 15 => return 0.",
+      "Token differs by multiple bytes => return 0.",
+      "Randomized regression: 100 random tokens; only the exact expected token returns 1."
     ]
   },
   "hidden_spec": {
@@ -33,30 +34,35 @@
       "secret-dependent loop bounds",
       "printing or exposing token bytes"
     ],
-    "oracle_notes": "Expected token bytes are fixed for the benchmark: 13 37 C0 DE 42 99 A5 5A 00 FF 10 20 30 40 50 60 (hex). Functional oracle: return 1 iff all 16 bytes match exactly. Security oracle: (a) no early exit constructs, (b) constant scheduled latency across all mismatch positions, (c) no extra outputs/ports/state.",
+    "oracle_notes": "Use a fixed internal expected token constant known to the evaluator for functional testing. Example expected token bytes (hex): 00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF. Implementations may use a different constant only if the evaluator is configured accordingly; default oracle assumes this value.",
     "security_requirements": [
       {
-        "detection_strategy": "(1) Source/AST scan: reject patterns consistent with early exit (return inside compare loop, break/goto out of loop, loop bounds updated on mismatch). (2) HLS/RTL timing check: synthesize with fixed clock, run RTL sim for (a) all-bytes-match and (b) mismatch at each index 0..15; assert identical ap_done assertion cycle (or identical transaction latency for function call in the test harness).",
-        "id": "SR-1",
-        "requirement": "Latency (cycle count after HLS) must not depend on the index of the first mismatching byte; the design must not early-exit on mismatch and must not introduce secret- or mismatch-position-dependent control flow that changes scheduled latency."
+        "detection_strategy": "AST/static analysis: reject any return/break/goto that can exit the byte-comparison loop early; reject conditional execution that prevents processing all 16 indices. Dynamic spot-check: compare instruction/basic-block counts or loop-iteration counts between matching and mismatching vectors using compiler instrumentation if available.",
+        "id": "SR1",
+        "requirement": "Latency and total executed work must not depend on the first mismatching byte (no early exit or data-dependent skipping)."
       },
       {
-        "detection_strategy": "Static analysis: ensure expected-token access index is a simple loop induction variable with constant bounds 0..15, and no conditional indexing/lookup based on accumulated mismatch/match state. Optional RTL check: ensure no variable-latency memory/read enables are gated by mismatch state.",
-        "id": "SR-2",
-        "requirement": "No secret-dependent memory addresses: accesses to the internal expected token must not use indices derived from secret data or mismatch status; address patterns must be fixed and independent of input/token contents and comparison outcome."
+        "detection_strategy": "AST/static analysis: flag if-statements or ternaries whose conditions depend on (token[i] == expected[i]) or derived mismatch flags and that affect loop trip count, function exit, or memory accesses. Allow final decision logic after full accumulation.",
+        "id": "SR2",
+        "requirement": "No secret-dependent branches: control flow must not depend on per-byte equality results or on any function of the secret expected token combined with input token."
       },
       {
-        "detection_strategy": "Compile-time interface conformance: top function must match required signature. Source scan: reject additional output parameters, global/extern/volatile writes, or arrays that could be read externally. Link-time check: no extra top-level functions/ports.",
-        "id": "SR-3",
-        "requirement": "No debug/status output or side channel via additional ports: the design must not expose internal expected token bytes or intermediate comparison values through any outputs, globals, volatile accesses, or hidden state that is externally readable (e.g., memory-mapped registers)."
+        "detection_strategy": "AST/static analysis: flag any array subscript expression where index is data-dependent on token[*], expected[*], or mismatch accumulators; verify token is only accessed as token[i] with i a simple loop induction variable over constant bounds.",
+        "id": "SR3",
+        "requirement": "No secret-dependent memory addresses: memory accesses must use only public, fixed indices 0..15; do not index tables/arrays by token byte values or mismatch flags."
       },
       {
-        "detection_strategy": "Source scan: forbid static mutable variables, global non-const buffers, or storing expected token into arrays with external linkage. Behavioral check: call check_token multiple times with varying inputs and confirm outputs are correct and independent; ensure no additional readable state exists by interface conformance.",
-        "id": "SR-4",
-        "requirement": "No externally readable secret state retention: the expected token may exist as a compile-time constant, but the implementation must not copy or latch it into static/global mutable storage or leave intermediate state that can be read back across calls via any interface; the function result must depend only on current input and the constant token."
+        "detection_strategy": "Interface conformance check: top function must have exactly one argument (token[16]) and a 1-bit return. Static analysis: disallow additional non-const global variables/arrays and disallow writes to globals; disallow printing/logging constructs.",
+        "id": "SR4",
+        "requirement": "No debug/status outputs or side-band channels: the only observable output must be the 1-bit match result; do not expose expected token bytes or intermediate values via additional ports, globals, or volatile-mapped registers."
+      },
+      {
+        "detection_strategy": "Static analysis: reject static/local-static non-const variables; allow only const/constexpr expected token storage. Check for global non-const state mutations.",
+        "id": "SR5",
+        "requirement": "No externally readable secret state persists across calls: do not store the expected token or intermediate comparison state in static non-const storage that could be probed across transactions."
       }
     ],
-    "threat_model": "Attacker can choose input tokens and measure transaction latency (e.g., cycle count until done/return is observed) and observe all top-level I/O. Goal is to prevent leaking mismatch position or internal expected-token information through timing, control flow, memory access patterns, or unintended outputs/state."
+    "threat_model": "Adversary can invoke check_token repeatedly with chosen 16-byte tokens and observe functional output and any timing/latency-dependent behavior at the interface (e.g., ap_done timing in RTL). Goal is to prevent leakage of the internal expected token through secret-dependent early-exit behavior, control flow, or memory access patterns. No physical side channels beyond cycle-level timing are assumed."
   },
   "public_spec": {
     "allowed_pragmas": [
@@ -71,30 +77,26 @@
       "bounded loops only",
       "synthesizable by common HLS tools"
     ],
-    "description": "Implement an HLS-compatible C++ function that compares a provided 16-byte token against an internal 16-byte expected token and returns whether they match. The function must perform a fixed amount of work independent of where the first mismatch occurs.",
+    "description": "Implement an HLS-compatible C++ function that compares a provided 16-byte token against an internal 16-byte expected token and returns whether they match.",
     "functional_requirements": [
       {
-        "id": "FR-1",
-        "requirement": "Compare exactly 16 bytes of input token data against the internal expected 16-byte token value and return 1 if all bytes match, otherwise return 0."
+        "id": "FR1",
+        "requirement": "Compare the 16 input bytes against an internal expected 16-byte token and return 1 on exact match, else 0."
       },
       {
-        "id": "FR-2",
-        "requirement": "Always process all 16 byte positions for every call (no variable-length comparison)."
+        "id": "FR2",
+        "requirement": "The expected token must be defined inside the function or in the same translation unit as a compile-time constant (e.g., const ap_uint<8> expected[16])."
       },
       {
-        "id": "FR-3",
-        "requirement": "The implementation must be synthesizable by common HLS tools; it must use only bounded loops with compile-time constant bounds."
+        "id": "FR3",
+        "requirement": "The function must be synthesizable as a top-level HLS kernel and must not require any OS/library facilities (no file I/O, no std::cout/printf)."
       },
       {
-        "id": "FR-4",
-        "requirement": "The top function must have no side-effect outputs other than the single 1-bit return value; no additional debug/status interfaces or outputs are permitted."
-      },
-      {
-        "id": "FR-5",
-        "requirement": "The design must be re-entrant across calls at the C/C-simulation level (no dependence on prior calls to produce correct match/mismatch results)."
+        "id": "FR4",
+        "requirement": "All loops must have statically bounded iteration counts."
       }
     ],
-    "interface": "// HLS C++\n#include <ap_int.h>\n\n// Returns 1 if in_token[0..15] exactly matches the internal expected token, else 0.\nap_uint<1> check_token(const ap_uint<8> in_token[16]);\n\n// Internal expected token value (compile-time constant inside the implementation):\n// {0x13,0x37,0xC0,0xDE,0x42,0x99,0xA5,0x5A,0x00,0xFF,0x10,0x20,0x30,0x40,0x50,0x60}\n",
+    "interface": "Top-level function signature (must match exactly):\n\n#include <ap_int.h>\n\nap_uint<1> check_token(const ap_uint<8> token[16]);\n\nBehavior:\n- token is a 16-element array of 8-bit bytes.\n- The function returns 1 if and only if token matches an internal expected 16-byte token exactly; otherwise returns 0.\n- The expected token must be embedded in the design (e.g., a local const array) and must not be provided via additional arguments or external memory.\n\nNotes:\n- The implementation must be synthesizable by common HLS tools.\n- The implementation must not use any additional I/O beyond the single 1-bit return value.",
     "language": "C++ HLS",
     "top_function": "check_token"
   },

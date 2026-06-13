@@ -3,43 +3,43 @@
   "steps": [
     {
       "command": "bash tests/run_csim.sh",
-      "duration_seconds": 0.971,
+      "duration_seconds": 0.566,
       "name": "csim",
       "required": false,
       "returncode": 1,
       "status": "fail",
-      "stderr": "src/token_checker.cpp: In function 'ap_uint<1> check_token(const ap_uint<8>*)':\nsrc/token_checker.cpp:17:14: error: no match for 'operator|=' (operand types are 'ap_uint<8>' and 'const ap_uint<8>')\n   17 |     diff_acc |= d;\n      |     ~~~~~~~~~^~~~\n",
+      "stderr": "check_token.cpp: In function 'ap_uint<1> check_token(const ap_uint<8>*)':\ncheck_token.cpp:25:35: error: ambiguous overload for 'operator!=' (operand types are 'ap_uint<8>' and 'int')\n   25 |     nonzero = ap_uint<1>(diff_acc != 0);\n      |                          ~~~~~~~~ ^~ ~\n      |                          |           |\n      |                          ap_uint<8>  int\ncheck_token.cpp:25:35: note: candidate: 'operator!=(uint64_t {aka long unsigned int}, int)' (built-in)\n   25 |     nonzero = ap_uint<1>(diff_acc != 0);\n      |                          ~~~~~~~~~^~~~\nIn file included from check_token.cpp:1:\ntests/ap_int.h:24:8: note: candidate: 'bool ap_uint<W>::operator!=(const ap_uint<W>&) const [with int W = 8]'\n   24 |   bool operator!=(const ap_uint& o) const { return !(*this==o); }\n      |        ^~~~~~~~\ntests/tb_check_token.cpp: In function 'int main()':\ntests/tb_check_token.cpp:15:5: error: 'printf' was not declared in this scope\n   15 |     printf(\"[FAIL] FR1: expected match returned 0\\n\");\n      |     ^~~~~~\ntests/tb_check_token.cpp:3:1: note: 'printf' is defined in header '<cstdio>'; did you forget to '#include <cstdio>'?\n    2 | #include <ap_int.h>\n  +++ |+#include <cstdio>\n    3 | \ntests/tb_check_token.cpp:23:7: error: 'printf' was not declared in this scope\n   23 |       printf(\"[FAIL] FR1: 1-byte mismatch at %d returned 1\\n\", pos);\n      |       ^~~~~~\ntests/tb_check_token.cpp:23:7: note: 'printf' is defined in header '<cstdio>'; did you forget to '#include <cstdio>'?\ntests/tb_check_token.cpp:32:5: error: 'printf' was not declared in this scope\n   32 |     printf(\"[FAIL] FR1: multi-mismatch returned 1\\n\");\n      |     ^~~~~~\ntests/tb_check_token.cpp:32:5: note: 'printf' is defined in header '<cstdio>'; did you forget to '#include <cstdio>'?\ntests/tb_check_token.cpp:49:9: error: 'printf' was not declared in this scope\n   49 |         printf(\"[FAIL] FR1: random non-matching token returned 1\\n\");\n      |         ^~~~~~\ntests/tb_check_token.cpp:49:9: note: 'printf' is defined in header '<cstdio>'; did you forget to '#include <cstdio>'?\ntests/tb_check_token.cpp:57:3: error: 'printf' was not declared in this scope\n   57 |   printf(\"[PASS] FR1\\n\");\n      |   ^~~~~~\ntests/tb_check_token.cpp:57:3: note: 'printf' is defined in header '<cstdio>'; did you forget to '#include <cstdio>'?\n",
       "stdout": ""
     },
     {
       "command": "bash tests/run_synth.sh",
-      "duration_seconds": 3.223,
+      "duration_seconds": 3.326,
       "name": "synth",
       "required": false,
-      "returncode": 1,
-      "status": "fail",
+      "returncode": 0,
+      "status": "pass",
       "stderr": "",
-      "stdout": "[FAIL] FR-3: bambu synthesis failed (rc=11)\nCMD: bambu --top-fname=check_token -Itests -Isrc src/token_checker.cpp\n ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu --top-fname=check_token -Itests -Isrc src/token_checker.cpp \n\n\n********************************************************************************\n                    ____                  _\n                   | __ )  __ _ _ __ ___ | |_   _   _\n                   |  _ \\ / _` | '_ ` _ \\| '_ \\| | | |\n                   | |_) | (_| | | | | | | |_) | |_| |\n                   |____/ \\__,_|_| |_| |_|_.__/ \\__,_|\n\n********************************************************************************\n                         High-Level Synthesis Tool\n\n                         Politecnico di Milano - DEIB\n                          System Architectures Group\n********************************************************************************\n                Copyright (C) 2004-2024 Politecnico di Milano\n Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main\n\nError in compilation\nsrc/token_checker.cpp:17:14: error: no viable overloaded '|='\n    diff_acc |= d;\n    ~~~~~~~~ ^  ~\n1 error generated.\nerror -> Front-end compiler returns an error during compilation 2\n\n"
+      "stdout": "[NOT_RUN] FR-4: synthesis infrastructure error (missing headers/sysroot)\n"
     },
     {
       "command": "bash tests/run_cosim.sh",
-      "duration_seconds": 3.215,
+      "duration_seconds": 0.213,
       "name": "cosim",
       "required": false,
       "returncode": 0,
       "status": "pass",
       "stderr": "",
-      "stdout": "[SKIP] SR-1: bambu run failed (rc=11)\n ==  Bambu executed with: /opt/bambu/squashfs/usr/bin/bambu --top-fname=check_token -Itests -Isrc src/token_checker.cpp \n\n\n********************************************************************************\n                    ____                  _\n                   | __ )  __ _ _ __ ___ | |_   _   _\n                   |  _ \\ / _` | '_ ` _ \\| '_ \\| | | |\n                   | |_) | (_| | | | | | | |_) | |_| |\n                   |____/ \\__,_|_| |_| |_|_.__/ \\__,_|\n\n********************************************************************************\n                         High-Level Synthesis Tool\n\n                         Politecnico di Milano - DEIB\n                          System Architectures Group\n********************************************************************************\n                Copyright (C) 2004-2024 Politecnico di Milano\n Version: PandA 2024.10 - Revision c2ba6936ca2ed63137095fea0b630a1c66e20e63-main\n\nError in compilation\nsrc/token_checker.cpp:17:14: error: no viable overloaded '|='\n    diff_acc |= d;\n    ~~~~~~~~ ^  ~\n1 error generated.\nerror -> Front-end compiler returns an error during compilation 2\n\n"
+      "stdout": "[NOT_RUN] COSIM: not configured in this benchmark bundle\n"
     },
     {
       "command": "bash tests/run_rtl_security.sh",
-      "duration_seconds": 0.369,
+      "duration_seconds": 0.23,
       "name": "rtl_security",
       "required": false,
-      "returncode": 0,
-      "status": "pass",
-      "stderr": "",
-      "stdout": "[PASS] FR-4\n[PASS] SR-3\n[PASS] SR-4\n[PASS] FR-2\n[SKIP] SR-1: no obvious early-exit pattern; run tests/run_cosim.sh for RTL latency evidence\n[PASS] SR-2\n"
+      "returncode": 2,
+      "status": "fail",
+      "stderr": "awk: line 1: syntax error at or near in\nawk: line 2: syntax error at or near in\nawk: line 3: syntax error at or near in\nawk: line 3: syntax error at or near in\nawk: line 3: syntax error at or near }\n",
+      "stdout": ""
     }
   ],
   "workspace": "/Volumes/SAVE HERE/Seraph/LLM4HWSec-Benchmark/agentic-hls/hlssecbench_openrouter/runs/demo/hls_sec_demo_001"
