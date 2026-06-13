@@ -1,0 +1,64 @@
+- seed_id: hls_ift_crypto_kernel
+  domain_id: hls_security_codegen
+  title: Information-flow hardened crypto HLS kernel
+  objective: Add information-flow tracking checks to a small HLS crypto kernel and evaluate leakage prevention.
+  constraints:
+    - Use C/C++ compatible with PandA-Bambu style HLS.
+    - Include CWE/security-property list and synthesis-oriented checks.
+  threat_model: Secret key bytes must not influence public status outputs except through approved ciphertext/data outputs.
+  ground_truth: Secret-to-public flows are allowed only through explicitly listed declassified outputs.
+
+- seed_id: rtl_aes_rare_trigger
+  domain_id: rtl_trojan_detection
+  title: Rare-trigger Trojan in AES-like RTL
+  objective: Detect suspicious trigger and payload logic in a compact RTL module.
+  constraints:
+    - Keep RTL under 200 lines.
+    - Include private trigger/payload annotation.
+  threat_model: Attacker inserts dormant logic activated by a rare counter state.
+  ground_truth: Trigger is a rare state comparator; payload corrupts one output bit.
+
+- seed_id: gate_aes_suspect_nodes
+  domain_id: gate_trojan_detection
+  title: Gate-level Trojan suspect-node localization
+  objective: Classify a small synthesized-style netlist as infected and identify trigger/payload nodes.
+  constraints:
+    - Use simple Verilog primitives/assign gates.
+    - Include node labels in ground truth.
+  ground_truth: Suspect nodes include rare trigger AND tree and payload XOR near output.
+
+- seed_id: reverse_flattened_adder_tree
+  domain_id: hardware_reverse_engineering
+  title: Recover adder tree from flattened netlist
+  objective: Recover word-level intent and RTL from an obfuscated gate/bit-level design.
+  constraints:
+    - Include public netlist and hidden word-level RTL.
+    - Metrics should include structural match and functional equivalence hooks.
+  ground_truth: The design implements a 32-bit adder tree over four 16-bit inputs.
+
+- seed_id: rtl_fault_tmr_candidates
+  domain_id: side_channel_fault_analysis
+  title: SEU hardening candidate identification
+  objective: Analyze RTL and fault model to identify vulnerable flip-flops requiring TMR.
+  constraints:
+    - Include fault model and expected hardening suggestions.
+  ground_truth: State/control registers are critical; data pipeline registers have lower priority.
+
+- seed_id: adversarial_uart_trojan
+  domain_id: adversarial_ht_generation
+  title: Detector-stress UART Trojan generation
+  objective: Generate a functionally correct Trojan variant and report evasion strategy against a detector stub.
+  constraints:
+    - Include clean target RTL and detector contract.
+    - Generated Trojan must preserve normal UART tests.
+  ground_truth: Evasion should avoid simple rare-net fanout and suspicious counter signatures.
+
+- seed_id: locked_c880_xor_keys
+  domain_id: logic_deobfuscation_sat
+  title: XOR key-gate localization in locked combinational netlist
+  objective: Identify key gates and recover a partial key from a logic-locked netlist.
+  constraints:
+    - Use a compact ISCAS-style combinational netlist.
+    - Include private key and key-gate labels.
+  ground_truth: XOR key gates protect selected internal signals; partial key is recoverable from oracle vectors.
+

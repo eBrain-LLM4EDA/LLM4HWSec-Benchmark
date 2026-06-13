@@ -57,7 +57,11 @@ class Workspace:
         if source is None:
             raise ValueError("No C/C++ implementation file found in expert bundle")
 
-        self.write_text(impl_path, source["content"])
+        source_path = Path(source.get("path", ""))
+        content = source["content"]
+        if source_path.suffix.lower() == ".c":
+            content = self._with_extern_c_guards(content)
+        self.write_text(impl_path, content)
 
         for file_obj in bundle.get("files", []):
             raw_path = file_obj["path"]

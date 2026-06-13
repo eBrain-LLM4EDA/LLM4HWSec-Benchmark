@@ -1,0 +1,45 @@
+defaults:
+  temperature: 0.15
+  max_tokens: 16000
+
+agents:
+  idea_generator:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/idea_generator.md
+    schema: schemas/idea_bundle.schema.json
+    temperature: 0.35
+  architect:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/architect.md
+    schema: schemas/task_spec.schema.json
+    temperature: 0.15
+  artifact_builder:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/artifact_builder.md
+    schema: schemas/file_bundle.schema.json
+    temperature: 0.10
+  expert:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/expert.md
+    schema: schemas/file_bundle.schema.json
+    temperature: 0.05
+  tester:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/tester.md
+    schema: schemas/file_bundle.schema.json
+    temperature: 0.05
+  mutator:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/mutator.md
+    schema: schemas/mutation_bundle.schema.json
+    temperature: 0.15
+  analyzer:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/analyzer.md
+    schema: schemas/analyzer_report.schema.json
+    temperature: 0.05
+  arbiter:
+    model: anthropic/claude-sonnet-4.5
+    prompt: prompts/arbiter.md
+    schema: schemas/arbiter_decision.schema.json
+    temperature: 0.0

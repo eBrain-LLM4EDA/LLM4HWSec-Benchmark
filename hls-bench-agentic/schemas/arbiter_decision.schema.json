@@ -20,7 +20,7 @@
     "retain_task": {"type": "boolean"},
     "artifact_to_revise": {
       "type": "string",
-      "enum": ["none", "specification", "expert", "tester", "tool_config", "mutator"]
+      "enum": ["none", "specification", "expert", "tester", "cosim_harness", "tool_config", "mutator"]
     },
     "revision_instructions": {"type": "string"},
     "rationale":             {"type": "string"}

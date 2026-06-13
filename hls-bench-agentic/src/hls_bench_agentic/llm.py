@@ -5,6 +5,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from json import JSONDecodeError
 from typing import Any
 
 from openai import BadRequestError, OpenAI
@@ -37,30 +38,47 @@ class OpenRouterSettings:
     base_url: str = "https://openrouter.ai/api/v1"
     referer: str = "http://localhost"
     title: str = "HLSBenchAgentic"
+    timeout_seconds: float = 120.0
+    max_retries: int = 3
 
 
 class OpenRouterLLM:
     def __init__(self, settings: OpenRouterSettings):
+        self.default_retries = settings.max_retries
         self.client = OpenAI(
             api_key=settings.api_key,
             base_url=settings.base_url,
             default_headers={
                 "HTTP-Referer": settings.referer,
                 "X-Title": settings.title,
+                "X-OpenRouter-Title": settings.title,
             },
+            timeout=settings.timeout_seconds,
+            max_retries=0,
         )
 
     @classmethod
-    def from_env(cls, base_url: str = "https://openrouter.ai/api/v1") -> "OpenRouterLLM":
+    def from_env(
+        cls,
+        base_url: str = "https://openrouter.ai/api/v1",
+        timeout_seconds: float | None = None,
+        max_retries: int | None = None,
+    ) -> "OpenRouterLLM":
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise RuntimeError("Set OPENROUTER_API_KEY before running.")
+        if timeout_seconds is None:
+            timeout_seconds = float(os.environ.get("OPENROUTER_TIMEOUT_SECONDS", "120"))
+        if max_retries is None:
+            max_retries = int(os.environ.get("OPENROUTER_MAX_RETRIES", "3"))
         return cls(
             OpenRouterSettings(
                 api_key=api_key,
                 base_url=base_url,
                 referer=os.environ.get("OPENROUTER_REFERER", "http://localhost"),
                 title=os.environ.get("OPENROUTER_TITLE", "HLSBenchAgentic"),
+                timeout_seconds=timeout_seconds,
+                max_retries=max_retries,
             )
         )
 
@@ -84,7 +102,7 @@ class OpenRouterLLM:
         schema: dict[str, Any],
         temperature: float = 0.1,
         max_tokens: int = 16000,
-        retries: int = 3,
+        retries: int | None = None,
     ) -> dict[str, Any]:
         """
         Request a JSON response.  Strategy (per attempt):
@@ -92,11 +110,25 @@ class OpenRouterLLM:
           2. If choices comes back null, fall back to json_object mode.
           3. As a last resort, parse the first JSON block from a plain text reply.
         """
+        if retries is None:
+            retries = self.default_retries
         last_error: Exception | None = None
         for attempt in range(retries + 1):
             try:
                 content = self._try_json_schema(model, messages, schema_name, schema, temperature, max_tokens)
-                return json.loads(content)
+                try:
+                    return json.loads(content)
+                except JSONDecodeError as exc:
+                    detail = (
+                        f"Invalid JSON from provider ({exc.msg} at char {exc.pos}; "
+                        f"received {len(content)} chars)."
+                    )
+                    if len(content) >= max_tokens:
+                        detail += (
+                            " The response may have been truncated; reduce the prompt/output size "
+                            "or increase the agent max_tokens setting."
+                        )
+                    raise ValueError(detail) from exc
             except Exception as exc:
                 last_error = exc
                 if attempt >= retries:
@@ -164,8 +196,10 @@ class OpenRouterLLM:
         messages: list[dict[str, str]],
         temperature: float = 0.1,
         max_tokens: int = 16000,
-        retries: int = 3,
+        retries: int | None = None,
     ) -> str:
+        if retries is None:
+            retries = self.default_retries
         last_error: Exception | None = None
         for attempt in range(retries + 1):
             try:

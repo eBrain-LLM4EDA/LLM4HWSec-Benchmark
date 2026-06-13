@@ -136,8 +136,12 @@ def evaluate_target_model(
     hidden_spec = read_json(task_dir / "spec" / "hidden_spec.json")
     task_spec   = read_json(task_dir / "spec" / "task_spec.json")
 
-    base_url = pipeline_cfg.get("openrouter", {}).get("base_url", "https://openrouter.ai/api/v1")
-    llm = OpenRouterLLM.from_env(base_url=base_url)
+    openrouter_cfg = pipeline_cfg.get("openrouter", {})
+    llm = OpenRouterLLM.from_env(
+        base_url=openrouter_cfg.get("base_url", "https://openrouter.ai/api/v1"),
+        timeout_seconds=float(openrouter_cfg.get("timeout_seconds", 120)),
+        max_retries=int(openrouter_cfg.get("max_retries", 3)),
+    )
 
     agents_cfg_path = (config_path.parent.parent / pipeline_cfg["agents_config"]).resolve()
     agents_raw = read_yaml(agents_cfg_path)

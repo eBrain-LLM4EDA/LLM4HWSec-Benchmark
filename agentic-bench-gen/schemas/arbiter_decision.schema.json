@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "retain_case",
+    "artifact_to_revise",
+    "root_cause",
+    "rationale",
+    "revision_instructions"
+  ],
+  "properties": {
+    "retain_case": {
+      "type": "boolean"
+    },
+    "artifact_to_revise": {
+      "type": "string",
+      "enum": [
+        "none",
+        "specification",
+        "case_artifacts",
+        "evaluation_framework"
+      ]
+    },
+    "root_cause": {
+      "type": "string",
+      "enum": [
+        "none",
+        "specification_issue",
+        "artifact_issue",
+        "evaluation_issue",
+        "validation_issue"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "revision_instructions": {
+      "type": "string"
+    }
+  }
+}

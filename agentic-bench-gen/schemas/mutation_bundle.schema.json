@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mutants"
+  ],
+  "properties": {
+    "mutants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mutant_id",
+          "operator",
+          "target_requirement_id",
+          "expected_detection",
+          "files"
+        ],
+        "properties": {
+          "mutant_id": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "constant_change",
+              "operator_swap",
+              "condition_negation",
+              "stuck_at_signal",
+              "assignment_removal",
+              "domain_specific"
+            ]
+          },
+          "target_requirement_id": {
+            "type": "string"
+          },
+          "expected_detection": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "content"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

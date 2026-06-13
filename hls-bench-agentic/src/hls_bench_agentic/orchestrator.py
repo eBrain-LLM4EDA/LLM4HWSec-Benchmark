@@ -12,12 +12,34 @@ from .agents import AgentConfig, JsonAgent
 from .ast_analyzer import analyze_source, score_synthesis_compatibility
 from .grading import compute_grade, get_difficulty_weight
 from .llm import OpenRouterLLM
+from .preflight import preflight_tester_bundle
 from .runner import ToolRunner, parse_execution_config
 from .security_verifier import verify
 from .utils import read_yaml, write_json
 from .workspace import Workspace
 
 console = Console()
+
+
+GENERATED_ARTIFACT_IGNORE_PATTERNS = (
+    "mutants",
+    "reports",
+    "HLS_output",
+    "synth_out",
+    "cosim_out",
+    "verilator_obj",
+    "*.log",
+    "*.v",
+    "*.xml",
+    "*.o",
+    "*.a",
+    "*.d",
+    "a.out",
+    "csim",
+    "csim_*",
+    "simulate_*",
+    "synthesize_*",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +214,8 @@ def _make_analysis_packet(
     expert_bundle: dict[str, Any],
     test_bundle: dict[str, Any],
     execution_results: dict[str, Any],
+    tester_preflight: dict[str, Any] | None = None,
+    cosim_harness_bundle: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     expert_static_review = _make_expert_static_review(task_spec, expert_bundle)
     provenance_hints = _make_provenance_hints(execution_results, expert_static_review)
@@ -201,11 +225,63 @@ def _make_analysis_packet(
         "task_spec": task_spec,
         "expert_manifest": expert_bundle.get("manifest", []),
         "test_manifest": test_bundle.get("manifest", []),
+        "cosim_harness_manifest": (cosim_harness_bundle or {}).get("manifest", []),
         "requirement_map": test_bundle.get("requirement_map", []),
         "execution_results": execution_results,
+        "tester_preflight": tester_preflight or {"status": "not_run", "issues": []},
         "expert_static_review": expert_static_review,
         "provenance_hints": provenance_hints,
     }
+
+
+def _cosim_enabled(pipeline_cfg: dict[str, Any]) -> bool:
+    pipeline_raw = pipeline_cfg.get("pipeline", {})
+    pipeline_enabled = bool(pipeline_raw.get("enable_cosim", True))
+    if not pipeline_enabled:
+        return False
+    for step in pipeline_cfg.get("execution", {}).get("steps", []):
+        if step.get("name") == "cosim":
+            return bool(step.get("enabled", True))
+    return pipeline_enabled
+
+
+def _preflight_execution_results(ws: Workspace, report: dict[str, Any]) -> dict[str, Any]:
+    results = {
+        "allow_execution": True,
+        "workspace": str(ws.root),
+        "steps": [
+            {
+                "name": "tester_preflight",
+                "command": "internal tester bundle preflight",
+                "status": "fail",
+                "required": True,
+                "stdout": "",
+                "stderr": "Tester preflight failed; tool execution skipped.",
+                "returncode": 1,
+                "duration_seconds": 0.0,
+                "issues": report.get("issues", []),
+            }
+        ],
+    }
+    ws.write_json("reports/execution_results.json", results)
+    return results
+
+
+def _merge_file_bundle_into_test_bundle(test_bundle: dict[str, Any], file_bundle: dict[str, Any]) -> dict[str, Any]:
+    merged = {
+        "manifest": list(test_bundle.get("manifest", [])),
+        "requirement_map": list(test_bundle.get("requirement_map", [])),
+        "files": list(test_bundle.get("files", [])),
+    }
+
+    file_paths = {file_obj.get("path") for file_obj in file_bundle.get("files", [])}
+    merged["files"] = [file_obj for file_obj in merged["files"] if file_obj.get("path") not in file_paths]
+    merged["files"].extend(file_bundle.get("files", []))
+
+    manifest_paths = {item.get("path") for item in file_bundle.get("manifest", [])}
+    merged["manifest"] = [item for item in merged["manifest"] if item.get("path") not in manifest_paths]
+    merged["manifest"].extend(file_bundle.get("manifest", []))
+    return merged
 
 
 def _compute_quality_report(
@@ -274,8 +350,12 @@ class HLSBenchOrchestrator:
     def __init__(self, config_path: str | Path):
         self.config_path = Path(config_path).resolve()
         self.pipeline_cfg = read_yaml(self.config_path)
-        base_url = self.pipeline_cfg.get("openrouter", {}).get("base_url", "https://openrouter.ai/api/v1")
-        self.llm = OpenRouterLLM.from_env(base_url=base_url)
+        openrouter_cfg = self.pipeline_cfg.get("openrouter", {})
+        self.llm = OpenRouterLLM.from_env(
+            base_url=openrouter_cfg.get("base_url", "https://openrouter.ai/api/v1"),
+            timeout_seconds=float(openrouter_cfg.get("timeout_seconds", 120)),
+            max_retries=int(openrouter_cfg.get("max_retries", 3)),
+        )
         agents_cfg_path = (self.config_path.parent.parent / self.pipeline_cfg["agents_config"]).resolve()
         self.agents = load_agents(self.llm, agents_cfg_path, self.pipeline_cfg.get("defaults", {}))
         self.runner = ToolRunner(parse_execution_config(self.pipeline_cfg))
@@ -347,8 +427,11 @@ class HLSBenchOrchestrator:
         task_spec: dict[str, Any] | None = None
         expert_bundle: dict[str, Any] | None = None
         test_bundle: dict[str, Any] | None = None
+        cosim_harness_bundle: dict[str, Any] | None = None
+        tester_preflight: dict[str, Any] | None = None
         arbiter_decision: dict[str, Any] | None = None
         ws_path: Path | None = None
+        cosim_enabled = _cosim_enabled(self.pipeline_cfg)
 
         for round_idx in range(max_repair + 1):
             artifact_to_fix = arbiter_decision["artifact_to_revise"] if arbiter_decision else "none"
@@ -383,7 +466,7 @@ class HLSBenchOrchestrator:
                     top_function=task_spec["public_spec"].get("top_function"),
                 )
 
-            # --- Tester (re-run if spec, impl, or tests are broken) ---
+            # --- Tester (re-run if spec, impl, or general tests are broken) ---
             if round_idx == 0 or artifact_to_fix in ("specification", "expert", "tester"):
                 console.print(f"[bold]Tester (round {round_idx}):[/bold] testbenches for {task_id}")
                 test_bundle = self.agents["tester"].run({
@@ -397,12 +480,48 @@ class HLSBenchOrchestrator:
                     top_function=task_spec["public_spec"].get("top_function"),
                 )
 
+            # --- CosimHarness (specialized Bambu co-simulation files) ---
+            should_run_cosim_harness = (
+                cosim_enabled
+                and
+                "cosim_harness" in self.agents
+                and (
+                    round_idx == 0
+                    or artifact_to_fix in ("specification", "expert", "tester", "cosim_harness", "tool_config")
+                )
+            )
+            if should_run_cosim_harness:
+                console.print(f"[bold]CosimHarness (round {round_idx}):[/bold] Bambu co-sim harness for {task_id}")
+                cosim_harness_bundle = self.agents["cosim_harness"].run({
+                    "task_spec_json": task_spec,
+                    "test_bundle_json": test_bundle,
+                    "repair_notes": repair_notes,
+                })
+                ws.write_json("tests/cosim_harness_bundle.json", cosim_harness_bundle)
+                ws.write_file_bundle(cosim_harness_bundle, base_dir=".")
+                test_bundle = _merge_file_bundle_into_test_bundle(test_bundle, cosim_harness_bundle)
+                ws.write_json("tests/test_bundle.json", test_bundle)
+                tester_preflight = preflight_tester_bundle(ws, test_bundle, require_cosim=cosim_enabled)
+            elif tester_preflight is None or artifact_to_fix in ("specification", "expert", "tester", "tool_config"):
+                tester_preflight = preflight_tester_bundle(ws, test_bundle, require_cosim=cosim_enabled)
+
             # --- Execute tool steps ---
-            console.print(f"[bold]Runner:[/bold] tool steps for {task_id}")
-            execution_results = self.runner.run_all(ws.root)
+            if tester_preflight and tester_preflight.get("status") != "pass":
+                console.print(f"[yellow]Tester preflight failed for {task_id}; skipping tool execution.[/yellow]")
+                execution_results = _preflight_execution_results(ws, tester_preflight)
+            else:
+                console.print(f"[bold]Runner:[/bold] tool steps for {task_id}")
+                execution_results = self.runner.run_all(ws.root)
 
             # --- Security Analyzer ---
-            analysis_packet = _make_analysis_packet(task_spec, expert_bundle, test_bundle, execution_results)
+            analysis_packet = _make_analysis_packet(
+                task_spec,
+                expert_bundle,
+                test_bundle,
+                execution_results,
+                tester_preflight=tester_preflight,
+                cosim_harness_bundle=cosim_harness_bundle,
+            )
             ws.write_json("reports/analysis_packet.json", analysis_packet)
             console.print(f"[bold]SecurityAnalyzer (round {round_idx}):[/bold] {task_id}")
             analyzer_report = self.agents["security_analyzer"].run({"analysis_packet_json": analysis_packet})
@@ -413,6 +532,7 @@ class HLSBenchOrchestrator:
                 "task_spec": task_spec,
                 "expert_manifest": expert_bundle.get("manifest", []),
                 "test_manifest": test_bundle.get("manifest", []),
+                "cosim_harness_manifest": (cosim_harness_bundle or {}).get("manifest", []),
                 "execution_results": execution_results,
                 "analyzer_report": analyzer_report,
                 "expert_static_review": analysis_packet.get("expert_static_review", {}),
@@ -473,7 +593,7 @@ class HLSBenchOrchestrator:
             mutant_dir = ws.root / "mutants" / mutant_id
             if mutant_dir.exists():
                 shutil.rmtree(mutant_dir)
-            shutil.copytree(ws.root, mutant_dir, ignore=shutil.ignore_patterns("mutants"))
+            _copy_workspace_for_mutant(ws.root, mutant_dir)
             mws = Workspace(mutant_dir)
             mws.write_file_bundle({"files": mutant["files"]}, base_dir=".")
             m_exec = self.runner.run_all(mws.root)
@@ -490,3 +610,18 @@ class HLSBenchOrchestrator:
             write_json(mutant_dir / "reports" / "mutant_report.json", report)
             mutant_reports.append(report)
         return mutant_reports
+
+
+def _copy_workspace_for_mutant(src: Path, dst: Path) -> None:
+    """Copy only reusable task inputs into a mutant workspace.
+
+    Bambu and Verilator can leave deep generated trees and symlinks under
+    HLS_output/beh_sim. Copying those into each mutant can recursively duplicate
+    tool output paths until macOS hits ENAMETOOLONG.
+    """
+    shutil.copytree(
+        src,
+        dst,
+        symlinks=True,
+        ignore=shutil.ignore_patterns(*GENERATED_ARTIFACT_IGNORE_PATTERNS),
+    )

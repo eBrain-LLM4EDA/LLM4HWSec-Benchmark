@@ -28,6 +28,8 @@ else
   HLS_BENCH_TEST_COMMAND="bash tests/run_csim.sh && bash tests/run_synth.sh && bash tests/run_cosim.sh && bash tests/run_rtl_security.sh"
 fi
 export HLS_BENCH_TEST_COMMAND
+HLS_BENCH_BAMBU_IMAGE="${HLS_BENCH_BAMBU_IMAGE:-hlssecbench-openrouter-bambu:latest}"
+export HLS_BENCH_BAMBU_IMAGE
 
 cd "${PROJECT_ROOT}"
 
@@ -40,5 +42,17 @@ else
   exit 1
 fi
 
-"${COMPOSE[@]}" build bambu-tests
+if ! docker image inspect "${HLS_BENCH_BAMBU_IMAGE}" >/dev/null 2>&1; then
+  cat >&2 <<EOF
+[FAIL] Docker image not found: ${HLS_BENCH_BAMBU_IMAGE}
+
+Build the shared image once from agentic-hls:
+  cd ../agentic-hls/hlssecbench_openrouter
+  docker compose build bambu-runner
+
+Or set HLS_BENCH_BAMBU_IMAGE to another local Bambu image.
+EOF
+  exit 1
+fi
+
 "${COMPOSE[@]}" run --rm bambu-tests

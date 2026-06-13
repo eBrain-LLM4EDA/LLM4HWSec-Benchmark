@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "domain_id",
+    "title",
+    "public_spec",
+    "hidden_spec",
+    "evaluation"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string"
+    },
+    "domain_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "public_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective",
+        "input_artifacts",
+        "expected_outputs"
+      ],
+      "properties": {
+        "objective": {
+          "type": "string"
+        },
+        "input_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_outputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "interface": {
+          "type": "string"
+        },
+        "functional_requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "requirement"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "requirement": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "response_format": {
+          "type": "string"
+        }
+      }
+    },
+    "hidden_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ground_truth"
+      ],
+      "properties": {
+        "ground_truth": {
+          "type": "string"
+        },
+        "threat_model": {
+          "type": "string"
+        },
+        "cwe_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "security_requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "requirement"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "requirement": {
+                "type": "string"
+              },
+              "detection_strategy": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metrics"
+      ],
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "description"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "maximize",
+                  "minimize"
+                ]
+              }
+            }
+          }
+        },
+        "baselines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

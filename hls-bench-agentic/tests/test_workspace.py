@@ -63,7 +63,9 @@ def test_normalize_hls_implementation_creates_canonical_impl(tmp_path):
         ]
     })
 
-    assert (tmp_path / "src" / "impl.cpp").read_text() == "#include \"compare_token.h\"\nint compare_token(void) { return 1; }\n"
+    impl = (tmp_path / "src" / "impl.cpp").read_text()
+    assert "#include \"compare_token.h\"\nint compare_token(void) { return 1; }\n" in impl
+    assert 'extern "C"' in impl
     assert 'extern "C"' in (tmp_path / "src" / "compare_token.h").read_text()
     assert "int compare_token(void);" in (tmp_path / "src" / "compare_token.h").read_text()
 
@@ -86,7 +88,32 @@ def test_normalize_hls_implementation_prefers_top_function(tmp_path):
         top_function="compare_token",
     )
 
-    assert (tmp_path / "src" / "impl.cpp").read_text() == "int compare_token(void) { return 1; }\n"
+    impl = (tmp_path / "src" / "impl.cpp").read_text()
+    assert "int compare_token(void) { return 1; }\n" in impl
+    assert 'extern "C"' in impl
+
+
+def test_normalize_hls_implementation_adds_c_linkage_for_headerless_c_source(tmp_path):
+    ws = Workspace(tmp_path)
+    ws.normalize_hls_implementation({
+        "files": [
+            {"path": "compare_token.c", "content": "#include <stdint.h>\nuint8_t compare_token(const uint8_t input_token[16]) { return input_token[0]; }\n"},
+        ]
+    })
+    (tmp_path / "tb.cpp").write_text(
+        '#include <stdint.h>\n'
+        'extern "C" uint8_t compare_token(const uint8_t input_token[16]);\n'
+        "int main() { uint8_t x[16] = {0}; return compare_token(x); }\n"
+    )
+
+    proc = subprocess.run(
+        ["g++", "-std=c++11", "-I.", "tb.cpp", "src/impl.cpp", "-o", "tb"],
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr
 
 
 def test_normalized_header_supports_extern_c_testbench_linkage(tmp_path):

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ideas"
+  ],
+  "properties": {
+    "ideas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "seed_id",
+          "domain_id",
+          "title",
+          "objective"
+        ],
+        "properties": {
+          "seed_id": {
+            "type": "string"
+          },
+          "domain_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "objective": {
+            "type": "string"
+          },
+          "constraints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "threat_model": {
+            "type": "string"
+          },
+          "ground_truth": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
