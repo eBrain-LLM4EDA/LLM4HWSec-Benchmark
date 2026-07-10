@@ -1,7 +1,0 @@
-{
-  "id": "tier3_alu_control",
-  "tier": 3,
-  "top_module": "alu_control8",
-  "intent_summary": "An 8-bit ALU datapath with opcode-controlled arithmetic and logic operations and a zero flag.",
-  "semantic_keywords": ["alu", "opcode", "datapath", "logic", "arithmetic", "zero"]
-}
