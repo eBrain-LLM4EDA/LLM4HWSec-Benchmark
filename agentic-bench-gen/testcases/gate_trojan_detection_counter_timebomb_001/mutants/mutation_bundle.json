@@ -1,0 +1,76 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "evaluate.py checks SR1 by verifying is_trojan_detected == true; this mutant flips it to false while retaining accurate suspect_nodes/stage_labels, which must cause a FAIL on SR1 (and cascading failure of the overall trojan-detected acceptance criterion) despite otherwise correct localization.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": false,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\",\n    \"trig_and\",\n    \"payload_xor\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[3]\": \"counter\",\n    \"trig_and\": \"comparator\",\n    \"payload_xor\": \"payload\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  },\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree comparator node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates a payload XOR gate (payload_xor) spliced onto the primary output path. Although the structure is unusual, it is assessed as within normal design margin and not flagged as a trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_SR1_condition_negation",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Evaluator computes coverage of true trigger+payload nodes (cnt_reg[0..3], trig_and, payload_xor) against reported suspect_nodes/stage_labels; with the comparator and payload nodes removed, only 4/6 (66.6%) or fewer distinct true nodes remain named depending on tolerance, and critically the comparator and payload roles are entirely missing from stage_labels, so SR2's requirement that suspect_nodes/stage_labels include the terminal-count comparator gate and the payload gate fails, causing a FAIL verdict.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[3]\": \"counter\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  },\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. This subcircuit is absent from the design_brief functional specification. The legitimate datapath nodes (sum_bit, carry) were verified against the documented adder/accumulator behavior and are not part of the trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_SR2_assignment_removal",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Evaluator's hidden stage map check should flag that trig_and (the terminal-count comparator) is mislabeled as 'datapath' instead of 'comparator', and payload_xor is mislabeled as 'io' instead of 'payload', causing SR3 role-mapping validation to fail even though is_trojan_detected and suspect_nodes coverage remain nominally intact.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\",\n    \"trig_and\",\n    \"payload_xor\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[3]\": \"counter\",\n    \"trig_and\": \"datapath\",\n    \"payload_xor\": \"io\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  },\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates an XOR gate (payload_xor) spliced onto the primary output path. Both trig_and and payload_xor are treated here as ordinary datapath/io wiring rather than trojan comparator/payload logic. The legitimate datapath nodes (sum_bit, carry) were verified against the documented adder/accumulator behavior.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_SR3_domain_specific",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "evaluate.py computes false_positive_rate over suspect_nodes against the hidden ground-truth trigger/payload set; adding 'sum_bit' and 'carry' (legitimate documented datapath nodes) into suspect_nodes while still labeling them 'datapath' inflates the false positive count since they are now flagged as suspect despite being legitimate, causing false_positive_rate to exceed threshold and SR4 to FAIL.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\",\n    \"trig_and\",\n    \"payload_xor\",\n    \"sum_bit\",\n    \"carry\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[3]\": \"counter\",\n    \"trig_and\": \"comparator\",\n    \"payload_xor\": \"payload\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  },\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree comparator node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates a payload XOR gate (payload_xor) spliced onto the primary output path, silently corrupting the true output after prolonged operation. Out of an abundance of caution the adder chain nodes sum_bit and carry were also flagged as suspect pending further review, even though they correspond to the documented accumulator logic.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_SR4_constant_change",
+      "operator": "constant_change",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "evaluate.py FR1 schema check must fail because the required top-level 'stage_labels' field is missing from the submitted JSON object, violating the pinned schema which mandates 'design_name', 'is_trojan_detected', 'suspect_nodes', and 'stage_labels' all be present.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\",\n    \"trig_and\",\n    \"payload_xor\"\n  ],\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree comparator node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates a payload XOR gate (payload_xor) spliced onto the primary output path, silently corrupting the true output after prolonged operation. This subcircuit is absent from the design_brief functional specification. The legitimate datapath nodes (sum_bit, carry) were verified against the documented adder/accumulator behavior and are not part of the trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_FR1_assignment_removal",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "evaluate.py reads the module name declared in inputs/netlist.v (datapath_top) and compares it against the submission's design_name field; since the mutant reports design_name as 'datapath_top_v2' instead of the actual module name 'datapath_top', FR2's exact-match check fails.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top_v2\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\",\n    \"trig_and\",\n    \"payload_xor\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[3]\": \"counter\",\n    \"trig_and\": \"comparator\",\n    \"payload_xor\": \"payload\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  },\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree comparator node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates a payload XOR gate (payload_xor) spliced onto the primary output path, silently corrupting the true output after prolonged operation. This subcircuit is absent from the design_brief functional specification. The legitimate datapath nodes (sum_bit, carry) were verified against the documented adder/accumulator behavior and are not part of the trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_FR2_constant_change",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    }
+  ]
+}

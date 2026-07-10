@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs meet retention criteria: mutation_score=1.0, coverage_score=1.0, validation_status=pass, baseline_exit_code=0, issue_count=0, analyzer_status=pass. The golden solution passes all checks (FR1, SR1-SR4), the shipped insecure baseline correctly fails all security checks (status/iter_count leakage via key[0]==0 branch), and the differential testing confirms proper discrimination between secure and vulnerable implementations. No dead checks, no uncovered requirements, no requirement id mismatches, and no evaluator bugs were found. The task is well-specified with a pinned interface, clear CWE mappings, and a coherent hidden spec that aligns with the public spec and evaluation harness.",
+  "retain_case": true,
+  "revision_instructions": "No revisions needed. The case is well-formed and ready for retention.",
+  "root_cause": "none"
+}

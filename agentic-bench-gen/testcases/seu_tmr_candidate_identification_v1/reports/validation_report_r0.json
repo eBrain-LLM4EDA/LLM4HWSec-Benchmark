@@ -1,0 +1,101 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/controller_datapath.v",
+    "inputs/fault_model.md",
+    "inputs/register_map.json",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 1,
+    "FR3": 1,
+    "SR1": 2,
+    "SR2": 1,
+    "SR3": 1
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] FAIL: FR1: missing: ['ctrl_state', 'data_stage1_reg', 'data_stage2_reg', 'fifo_rd_ptr', 'fifo_wr_ptr', 'irq_pending_reg', 'mac_acc_reg', 'mode_reg']\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: SR1: ctrl_state: missing from submission; mode_reg: missing from submission; irq_pending_reg: missing from submission; fifo_wr_ptr: missing from submission; fifo_rd_ptr: missing from submission\n[TEST] PASS: SR2\n[TEST] FAIL: SR3: only 0 of 5 control-state justifications reference silent-corruption rationale (need >=3); lacking: ['ctrl_state', 'mode_reg', 'irq_pending_reg', 'fifo_wr_ptr', 'fifo_rd_ptr']\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [],
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "status": "pass",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.json"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR3",
+    "FR4"
+  ]
+}

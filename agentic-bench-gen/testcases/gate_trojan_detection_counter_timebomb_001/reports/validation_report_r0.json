@@ -1,0 +1,52 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/baseline_testbench.v",
+    "inputs/design_brief.md",
+    "inputs/netlist.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: design_name 'counter_timebomb_top' does not match module name 'datapath_top' in netlist.v\n[TEST] FAIL: FR3: referenced node(s) not found in netlist.v: cout, sum\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2: coverage=1.00\n[TEST] PASS: SR3\n[TEST] PASS: SR4: fpr=0.00\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: is_trojan_detected is not true (got False)\n[TEST] FAIL: SR2: coverage 0.00 below required threshold 0.66 (0/6 true nodes matched)\n[TEST] FAIL: SR3: no correctly-labeled node found for categories: counter, comparator, payload\n[TEST] PASS: SR4: fpr=0.00\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "requirement_count": 8,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.json"
+  ],
+  "uncovered_requirements": []
+}

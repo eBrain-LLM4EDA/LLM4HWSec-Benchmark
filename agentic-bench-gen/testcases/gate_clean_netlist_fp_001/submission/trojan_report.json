@@ -1,0 +1,6 @@
+{
+  "infected": true,
+  "suspect_nodes": ["rst_sync2", "init_cnt", "sat_cmp_ge_max"],
+  "rationale": "these nets have low toggle probability suggesting a rare-trigger hardware trojan",
+  "confidence": 0.6
+}

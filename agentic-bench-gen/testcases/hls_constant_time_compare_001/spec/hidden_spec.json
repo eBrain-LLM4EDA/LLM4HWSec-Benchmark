@@ -1,0 +1,31 @@
+{
+  "acceptance_criteria": [
+    "All FR1-FR4 known-answer and mismatch vectors produce correct boolean outputs.",
+    "Timing/instruction-count analysis across mismatch-position buckets (early/mid/late first-difference, plus full-match) shows no statistically significant monotonic trend exceeding the calibrated tolerance, distinguishing hardened code from the shipped insecure baseline which exhibits a clear early-return timing signal.",
+    "Submission compiles without modification to the pinned interface."
+  ],
+  "cwe_ids": [
+    "CWE-203",
+    "CWE-208",
+    "CWE-385"
+  ],
+  "ground_truth": "A correct hardened submission's verify() scans all 16 bytes unconditionally (e.g. via bitwise OR-accumulation of XOR differences) and produces a single boolean at the end; the number of byte-comparisons performed, branch pattern taken, and measured latency are statistically invariant across mismatch positions (early vs late first differing byte), while functional correctness (accept exact matches, reject any mismatch) is fully preserved.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Behavioral: instrument the harness to run verify() over many mismatch-position vectors (mismatch at index 0 vs index 15, etc.) with high repetition counts and compare mean/median latency distributions; flag PASS only if the difference between earliest-mismatch and latest-mismatch timing groups is below a tolerance threshold (e.g. within noise, using a t-test or ratio bound) relative to a deliberately non-constant-time reference baseline shipped in the harness for calibration.",
+      "id": "SR1",
+      "requirement": "The comparison loop must execute a fixed number of iterations (exactly 16) regardless of byte contents, with no data-dependent early return, break, or goto out of the loop."
+    },
+    {
+      "detection_strategy": "Behavioral proxy: run each mismatch-position vector many times and check that the CPU-cycle/instruction count (via repeated timed loops) for a byte-0 mismatch is statistically indistinguishable from a byte-15 mismatch; a naive early-return implementation will show a clear monotonic timing gap that the detector flags as FAIL.",
+      "id": "SR2",
+      "requirement": "The final boolean result must be derived from an accumulated difference (e.g. OR of XORs) computed after the full scan, not from a partial-state variable set and returned mid-loop."
+    },
+    {
+      "detection_strategy": "Interface conformance check: harness only calls verify() with fixed 16-byte arrays per the pinned signature; compilation against the exact signature is enforced, rejecting any variadic or pointer+length redefinition.",
+      "id": "SR3",
+      "requirement": "Buffers are fixed-size (16 bytes); no variable-length or heap-allocated comparison paths that could introduce additional timing variance."
+    }
+  ],
+  "threat_model": "An attacker who cannot see computed_tag submits forged received_tag values and repeatedly measures verify()'s wall-clock latency or instruction/branch count. If the implementation short-circuits on the first mismatching byte (as in a naive memcmp-style loop with early `return false`), the attacker can recover computed_tag one byte at a time by observing which guessed byte value causes a measurably longer comparison, fully breaking the MAC's forgery resistance without needing the key."
+}

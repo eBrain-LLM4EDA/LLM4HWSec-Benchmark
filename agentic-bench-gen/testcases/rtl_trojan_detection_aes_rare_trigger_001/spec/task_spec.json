@@ -1,0 +1,102 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub chip-level Trojan benchmarks (structural comparison reference for rare-trigger counter+comparator+payload-mux pattern)"
+    ],
+    "metrics": [
+      {
+        "description": "Whether the submitted report correctly flags is_trojan_present=true and identifies the trigger comparator signal per SR1/SR3.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported high-confidence (>=0.5) findings that name legitimate documented signals from design_brief.md rather than the actual trojan trigger/payload logic.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Accuracy of the reported activation_condition and affected_outputs in matching the hidden rare-counter/state comparator and the single-bit XOR corruption on out_data (SR1/SR2).",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      },
+      {
+        "description": "Whether trojan_report.json matches the pinned JSON schema and references only real signals/ports from aes_core.v (FR1-FR4).",
+        "direction": "maximize",
+        "name": "schema_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "PASS requires FR1-FR4 all satisfied AND SR1, SR2, SR3 satisfied (correct signal identity, correct payload/output localization, correct trojan-present verdict).",
+      "SR4 evaluated as a graded quality metric (false_positive_rate) contributing to overall score but a moderate violation alone does not force FAIL if SR1-SR3 pass; egregious false-positive flooding (>5 spurious high-confidence findings) does force FAIL.",
+      "The shipped baseline submission (empty findings, is_trojan_present=false) must FAIL due to SR3."
+    ],
+    "cwe_ids": [
+      "CWE-506",
+      "CWE-912",
+      "CWE-489"
+    ],
+    "ground_truth": "aes_core.v contains a hidden 16-bit rare-state counter (named internally as `trig_cnt` or similar) that is incremented every clock cycle regardless of the documented round-counter logic. A comparator checks when trig_cnt reaches a rare fixed constant (e.g., 16'hBEEF) AND an unrelated internal round-state register equals a specific value; when both hold simultaneously, a payload multiplexer flips (XORs) exactly one bit of the ciphertext output (out_data) for one cycle, silently corrupting that bit while all other documented functionality (correct AES-like round operation on all other inputs/states) remains intact. The trigger comparator and the XOR payload mux are the two malicious constructs; no documented port or control signal in the design brief references trig_cnt, and it is never used for any legitimate round/state computation.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Static analysis: search for registers not referenced in design_brief.md that are incremented unconditionally each cycle and compared against a wide (>=12 bit) rare constant; cross-check against documented control/state signals to confirm the register has no legitimate functional role.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify the hidden rare-trigger comparator net (the counter/comparator driving the trojan enable signal), naming it or a functionally equivalent internal signal from aes_core.v, with an activation_condition that matches the rare counter-value AND round-state combination (not merely 'reset' or 'always active')."
+      },
+      {
+        "detection_strategy": "Trace fan-out of the trigger enable signal to locate the multiplexer/XOR gate feeding the output register; simulate (via iverilog/vvp) driving trig_cnt/round-state to the rare combination and confirm exactly one bit of out_data flips relative to a golden run.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify that the payload corrupts exactly one bit of a specific output port (out_data) via an XOR/bit-flip mux, not a broader or unrelated output."
+      },
+      {
+        "detection_strategy": "Compare is_trojan_present against hidden ground truth; a naive/empty submission (is_trojan_present=false, findings=[]) must be graded FAIL to satisfy the detection_rate metric.",
+        "id": "SR3",
+        "requirement": "The report's overall_assessment and is_trojan_present must correctly conclude that a trojan is present (true), not a false negative."
+      },
+      {
+        "detection_strategy": "Penalize submissions whose findings list flags >2 legitimate documented signals (from design_brief.md) at confidence >=0.5 as trojan candidates; this measures false_positive_rate.",
+        "id": "SR4",
+        "requirement": "Reported confidence for the correct finding must be reasonably calibrated (>=0.5) given the clarity of the evidence, and the report must not list an excessive number of unrelated/spurious signals as high-confidence findings (false positives on legitimate control/datapath signals such as round_cnt, state_reg used for documented AES rounds)."
+      }
+    ],
+    "threat_model": "A supply-chain adversary with RTL-level access inserts dormant sequential trigger logic (a free-running counter compared against a rare constant, combined with an existing but unrelated state condition) that remains inactive during ordinary functional/regression testing but flips a single output bit once the rare internal state is reached, silently corrupting ciphertext without affecting any documented control or status signal."
+  },
+  "public_spec": {
+    "constraints": [
+      "Keep RTL under 200 lines.",
+      "Include private trigger/payload annotation as hidden ground truth."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing a list of candidate suspicious signal findings, each with an activation-condition description, affected output(s), and a confidence score in [0,1], plus an overall summary rationale."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON matching the pinned schema exactly: top-level keys findings (array), overall_assessment (string), is_trojan_present (boolean); each findings entry must include signal_name (string), activation_condition (string), affected_outputs (array of strings), and confidence (number between 0.0 and 1.0 inclusive)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "If is_trojan_present is true, findings must contain at least one entry; if is_trojan_present is false, findings may be empty."
+      },
+      {
+        "id": "FR3",
+        "requirement": "Every signal_name referenced in findings must correspond to an actual identifier (wire/reg/port name) that appears verbatim in inputs/aes_core.v."
+      },
+      {
+        "id": "FR4",
+        "requirement": "Every string in affected_outputs for a given finding must be one of the declared output ports of the aes_core module as listed in inputs/aes_core.v."
+      }
+    ],
+    "input_artifacts": [
+      "aes_core.v",
+      "design_brief.md"
+    ],
+    "interface": "The submission is a single JSON file at submission/trojan_report.json (no other files are graded). Schema: {\"findings\": [ {\"signal_name\": string (name of the suspicious net/reg as it appears in aes_core.v), \"activation_condition\": string (plain-English or Verilog-expression description of the internal state/condition that triggers anomalous behavior), \"affected_outputs\": [string] (names of module output ports altered when the condition fires), \"confidence\": number in [0.0,1.0] } ], \"overall_assessment\": string (free-text summary, e.g. 'suspicious rare-trigger logic found' or 'no anomalies found'), \"is_trojan_present\": boolean }. evaluate.py reads inputs/aes_core.v for reference and grades only submission/trojan_report.json. The baseline shipped submission has findings: [] and is_trojan_present: false, and must FAIL.",
+    "objective": "You are given a compact synthesizable Verilog module implementing an AES-like round-function core (inputs/aes_core.v), along with a design brief (inputs/design_brief.md) describing its intended datapath and control behavior. Analyze the RTL to determine whether it faithfully implements only the documented function, or whether it contains any additional internal logic whose behavior deviates from the documented specification under certain internal states. Produce an analysis report identifying any suspicious internal signals, the conditions under which they activate, which outputs they affect, and your confidence in each finding.",
+    "response_format": "Submit exactly one file: submission/trojan_report.json, UTF-8 encoded, valid JSON, matching the schema in 'interface'. No other files are graded."
+  },
+  "task_id": "rtl_trojan_detection_aes_rare_trigger_001",
+  "title": "RTL Hardware Trojan Detection in AES-like Core"
+}

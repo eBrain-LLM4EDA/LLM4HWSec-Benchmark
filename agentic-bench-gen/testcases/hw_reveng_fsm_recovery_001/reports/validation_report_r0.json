@@ -1,0 +1,55 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/flattened_netlist.v",
+    "inputs/primitives.v",
+    "inputs/stimulus.txt",
+    "metadata.json",
+    "submission/recovered_rtl.v"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: SR2\n[TEST] PASS: SR1\n[TEST] PASS: FR3\n[TEST] FAIL: FR2: output mismatch on 2/30 cycles for shipped stimulus\n[TEST] FAIL: FR4: sequence #0: mismatch on 7/65 cycles\n[TEST] FAIL: SR3: adversarial case #0: mismatch on 1/12 cycles\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: SR2\n[TEST] PASS: SR1\n[TEST] PASS: FR3\n[TEST] FAIL: FR2: output mismatch on 4/30 cycles for shipped stimulus\n[TEST] FAIL: FR4: sequence #0: mismatch on 3/65 cycles\n[TEST] FAIL: SR3: adversarial case #0: mismatch on 2/12 cycles\n"
+    }
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "expert_files": [
+    "golden/recovered_rtl.v"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "requirement_count": 7,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/checks_static.py",
+    "evaluation/private/vectors.py",
+    "evaluation/tb_compare.v"
+  ],
+  "uncovered_requirements": []
+}

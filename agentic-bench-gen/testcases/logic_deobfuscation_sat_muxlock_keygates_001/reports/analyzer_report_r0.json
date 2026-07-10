@@ -1,0 +1,66 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Golden run fails: the differential harness's golden submission does not match ground truth (key_bits length 4 vs N=3, 4 key_gates vs 3 keymux instances), indicating either the golden solution provided to the harness is wrong/mismatched with the fixed netlist, or evaluate.py's netlist parsing/count logic disagrees with the actual golden analysis. A correct submission must be accepted (exit 0) but the golden run exits 1 with FR1/FR3/SR1/SR2 failures.",
+      "evidence": "differential.golden_run stdout shows FR1 FAIL (length 4 vs N=3), FR3 FAIL (4 vs 3), SR1 FAIL (F1=0.000), SR2 FAIL (recovery=0.333); exit_code 1, expected pass.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py / grading_lib.py",
+      "description": "SR3 self-check is broken: it always reports FAIL because the synthetic baseline recovery rate computes to 1.000 (all-zero key matches ground-truth all-zero key), even though shipped baseline vulnerable_run also shows SR2 PASS as a side effect \u2014 the self-check logic contradicts the actual ground truth (all-zero key IS correct here), making SR3 a permanent false failure regardless of submission content.",
+      "evidence": "Both golden_run and vulnerable_run stdout show '[TEST] FAIL: SR3: ... recovery=1.000 (expected both <0.9)' \u2014 this fires unconditionally since ground truth key_bits='000' equals the synthetic all-zero baseline, so SR2 recovery is always 1.0 regardless of submission, causing SR3 to always fail and blocking any PASS.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/private/ground_truth.json vs task design",
+      "description": "Ground truth key is all-zero ('000'), which is identical to the naive/empty baseline's key_bits guess. This means the naive baseline's key_bits happens to be fully correct (SR2 would pass for it), only failing due to empty key_gates (FR3/SR1). This weakens the intended non-triviality guarantee: recovering the key value is trivially guessable (all zeros) even without real analysis, undermining SR3's intent to prove non-triviality on key_recovery_rate specifically.",
+      "evidence": "vulnerable_run (naive baseline) shows '[TEST] PASS: SR2' \u2014 the all-zero key guess achieves recovery_rate>=0.9 trivially, and ground_truth.json confirms key_bits='000'.",
+      "severity": "high"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the golden/expert submission (golden/recovered_key.json) to match the actual fixed netlist's key width (N=3) and exactly 3 keymux instances with correct instance_name/key_bit_index/resolved_value triples so the golden run passes end-to-end.",
+    "Fix or remove the SR3 self-check logic in evaluate.py: it incorrectly assumes the naive all-zero baseline must score key_recovery_rate<0.9, but the ground truth key happens to be all-zero, so this check always fails regardless of the real submission. Either change ground truth to a non-trivial (non-all-zero) key, or rework SR3 to not hardcode this invalid assumption.",
+    "Re-run the differential harness after fixes to confirm golden_run exits 0 with all PASS lines and vulnerable_run (naive baseline) exits non-zero due to genuine FR3/SR1 failures (empty key_gates), not due to the broken SR3 self-check.",
+    "Consider changing the ground-truth key vector to a non-trivial value (not all zeros) so that a naive all-zero guess does not trivially satisfy SR2, strengthening the non-triviality guarantee intended by SR3."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run fails FR1 due to mismatch between expected golden submission and actual N=3 from netlist.",
+      "requirement": "FR1 schema check",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs pass FR2 structurally.",
+      "requirement": "FR2 schema check",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails FR3 (4 vs 3 keymux instances) indicating golden solution artifact mismatch with fixed netlist.",
+      "requirement": "FR3 count check",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run F1=0.000, expected near 1.0 for a correct golden submission.",
+      "requirement": "SR1 localization F1 >= 0.9",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run recovery=0.333; also naive baseline scores 1.0 trivially since ground truth key is all-zero, weakening non-triviality.",
+      "requirement": "SR2 key recovery >= 0.9",
+      "status": "fail"
+    },
+    {
+      "evidence": "SR3 fails unconditionally in both runs because the synthetic all-zero key matches the pinned all-zero ground truth, making the self-check always report a failure regardless of submission quality.",
+      "requirement": "SR3 baseline rejection self-check",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run exit_code=1 as expected (FAIL), though this is achieved partly by the broken SR3 check rather than solely a well-designed metric threshold.",
+      "requirement": "Baseline (naive/empty) must FAIL overall",
+      "status": "pass"
+    }
+  ]
+}

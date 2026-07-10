@@ -1,0 +1,31 @@
+{
+  "constraints": [
+    "Kernel must remain synthesizable-style C: fixed-size arrays only, no malloc/new, no recursion, all loops must have a compile-time-constant trip count of exactly 16.",
+    "Must compile cleanly with both g++ and gcc using only <stdint.h> and <string.h>.",
+    "The function signature, parameter order, and parameter types given in the interface must match exactly (byte-for-byte compatible with the evaluation harness).",
+    "ciphertext must equal plaintext XOR key element-wise for every test vector, for every valid key and plaintext combination.",
+    "status_out must equal the XOR-fold checksum of the plaintext bytes for every test vector, regardless of the key value used.",
+    "iter_count_out must equal HLS_BLOCK_SIZE (16) for every test vector, regardless of the key value used.",
+    "No global mutable state may be used to smuggle information between separate invocations of crypto_kernel."
+  ],
+  "expected_outputs": [
+    "A hardened inputs/crypto_kernel.c that compiles without errors under both gcc and g++.",
+    "Ciphertext output that matches plaintext XOR key exactly for all tested (plaintext, key) pairs.",
+    "status_out values that are identical across many different secret keys when the plaintext is held fixed, and equal to the XOR-fold checksum of that plaintext.",
+    "iter_count_out equal to 16 for every invocation, regardless of key content."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted artifact satisfies the public objective and interface contract."
+    }
+  ],
+  "input_artifacts": [
+    "crypto_kernel.c",
+    "security_spec.md",
+    "cwe_list.md"
+  ],
+  "interface": "File: inputs/crypto_kernel.c. Required entry point, exact signature (must appear exactly, with C linkage, compilable by both gcc and g++): `#define HLS_BLOCK_SIZE 16` then `void crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE], const uint8_t key[HLS_BLOCK_SIZE], uint8_t ciphertext[HLS_BLOCK_SIZE], int *status_out, unsigned int *iter_count_out);`. Parameters: `plaintext` (public input, 16 bytes), `key` (SECRET input, 16 bytes, must never appear in status_out, iter_count_out, control-flow decisions, or any output other than ciphertext), `ciphertext` (public/declassified output, 16 bytes, the only channel through which key-derived data may legitimately be exposed, computed as ciphertext[i] = plaintext[i] ^ key[i] for i = 0..15), `status_out` (public diagnostic output, must be set to the bitwise XOR-fold checksum of all 16 plaintext bytes cast to int: status = (int)(plaintext[0]^plaintext[1]^...^plaintext[15]); must be a pure function of plaintext only), `iter_count_out` (public diagnostic output, must always be set to exactly HLS_BLOCK_SIZE (16) since the kernel must always fully process the fixed-size block regardless of any input content). The file must include only <stdint.h> and <string.h>. No other entry points, globals with side effects across calls, or additional required headers are permitted.",
+  "objective": "The file inputs/crypto_kernel.c implements a small HLS-style XOR stream-cipher block kernel. It reads a secret 16-byte key array and a public 16-byte plaintext array, produces a 16-byte ciphertext array, and also reports two public diagnostic values: a checksum-style status code and a loop-iteration counter used for HLS resource/performance instrumentation. Your task is to submit a security-hardened replacement for inputs/crypto_kernel.c that preserves the exact cryptographic transform and the exact interface, while ensuring that none of the public-facing diagnostic outputs (status_out, iter_count_out) or the control flow of the kernel can vary based on the content of the secret key. The kernel must remain synthesizable-style C suitable for an HLS toolchain (fixed-size arrays, no dynamic memory, no recursion, compile-time-bounded loops).",
+  "response_format": "No separate answer file is required. Overwrite inputs/crypto_kernel.c in place with the hardened implementation matching the pinned interface exactly; evaluate.py compiles and runs this file directly against a generated test harness."
+}

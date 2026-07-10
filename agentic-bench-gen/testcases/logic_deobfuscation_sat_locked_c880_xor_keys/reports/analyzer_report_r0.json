@@ -1,0 +1,57 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 have no dedicated mutants in the mutation testing suite, so their detection strength is unverified by the harness even though the logic appears sound on inspection.",
+      "evidence": "per_requirement_coverage shows FR3 and FR4 with mutants_targeting: 0, listed under untested_requirements.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider adding explicit mutation test cases targeting FR3 (invalid gate_name/gate_type) and FR4 (wrong-length or invalid-character recovered_key) to strengthen verifiability of those functional checks.",
+    "No security-intent leakage detected in public-facing files (README.md, design_brief.md, metadata.json); dead-bit positions and golden key are kept private as intended."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline passes FR1 (valid JSON with required keys); mutation coverage confirms detection.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "key_width cross-checked against netlist keyIn bus width; mutation confirms detection.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Logic present and correct (gate_name/gate_type validation with normalization), though untested by mutants.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Length/char-set check present and correct, though untested by mutants.",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable/baseline run shows SR1 FAIL (0/6 live gates matched); golden run passes.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable/baseline run shows SR2 FAIL on live-index mismatches; golden run passes.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Size/duplicate guard present; mutation confirms detection.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Naive baseline (all-x, empty key_gates) triggers SR4 FAIL as required; differential test confirms.",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 0.833,
+  "rationale": "Validation passes with exit_code 0, coverage_score 1.0, mutation_score 0.833 (>=0.5 threshold), and analyzer_status is 'warning' (allowed). The only flagged issue is a low-severity coverage gap on FR2 being a dead check plus FR3/FR4 being untested by isolated mutants, but the differential run confirms FR2, FR3, and FR4 all correctly discriminate golden vs baseline behavior. This is a minor mutation-set robustness gap, not a defect in the evaluator, spec, or artifacts, and does not meet the bar for returning the case for repair.",
+  "retain_case": true,
+  "revision_instructions": "No blocking revision required. Optional improvement for future iterations: add a mutant that corrupts a 'line' field to a value clearly outside the +/-2 line tolerance while keeping other fields correct, to make FR2 a live (non-dead) check in mutation scoring; and add mutants that independently target only FR3 (drop one fsm_states entry) and only FR4 (introduce a single non-existent identifier) so each requirement has isolated mutation coverage rather than relying solely on the combined naive-baseline differential.",
+  "root_cause": "none"
+}

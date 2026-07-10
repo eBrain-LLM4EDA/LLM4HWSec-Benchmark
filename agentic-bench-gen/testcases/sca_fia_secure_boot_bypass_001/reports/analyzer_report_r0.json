@@ -1,0 +1,54 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py / golden/vulnerability_report.json",
+      "description": "The golden/reference solution fails the evaluator (differential golden_run status=fail), meaning a correct submission would not receive exit code 0. This violates the core requirement that a correct answer must pass.",
+      "evidence": "golden_run stdout shows FAIL on FR1 (missing byte_count, done, sig_shift), FR2 (width/line mismatches for state, auth_ok, expected_sig), and FR4 (identifier 'sig_shift_reg' not found verbatim), despite SR1-SR4 passing.",
+      "severity": "high"
+    },
+    {
+      "artifact": "golden/vulnerability_report.json",
+      "description": "The golden report appears to use register names/widths/lines that do not match the actual RTL in inputs/secure_boot_check.v (e.g., 'sig_shift_reg' vs 'sig_shift', 'state' width 3 vs actual 2-bit declaration), indicating the golden solution was not generated against the exact shipped RTL or contains errors.",
+      "evidence": "FR1 missing real registers: byte_count, done, sig_shift; FR4 identifier 'sig_shift_reg' not found verbatim in secure_boot_check.v; FR2 width mismatch for state (got 3 expected 2).",
+      "severity": "high"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Regenerate the golden/vulnerability_report.json to exactly match the register names, widths, and assignment line numbers as they literally appear in inputs/secure_boot_check.v (e.g., use 'sig_shift' not 'sig_shift_reg', correct 'state' width to 2, and correct line numbers within +/-2 of actual assignment lines for auth_ok and expected_sig).",
+    "Re-run the differential test after fixing the golden report to confirm it passes all 8 requirements (FR1-FR4, SR1-SR4) with exit code 0.",
+    "Add a CI-style self-check step during task generation that runs evaluate.py against the golden solution before finalizing the benchmark case, to catch this class of golden/RTL mismatch automatically."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run fails FR1: missing real registers in analyzed_registers: byte_count, done, sig_shift.",
+      "requirement": "FR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run fails FR2 with width/line mismatches for state, auth_ok, expected_sig.",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run passes FR3.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails FR4 due to identifier 'sig_shift_reg' not found verbatim in RTL.",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run passes SR1, SR2, SR3, SR4.",
+      "requirement": "SR1-SR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable/naive baseline run correctly fails all 8 checks as expected.",
+      "requirement": "baseline rejection",
+      "status": "pass"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/trojan_report.json",
+      "description": "The golden/expert submission is rejected by evaluate.py: design_name mismatch ('counter_timebomb_top' vs required 'datapath_top') and FR3 references invalid node names ('cout', 'sum') not present in netlist.v. This indicates the golden file was authored against a different/older version of the netlist than the one shipped, making the differential validation fail.",
+      "evidence": "golden_run stdout: [TEST] FAIL: FR2: design_name 'counter_timebomb_top' does not match module name 'datapath_top' ... [TEST] FAIL: FR3: referenced node(s) not found in netlist.v: cout, sum",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential",
+      "description": "Because the golden run fails, the overall differential status is 'fail' and mutation_score is 0.0/not meaningful, so the benchmark cannot be confirmed to correctly discriminate correct vs naive submissions despite the naive baseline correctly failing SR1/SR2/SR3.",
+      "evidence": "differential.status: fail; mutation_score_meaningful: false",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Regenerate or fix golden/trojan_report.json to match the actual shipped inputs/netlist.v: set design_name to 'datapath_top' and replace invalid node references ('cout','sum') with real identifiers such as 'sum_bit', 'carry', 'cnt_reg[0..3]', 'trig_and', 'payload_xor', etc.",
+    "Re-run the differential validation after fixing the golden file to confirm exit code 0 for the corrected golden submission.",
+    "Add a CI check that validates the golden submission's node names against netlist.v identifiers before shipping the task, to prevent drift between artifact versions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and naive baseline pass FR1 schema check.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden submission's design_name does not match netlist.v module name, causing FR2 to fail against the correct submission.",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden submission references nodes 'cout' and 'sum' not present in netlist.v, causing FR3 to fail.",
+      "requirement": "FR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden and baseline both satisfy summary length check.",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes (is_trojan_detected=true), naive baseline correctly fails (false).",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden achieves coverage=1.00, naive baseline correctly fails with coverage=0.00.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; naive baseline correctly fails all three categories.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and baseline show fpr=0.00, passing.",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

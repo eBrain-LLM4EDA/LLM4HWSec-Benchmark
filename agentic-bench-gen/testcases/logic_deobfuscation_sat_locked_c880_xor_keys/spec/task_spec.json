@@ -1,0 +1,102 @@
+{
+  "domain_id": "logic_deobfuscation_sat",
+  "evaluation": {
+    "baselines": [
+      "naive_empty_submission: all key bits reported as 'x' and empty key_gates list (must FAIL)",
+      "brute_force_listing: every gate in the netlist listed as a key gate with random inferred_value (must score low on localization accuracy)"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of the 6 live key bits whose reported value in recovered_key exactly matches the hidden golden key (dead bit positions excluded from denominator).",
+        "direction": "maximize",
+        "name": "key_recovery_rate"
+      },
+      {
+        "description": "Fraction of hidden ground-truth key gates (by instance name and gate_type) correctly identified in the submitted key_gates list, penalized for spurious extra entries beyond a reasonable count.",
+        "direction": "maximize",
+        "name": "key_gate_localization_accuracy"
+      },
+      {
+        "description": "Estimated reduction in brute-force key search space achieved by the submission's determined bits versus exhaustive 2^key_width search, i.e. log2(2^key_width / 2^(unknown_bits_reported)); rewards confidently and correctly resolving bits rather than reporting them unknown.",
+        "direction": "maximize",
+        "name": "sat_iteration_reduction"
+      },
+      {
+        "description": "Whether submission/recovered_key.json parses and conforms to the pinned interface schema (types, lengths, required fields).",
+        "direction": "maximize",
+        "name": "schema_validity"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [],
+    "cwe_ids": [
+      "CWE-321",
+      "CWE-200"
+    ],
+    "ground_truth": "locked_c880.v embeds an 8-bit key bus keyIn[0:7]. Six of the eight key bits gate genuine internal signals through XOR (even bit index) or XNOR (odd bit index) key gates inserted on fanout-heavy internal nets; the other two key bits are 'don't-care' bits wired to gates whose output does not affect any primary output for the given oracle vectors (interference-free but functionally dead-ended under the sampled input space), making them unrecoverable from the oracle set alone and legitimately reportable as 'x'. The correct key string is 01101001xx-style with the two dead bits at fixed known positions (indices 3 and 6). A functioning SAT-attack style enumeration over the provided oracle_vectors.txt, combined with structural analysis of gate fan-in patterns (XOR/XNOR gates with one operand tied to a key primary input), recovers all 6 live bits exactly; the 2 dead bits admit no unique value and both '0' and '1' must be accepted for them.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Compare each 'key_gates' entry's gate_name and gate_type against the hidden ground-truth key-gate table; count exact matches on the 6 live indices.",
+        "id": "SR1",
+        "requirement": "The submission must correctly identify at least 5 of the 6 live (non-dead) key-controlled gates by instance name and correctly report their gate_type (XOR/XNOR)."
+      },
+      {
+        "detection_strategy": "String-compare recovered_key against the golden key at the 6 live index positions only, ignoring positions 3 and 6.",
+        "id": "SR2",
+        "requirement": "The 'recovered_key' string must match the hidden golden key at all 6 live bit positions exactly; the 2 dead-bit positions (indices 3 and 6) may be '0', '1', or 'x' and are not penalized."
+      },
+      {
+        "detection_strategy": "Reject/penalize submissions whose key_gates list size grossly exceeds key_width (e.g. >2x key_width) or that includes duplicate/contradictory entries for the same key_bit_index, since this indicates guessing rather than analysis.",
+        "id": "SR3",
+        "requirement": "Reported key gates must not simply enumerate every gate in the netlist as a key gate (must show genuine localization, not brute-force listing)."
+      },
+      {
+        "detection_strategy": "Baseline naive submission (all-x key, empty key_gates) is scored under the same rubric and must fall below the pass threshold.",
+        "id": "SR4",
+        "requirement": "A trivial/empty answer (all bits 'x', empty key_gates list) must score at or near zero and FAIL."
+      }
+    ],
+    "threat_model": "An attacker with netlist (gate-level) access plus a functional oracle (a working chip or set of I/O pairs) attempts to recover the secret activation key protecting a logic-locked IP block. Weak locking-gate placement (on low-observability or structurally distinctive XOR/XNOR gates directly wired to named key ports) allows key bits to be inferred or brute-forced far faster than key-width would suggest, defeating the intended protection."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not modify any file under inputs/; all findings go into the single submitted answer file.",
+      "The netlist (locked_c880.v) is a self-contained, synthesizable structural Verilog module with a fixed port list: primary inputs, primary outputs, and a dedicated key input bus.",
+      "oracle_vectors.txt lists a finite set of (primary_input_vector, primary_output_vector) pairs captured by exercising the unlocked golden circuit; you may use them as an input/output oracle but you do not have direct access to the golden netlist.",
+      "Key bits you cannot determine with confidence from the given oracle vectors must be reported as \"unknown\" rather than guessed arbitrarily.",
+      "The submitted file must be valid JSON and must validate against the schema given in the interface."
+    ],
+    "expected_outputs": [
+      "submission/recovered_key.json containing identified key-gate locations, inferred gate types, and a recovered (possibly partial) key string consistent with the supplied oracle vectors"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/recovered_key.json must be valid JSON containing the top-level keys \"key_gates\", \"recovered_key\", and \"key_width\", matching the schema described in the interface section."
+      },
+      {
+        "id": "FR2",
+        "requirement": "\"key_width\" must equal the number of bits on the key input bus declared in locked_c880.v (this can be read directly from the netlist's port declaration)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "Each entry in \"key_gates\" must reference a gate instance name that actually exists in locked_c880.v and must specify a \"gate_type\" of one of: XOR, XNOR, MUX, BUF, UNKNOWN."
+      },
+      {
+        "id": "FR4",
+        "requirement": "\"recovered_key\" must be a string whose length equals \"key_width\", using characters '0', '1', or 'x' (for bits the participant could not determine) for each corresponding key bit position, ordered from key[0] to key[key_width-1]."
+      }
+    ],
+    "input_artifacts": [
+      "locked_c880.v",
+      "design_brief.md",
+      "oracle_vectors.txt"
+    ],
+    "interface": "The submission is the file submission/recovered_key.json (no code execution). It MUST parse as JSON with exactly this top-level shape: { \"key_width\": <integer>, \"recovered_key\": \"<string of length key_width over {0,1,x}>\", \"key_gates\": [ { \"key_bit_index\": <integer 0..key_width-1>, \"gate_name\": \"<string, must match a gate instance name in inputs/locked_c880.v>\", \"locked_signal\": \"<string, name of the internal net the key gate protects>\", \"gate_type\": \"XOR\"|\"XNOR\"|\"MUX\"|\"BUF\"|\"UNKNOWN\", \"inferred_value\": \"0\"|\"1\"|\"x\" } , ... ] }. evaluate.py reads inputs/locked_c880.v, inputs/design_brief.md, and inputs/oracle_vectors.txt for reference/cross-checks (optionally invoking iverilog/vvp to simulate locked_c880.v with a candidate key) and grades only submission/recovered_key.json against hidden ground truth on key gate identification accuracy and key bit correctness.",
+    "objective": "You are given a gate-level combinational netlist derived from the ISCAS-85 c880 benchmark that has been modified with additional key-controlled gates and a set of input/output oracle vectors captured from the unlocked (golden) circuit. Analyze the netlist and the oracle vectors to determine, for as many key bits as possible, (a) which gates in the netlist are key-controlled, (b) what type of gate implements each key input (e.g. XOR/XNOR/MUX), and (c) the most likely value of each key bit consistent with the oracle vectors. Produce your findings as a single JSON answer file.",
+    "response_format": "A single JSON file at submission/recovered_key.json conforming exactly to the schema given in 'interface'. No other files are graded."
+  },
+  "task_id": "logic_deobfuscation_sat_locked_c880_xor_keys",
+  "title": "XOR Key-Gate Localization and Partial Key Recovery in a Locked Combinational Netlist"
+}

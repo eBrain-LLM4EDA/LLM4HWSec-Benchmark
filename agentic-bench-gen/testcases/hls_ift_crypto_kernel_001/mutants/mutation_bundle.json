@@ -1,0 +1,76 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Harness runs >=200 randomized-key trials with fixed plaintext/len and asserts status is bitwise identical across all trials; this mutant sets status to a key-dependent value (a parity-derived code) whenever any key byte is zero, causing status to vary with key content and fail the invariance check.",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define STATUS_KEY_HINT 3\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    int i;\n    int saw_zero_byte = 0;\n\n    for (i = 0; i < len; i++) {\n        ciphertext[i] = plaintext[i] ^ key[i];\n        if (key[i] == 0) {\n            saw_zero_byte = 1;\n        }\n    }\n\n    *iterations = len;\n\n    if (len <= MAX_LEN) {\n        /* Status now leaks whether any key byte was zero. */\n        *status = saw_zero_byte ? STATUS_KEY_HINT : STATUS_OK;\n    } else {\n        *status = STATUS_KEY_HINT;\n    }\n}",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_sr1_status_key_dependent",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Harness runs >=200 randomized-key trials with fixed plaintext/len and checks iterations == len for every trial; this mutant sets iterations by counting only non-zero key bytes processed, so any key containing a zero byte yields iterations < len, causing the invariance/equality check to fail and revealing key-dependent information via the iterations output.",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define ERR_LEN_TOO_LONG 1\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    int i;\n    int count = 0;\n\n    for (i = 0; i < len; i++) {\n        ciphertext[i] = plaintext[i] ^ key[i];\n        if (key[i] != 0) {\n            count++;\n        }\n    }\n\n    *iterations = count;\n    *status = (len <= MAX_LEN) ? STATUS_OK : ERR_LEN_TOO_LONG;\n}",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_sr2_iterations_key_dependent",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Static scan for banned constructs must flag the key-dependent early loop exit reintroduced via helper-boolean indirection (skip flag derived from key[i]==0 causing return before completing the loop), even though it is functionally camouflaged as a boolean-gated branch rather than a literal 'if(key[i]==0) return' pattern.",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define ERR_KEY_ZERO_BYTE 1\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    int i;\n\n    for (i = 0; i < len; i++) {\n        int key_is_degenerate = (key[i] == 0) ? 1 : 0;\n\n        if (!(!key_is_degenerate)) {\n            *status = ERR_KEY_ZERO_BYTE;\n            *iterations = i;\n            return;\n        }\n\n        ciphertext[i] = plaintext[i] ^ key[i];\n    }\n\n    *iterations = len;\n    *status = STATUS_OK;\n}",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_sr3_helper_bool_early_exit",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Harness recomputes expected XOR (plaintext[i]^key[i]) and compares byte-for-byte against ciphertext output for every trial; using bitwise OR instead of XOR causes mismatches for essentially all non-trivial plaintext/key combinations, failing SR4/FR1.",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define ERR_LEN_TOO_LONG 1\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    int i;\n\n    for (i = 0; i < len; i++) {\n        ciphertext[i] = plaintext[i] | key[i];\n    }\n\n    *iterations = len;\n    *status = (len <= MAX_LEN) ? STATUS_OK : ERR_LEN_TOO_LONG;\n}",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_sr4_operator_swap_or_instead_of_xor",
+      "operator": "operator_swap",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "Harness compares ciphertext byte-for-byte against expected XOR for all indices < len; with len < MAX_LEN, index len-1 is left unmodified (uninitialized/stale) instead of being XORed, causing a mismatch and failing FR1's correctness check.",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define ERR_LEN_TOO_LONG 1\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    int i;\n\n    for (i = 0; i < len - 1; i++) {\n        ciphertext[i] = plaintext[i] ^ key[i];\n    }\n\n    *iterations = len;\n    *status = (len <= MAX_LEN) ? STATUS_OK : ERR_LEN_TOO_LONG;\n}",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_fr1_off_by_one_loop_bound",
+      "operator": "constant_change",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Harness calls xor_cipher_kernel with len == MAX_LEN (a valid boundary case, len<=MAX_LEN) and asserts status == STATUS_OK; this mutant sets status to an error code for len == MAX_LEN, violating FR2 which requires STATUS_OK for any len<=MAX_LEN, independent of key content.",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define ERR_LEN_TOO_LONG 1\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    int i;\n\n    for (i = 0; i < len; i++) {\n        ciphertext[i] = plaintext[i] ^ key[i];\n    }\n\n    *iterations = len;\n    *status = (len < MAX_LEN) ? STATUS_OK : ERR_LEN_TOO_LONG;\n}",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_fr2_status_len_off_by_one",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    }
+  ]
+}

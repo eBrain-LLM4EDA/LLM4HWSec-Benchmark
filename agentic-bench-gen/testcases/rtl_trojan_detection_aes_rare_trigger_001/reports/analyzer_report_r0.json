@@ -1,0 +1,64 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Mutation testing shows SR1 has a targeting mutant that was not detected, indicating a coverage gap for the primary security requirement (correct trigger identification).",
+      "evidence": "per_requirement_coverage.SR1: covered=false, mutants_detected=0, mutants_targeting=1; uncovered_requirements: ['SR1']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 have no mutants targeting them, so their correctness is unverified by the mutation harness despite being nominally checked.",
+      "evidence": "untested_requirements: ['FR3', 'FR4']",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen or add mutants specifically targeting SR1 (e.g., mutate the rare constant or the counter's unconditional increment pattern) to confirm the grader actually detects incorrect trigger identification.",
+    "Add mutants exercising FR3 (invalid/fabricated signal_name with no grounding) and FR4 (invalid affected_outputs like 'clk' or 'busy') to validate those checks are load-bearing.",
+    "Consider tightening SR1's confidence/constant-matching logic given it showed a coverage gap in mutation testing despite passing the golden/vulnerable differential runs."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Schema check covered and mutation-tested; baseline and golden both pass.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Consistency check covered and mutation-tested.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "No mutants target FR3; check logic present but unverified by differential/mutation testing.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutants target FR4; check logic present but unverified.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Mutant targeting SR1 not detected; coverage gap flagged explicitly in validation report.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Covered and mutation-tested; vulnerable_run shows FAIL as expected.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline submission (empty findings, is_trojan_present=false) correctly fails SR3 per differential run.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Covered and mutation-tested.",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

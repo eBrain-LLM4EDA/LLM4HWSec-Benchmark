@@ -1,0 +1,32 @@
+{
+  "acceptance_criteria": [],
+  "cwe_ids": [
+    "CWE-1300",
+    "CWE-203",
+    "CWE-385"
+  ],
+  "ground_truth": "The datapath has a key_mix_reg (post XOR of plaintext and round key) and an sbox_out_reg (registered output of the S-box lookup applied to key_mix_reg). Both show power-model Hamming-distance variance that correlates strongly with key bits across varying plaintext, because the transition depends on the previous and current values of a key-dependent intermediate. The plaintext_reg alone (before key mixing) and the final round_out_reg (after a linear diffusion layer that is called out in the brief as already balanced) do not leak key-dependent information under the given power model to the same degree. Correct hardening isolates or masks key_mix_reg and sbox_out_reg (e.g., boolean masking of the S-box, or dual-rail/precharge on those two registers specifically), not the whole datapath uniformly.",
+  "security_requirements": [
+    {
+      "detection_strategy": "evaluate.py computes hd_variance for key_mix_reg and plaintext_reg by re-simulating round_datapath.v across the vector set in testbench_hd_trace.v with several fixed round-key values and confirms key_mix_reg's variance is materially higher (data+key dependent) than plaintext_reg's (data-only). It checks the submitted flagged/hd_variance for key_mix_reg matches this expectation within tolerance.",
+      "id": "SR1",
+      "requirement": "The report must correctly flag key_mix_reg as leaking (flagged=true) with a hd_variance value that is substantially higher (report must state or imply it is an outlier) relative to plaintext_reg's hd_variance."
+    },
+    {
+      "detection_strategy": "Same re-simulation approach applied to sbox_out_reg; evaluator checks flagged=true and hd_variance is within tolerance of the recomputed ground-truth value, and that flagged=false is treated as a miss.",
+      "id": "SR2",
+      "requirement": "The report must correctly flag sbox_out_reg as leaking, since its transitions are a nonlinear key-dependent function of key_mix_reg."
+    },
+    {
+      "detection_strategy": "evaluator checks that recommendations targeting round_out_reg/plaintext_reg are not present as the sole or top-ranked recommendation, and that key_mix_reg and sbox_out_reg appear among the top-ranked (by hd_variance) flagged entries.",
+      "id": "SR3",
+      "requirement": "The report must NOT flag round_out_reg or plaintext_reg as the primary leakage points, or if flagged, must not recommend masking them instead of key_mix_reg/sbox_out_reg (avoiding a report that dilutes hardening effort onto non-leaky signals)."
+    },
+    {
+      "detection_strategy": "evaluator performs a keyword/technique match on the 'technique' field for entries targeting key_mix_reg/sbox_out_reg against an allowed-technique list (masking, dual-rail, precharge, isolation, hiding, blinding); rejects vague or missing techniques.",
+      "id": "SR4",
+      "requirement": "Hardening recommendations for key_mix_reg and sbox_out_reg must propose a recognized countermeasure (e.g. boolean/arithmetic masking of the S-box input/output, dual-rail logic, random precharge, or hiding via balanced routing) rather than generic advice like 'add more logic' with no isolation/masking mechanism named."
+    }
+  ],
+  "threat_model": "An attacker with access to power/EM traces of the running datapath performs differential/correlation power analysis (DPA/CPA) using a Hamming-distance leakage model on register transitions, hypothesizing key values and correlating predicted HD against measured trace variance to recover round key bits without knowing the key."
+}

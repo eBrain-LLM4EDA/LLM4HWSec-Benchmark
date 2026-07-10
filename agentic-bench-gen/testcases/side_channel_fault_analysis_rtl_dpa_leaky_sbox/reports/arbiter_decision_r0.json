@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, coverage_score=1.0, baseline exit_code=0, analyzer status=pass, and 0 issues at high severity. All FR/SR requirements pass on golden and correctly fail on vulnerable/naive submissions per the differential run. The two low-severity analyzer notes (FR3/FR4 not separately mutation-tested, and a labeling inconsistency in dead_checks vs per_requirement_coverage for FR2) are minor tooling observations, not functional defects: the checks themselves are verified present and correct on the golden submission, and FR2 is demonstrably exercised (it fails on the FR2 mutant). These do not meet the bar for requiring rework given all retention thresholds are satisfied.",
+  "retain_case": true,
+  "revision_instructions": "No mandatory revision required. Optional improvement for future iteration: add a mutant that produces malformed JSON types or missing top-level keys to explicitly exercise FR3, and a mutant with a dangling recommendation target_signal not present in the signals array to explicitly exercise FR4, so these checks show up as mutant-detected in the differential coverage rather than only being validated against the golden pass case. Also reconcile the dead_checks vs per_requirement_coverage labeling for FR2 in the validation tooling so reporting is internally consistent.",
+  "root_cause": "none"
+}

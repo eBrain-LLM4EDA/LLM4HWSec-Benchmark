@@ -1,0 +1,102 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of hidden security requirements (SR1-SR4) whose target signals/registers are correctly and specifically identified in the submitted critical_nodes list.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Fraction of flip-flops/FSM states in secure_boot_check.v that appear correctly (per FR1-FR3) in analyzed_registers/fsm_states, verifying static-analysis completeness.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Fraction of hardening_recommendations entries that target an actual critical_node signal with a substantive redundancy/complementary-check technique (per SR3), rather than generic or irrelevant advice.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A baseline/naive empty or placeholder vulnerability_report.json (missing critical_nodes or containing no valid signal names) must FAIL all SR checks and most FR checks.",
+      "A correct report identifying auth_ok/auth_pass-style register and the state register as critical_nodes, with matching hardening recommendations, must PASS FR1-FR4 and SR1-SR4.",
+      "Optional cross-check: evaluate.py may run iverilog/vvp on secure_boot_check.v with a generated fault-injection testbench forcing the claimed critical register to its pass value at the COMPARE state and confirm boot_allowed asserts without a valid signature, corroborating SR1/SR2."
+    ],
+    "cwe_ids": [
+      "CWE-1247",
+      "CWE-693",
+      "CWE-1245"
+    ],
+    "ground_truth": "The critical nodes are the authentication-result register (e.g. auth_ok / auth_pass) and the state/control flip-flop that gates the DONE/UNLOCK branch (e.g. state register transitioning to a state that asserts boot_allowed). A single-bit transient fault forcing auth_ok to 1 or forcing the state register directly into the DONE/UNLOCK encoding bypasses the signature comparison entirely, granting unauthorized access without ever exercising the COMPARE logic correctly. Hardening requires redundant/complementary comparison (e.g. comparing both match and mismatch conditions, or triple-modular redundancy on auth_ok and the state register) so a single bit-flip cannot silently flip the security-critical decision.",
+    "security_requirements": [
+      {
+        "detection_strategy": "evaluate.py checks that critical_nodes contains an entry whose 'signal' matches the register in secure_boot_check.v that is read directly by the module's boot_allowed/access_granted output assignment, and whose 'exploit_scenario' text describes forcing that register to the pass value bypassing comparison.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify the authentication-result register (the flip-flop whose value directly gates the boot-allowed/unlock output) as a critical_node."
+      },
+      {
+        "detection_strategy": "evaluate.py checks critical_nodes for an entry whose 'signal' matches the state register name from fsm_states and whose 'reason'/'exploit_scenario' references skipping the compare/verify state.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify the FSM state register (or its encoding) as a critical_node, specifically noting that forcing it directly into the DONE/UNLOCK state skips the COMPARE state."
+      },
+      {
+        "detection_strategy": "evaluate.py checks that for each critical_node signal, there exists a hardening_recommendations entry with matching target_signal and a technique field containing one of: 'TMR', 'redundant', 'dual-rail', 'complementary', 'checksum', or 'voting'.",
+        "id": "SR3",
+        "requirement": "Hardening recommendations must propose a mitigation that adds redundancy or a complementary invariant check (e.g., TMR on auth_ok/state register, dual match+mismatch comparators, or checksum-based state validation) rather than merely suggesting generic advice unrelated to the identified critical nodes."
+      },
+      {
+        "detection_strategy": "evaluate.py verifies that at least 2 of the top critical_nodes entries reference the auth-result and state-control signals identified via static analysis of the RTL's output-driving always block, rejecting reports whose critical_nodes list omits both.",
+        "id": "SR4",
+        "requirement": "The report must not claim that faults in unrelated data-path registers (e.g., input signature shift buffer bits, address counters) are the primary bypass vector; the primary critical_nodes must center on the authentication-result and state-control registers."
+      }
+    ],
+    "threat_model": "An attacker with physical or EM/clock-glitch access to the chip injects a single-bit transient fault into one flip-flop for one clock cycle during the boot sequence, attempting to force the authentication-result register or FSM state register into the 'pass'/'DONE' condition without a valid signature ever being computed or matched, thereby bypassing secure boot."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL must be self-contained synthesizable Verilog-2001, simulatable with iverilog/vvp without external IP.",
+      "The fault model (fault_model.md) describes a single-bit stuck-at or transient bit-flip fault injected into exactly one flip-flop per simulated run, active for one clock cycle.",
+      "Do not modify inputs/secure_boot_check.v or inputs/fault_model.md; only submit submission/vulnerability_report.json.",
+      "The report must be reproducible from static inspection of the RTL plus the fault model; participants need not run simulation but may use iverilog/vvp/yosys optionally to validate claims."
+    ],
+    "expected_outputs": [
+      "A submission/vulnerability_report.json file enumerating all flip-flops/states in the secure-boot RTL (FR-graded)",
+      "A list of critical_nodes identifying which specific register(s) and control signal(s), if faulted, cause the design to report authentication success without a valid signature match (SR-graded)",
+      "Hardening recommendations (e.g. dual-rail comparison, TMR, complementary invariant checks) targeted at the identified critical nodes"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must list every flip-flop instance name found in secure_boot_check.v (as declared with 'reg' and clocked in an always @(posedge clk) block) under a field 'analyzed_registers', with no fewer than 6 entries."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For each entry in 'analyzed_registers', the report must include the register's declared bit-width and the RTL line number(s) where it is assigned, matching the actual contents of secure_boot_check.v within +/-2 lines."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must include a top-level field 'fsm_states' listing every distinct state encoding/parameter defined in the module's state machine (e.g. IDLE, LOAD, COMPARE, DONE or equivalent), matching the parameter/localparam names declared in secure_boot_check.v."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must conform to the JSON schema given in response_format: it must be valid JSON, include all required top-level keys, and every listed register/state name must be a literal substring found in secure_boot_check.v."
+      }
+    ],
+    "input_artifacts": [
+      "secure_boot_check.v",
+      "fault_model.md",
+      "design_brief.md"
+    ],
+    "interface": "Submission file: submission/vulnerability_report.json (UTF-8 JSON, single object). Required top-level keys: 'analyzed_registers' (array of objects each with 'name': string, 'width': integer, 'line': integer or [start,end] array), 'fsm_states' (array of strings), 'critical_nodes' (array of objects each with 'signal': string, 'reason': string, 'exploit_scenario': string), 'hardening_recommendations' (array of objects each with 'target_signal': string, 'technique': string, 'rationale': string). All signal/register/state names referenced anywhere in the report must exactly match identifiers appearing in inputs/secure_boot_check.v (case-sensitive substring match). evaluate.py parses this JSON, cross-references named identifiers against inputs/secure_boot_check.v via static text/AST search, and optionally invokes iverilog+vvp on inputs/secure_boot_check.v with an injected fault testbench to confirm claimed exploit scenarios for the 'critical_nodes' entries.",
+    "objective": "Analyze the provided RTL module implementing a secure-boot signature verification pipeline and its accompanying fault model, then produce a structured vulnerability report describing how single-bit faults propagate through the design's state machine and registers, and recommend hardening measures for the affected flip-flops and control logic.",
+    "response_format": "vulnerability_report.json must be a single JSON object with exactly the keys: analyzed_registers (array), fsm_states (array of strings), critical_nodes (array), hardening_recommendations (array). No other top-level keys are required but extras are ignored. All numeric fields must be integers; all name fields must be strings matching literal identifiers in secure_boot_check.v."
+  },
+  "task_id": "sca_fia_secure_boot_bypass_001",
+  "title": "Fault-injection bypass points in a secure-boot comparator"
+}

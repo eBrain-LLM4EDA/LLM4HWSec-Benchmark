@@ -1,0 +1,103 @@
+{
+  "domain_id": "logic_deobfuscation_sat",
+  "evaluation": {
+    "baselines": [
+      "ISCAS/ITC locked variants",
+      "Anti-SAT style circuits"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of key bits correctly and non-trivially recovered (limited to structurally recoverable bits key[4], key[9]) versus falsely claimed bits elsewhere.",
+        "direction": "maximize",
+        "name": "key_recovery_rate"
+      },
+      {
+        "description": "Fraction of the three hidden Anti-SAT instance names (antisat_g_inst, antisat_gbar_inst, antisat_gate) correctly listed in key_gate_locations.",
+        "direction": "maximize",
+        "name": "key_gate_localization_accuracy"
+      },
+      {
+        "description": "Estimated reduction in SAT-attack iterations achievable given the reported structural findings, computed by evaluate.py from how much of the Anti-SAT topology and constant-tied bits were correctly exposed (proxy score, not a live attack run).",
+        "direction": "maximize",
+        "name": "sat_iteration_reduction"
+      },
+      {
+        "description": "Fraction of non-recoverable key bits reported with value and confidence >0.5 without netlist-backed justification.",
+        "direction": "minimize",
+        "name": "false_positive_bit_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "PASS requires all FR1-FR4 satisfied AND SR1 (>=2/3 gate names) AND SR2 (both key[4],key[9] correct with confidence 1.0) AND SR3 (no high-confidence fabricated bits) AND SR4 (topology description substantively correct).",
+      "The shipped baseline/naive submission (empty key_bits, empty key_gate_locations, generic topology_summary) must FAIL on FR1 (non-empty arrays required) and SR1/SR2."
+    ],
+    "cwe_ids": [
+      "CWE-1245",
+      "CWE-1263"
+    ],
+    "ground_truth": "The locked netlist embeds an Anti-SAT-style two-branch structure: a block g(X,K_lower) computed on a subset of primary inputs X and a lower subset of key bits, and its structural complement block g'(X,K_upper) computed on the same X inputs but the remaining (upper) key bits, XORed/ANDed together to form a gating signal antisat_out that is ANDed (or XORed then inverted) with the true functional output net (named func_out_masked in the netlist) to produce the final primary output. Because the two branches are structurally near-mirror-images (one uses inverted key literals relative to the other on matching input fan-in), the netlist reveals: (a) the exact set of key-input wires feeding each branch (key[0..n/2-1] feed branch g, key[n/2..n-1] feed branch g'), (b) the two branch instances by name (antisat_g_inst, antisat_gbar_inst) and the final gating gate (antisat_gate) as the key_gate_locations, and (c) one fully structurally recoverable relationship: for the Anti-SAT block to not trivially force the output stuck-at (which would be a detectable degenerate case), the reference/comparison key bits baked into the g' branch as constant-tied literals (via tie-off cells tied_key_const_0 and tied_key_const_1 in the netlist) are directly readable as literal 0/1 constants -- these two bits (key[4] and key[9] in this instance) are exactly and unambiguously recoverable from the netlist alone with confidence 1.0. All other key bits are not structurally recoverable (they only affect functional correctness, not the Anti-SAT gating topology) and must be reported as unknown.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String/set match key_gate_locations against the hidden set of instance names; partial credit if 2 of 3 present, fail if 0 or 1.",
+        "id": "SR1",
+        "requirement": "The submission must correctly identify all three Anti-SAT-related gate/instance names (antisat_g_inst, antisat_gbar_inst, antisat_gate) in key_gate_locations."
+      },
+      {
+        "detection_strategy": "Check key_bits entries for key[4] and key[9]: value must equal the actual tied constant found in inputs/locked_netlist.v, confidence must equal 1.0 (or be within 0.99-1.0).",
+        "id": "SR2",
+        "requirement": "The submission must correctly identify key[4] and key[9] as the two structurally-tied constant key bits, with the correct values matching the constants in locked_netlist.v, and confidence 1.0."
+      },
+      {
+        "detection_strategy": "For all key bits other than key[4]/key[9], flag as a false-positive-recovery failure any entry with value in {0,1} and confidence > 0.5 whose reasoning does not correspond to a genuine constant-tie found in the netlist (checked by grep for tied_key_const cells feeding that bit).",
+        "id": "SR3",
+        "requirement": "The submission must not report high-confidence (>0.5) fabricated values for any of the remaining, functionally oracle-dependent key bits, since no purely structural evidence supports them."
+      },
+      {
+        "detection_strategy": "Keyword/net-name presence check against inputs/locked_netlist.v plus semantic grading rubric (does the text describe masking of the functional output by a complementary two-branch structure).",
+        "id": "SR4",
+        "requirement": "topology_summary must correctly describe that the gating structure ANDs/XORs two complementary branches to mask func_out_masked before it reaches the primary output, i.e., correctly names both func_out_masked and the primary output net."
+      }
+    ],
+    "threat_model": "Anti-SAT blocks are inserted specifically to defeat SAT-attack-based key recovery by making discriminating inputs exponentially rare, forcing an attacker toward structural/topological analysis of the netlist rather than iterative oracle queries. A correct analyst must recognize the two-branch complementary structure and separate the key bits that are hard-tied as constants (fully recoverable from synthesis artifacts) from the bits that remain oracle-dependent."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not modify any file under inputs/; submit only submission/recovered_key.json.",
+      "Do not assume access to a functional oracle beyond what yosys/iverilog/vvp simulation of the provided netlist itself can reveal; base structural claims on the netlist and locking_description.md.",
+      "The netlist is small enough (under 300 gate instances) to analyze by inspection or with yosys read_verilog + stat/show passes."
+    ],
+    "expected_outputs": [
+      "submission/recovered_key.json listing per-key-bit findings (value or unknown), the wire names of all identified key-gating structures, and a topology summary of how those structures connect to the primary output(s)"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "recovered_key.json must be valid JSON matching the pinned schema exactly: key_bits is a non-empty array covering every key input declared in locked_netlist.v (no duplicates, no missing bits), key_gate_locations is a non-empty array, and topology_summary is a non-empty string."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Every key_input name listed in key_bits and every gate/wire name listed in key_gate_locations must exactly match an identifier that actually exists in inputs/locked_netlist.v (verifiable by string search / yosys read)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For each key bit reported with value \"0\" or \"1\" (not \"unknown\"), confidence must be a number strictly greater than 0 and at most 1, and reasoning must be a non-empty string of at least 15 characters explaining the structural basis for the claim."
+      },
+      {
+        "id": "FR4",
+        "requirement": "For any key bit reported as \"unknown\", confidence must be reported as 0."
+      }
+    ],
+    "input_artifacts": [
+      "locked_netlist.v",
+      "locking_description.md",
+      "primary_io.txt"
+    ],
+    "interface": "The submission is a single JSON file at submission/recovered_key.json (no other files are graded). Its top-level schema is: {\"key_bits\": [{\"key_input\": string (exact wire name from locked_netlist.v, e.g. \"key[3]\"), \"value\": \"0\"|\"1\"|\"unknown\", \"confidence\": number in [0,1], \"reasoning\": string}], \"key_gate_locations\": [string] (exact wire/gate instance names in locked_netlist.v that implement key-dependent gating logic), \"topology_summary\": string (free-text description of how the identified gating structure(s) connect between the locked internal net(s) and the primary output(s), including the names of the internal nets/output ports involved)}. evaluate.py parses this JSON, cross-references key_input names and key_gate_locations against inputs/locked_netlist.v, and may optionally invoke yosys/iverilog/vvp on locked_netlist.v to simulate reported key values and confirm claimed output behavior.",
+    "objective": "You are given a gate-level combinational netlist (Verilog) that has been logic-locked using an unspecified key-insertion scheme, along with a short description of the locking methodology. The netlist contains a set of key inputs (named key[0], key[1], ... or KEY0, KEY1, ...) that must be set to the correct secret values for the circuit to compute its intended function; incorrect key values cause wrong outputs. Analyze the netlist structure and produce a report identifying: (1) which gates/wires form the key-gating logic, (2) how the key inputs feed into the circuit topology, and (3) any key bit values that can be determined purely from the structure of the netlist (i.e., without needing a functional oracle), together with your confidence and reasoning for each determined bit. Bits you cannot structurally determine should be reported as unknown rather than guessed.",
+    "response_format": "A single JSON file at submission/recovered_key.json conforming exactly to the schema given in public_spec.interface."
+  },
+  "task_id": "logic_deobfuscation_sat_antisat_localization_001",
+  "title": "Anti-SAT block localization in a hardened locked netlist"
+}

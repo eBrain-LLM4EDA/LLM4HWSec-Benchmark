@@ -1,0 +1,54 @@
+{
+  "issues": [
+    {
+      "artifact": "validation report / requirement_map",
+      "description": "FR4 (bitwise AND/OR check) is not exercised by any mutant in the provided differential mutation set, so its detection strength is unverified despite being present in evaluate.py logic and README mapping.",
+      "evidence": "per_requirement_coverage.FR4 covered=false, mutants_detected=0, mutants_targeting=0; untested_requirements: ['FR4']",
+      "severity": "low"
+    },
+    {
+      "artifact": "inputs/gate_netlist.v manifest purpose text",
+      "description": "Manifest purpose description for gate_netlist.v mentions a 'CRITICAL FIX' about a prior multiply-driven-net bug being removed, which is internal repair narrative bleeding into artifact manifest text, though not into participant-facing README/metadata.",
+      "evidence": "manifest entry: 'CRITICAL FIX vs prior version: bit-0 slice must use two distinct singly-driven wires...remove the unused s0_sel_dummy_unused0...'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant that swaps the AND/OR select logic (e.g., sel=10 and sel=11 mapped to wrong operation or OR array corrupted) to validate FR4 detection strength via mutation testing.",
+    "Consider trimming internal repair/fix narrative from manifest purpose fields (e.g., 'CRITICAS: FIX vs prior version...') to keep artifact descriptions purely descriptive rather than referencing prior bug history, though this is low-risk since it's not in participant-facing README/metadata.",
+    "No CWE/SR-id leakage detected in public-facing README.md or metadata.json; task reads as a plain hardware reverse-engineering assignment \u2014 good."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline passes FR1 (compiles); vulnerable_run mutation shows FR1 unaffected by functional mutants as expected, static scan logic present and correctly non-triggering on golden code.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential: golden passes, vulnerable_run fails with 'sel=00 mismatch at a=255 b=255' \u2014 correctly detects incorrect add behavior.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable_run fails FR3 with sub mismatch at a=255,b=255; golden passes.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "No mutant specifically targets AND/OR logic; per_requirement_coverage shows FR4 covered=false with 0 mutants targeting it. Logic exists in evaluate.py and is exercised by baseline_run (PASS) but not adversarially validated.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Vulnerable_run fails SR1 with 'reference netlist produced 8 but recovered module produced 5 (possible add/sub swap or wrong operand order)' \u2014 directly triggers the non-commutative add/sub security check.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable_run fails SR2 with boundary overflow mismatch 'reference netlist produced 0 but recovered module produced 255' \u2014 directly triggers width/carry-leak check.",
+      "requirement": "SR2",
+      "status": "pass"
+    }
+  ]
+}

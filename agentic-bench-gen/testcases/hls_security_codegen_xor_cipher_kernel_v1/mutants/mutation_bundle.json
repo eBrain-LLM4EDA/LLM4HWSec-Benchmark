@@ -1,0 +1,64 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Behavioral key-sweep test: for a fixed plaintext, invoking crypto_kernel with >=200 keys including key[0]==0 will show status_out flipping to 1 for that edge-case key while all other keys yield the correct XOR-fold checksum, violating SR1's requirement that status_out be invariant across keys and equal to the plaintext checksum.",
+      "files": [
+        {
+          "content": "#include <stdint.h>\n#include <string.h>\n\n#define HLS_BLOCK_SIZE 16\n\nvoid crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE],\n                    const uint8_t key[HLS_BLOCK_SIZE],\n                    uint8_t ciphertext[HLS_BLOCK_SIZE],\n                    int *status_out,\n                    unsigned int *iter_count_out)\n{\n    int checksum = 0;\n\n    for (int i = 0; i < HLS_BLOCK_SIZE; i++) {\n        ciphertext[i] = (uint8_t)(plaintext[i] ^ key[i]);\n        checksum ^= plaintext[i];\n    }\n\n    if (key[0] == 0) {\n        *status_out = 1;\n    } else {\n        *status_out = checksum;\n    }\n    *iter_count_out = HLS_BLOCK_SIZE;\n}",
+          "path": "inputs/crypto_kernel.c"
+        }
+      ],
+      "mutant_id": "hls_security_codegen_xor_cipher_kernel_v1_SR1_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Behavioral key-sweep test with fixed plaintext: for keys where key[0]==0, iter_count_out will be reported as 0 instead of 16, and for keys with key[0]!=0 it will be 16, so iter_count_out varies across the key sweep, violating the requirement that it be constant at HLS_BLOCK_SIZE (16) for every invocation. This also causes ciphertext to be incorrect (zeroed) whenever key[0]==0, so it would additionally be caught by ciphertext correctness and cross-run diffing checks.",
+      "files": [
+        {
+          "content": "#include <stdint.h>\n#include <string.h>\n\n#define HLS_BLOCK_SIZE 16\n\nvoid crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE],\n                    const uint8_t key[HLS_BLOCK_SIZE],\n                    uint8_t ciphertext[HLS_BLOCK_SIZE],\n                    int *status_out,\n                    unsigned int *iter_count_out)\n{\n    int checksum = 0;\n    for (int i = 0; i < HLS_BLOCK_SIZE; i++) {\n        checksum ^= plaintext[i];\n    }\n\n    if (key[0] == 0) {\n        /* Secret-dependent early exit: skips the XOR loop entirely and\n         * reports a different iteration count, leaking key[0]==0 via\n         * iter_count_out. */\n        memset(ciphertext, 0, HLS_BLOCK_SIZE);\n        *status_out = checksum;\n        *iter_count_out = 0;\n        return;\n    }\n\n    for (int i = 0; i < HLS_BLOCK_SIZE; i++) {\n        ciphertext[i] = (uint8_t)(plaintext[i] ^ key[i]);\n    }\n\n    *status_out = checksum;\n    *iter_count_out = HLS_BLOCK_SIZE;\n}\n",
+          "path": "inputs/crypto_kernel.c"
+        }
+      ],
+      "mutant_id": "hls_security_codegen_xor_cipher_kernel_v1_SR2_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Known-answer functional test vectors and the key-sweep battery will detect that ciphertext[i] equals plaintext[i] & key[i] (bitwise AND) instead of plaintext[i] ^ key[i] (bitwise XOR); this fails the ciphertext == plaintext XOR key check for virtually all non-trivial plaintext/key pairs, causing SR3 and the functional known-answer tests to fail.",
+      "files": [
+        {
+          "content": "#include <stdint.h>\n#include <string.h>\n\n#define HLS_BLOCK_SIZE 16\n\nvoid crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE],\n                    const uint8_t key[HLS_BLOCK_SIZE],\n                    uint8_t ciphertext[HLS_BLOCK_SIZE],\n                    int *status_out,\n                    unsigned int *iter_count_out)\n{\n    int checksum = 0;\n\n    for (int i = 0; i < HLS_BLOCK_SIZE; i++) {\n        ciphertext[i] = (uint8_t)(plaintext[i] & key[i]);\n        checksum ^= plaintext[i];\n    }\n\n    *status_out = checksum;\n    *iter_count_out = HLS_BLOCK_SIZE;\n}\n",
+          "path": "inputs/crypto_kernel.c"
+        }
+      ],
+      "mutant_id": "hls_security_codegen_xor_cipher_kernel_v1_SR3_operator_swap_001",
+      "operator": "operator_swap",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Behavioral cross-run diffing across the key sweep (fixed plaintext, varying key including key[0]==0 edge case) will reveal that status_out and iter_count_out differ (status_out=-1, iter_count_out=0) whenever key[0]==0 versus the normal computed values otherwise, violating the requirement that no externally observable behavior differ across differing keys for the same plaintext.",
+      "files": [
+        {
+          "content": "#include <stdint.h>\n#include <string.h>\n\n#define HLS_BLOCK_SIZE 16\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nvoid crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE],\n                    const uint8_t key[HLS_BLOCK_SIZE],\n                    uint8_t ciphertext[HLS_BLOCK_SIZE],\n                    int *status_out,\n                    unsigned int *iter_count_out)\n{\n    int checksum = 0;\n\n    for (int i = 0; i < HLS_BLOCK_SIZE; i++) {\n        ciphertext[i] = (uint8_t)(plaintext[i] ^ key[i]);\n        checksum ^= plaintext[i];\n    }\n\n    *status_out = checksum;\n    *iter_count_out = HLS_BLOCK_SIZE;\n\n    /* Diagnostic override: forces a fixed 'stuck-at' sentinel value on the\n     * public status/iteration outputs whenever a secret-dependent\n     * condition holds, reintroducing a key-dependent observable\n     * discrepancy that differs between runs with different keys sharing\n     * the same plaintext. */\n    if (key[0] == 0) {\n        *status_out = -1;\n        *iter_count_out = 0;\n    }\n}\n\n#ifdef __cplusplus\n}\n#endif",
+          "path": "inputs/crypto_kernel.c"
+        }
+      ],
+      "mutant_id": "hls_security_codegen_xor_cipher_kernel_v1_SR4_stuck_at_signal_001",
+      "operator": "stuck_at_signal",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "Known-answer functional test vectors will fail because ciphertext[i] is never assigned for any i, leaving the ciphertext buffer with uninitialized/stale values instead of plaintext XOR key. This violates FR1 (interface contract requiring ciphertext == plaintext XOR key element-wise) and will be caught by the functional correctness test battery (synthesis_pass_rate and SR3-style checks), causing near-universal mismatches against the plaintext^key reference.",
+      "files": [
+        {
+          "content": "#include <stdint.h>\n#include <string.h>\n\n#define HLS_BLOCK_SIZE 16\n\nvoid crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE],\n                    const uint8_t key[HLS_BLOCK_SIZE],\n                    uint8_t ciphertext[HLS_BLOCK_SIZE],\n                    int *status_out,\n                    unsigned int *iter_count_out)\n{\n    int checksum = 0;\n\n    for (int i = 0; i < HLS_BLOCK_SIZE; i++) {\n        /* BUG: ciphertext assignment removed; buffer left unmodified */\n        checksum ^= plaintext[i];\n    }\n\n    *status_out = checksum;\n    *iter_count_out = HLS_BLOCK_SIZE;\n}\n",
+          "path": "inputs/crypto_kernel.c"
+        }
+      ],
+      "mutant_id": "hls_security_codegen_xor_cipher_kernel_v1_FR1_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    }
+  ]
+}

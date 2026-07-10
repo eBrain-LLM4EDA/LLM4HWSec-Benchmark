@@ -1,0 +1,113 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/gate_netlist.v",
+    "inputs/primary_io.txt",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 1,
+    "FR3": 3,
+    "SR1": 1,
+    "SR2": 2
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [
+    "SR3"
+  ],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: infected=true but ground truth design (gate_netlist.v) is Trojan-free\n[TEST] FAIL: SR2: suspect_nodes must be empty for this clean design; got: ['rst_sync2', 'init_cnt', 'sat_cmp_ge_max']\n[TEST] FAIL: SR3: rationale grounds verdict in only 0 documented benign-rare-signal categories (reset_sync/init_counter/saturation); need >=2, matched=[]\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "SR3 never emitted [TEST] FAIL on any mutant \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "SR3 has no mutant that was detected \u2014 vulnerability coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_score": 0.8,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/netlist_utils.py"
+  ],
+  "uncovered_requirements": [
+    "SR3"
+  ],
+  "untested_requirements": [
+    "FR3",
+    "FR4"
+  ]
+}

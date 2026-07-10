@@ -1,0 +1,36 @@
+{
+  "task_id": "hls_constant_time_compare_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Constant-time tag comparison in an HLS MAC verifier",
+  "submission_kind": "hardened_artifact",
+  "submission_contract": "Participants harden inputs/mac_verify.cpp (and, if strictly necessary, inputs/mac_verify.h without changing the pinned signature) in place. The evaluator compiles these files with g++ against a private test harness and grades behaviorally.",
+  "input_artifacts": [
+    "inputs/mac_verify.cpp",
+    "inputs/mac_verify.h",
+    "inputs/design_brief.md"
+  ],
+  "pinned_interface": "bool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]);",
+  "toolchain": [
+    "g++",
+    "gcc"
+  ],
+  "evaluation_mode": "compile_and_run",
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize",
+      "description": "Fraction of targeted security requirements for which behavioral analysis flags observable data-dependent timing/branching in the compiled verify(); lower is better."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Measured invariance of verification latency/instruction count across mismatch-position buckets relative to a calibrated non-constant-time reference, expressed as a normalized score (1.0 = fully invariant, 0.0 = as position-dependent as the naive reference)."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Fraction of functional/compile requirements (FR1-FR4) that pass when compiling and running mac_verify.cpp against the evaluation harness with g++."
+    }
+  ],
+  "expected_output_summary": "A correctly hardened mac_verify.cpp compiles cleanly with g++ against mac_verify.h and the evaluator's harness, and the resulting verify() function returns true only when all 16 bytes of computed_tag and received_tag match exactly and false otherwise across known-answer vectors, single-byte-mismatch vectors at every position, multi-byte-mismatch vectors, and the all-zero and all-0xFF edge cases. In addition, repeated timed invocations of verify() across mismatch-position buckets (early, middle, late first-differing byte, and full match) show statistically invariant latency/operation counts, with no systematic trend tied to where the first mismatch occurs."
+}

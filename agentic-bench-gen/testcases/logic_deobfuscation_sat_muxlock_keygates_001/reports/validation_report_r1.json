@@ -1,0 +1,58 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/locked_netlist.v",
+    "inputs/locking_description.md",
+    "inputs/primary_io_list.txt",
+    "metadata.json",
+    "submission/recovered_key.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: F1=0.000 (<0.9); missing=4 extra=4 pairs vs hidden ground truth\n[TEST] FAIL: SR2: key_recovery_rate=0.250 (<0.9); mismatched true-lock bit indices=[0, 2, 3]\n[TEST] PASS: SR3\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: submitted key_gates count 0 != actual keymux instance count 4 in locked_netlist.v\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: F1=0.000 (<0.9); missing=4 extra=0 pairs vs hidden ground truth\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+    }
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "expert_files": [
+    "golden/recovered_key.json",
+    "ground_truth/key_loci.json",
+    "ground_truth/locked_netlist.v",
+    "ground_truth/locking_description.md",
+    "ground_truth/original_netlist.v",
+    "ground_truth/primary_io_list.txt"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "requirement_count": 7,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/grading_lib.py",
+    "evaluation/private/ground_truth.json"
+  ],
+  "uncovered_requirements": []
+}

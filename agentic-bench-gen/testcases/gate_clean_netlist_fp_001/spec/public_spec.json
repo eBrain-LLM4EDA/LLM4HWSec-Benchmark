@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "Do not modify any file under inputs/; only create/modify submission/trojan_report.json.",
+    "The netlist and design brief are self-contained; no external IP or datasheets are required to complete the analysis.",
+    "Optional cross-checks may use yosys/iverilog/vvp on inputs/gate_netlist.v but are not required to produce the report."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing an infected boolean verdict",
+    "a suspect_nodes array listing any net/gate names implicated as trigger or payload logic (empty if the design is judged clean)",
+    "a short rationale string describing the structural/functional evidence used to reach the verdict"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json must be valid JSON with exactly these top-level fields: 'infected' (boolean), 'suspect_nodes' (array of strings, net or gate instance names exactly as they appear in gate_netlist.v), 'rationale' (non-empty string), and 'confidence' (number between 0 and 1)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Every name listed in 'suspect_nodes' must correspond to an actual wire or gate instance identifier that appears verbatim in inputs/gate_netlist.v."
+    },
+    {
+      "id": "FR3",
+      "requirement": "If 'infected' is true, 'suspect_nodes' must contain at least one entry; if 'infected' is false, 'suspect_nodes' must be an empty array."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The 'rationale' field must reference at least one specific net or module name found in gate_netlist.v (not a generic statement), demonstrating the analysis actually inspected the provided netlist."
+    }
+  ],
+  "input_artifacts": [
+    "gate_netlist.v",
+    "design_brief.md",
+    "primary_io.txt"
+  ],
+  "interface": "Submission file: submission/trojan_report.json. Required JSON schema: {\"infected\": boolean, \"suspect_nodes\": string[], \"rationale\": string, \"confidence\": number in [0,1]}. Each string in suspect_nodes must exactly match a wire/net/instance identifier token present in inputs/gate_netlist.v. The evaluator (evaluate.py) reads inputs/gate_netlist.v, inputs/design_brief.md, and inputs/primary_io.txt for reference and grades only submission/trojan_report.json against hidden ground truth; it may optionally invoke yosys/iverilog/vvp on the netlist to cross-check claims but the verdict is scored from the submitted JSON.",
+  "objective": "You are given a small gate-level netlist (post-synthesis style, structural Verilog) for a control/datapath module. Analyze the netlist and produce a trojan analysis report that states whether the design is infected with a hardware Trojan and, if so, lists the suspect nodes (nets/gates) that form the trigger and payload logic. Your analysis should be based on structural and functional inspection of the netlist: fan-in/fan-out patterns, rare-condition trigger logic, unused or dead logic paths, and comparison against the stated functional intent in the design brief.",
+  "response_format": "A single JSON file at submission/trojan_report.json with fields: infected (bool), suspect_nodes (array of strings), rationale (string), confidence (number 0-1). No other files should be modified."
+}

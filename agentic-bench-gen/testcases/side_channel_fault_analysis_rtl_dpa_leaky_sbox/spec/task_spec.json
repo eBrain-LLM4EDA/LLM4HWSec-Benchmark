@@ -1,0 +1,100 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of hidden key-dependent leaky signals (key_mix_reg, sbox_out_reg) correctly flagged as leaking in the submitted report, versus false positives on non-leaky signals.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Fraction of all signals named in design_brief.md that appear with well-formed entries (signal_name, hd_variance, flagged) in the submission, ensuring the analysis is complete rather than partial.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Fraction of recommendations that target genuinely leaky signals with a recognized countermeasure technique, penalizing recommendations aimed at non-leaky signals or vague/no-mechanism advice.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [],
+    "cwe_ids": [
+      "CWE-1300",
+      "CWE-203",
+      "CWE-385"
+    ],
+    "ground_truth": "The datapath has a key_mix_reg (post XOR of plaintext and round key) and an sbox_out_reg (registered output of the S-box lookup applied to key_mix_reg). Both show power-model Hamming-distance variance that correlates strongly with key bits across varying plaintext, because the transition depends on the previous and current values of a key-dependent intermediate. The plaintext_reg alone (before key mixing) and the final round_out_reg (after a linear diffusion layer that is called out in the brief as already balanced) do not leak key-dependent information under the given power model to the same degree. Correct hardening isolates or masks key_mix_reg and sbox_out_reg (e.g., boolean masking of the S-box, or dual-rail/precharge on those two registers specifically), not the whole datapath uniformly.",
+    "security_requirements": [
+      {
+        "detection_strategy": "evaluate.py computes hd_variance for key_mix_reg and plaintext_reg by re-simulating round_datapath.v across the vector set in testbench_hd_trace.v with several fixed round-key values and confirms key_mix_reg's variance is materially higher (data+key dependent) than plaintext_reg's (data-only). It checks the submitted flagged/hd_variance for key_mix_reg matches this expectation within tolerance.",
+        "id": "SR1",
+        "requirement": "The report must correctly flag key_mix_reg as leaking (flagged=true) with a hd_variance value that is substantially higher (report must state or imply it is an outlier) relative to plaintext_reg's hd_variance."
+      },
+      {
+        "detection_strategy": "Same re-simulation approach applied to sbox_out_reg; evaluator checks flagged=true and hd_variance is within tolerance of the recomputed ground-truth value, and that flagged=false is treated as a miss.",
+        "id": "SR2",
+        "requirement": "The report must correctly flag sbox_out_reg as leaking, since its transitions are a nonlinear key-dependent function of key_mix_reg."
+      },
+      {
+        "detection_strategy": "evaluator checks that recommendations targeting round_out_reg/plaintext_reg are not present as the sole or top-ranked recommendation, and that key_mix_reg and sbox_out_reg appear among the top-ranked (by hd_variance) flagged entries.",
+        "id": "SR3",
+        "requirement": "The report must NOT flag round_out_reg or plaintext_reg as the primary leakage points, or if flagged, must not recommend masking them instead of key_mix_reg/sbox_out_reg (avoiding a report that dilutes hardening effort onto non-leaky signals)."
+      },
+      {
+        "detection_strategy": "evaluator performs a keyword/technique match on the 'technique' field for entries targeting key_mix_reg/sbox_out_reg against an allowed-technique list (masking, dual-rail, precharge, isolation, hiding, blinding); rejects vague or missing techniques.",
+        "id": "SR4",
+        "requirement": "Hardening recommendations for key_mix_reg and sbox_out_reg must propose a recognized countermeasure (e.g. boolean/arithmetic masking of the S-box input/output, dual-rail logic, random precharge, or hiding via balanced routing) rather than generic advice like 'add more logic' with no isolation/masking mechanism named."
+      }
+    ],
+    "threat_model": "An attacker with access to power/EM traces of the running datapath performs differential/correlation power analysis (DPA/CPA) using a Hamming-distance leakage model on register transitions, hypothesizing key values and correlating predicted HD against measured trace variance to recover round key bits without knowing the key."
+  },
+  "public_spec": {
+    "constraints": [
+      "All RTL must be synthesizable Verilog-2001, single clock, synchronous active-high reset, no vendor primitives.",
+      "The testbench and power model must be fully self-contained and runnable with iverilog/vvp without external libraries.",
+      "Do not modify any file under inputs/; all analysis results go only into submission/vulnerability_report.json.",
+      "The S-box must be implemented as a combinational lookup table (case statement or array) so its output is a pure function of its input each cycle."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json listing each analyzed register/net with its measured Hamming-distance variance across input vectors",
+      "A ranked list of the top signals with highest variance/correlation to plaintext or key bits",
+      "Concrete hardening recommendations (masking, isolation, dual-rail, etc.) tied to each flagged signal"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The report JSON must include an entry for every register named in round_datapath.v's port/signal list (as documented in design_brief.md), each with fields: signal_name (string), hd_variance (number), flagged (boolean)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For at least one input vector set specified in testbench_hd_trace.v, the reported hd_variance values must be internally consistent: signals driven directly by combinational functions of the plaintext alone (e.g. registered plaintext bits before any key mixing) must have hd_variance reported within +/-5% of the value computed by re-running the provided testbench and power_model.md formula on that signal."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The submission file must be valid JSON conforming exactly to the schema in response_format, with top-level keys 'signals' (array) and 'recommendations' (array); no other top-level keys are required but extras are ignored."
+      },
+      {
+        "id": "FR4",
+        "requirement": "Each recommendation entry must reference at least one signal_name that also appears in the 'signals' array (no dangling references)."
+      }
+    ],
+    "input_artifacts": [
+      "round_datapath.v",
+      "sbox_table.v",
+      "testbench_hd_trace.v",
+      "power_model.md",
+      "design_brief.md"
+    ],
+    "interface": "Submission file: submission/vulnerability_report.json. Required JSON schema: {\"signals\": [{\"signal_name\": string, \"hd_variance\": number, \"flagged\": boolean, \"notes\": string (optional)}], \"recommendations\": [{\"target_signal\": string, \"technique\": string, \"rationale\": string}]}. 'signal_name' values must exactly match identifiers declared in round_datapath.v (module ports and internal reg/wire declarations documented in design_brief.md). evaluate.py reads inputs/round_datapath.v, inputs/sbox_table.v, inputs/testbench_hd_trace.v, inputs/power_model.md to (a) check field presence/format (FR grading) and (b) optionally re-simulate via iverilog/vvp to cross-check reported hd_variance numbers and flagged status against hidden ground-truth leaky signals (SR grading).",
+    "objective": "Analyze the provided RTL crypto round datapath (a small substitution-permutation round with a key-mixing stage and an S-box lookup) together with the accompanying switching-activity (Hamming-distance) trace model, and produce a structured report identifying which registers/nets show measurable data-dependent switching activity across the simulated input set, plus recommended design changes to reduce that dependency.",
+    "response_format": "A single JSON file at submission/vulnerability_report.json matching the schema given in 'interface'. All numeric fields are plain JSON numbers (not strings); booleans are JSON true/false."
+  },
+  "task_id": "side_channel_fault_analysis_rtl_dpa_leaky_sbox",
+  "title": "Power side-channel leakage localization in an S-box datapath"
+}

@@ -1,0 +1,43 @@
+{
+  "acceptance_criteria": [
+    "Binary compiles successfully via g++ with the generated harness main().",
+    "All in-range functional test vectors produce exactly the expected return values, status codes, and buffer states.",
+    "All out-of-range / invalid-op test vectors produce status=1, return value 0, and leave scratchpad and adjacent canary memory completely unmodified.",
+    "No crash (segfault/abort), hang, or undefined behavior occurs for any tested index across the full int32 range sample set, including boundary and extreme values."
+  ],
+  "cwe_ids": [
+    "CWE-125",
+    "CWE-787",
+    "CWE-129",
+    "CWE-20"
+  ],
+  "ground_truth": "All accesses to scratchpad stay strictly within [0, BUFFER_SIZE) for every index value supplied, including adversarial or malicious indices (negative, huge positive, INT_MIN, INT_MAX); in-range READ/WRITE behavior is functionally unchanged from the original unguarded kernel; invalid accesses return status=1 and value 0 without any array touch, and do not corrupt or leak adjacent memory.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Behavioral: harness calls kernel_access with op=READ and out-of-range indices (e.g., -1, -1000, 64, 1000000, INT_MIN, INT_MAX) on a scratchpad pre-filled with sentinel values; PASS requires status==1, return value==0, and the sentinel buffer contents remain byte-identical after the call (verified via memcmp).",
+      "id": "SR1",
+      "requirement": "Reject (do not perform) any read where index < 0 or index >= BUFFER_SIZE, returning status=1 and value 0."
+    },
+    {
+      "detection_strategy": "Behavioral: harness calls kernel_access with op=WRITE and out-of-range indices plus a distinctive write_val; PASS requires status==1, return value==0, and memcmp of the whole scratchpad buffer (plus an adjacent canary array placed directly after it in memory) shows no modification.",
+      "id": "SR2",
+      "requirement": "Reject (do not perform) any write where index < 0 or index >= BUFFER_SIZE, leaving scratchpad untouched."
+    },
+    {
+      "detection_strategy": "Behavioral: harness probes boundary-adjacent values (BUFFER_SIZE-1, BUFFER_SIZE, -1, 0) plus extreme int32 values and asserts consistent accept/reject decisions matching strict [0,BUFFER_SIZE) semantics.",
+      "id": "SR3",
+      "requirement": "Do not allow index validation to be bypassed via integer overflow/underflow tricks (e.g., casting, pointer arithmetic before bounds check)."
+    },
+    {
+      "detection_strategy": "Behavioral: harness calls kernel_access with op values other than 0/1 (e.g., 2, -1, 999) on valid in-range indices; PASS requires status==1, return 0, and buffer unchanged.",
+      "id": "SR4",
+      "requirement": "Unrecognized op values must not perform any read or write and must return status=1."
+    },
+    {
+      "detection_strategy": "Behavioral: harness performs a sequence of in-range READ/WRITE operations and checks buffer state and return values against reference expected outputs, plus checks that only the targeted index changed after a WRITE (memcmp of rest of buffer).",
+      "id": "SR5",
+      "requirement": "In-range access behavior must be unchanged: correct reads/writes, correct status=0, no unintended side effects beyond the intended cell."
+    }
+  ],
+  "threat_model": "A malicious or buggy caller controls index (and possibly op, write_val) via the shared memory interface and can supply out-of-range values to read adjacent stack/heap/global memory (info leak) or write to adjacent memory (corruption), potentially reading or corrupting other kernels' state that share the same address space."
+}

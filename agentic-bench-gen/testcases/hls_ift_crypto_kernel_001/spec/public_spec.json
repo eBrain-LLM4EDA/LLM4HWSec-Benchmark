@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "Kernel must be implemented in a single file inputs/kernel.c with a top-level function matching the pinned interface exactly.",
+    "Use fixed-size arrays of MAX_LEN bytes for plaintext, key, and ciphertext; MAX_LEN must be defined as a compile-time constant (e.g. #define MAX_LEN 64).",
+    "No malloc/calloc/free, no recursion, no STL containers, no variable-trip-count loops (loop bounds must not depend on buffer contents).",
+    "The function signature, parameter order, and meaning must exactly match the interface description below.",
+    "status output must be an integer written via pointer parameter, with STATUS_OK == 0 as the only defined success value used by this kernel."
+  ],
+  "expected_outputs": [
+    "Hardened inputs/kernel.c compiles cleanly with gcc/g++ using only fixed-size arrays and no dynamic allocation, recursion, or STL.",
+    "For fixed plaintext and length, ciphertext[i] == plaintext[i] ^ key[i] for all i in [0, len) on every invocation, for arbitrary key content including all-zero keys.",
+    "status always equals STATUS_OK (0) whenever len <= MAX_LEN, regardless of key byte values.",
+    "The kernel processes exactly len iterations every time (no early return), verified via an iteration counter output that is deterministic given len alone."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The function must produce ciphertext[i] = plaintext[i] XOR key[i] for every index i from 0 to len-1, for any plaintext/key content and any len <= MAX_LEN."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The function must return/set status = STATUS_OK (0) for any valid call with len <= MAX_LEN, for all possible key byte values including keys containing zero bytes."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The function must fully populate the ciphertext buffer for all len bytes (no truncated or partially-written output) in a single call, with no dynamic memory allocation."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The function must compile without errors or warnings using gcc/g++ with only standard C constructs: fixed-size arrays, no STL, no recursion, no variable-bound loops beyond the declared MAX_LEN bound."
+    }
+  ],
+  "input_artifacts": [
+    "kernel.c"
+  ],
+  "interface": "File: inputs/kernel.c. Required entry point: `void xor_cipher_kernel(const unsigned char plaintext[MAX_LEN], const unsigned char key[MAX_LEN], int len, unsigned char ciphertext[MAX_LEN], int *status, int *iterations);` where MAX_LEN is a #define (>=64) in the same file. plaintext: public input bytes to encrypt (length len, len <= MAX_LEN). key: secret input bytes (length len); values are NOT to be revealed except via their XOR-combination in ciphertext. len: public input, number of valid bytes in plaintext/key. ciphertext: public output buffer, ciphertext[i] = plaintext[i]^key[i] for i<len; bytes at index >= len are unspecified. status: public output, set to 0 (STATUS_OK) on any call with len<=MAX_LEN; behavior for len>MAX_LEN is undefined and not tested. iterations: public output, must be set to exactly len on every call (instrumentation counter of loop trip count), independent of key content.",
+  "objective": "Rework the provided PandA-Bambu-style HLS C kernel that implements a simple XOR-stream cipher so that it is fully synthesis-friendly and produces deterministic, well-defined outputs for every valid input combination. The kernel takes a plaintext buffer, a key buffer, and a length, and must always fully process the entire buffer, writing the XOR of plaintext and key into the ciphertext output and reporting a single, well-defined status code that reflects only the overall completion of processing (not any per-byte data values). Fix the current implementation's ad-hoc control flow (data-dependent early exits) which cause incomplete/undefined ciphertext output and inconsistent status codes.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

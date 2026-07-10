@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "Ship clean-looking RTL where the leak path is a small, plausible-looking extra assignment.",
+    "Keep the module self-contained and elaboratable with iverilog -g2012.",
+    "Hidden ground truth names the leak source register and the leaking output net."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a ranked list of Trojan candidates with confidence scores and rationale"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json must be valid JSON matching the pinned schema: a 'candidates' array (each with id, signal_name, location_hint, leak_source_reg, leak_sink_output, confidence as a float in [0.0,1.0], and rationale as non-empty string) and a top-level 'summary' string."
+    },
+    {
+      "id": "FR2",
+      "requirement": "At least one candidate entry must reference an output port that actually exists in inputs/uart_tx.v's port list (tx, tx_busy, tx_done, or status_dbg) in its signal_name or leak_sink_output field."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report's candidate with the highest confidence score must have confidence >= 0.5, and confidence values across all candidates must be distinct enough to establish a clear top-ranked candidate (no ties at the maximum)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The functional UART behavior described in design_brief.md (8N1 framing, tx_busy asserted during transmission, tx_done pulsed for one cycle after the stop bit) must be referenced or acknowledged as intact/uncompromised in the summary field, confirming the analysis distinguishes benign functional logic from anomalous logic."
+    }
+  ],
+  "input_artifacts": [
+    "uart_tx.v",
+    "uart_tx_tb.v",
+    "design_brief.md"
+  ],
+  "interface": "Input artifact inputs/uart_tx.v defines module uart_tx with ports: input wire clk, input wire rst_n, input wire [7:0] tx_data, input wire tx_start, output reg tx, output reg tx_busy, output reg tx_done, output reg [3:0] status_dbg. status_dbg is documented as a debug/status nibble reflecting internal FSM state for bring-up use. Participants must submit a single JSON file at submission/trojan_report.json (this exact path; it is NOT a modification of inputs/uart_tx.v) with this schema: {\"candidates\": [{\"id\": string, \"signal_name\": string, \"location_hint\": string, \"leak_source_reg\": string, \"leak_sink_output\": string, \"confidence\": number (0.0-1.0), \"rationale\": string}], \"summary\": string}. The harness reads inputs/uart_tx.v and inputs/uart_tx_tb.v for reference and optionally re-simulates with iverilog/vvp/yosys to cross-check claims made in submission/trojan_report.json, but PASS/FAIL is determined by grading the submitted JSON content against hidden ground truth.",
+  "objective": "A third-party UART transmitter core (uart_tx.v) has been submitted for security review prior to integration into a larger SoC. Analyze the provided RTL design and produce a structured analysis report identifying any anomalous logic, its location, and your confidence that it represents a deliberately inserted hardware Trojan rather than benign design choice. The core implements standard 8N1 UART transmission with a byte-wide data input, start/stop framing, and status/handshake outputs.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface. No other files are graded."
+}

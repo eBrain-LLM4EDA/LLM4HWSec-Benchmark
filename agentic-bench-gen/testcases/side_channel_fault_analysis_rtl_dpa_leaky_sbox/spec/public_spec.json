@@ -1,0 +1,41 @@
+{
+  "constraints": [
+    "All RTL must be synthesizable Verilog-2001, single clock, synchronous active-high reset, no vendor primitives.",
+    "The testbench and power model must be fully self-contained and runnable with iverilog/vvp without external libraries.",
+    "Do not modify any file under inputs/; all analysis results go only into submission/vulnerability_report.json.",
+    "The S-box must be implemented as a combinational lookup table (case statement or array) so its output is a pure function of its input each cycle."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json listing each analyzed register/net with its measured Hamming-distance variance across input vectors",
+    "A ranked list of the top signals with highest variance/correlation to plaintext or key bits",
+    "Concrete hardening recommendations (masking, isolation, dual-rail, etc.) tied to each flagged signal"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The report JSON must include an entry for every register named in round_datapath.v's port/signal list (as documented in design_brief.md), each with fields: signal_name (string), hd_variance (number), flagged (boolean)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For at least one input vector set specified in testbench_hd_trace.v, the reported hd_variance values must be internally consistent: signals driven directly by combinational functions of the plaintext alone (e.g. registered plaintext bits before any key mixing) must have hd_variance reported within +/-5% of the value computed by re-running the provided testbench and power_model.md formula on that signal."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The submission file must be valid JSON conforming exactly to the schema in response_format, with top-level keys 'signals' (array) and 'recommendations' (array); no other top-level keys are required but extras are ignored."
+    },
+    {
+      "id": "FR4",
+      "requirement": "Each recommendation entry must reference at least one signal_name that also appears in the 'signals' array (no dangling references)."
+    }
+  ],
+  "input_artifacts": [
+    "round_datapath.v",
+    "sbox_table.v",
+    "testbench_hd_trace.v",
+    "power_model.md",
+    "design_brief.md"
+  ],
+  "interface": "Submission file: submission/vulnerability_report.json. Required JSON schema: {\"signals\": [{\"signal_name\": string, \"hd_variance\": number, \"flagged\": boolean, \"notes\": string (optional)}], \"recommendations\": [{\"target_signal\": string, \"technique\": string, \"rationale\": string}]}. 'signal_name' values must exactly match identifiers declared in round_datapath.v (module ports and internal reg/wire declarations documented in design_brief.md). evaluate.py reads inputs/round_datapath.v, inputs/sbox_table.v, inputs/testbench_hd_trace.v, inputs/power_model.md to (a) check field presence/format (FR grading) and (b) optionally re-simulate via iverilog/vvp to cross-check reported hd_variance numbers and flagged status against hidden ground-truth leaky signals (SR grading).",
+  "objective": "Analyze the provided RTL crypto round datapath (a small substitution-permutation round with a key-mixing stage and an S-box lookup) together with the accompanying switching-activity (Hamming-distance) trace model, and produce a structured report identifying which registers/nets show measurable data-dependent switching activity across the simulated input set, plus recommended design changes to reduce that dependency.",
+  "response_format": "A single JSON file at submission/vulnerability_report.json matching the schema given in 'interface'. All numeric fields are plain JSON numbers (not strings); booleans are JSON true/false."
+}

@@ -1,0 +1,57 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR2 is a dead check per validation report (mutation_score shows 0 mutants detected/targeting it), and FR3/FR4 are untested by the mutant set, though the differential run shows FR3/FR4 do correctly fail on the naive baseline. Coverage gap reduces confidence these requirements are robustly verified across a range of mutants.",
+      "evidence": "dead_checks: ['FR2'], uncovered_requirements: ['FR2'], untested_requirements: ['FR3','FR4']",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant that specifically exercises FR2 (e.g., wrong width or malformed line field) to raise its coverage score above zero, since it currently appears as a dead/untested check.",
+    "Add explicit mutants targeting FR3 (missing fsm state) and FR4 (hallucinated identifier) individually, even though the naive baseline exercises both simultaneously, to isolate detection per-requirement in future mutation analysis."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden passes FR1; baseline fails with 'analyzed_registers has fewer than 6 entries'; mutant coverage confirms detection.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR2; baseline also passes FR2 (list too short but individual entries formatted fine) - not a strong discriminator, flagged as dead check but not incoherent.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails with missing fsm states COMPARE, DONE, LOAD.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails on unknown identifier 'some_unknown_reg' not found in RTL.",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails 'no critical_nodes entry with signal == auth_ok'; mutation coverage 1/1.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails similarly for state signal; mutation coverage 1/1.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails hardening recs missing; mutation coverage 1/1.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails critical_nodes omits both signals; mutation coverage 1/1.",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

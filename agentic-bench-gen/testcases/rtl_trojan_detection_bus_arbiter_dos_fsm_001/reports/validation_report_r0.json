@@ -1,0 +1,113 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/bus_arbiter.v",
+    "inputs/design_brief.md",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {
+    "FR1": 2,
+    "FR2": 2,
+    "FR4": 1,
+    "SR1": 1,
+    "SR2": 2,
+    "SR3": 1,
+    "SR4": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: FR4: no candidate grounds its findings in a literal RTL state name + signal + concrete bit-pattern/selector token\n[TEST] FAIL: SR1: no candidate with sufficient confidence correctly identifies the hidden sink state distinct from legitimate IDLE/GRANT0-3 states\n[TEST] FAIL: SR2: no sufficiently-confident candidate correctly ties the trigger to the GRANT2-origin req=4'b1011 bit pattern\n[TEST] FAIL: SR3: 'overall_assessment' does not give an unhedged affirmative 'yes' answer to the permanent-DoS question\n[TEST] FAIL: SR4: aggregate gate failed because SR1, SR2, SR3 did not pass\n"
+    }
+  },
+  "domain_id": "rtl_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "SR1 has no mutant that was detected \u2014 vulnerability coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_score": 0.833,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.py"
+  ],
+  "uncovered_requirements": [
+    "SR1"
+  ],
+  "untested_requirements": [
+    "FR3",
+    "FR4"
+  ]
+}

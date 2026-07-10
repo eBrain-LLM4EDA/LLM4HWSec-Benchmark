@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "Do not modify any file under inputs/; submit only submission/recovered_rtl.v.",
+    "The submitted file must be self-contained (single module, no external includes).",
+    "Do not instantiate or reference any gate-level primitive modules from primitives.v; the recovered design must be written at the word/register level (using synthesizable Verilog operators and always blocks), not a copy of the flattened gate netlist.",
+    "The module must use a single clock domain and a synchronous active-high reset as described in design_brief.md."
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v containing a single Verilog module named 'recovered_fsm' with the pinned port list",
+    "The recovered module must produce, cycle-for-cycle, the same 'out' sequence as the original netlist for the provided stimulus and for additional hidden stimulus sequences"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "recovered_rtl.v must define a module named exactly 'recovered_fsm' with ports: input clk, input rst, input in, output out (all 1-bit, 'out' driven combinationally or registered such that it updates on the clk edge consistent with a Moore machine)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "When rst is asserted for one clock cycle and then held low, the module must reproduce the exact reset-then-run output sequence recorded in stimulus.txt for the given 'in' sequence."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The module must compile cleanly with iverilog (no undeclared identifiers, no unresolved module references) as a standalone file requiring no other source files."
+    },
+    {
+      "id": "FR4",
+      "requirement": "For at least 5 distinct pseudo-random input sequences of length >= 64 cycles applied after reset, the recovered module's 'out' waveform must match the reference netlist's 'out' waveform on every cycle."
+    }
+  ],
+  "input_artifacts": [
+    "flattened_netlist.v",
+    "primitives.v",
+    "stimulus.txt",
+    "design_brief.md"
+  ],
+  "interface": "File: submission/recovered_rtl.v. It must define exactly one top-level module: `module recovered_fsm(input clk, input rst, input in, output out);`. Signal meanings: clk = free-running clock (evaluation drives it), rst = synchronous active-high reset (when asserted for one or more rising edges, the FSM must return to its initial/reset state on the next rising edge and hold that state's output), in = single-bit control input sampled on each rising edge of clk, out = single-bit Moore output that reflects the current state (may be combinational function of internal state registers, but must be stable between clock edges and change only in response to clk edges). Evaluation instantiates this exact module name/port list in a generated testbench alongside the reference netlist (via inputs/flattened_netlist.v + inputs/primitives.v) and compares 'out' cycle by cycle.",
+  "objective": "You are given a flattened gate-level netlist of a small synchronous sequential circuit implemented with basic gates and D flip-flops. The netlist implements a Moore-style finite state machine with one input bit, one output bit, a clock, and an active-high synchronous reset. Your task is to analyze the netlist and produce a clean, human-readable word-level Verilog module that behaves identically to the original circuit for all input sequences: same output on every clock cycle, given the same input and reset sequence.",
+  "response_format": "A single Verilog source file at submission/recovered_rtl.v containing the module 'recovered_fsm' as specified in the interface. No other files are graded."
+}

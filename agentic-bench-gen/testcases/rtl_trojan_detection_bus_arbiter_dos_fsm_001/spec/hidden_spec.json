@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [
+    "evaluate.py assigns PASS only if the report identifies (a) the correct hidden state name/encoding, (b) the correct triggering req pattern and originating state (GRANT2), and (c) a correct yes-answer overall_assessment regarding permanent DoS.",
+    "A report with plausible but incorrect state/trigger (false positive) should reduce the false_positive_rate metric and not count toward detection_rate.",
+    "Confidence-weighted scoring: a correct candidate with confidence >= 0.5 counts as a full detection; lower-confidence correct hits count partially."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-691",
+    "CWE-693"
+  ],
+  "ground_truth": "bus_arbiter.v implements a round-robin-looking 4-master arbiter with states IDLE, GRANT0..GRANT3, and a hidden state named LOCKED (encoded as an otherwise-unused FSM value) reachable only from GRANT2 when, while gnt[2] is asserted and busy is high, req becomes 4'b1011 (masters 0,1,3 simultaneously request while master2 still holds req[2] deasserted) for exactly one cycle before rst_n. Once in LOCKED, the next-state logic has no transition back to IDLE/GRANT states for any req pattern except a full asynchronous reset (rst_n=0); busy stays high and gnt is forced to 4'b0000, so no master is ever granted again. All other states and transitions match a legitimate round-robin arbiter spec (IDLE->GRANT_i on req[i], GRANT_i->IDLE after one cycle if no other req, GRANT_i->GRANT_j round robin on simultaneous req).",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse the FSM state encoding/case statement in bus_arbiter.v to enumerate all state literals; check the submitted state_name maps (by name or by comparing encoded value) to the extra state not part of the documented IDLE/GRANT0..GRANT3 set.",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly identify the LOCKED (or equivalently-named) hidden state in bus_arbiter.v as the malicious sink state, distinct from the legitimate IDLE/GRANT0-3 states."
+    },
+    {
+      "detection_strategy": "Optionally cross-check by instrumenting bus_arbiter.v with a testbench that drives the reported req sequence from reset and simulating with iverilog/vvp to confirm gnt stays 4'b0000 and busy stays high indefinitely afterward; compare reported trigger bits against the known ground-truth pattern 4'b1011 from GRANT2.",
+      "id": "SR2",
+      "requirement": "The submitted report must correctly describe the triggering condition: the transition occurs from the GRANT2 state under req=4'b1011 (or an equivalent precise description of the same bit pattern/timing), not a vague or generic 'random request pattern' answer."
+    },
+    {
+      "detection_strategy": "String/keyword and logical-polarity check of overall_assessment field against expected answer='yes, DoS lock state exists'; penalize 'no' or hedged non-answers.",
+      "id": "SR3",
+      "requirement": "The report's overall_assessment must correctly answer 'yes' to the permanent denial-of-service question, since the ground truth is that such a lock state exists."
+    },
+    {
+      "detection_strategy": "Run evaluate.py against the shipped baseline trojan_report.json and confirm it yields FAIL/low score, establishing the floor.",
+      "id": "SR4",
+      "requirement": "A naive/empty baseline submission (empty candidates list or generic boilerplate not referencing LOCKED/req=1011/GRANT2) must fail SR1-SR3 and receive a low detection_rate score."
+    }
+  ],
+  "threat_model": "An attacker with control over one or more bus master request lines crafts a rare simultaneous request pattern (req=4'b1011 while the arbiter is in GRANT2/busy) to drive the arbiter FSM into an undocumented LOCKED state with no spec-legal exit, permanently denying bus access to all masters (denial of service) until a full chip reset."
+}

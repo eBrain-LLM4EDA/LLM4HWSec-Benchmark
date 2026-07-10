@@ -1,0 +1,57 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/checks.py",
+      "description": "FR3 and FR4 are not exercised by mutation testing (untested_requirements), meaning coverage of these functional requirements is unverified even though the checks exist and appear logically sound.",
+      "evidence": "per_requirement_coverage FR3/FR4 covered:false, mutants_targeting:0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add mutants that flip FR3 (e.g., confidence=0 with value='1', or short reasoning) and FR4 (unknown with nonzero confidence) to close the untested_requirements gap.",
+    "Consider adding a partial-credit golden variant to test SR1's 2-of-3 threshold boundary explicitly."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline empty arrays fail FR1; golden passes.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Identifier existence check validated by mutation.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "No mutant targeted confidence/reasoning length check; logic appears correct by inspection but untested.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeted unknown-confidence-must-be-0 check; logic appears correct by inspection but untested.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Gate name localization check validated; baseline fails with 0/3.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "key[4]/key[9] constant recovery check validated by mutation and differential run.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "False-positive fabricated bit check validated.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Topology summary rubric validated against baseline generic summary failing.",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

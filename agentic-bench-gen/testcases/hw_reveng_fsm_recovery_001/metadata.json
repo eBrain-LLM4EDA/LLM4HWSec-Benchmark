@@ -1,0 +1,62 @@
+{
+  "task_id": "hw_reveng_fsm_recovery_001",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover an FSM from a Flattened Sequential Netlist",
+  "description": "Reverse-engineer a flattened gate-level synchronous sequential netlist into clean, word-level, behaviorally equivalent Verilog RTL.",
+  "input_artifacts": [
+    "inputs/flattened_netlist.v",
+    "inputs/primitives.v",
+    "inputs/stimulus.txt",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_rtl.v"
+  ],
+  "interface": {
+    "module": "recovered_fsm",
+    "ports": [
+      { "name": "clk", "direction": "input", "width": 1, "description": "free-running clock" },
+      { "name": "rst", "direction": "input", "width": 1, "description": "synchronous active-high reset" },
+      { "name": "in", "direction": "input", "width": 1, "description": "single-bit control input sampled on rising clk edges" },
+      { "name": "out", "direction": "output", "width": 1, "description": "single-bit Moore output reflecting current state" }
+    ],
+    "signature": "module recovered_fsm(input clk, input rst, input in, output out);"
+  },
+  "evaluation": {
+    "mode": "simulate",
+    "toolchain": ["iverilog", "vvp", "yosys"],
+    "metrics": [
+      {
+        "name": "functional_equivalence",
+        "direction": "maximize",
+        "description": "Fraction of evaluator-generated stimulus sequences (shipped + hidden random + adversarial) for which recovered_fsm's out waveform exactly matches the reference flattened_netlist.v simulation, cycle by cycle, via iverilog/vvp simulation."
+      },
+      {
+        "name": "word_recovery_rate",
+        "direction": "maximize",
+        "description": "Whether the submission expresses the FSM using word-level behavioral RTL (state register(s), always block, case/if-based transition logic) rather than gate-primitive instantiation."
+      },
+      {
+        "name": "structural_match_accuracy",
+        "direction": "maximize",
+        "description": "Interface conformance score: correctness of module name 'recovered_fsm' and exact port list (clk, rst, in, out with correct directions/widths)."
+      },
+      {
+        "name": "compile_success",
+        "direction": "maximize",
+        "description": "Whether iverilog successfully compiles submission/recovered_rtl.v together with the generated testbench with zero errors."
+      }
+    ],
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ]
+  },
+  "constraints": [
+    "Do not modify any file under inputs/; submit only submission/recovered_rtl.v.",
+    "The submitted file must be self-contained (single module, no external includes).",
+    "Do not instantiate or reference any gate-level primitive modules from primitives.v; the recovered design must be written at the word/register level.",
+    "The module must use a single clock domain and a synchronous active-high reset."
+  ]
+}

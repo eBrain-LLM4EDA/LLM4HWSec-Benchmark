@@ -1,0 +1,59 @@
+{
+  "task_id": "gate_trojan_detection_counter_timebomb_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Detection: Counter Time-Bomb Localization",
+  "description": "Analyze a gate-level Verilog netlist of a small synchronous datapath and produce a structured report classifying every node of interest by functional role (counter, comparator, payload, datapath, io), flagging whether the implementation deviates from its documented specification, and listing any suspect signal names.",
+  "input_artifacts": [
+    "inputs/netlist.v",
+    "inputs/design_brief.md",
+    "inputs/baseline_testbench.v"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs": {
+    "summary": "A JSON report stating the design name, an overall trojan-detected verdict, a list of suspect net/gate/register names, a mapping of node names to functional role labels (counter, comparator, payload, datapath, io), and a free-text summary of the analysis method used.",
+    "schema": {
+      "design_name": "string, must match module name in inputs/netlist.v",
+      "is_trojan_detected": "boolean",
+      "suspect_nodes": "array of strings, exact net/reg/gate-output names from inputs/netlist.v",
+      "stage_labels": "object mapping net/reg/gate-output name to one of: counter, comparator, payload, datapath, io",
+      "summary": "string, at least 20 characters"
+    }
+  },
+  "evaluation": {
+    "evaluation_mode": "report_grading",
+    "graded_file": "submission/trojan_report.json",
+    "metrics": [
+      {
+        "name": "detection_rate",
+        "direction": "maximize",
+        "description": "Fraction of true trigger+payload nodes (counter bits, comparator, payload gate) correctly named or labeled in the submitted report versus the hidden ground-truth node set."
+      },
+      {
+        "name": "false_positive_rate",
+        "direction": "minimize",
+        "description": "Fraction of nodes reported as suspect/trigger/payload that are actually legitimate documented datapath nodes in the hidden ground truth."
+      },
+      {
+        "name": "inference_latency",
+        "direction": "minimize",
+        "description": "Wall-clock time in seconds taken by evaluate.py to parse and grade the submitted trojan_report.json (excludes any optional iverilog/vvp cross-check simulation time)."
+      },
+      {
+        "name": "schema_validity",
+        "direction": "maximize",
+        "description": "Binary indicator (1/0) of whether submission/trojan_report.json satisfies the pinned JSON schema (FR1-FR4)."
+      }
+    ],
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ]
+  },
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ]
+}

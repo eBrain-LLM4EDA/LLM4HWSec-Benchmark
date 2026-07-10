@@ -1,0 +1,31 @@
+{
+  "acceptance_criteria": [
+    "PASS requires key_recovery_rate >= 0.9 across true lock bit positions AND key_gate_localization_accuracy >= 0.9 (F1 over instance_name+key_bit_index pairs) AND recovered_key.json validates against the pinned schema (FR1-FR4).",
+    "FAIL if schema validation fails, if key_gates count is zero, or if either metric falls below its threshold.",
+    "The shipped baseline submission/recovered_key.json (naive/empty answer) must FAIL under this criterion."
+  ],
+  "cwe_ids": [
+    "CWE-1240",
+    "CWE-1259",
+    "CWE-693"
+  ],
+  "ground_truth": "The locked netlist is derived from a small ISCAS-style benchmark (e.g. a c17-like or similarly sized combinational circuit) by inserting a fixed number of 2:1 multiplexers named uniquely with a 'keymux' substring at internal wires. Each keymux has inputs A (functional/correct signal) and B (decoy/corrupted signal, produced by inverting or otherwise altering the correct signal), with select driven by key[i]; the correct key value at each lock (0 or 1) is whichever selects input A. The full correct key vector, when applied, makes the locked netlist functionally equivalent (identical truth table) to the original unlocked reference circuit. Ground truth stores: full correct key_bits string, and for each keymux instance its key_bit_index and the resolved_value (0 or 1) that selects the functional path.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare the set of instance_name+key_bit_index pairs in key_gates against the hidden ground-truth locus list; compute precision/recall and require exact match (or near-exact with a tolerance documented in evaluate.py) for a PASS.",
+      "id": "SR1",
+      "requirement": "The submission must correctly identify every keymux instance (100% of the hidden ground-truth locus set) with the correct key_bit_index mapping; missing or extra entries relative to ground truth constitute a localization failure."
+    },
+    {
+      "detection_strategy": "Bitwise compare submitted key_bits against ground-truth key at each true lock index; optionally cross-validate by instantiating inputs/locked_netlist.v with the submitted key via yosys/iverilog/vvp and comparing output truth table against the golden unlocked reference netlist held in hidden ground truth.",
+      "id": "SR2",
+      "requirement": "The submitted key_bits string must equal the hidden ground-truth correct key on every bit that corresponds to an identified keymux; a wrong resolved_value at any true lock location must be penalized proportionally in key_recovery_rate."
+    },
+    {
+      "detection_strategy": "evaluate.py runs the shipped baseline submission through the same grading path and asserts it scores below the PASS thresholds on key_recovery_rate and localization accuracy.",
+      "id": "SR3",
+      "requirement": "A naive/empty baseline submission (e.g. all-zero key_bits, empty key_gates array) must fail both key_recovery_rate and key_gate_localization_accuracy thresholds, confirming the task is non-trivial."
+    }
+  ],
+  "threat_model": "An adversary with netlist-level access to the locked circuit (but not the key) attempts to reverse-engineer key-gate locations and correct key values via structural analysis, satisfiability-style reasoning, or simulation-based testing, in order to defeat MUX-based IP locking and restore the original circuit function without authorization."
+}

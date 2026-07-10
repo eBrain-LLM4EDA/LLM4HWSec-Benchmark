@@ -1,0 +1,64 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "evaluate.py checks infected==false exactly; this submission sets infected=true despite suspect_nodes being empty and a rationale that argues the design is clean, so it must FAIL SR1 (correct classification of the design as not infected).",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"suspect_nodes\": [],\n  \"rationale\": \"Structural review of gate_netlist.v found three low-toggle-probability regions that superficially resemble trojan trigger circuitry but are fully explained by design_brief.md. (1) The async reset synchronizer chain (rst_sync_ff1/rst_sync_ff2 feeding rst_n_sync) toggles only once per power-on or external reset event; this is a standard active-low reset deassertion synchronizer, not a rare-trigger AND-tree, and every downstream flop's reset pin is driven by it as documented. (2) init_counter (the power-on initialization counter register bank) counts up once from reset and its terminal-count comparator output (init_done) transitions exactly once per boot; this is the documented one-time initialization sequencer gating internal state load, not a hidden payload enable. (3) The saturation/overflow comparator (sat_cmp feeding the clamp mux on the datapath adder output) only fires when the accumulator would overflow, a rare but fully specified and reachable functional condition (saturating arithmetic) called out explicitly in design_brief.md, and it feeds directly into the documented clamp logic rather than an unused or covert output. None of these nets exhibit the hallmark trojan pattern of a high fan-in AND of many unrelated, otherwise-unused control signals gating a payload that corrupts a primary output outside documented behavior; all three are reachable under normal, specified operation and their fan-in/fan-out matches the design brief's described reset, init, and saturation behavior. No unused/dead logic paths, no additional rare-condition combinational cones feeding primary outputs or state elements were found. Despite this analysis showing no trojan evidence, out of an abundance of caution the design is flagged as infected.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection-sr1-condition_negation-001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Evaluator checks suspect_nodes array is empty (len==0). This mutant lists benign rare-activity nets (rst_sync2, init_done_latched, sat_cmp_ge_max) as suspects despite infected=false, which violates SR2's requirement that suspect_nodes must be empty and demonstrates over-flagging of legitimate rare logic.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"suspect_nodes\": [\"rst_sync2\", \"init_done_latched\", \"sat_cmp_ge_max\"],\n  \"rationale\": \"Structural review of gate_netlist.v found three low-toggle-probability regions that superficially resemble trojan trigger circuitry but are fully explained by design_brief.md. (1) The async reset synchronizer chain (rst_sync1/rst_sync2 feeding rst_sync_n) toggles only once per power-on or external reset event; this is a standard active-low reset deassertion synchronizer, not a rare-trigger AND-tree, and every downstream flop's reset pin is driven by it as documented. (2) init_done_latched (the power-on initialization one-shot latch) transitions exactly once per boot; this is the documented one-time initialization sequencer gating internal state load, not a hidden payload enable. (3) The saturation/overflow comparator sat_cmp_ge_max feeding the clamp mux on the datapath adder output only fires when the accumulator would overflow, a rare but fully specified and reachable functional condition (saturating arithmetic) called out explicitly in design_brief.md. Although these three nets are functionally justified and reachable under normal documented operation, we are flagging them here out of an abundance of caution for manual review, since they do exhibit low toggle probability relative to the rest of the design. Verdict: clean, no hardware Trojan present, but these rare nets are listed for completeness.\",\n  \"confidence\": 0.9\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection-sr2-domain_specific-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Grader inspecting rationale content against the hidden design brief will notice the rationale no longer distinguishes benign rare logic from actual trojan patterns; it instead makes an unjustified blanket assertion of cleanliness without substantive structural reasoning, failing SR3 despite infected=false and empty suspect_nodes satisfying SR1/SR2.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"suspect_nodes\": [],\n  \"rationale\": \"The design was reviewed and no hardware Trojan was found. All signals in the netlist appear normal and there is nothing suspicious about their behavior. The design is clean.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection-sr3-constant_change-001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "FR1 requires trojan_report.json to be valid JSON with exactly the four fields infected, suspect_nodes, rationale, confidence. This mutant removes the 'confidence' field entirely, so the JSON fails schema validation (missing required field), and evaluate.py should reject the submission for not matching the pinned schema.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"suspect_nodes\": [],\n  \"rationale\": \"Structural review of gate_netlist.v found three low-toggle-probability regions that superficially resemble trojan trigger circuitry but are fully explained by design_brief.md. (1) The async reset synchronizer chain (rst_sync_ff1/rst_sync_ff2 feeding rst_n_sync) toggles only once per power-on or external reset event; this is a standard active-low reset deassertion synchronizer, not a rare-trigger AND-tree, and every downstream flop's reset pin is driven by it as documented. (2) init_counter (the power-on initialization counter register bank) counts up once from reset and its terminal-count comparator output (init_done) transitions exactly once per boot; this is the documented one-time initialization sequencer gating internal state load, not a hidden payload enable. (3) The saturation/overflow comparator (sat_cmp feeding the clamp mux on the datapath adder output) only fires when the accumulator would overflow, a rare but fully specified and reachable functional condition (saturating arithmetic) called out explicitly in design_brief.md, and it feeds directly into the documented clamp logic rather than an unused or covert output. None of these nets exhibit the hallmark trojan pattern of a high fan-in AND of many unrelated, otherwise-unused control signals gating a payload that corrupts a primary output outside documented behavior; all three are reachable under normal, specified operation and their fan-in/fan-out matches the design brief's described reset, init, and saturation behavior. No unused/dead logic paths, no additional rare-condition combinational cones feeding primary outputs or state elements were found. Verdict: clean, no hardware Trojan present.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection-fr1-assignment_removal-001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Evaluator checks that every string in suspect_nodes corresponds to an actual wire/gate instance identifier in inputs/gate_netlist.v; 'rst_n_sync' and 'init_counter' do not appear verbatim in the netlist (the actual identifiers are 'rst_sync_n' and 'init_cnt'), so FR2 fails.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"suspect_nodes\": [],\n  \"rationale\": \"Structural review of gate_netlist.v found three low-toggle-probability regions that superficially resemble trojan trigger circuitry but are fully explained by design_brief.md. (1) The async reset synchronizer chain (rst_sync_ff1/rst_sync_ff2 feeding rst_n_sync) toggles only once per power-on or external reset event; this is a standard active-low reset deassertion synchronizer, not a rare-trigger AND-tree, and every downstream flop's reset pin is driven by it as documented. Note that rst_n_sync and init_counter are the relevant nets referenced here for completeness even though suspect_nodes remains empty. (2) init_counter (the power-on initialization counter register bank) counts up once from reset and its terminal-count comparator output (init_done) transitions exactly once per boot; this is the documented one-time initialization sequencer gating internal state load, not a hidden payload enable. (3) The saturation/overflow comparator (sat_cmp feeding the clamp mux on the datapath adder output) only fires when the accumulator would overflow, a rare but fully specified and reachable functional condition (saturating arithmetic) called out explicitly in design_brief.md, and it feeds directly into the documented clamp logic rather than an unused or covert output. None of these nets exhibit the hallmark trojan pattern of a high fan-in AND of many unrelated, otherwise-unused control signals gating a payload that corrupts a primary output outside documented behavior; all three are reachable under normal, specified operation and their fan-in/fan-out matches the design brief's described reset, init, and saturation behavior. No unused/dead logic paths, no additional rare-condition combinational cones feeding primary outputs or state elements were found. Verdict: clean, no hardware Trojan present.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection-fr2-domain_specific-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR2"
+    }
+  ]
+}

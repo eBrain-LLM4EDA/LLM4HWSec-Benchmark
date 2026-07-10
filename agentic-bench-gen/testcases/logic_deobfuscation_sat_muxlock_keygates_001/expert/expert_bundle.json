@@ -1,0 +1,54 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"key_bits\": \"0100\",\n  \"key_gates\": [\n    {\n      \"instance_name\": \"u_keymux0\",\n      \"key_bit_index\": 0,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux1\",\n      \"key_bit_index\": 1,\n      \"resolved_value\": 1\n    },\n    {\n      \"instance_name\": \"u_keymux2\",\n      \"key_bit_index\": 2,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux3\",\n      \"key_bit_index\": 3,\n      \"resolved_value\": 0\n    }\n  ],\n  \"notes\": \"Traced each u_keymuxN instance in inputs/locked_netlist.v back to the internal wire it intercepts (N10, N11, N16, N19) and identified the mux2x1 primitive's actual select polarity by inspecting its gate-level definition: Y = (S & B) | (~S & A), meaning S=0 forwards input A and S=1 forwards input B. For each locus, both candidate data inputs were compared against the expected NAND-chain definition of that wire in the unlocked reference circuit (N10=NAND(N1,N3), N11=NAND(N3,N6), N16=NAND(N2,N11), N19=NAND(N11,N7)); the candidate matching the correct NAND function was taken as functional and the other (its bitwise inversion) as the decoy. u_keymux0, u_keymux2, and u_keymux3 carry their functional signal on input A, requiring select=0 to forward it, while u_keymux1 carries its functional signal on input B, requiring select=1. This yields key_bits=0100. The result was cross-validated by instantiating inputs/locked_netlist.v with key=4'b0100 under iverilog/vvp and exhaustively comparing its output truth table (N22,N23) over all 32 primary-input combinations against the original unlocked NAND-chain reference netlist, confirming exact functional equivalence.\"\n}",
+      "path": "golden/recovered_key.json"
+    },
+    {
+      "content": "module mux2x1(A, B, S, Y);\n    input A, B, S;\n    output Y;\n    wire notS, t1, t2;\n    not (notS, S);\n    and (t1, A, notS);\n    and (t2, B, S);\n    or  (Y, t1, t2);\nendmodule\n\nmodule lockednetlist(N1, N2, N3, N6, N7, N22, N23, key);\n    input N1, N2, N3, N6, N7;\n    output N22, N23;\n    input [3:0] key;\n\n    wire N10_func, N10_decoy, N10;\n    wire N11_func, N11_decoy, N11;\n    wire N16_func, N16_decoy, N16;\n    wire N19_func, N19_decoy, N19;\n\n    // N10 = NAND(N1, N3) -- functional path on A (select=0 -> resolved_value=0)\n    nand (N10_func, N1, N3);\n    not  (N10_decoy, N10_func);\n    mux2x1 u_keymux0 (.A(N10_func), .B(N10_decoy), .S(key[0]), .Y(N10));\n\n    // N11 = NAND(N3, N6) -- functional path on B (select=1 -> resolved_value=1)\n    nand (N11_func, N3, N6);\n    not  (N11_decoy, N11_func);\n    mux2x1 u_keymux1 (.A(N11_decoy), .B(N11_func), .S(key[1]), .Y(N11));\n\n    // N16 = NAND(N2, N11) -- functional path on A (select=0 -> resolved_value=0)\n    nand (N16_func, N2, N11);\n    not  (N16_decoy, N16_func);\n    mux2x1 u_keymux2 (.A(N16_func), .B(N16_decoy), .S(key[2]), .Y(N16));\n\n    // N19 = NAND(N11, N7) -- functional path on A (select=0 -> resolved_value=0)\n    nand (N19_func, N11, N7);\n    not  (N19_decoy, N19_func);\n    mux2x1 u_keymux3 (.A(N19_func), .B(N19_decoy), .S(key[3]), .Y(N19));\n\n    nand (N22, N10, N16);\n    nand (N23, N16, N19);\n\nendmodule",
+      "path": "ground_truth/locked_netlist.v"
+    },
+    {
+      "content": "module originalnetlist(N1, N2, N3, N6, N7, N22, N23);\n    input N1, N2, N3, N6, N7;\n    output N22, N23;\n\n    wire N10, N11, N16, N19;\n\n    nand (N10, N1, N3);\n    nand (N11, N3, N6);\n    nand (N16, N2, N11);\n    nand (N19, N11, N7);\n    nand (N22, N10, N16);\n    nand (N23, N16, N19);\n\nendmodule",
+      "path": "ground_truth/original_netlist.v"
+    },
+    {
+      "content": "{\n  \"key_width\": 4,\n  \"key_bits\": \"0100\",\n  \"loci\": [\n    {\n      \"instance_name\": \"u_keymux0\",\n      \"key_bit_index\": 0,\n      \"resolved_value\": 0,\n      \"functional_input_port\": \"A\"\n    },\n    {\n      \"instance_name\": \"u_keymux1\",\n      \"key_bit_index\": 1,\n      \"resolved_value\": 1,\n      \"functional_input_port\": \"B\"\n    },\n    {\n      \"instance_name\": \"u_keymux2\",\n      \"key_bit_index\": 2,\n      \"resolved_value\": 0,\n      \"functional_input_port\": \"A\"\n    },\n    {\n      \"instance_name\": \"u_keymux3\",\n      \"key_bit_index\": 3,\n      \"resolved_value\": 0,\n      \"functional_input_port\": \"A\"\n    }\n  ]\n}",
+      "path": "ground_truth/key_loci.json"
+    },
+    {
+      "content": "# Locking Description\n\n## Overview\n\nThis netlist has been protected using a MUX-based logic locking scheme. A total\nof **4 key gates** have been inserted at internal wire locations within the\noriginal combinational circuit.\n\n## Locking Mechanism\n\nEach key gate is implemented as a 2-to-1 multiplexer (`mux2x1`) instantiated at\nan internal wire of the original design. Every such multiplexer instance name\ncontains the substring `keymux` so that candidate lock locations can be\nidentified structurally without prior knowledge of the exact scheme.\n\nEach inserted multiplexer has the following interface:\n\n- `A`: one candidate data input\n- `B`: the other candidate data input\n- `S`: select line, driven by a single bit of the `key` input port (`key[i]`)\n- `Y`: multiplexer output, which replaces the original internal wire and feeds\n  all downstream logic that previously consumed that wire\n\nFor each locking site, exactly one of the two data inputs (`A` or `B`) carries\nthe original, functionally-correct signal from the unlocked design. The other\ndata input carries a corrupted/decoy variant of that signal, obtained by\naltering the correct signal (e.g. via inversion) so that selecting it produces\nincorrect circuit behavior.\n\nThe correct key value at a given lock is whichever select value (0 or 1)\ncauses the multiplexer to forward the functionally-correct data input to its\noutput. Applying the full correct key vector across all 4 locks makes the\nlocked netlist functionally equivalent (identical truth table over all\nprimary input combinations) to the original unlocked reference circuit.\n\n## Key Port\n\nThe locked netlist exposes a bundled input port named `key` whose width equals\nthe number of inserted key gates (4 bits in this instance). Each bit of `key`\ndrives the select line of exactly one `keymux` instance.\n\n## What Is Withheld\n\nThis document intentionally does not disclose:\n\n- The specific instance names assigned to the inserted multiplexers\n- Which data input (`A` or `B`) is functional versus decoy at each site\n- The correct key bit values\n\nRecovering this information from netlist structure and/or simulation is the\nobjective of the analysis task.",
+      "path": "ground_truth/locking_description.md"
+    },
+    {
+      "content": "Primary Inputs:\nN1\nN2\nN3\nN6\nN7\nkey[3:0]\n\nPrimary Outputs:\nN22\nN23",
+      "path": "ground_truth/primary_io_list.txt"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_key.json",
+      "purpose": "Correct submission per FR1-FR4, aligned to inputs/locked_netlist.v which uses instance names u_keymux0..u_keymux3 and mux polarity Y=(S&B)|(~S&A) i.e. S=0 selects A, S=1 selects B. key_bits is a 4-char string; key_gates has exactly 4 entries: u_keymux0(idx0), u_keymux1(idx1), u_keymux2(idx2), u_keymux3(idx3), each resolved_value set to whichever select value (0=A,1=B) routes the functional (non-inverted, NAND-correct) signal at that locus, re-derived from tracing inputs/locked_netlist.v structure against the unlocked NAND-chain reference. notes field non-empty describing structural+equivalence-simulation method. Must score key_recovery_rate=1.0 and localization F1=1.0 against ground_truth/key_loci.json."
+    },
+    {
+      "path": "ground_truth/locked_netlist.v",
+      "purpose": "Private reference locked netlist, now byte-identical to inputs/locked_netlist.v: mux2x1 module implements Y=(S&B)|(~S&A) (S=0 selects A, S=1 selects B), instances named u_keymux0..u_keymux3 at wires N10,N11,N16,N19 (NAND-derived signals) with decoy = inverted functional signal on the non-selected input. Used for optional iverilog/vvp equivalence simulation; must match inputs/locked_netlist.v exactly so evaluator's structural checks are consistent."
+    },
+    {
+      "path": "ground_truth/original_netlist.v",
+      "purpose": "Private unlocked golden-reference netlist (no key port), unchanged: N10=NAND(N1,N3), N11=NAND(N3,N6), N16=NAND(N2,N11), N19=NAND(N11,N7), N22=NAND(N10,N16), N23=NAND(N16,N19). Applying the corrected key_bits to ground_truth/locked_netlist.v must reproduce this truth table exactly over all 32 input combinations (SR2 equivalence oracle)."
+    },
+    {
+      "path": "ground_truth/key_loci.json",
+      "purpose": "Private canonical oracle updated to match corrected instance names (u_keymux0..u_keymux3) and corrected polarity semantics (0=A,1=B): key_width=4, key_bits string, loci array with 4 objects {instance_name,key_bit_index,resolved_value,functional_input_port} recomputed consistently with ground_truth/locked_netlist.v. This is the definitive comparison set evaluate.py uses for key_recovery_rate and localization F1; golden/recovered_key.json must match it exactly, and it must remain non-trivial (not all-zero) so the naive baseline fails SR2/SR3."
+    },
+    {
+      "path": "ground_truth/locking_description.md",
+      "purpose": "Private mirror confirming inputs/locking_description.md content/consistency (states 4 key gates, generic MUX mechanism, withholds instance names/key values), unchanged from prior version."
+    },
+    {
+      "path": "ground_truth/primary_io_list.txt",
+      "purpose": "Private mirror confirming inputs/primary_io_list.txt matches ground_truth/locked_netlist.v ports exactly: inputs N1,N2,N3,N6,N7,key[3:0]; outputs N22,N23; unchanged from prior version."
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "task_id": "side_channel_fault_analysis_rtl_dpa_leaky_sbox",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Power side-channel leakage localization in an S-box datapath",
+  "description": "Analyze a single-round substitution/permutation datapath (plaintext-to-key-mix-to-S-box-to-diffusion) together with a Hamming-distance power model, and report which registers exhibit measurable data-dependent switching activity across a provided input vector set, along with hardening recommendations for any flagged signals.",
+  "input_artifacts": [
+    "inputs/round_datapath.v",
+    "inputs/sbox_table.v",
+    "inputs/testbench_hd_trace.v",
+    "inputs/power_model.md",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "output_summary": "A single JSON file at submission/vulnerability_report.json containing a 'signals' array (signal_name, hd_variance, flagged, optional notes) covering every register documented in design_brief.md, and a 'recommendations' array (target_signal, technique, rationale) proposing hardening for flagged signals.",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize"
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "submission_kind": "analysis_report",
+  "evaluation_mode": "report_grading"
+}

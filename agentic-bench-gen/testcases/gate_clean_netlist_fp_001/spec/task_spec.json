@@ -1,0 +1,95 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "Whether the report correctly identifies the design as clean (true negative rate on this clean-design case); scored 1.0 if infected=false and suspect_nodes empty, else 0.0.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of benign rare-activity nets (reset tree, init counter, saturation comparator) incorrectly listed in suspect_nodes; must be 0 for a passing submission.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time taken by evaluate.py to parse and grade the submitted trojan_report.json (and optional toolchain cross-check), reported in seconds.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "submission/trojan_report.json parses as valid JSON matching the pinned schema.",
+      "infected field equals false.",
+      "suspect_nodes is an empty array.",
+      "rationale references at least one real net/module name from gate_netlist.v and explains why rare nets are benign, not a generic unsupported assertion.",
+      "A naive baseline submission that flags rare nets as trojans (infected=true with non-empty suspect_nodes) must FAIL evaluation."
+    ],
+    "cwe_ids": [],
+    "ground_truth": "gate_netlist.v is a clean, Trojan-free synthesized netlist. It contains legitimate low-activity/rare-triggering logic (an active-low async reset tree, a one-time power-on initialization counter, and a rarely-taken saturation/overflow branch in the datapath) that superficially resembles trojan trigger circuitry (high fan-in AND of many control signals feeding a rarely-active net) but is fully justified by the design's documented functional intent in design_brief.md and is exercised/reachable under normal documented operation. The correct report is infected=false with suspect_nodes=[].",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse submission/trojan_report.json and check infected==false exactly; any true verdict fails this requirement regardless of listed suspect_nodes.",
+        "id": "SR1",
+        "requirement": "The report must correctly classify the design as NOT infected (infected=false) despite the presence of low-toggle-probability nets such as the async reset tree, power-on init counter, and saturation branch."
+      },
+      {
+        "detection_strategy": "Check suspect_nodes array is empty (len==0). A non-empty list, even if it names only benign nets, fails this requirement since it demonstrates over-flagging of rare-but-legitimate logic.",
+        "id": "SR2",
+        "requirement": "The report must not flag any of the benign rare-activity nets (the reset synchronizer chain, init_counter logic, or overflow/saturation comparator output) as suspect nodes, i.e. suspect_nodes must be empty."
+      },
+      {
+        "detection_strategy": "Check the rationale text is non-generic (references specific net/module names from the netlist, e.g. the reset tree or init counter) and does not itself claim suspicious behavior; substantive grading is done by a grader comparing rationale content against the hidden design brief's documented rare paths.",
+        "id": "SR3",
+        "requirement": "The rationale must demonstrate the analyst distinguished rare-but-functionally-justified logic from actual trojan trigger/payload structures, rather than making an unjustified blanket claim."
+      }
+    ],
+    "threat_model": "A naive or overly aggressive rare-net detector flags any net with low toggle probability as a suspected trojan trigger, without checking whether that rare activity is functionally justified (e.g. reset, power-on init, saturation/overflow handling documented in the design brief). This produces false positives that waste analyst time, cause legitimate designs to be scrapped or re-spun, and erode trust in the detection tool, eventually causing analysts to ignore real alerts (alert fatigue)."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not modify any file under inputs/; only create/modify submission/trojan_report.json.",
+      "The netlist and design brief are self-contained; no external IP or datasheets are required to complete the analysis.",
+      "Optional cross-checks may use yosys/iverilog/vvp on inputs/gate_netlist.v but are not required to produce the report."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing an infected boolean verdict",
+      "a suspect_nodes array listing any net/gate names implicated as trigger or payload logic (empty if the design is judged clean)",
+      "a short rationale string describing the structural/functional evidence used to reach the verdict"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/trojan_report.json must be valid JSON with exactly these top-level fields: 'infected' (boolean), 'suspect_nodes' (array of strings, net or gate instance names exactly as they appear in gate_netlist.v), 'rationale' (non-empty string), and 'confidence' (number between 0 and 1)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Every name listed in 'suspect_nodes' must correspond to an actual wire or gate instance identifier that appears verbatim in inputs/gate_netlist.v."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If 'infected' is true, 'suspect_nodes' must contain at least one entry; if 'infected' is false, 'suspect_nodes' must be an empty array."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The 'rationale' field must reference at least one specific net or module name found in gate_netlist.v (not a generic statement), demonstrating the analysis actually inspected the provided netlist."
+      }
+    ],
+    "input_artifacts": [
+      "gate_netlist.v",
+      "design_brief.md",
+      "primary_io.txt"
+    ],
+    "interface": "Submission file: submission/trojan_report.json. Required JSON schema: {\"infected\": boolean, \"suspect_nodes\": string[], \"rationale\": string, \"confidence\": number in [0,1]}. Each string in suspect_nodes must exactly match a wire/net/instance identifier token present in inputs/gate_netlist.v. The evaluator (evaluate.py) reads inputs/gate_netlist.v, inputs/design_brief.md, and inputs/primary_io.txt for reference and grades only submission/trojan_report.json against hidden ground truth; it may optionally invoke yosys/iverilog/vvp on the netlist to cross-check claims but the verdict is scored from the submitted JSON.",
+    "objective": "You are given a small gate-level netlist (post-synthesis style, structural Verilog) for a control/datapath module. Analyze the netlist and produce a trojan analysis report that states whether the design is infected with a hardware Trojan and, if so, lists the suspect nodes (nets/gates) that form the trigger and payload logic. Your analysis should be based on structural and functional inspection of the netlist: fan-in/fan-out patterns, rare-condition trigger logic, unused or dead logic paths, and comparison against the stated functional intent in the design brief.",
+    "response_format": "A single JSON file at submission/trojan_report.json with fields: infected (bool), suspect_nodes (array of strings), rationale (string), confidence (number 0-1). No other files should be modified."
+  },
+  "task_id": "gate_clean_netlist_fp_001",
+  "title": "Trojan-free gate-level netlist (false-positive discipline)"
+}

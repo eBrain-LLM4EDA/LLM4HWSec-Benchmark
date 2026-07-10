@@ -1,0 +1,55 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/ground_truth.json / golden/recovered_key.json",
+      "description": "The expert golden solution fails evaluate.py grading (SR1 F1=0.000 fully disjoint pairs, SR2 key_recovery_rate=0.250). This indicates the golden submission does not match the hidden ground truth key/loci at all, meaning either the ground truth is wrong, the golden solution derivation is wrong, or instance naming/index mapping used by the golden differs from ground_truth.json. A correct submission must be accepted, but the differential test shows it is rejected.",
+      "evidence": "differential.golden_run: exit_code=1, expected pass but got fail; SR1 FAIL missing=4 extra=4; SR2 FAIL mismatched=[0,2,3]",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.golden_run vs vulnerable_run",
+      "description": "Both golden and vulnerable (baseline) submissions fail the evaluator, so the evaluator cannot discriminate between a correct and an incorrect answer as required by the domain contract.",
+      "evidence": "differential.status: fail; golden_run.ok=false, vulnerable_run.ok=true (vulnerable correctly fails, but golden incorrectly fails too)",
+      "severity": "high"
+    },
+    {
+      "artifact": "mutation_score",
+      "description": "Mutation score is 0.0 and flagged not meaningful, consistent with the broken golden baseline making the harness unable to validate correctness.",
+      "evidence": "mutation_score: 0.0, mutation_score_meaningful: false",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Regenerate ground_truth.json and the golden/recovered_key.json to be mutually consistent by actually tracing inputs/locked_netlist.v: confirm which signal (A or B) is functionally correct at each keymux and the corresponding key bit value, then verify the golden submission's key_bits and key_gates match this ground truth exactly.",
+    "Add a CI-style differential test in the harness itself (or as part of build) that runs evaluate.py against the shipped golden solution and asserts exit code 0 before shipping the task, catching this mismatch earlier.",
+    "Double check the resolved_value semantics: ground_truth.json currently claims key_bits='0000' selects input A universally; verify this against the actual mux truth table (Y=(S&B)|(~S&A), S=key[i]) and confirm this matches what the golden submission asserts for each of the 4 loci."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py correctly checks JSON schema fields; both golden and baseline pass/fail these as expected structurally.",
+      "requirement": "FR1-FR4 schema validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run produces F1=0.000, fully disjoint from ground truth, indicating ground truth/golden mismatch.",
+      "requirement": "SR1 key_gate_localization_accuracy >= 0.9",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run produces key_recovery_rate=0.250, mismatched indices [0,2,3].",
+      "requirement": "SR2 key_recovery_rate >= 0.9",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run correctly fails (FR3, SR1 fail), confirming naive baseline is rejected.",
+      "requirement": "SR3 baseline must fail",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run exit_code=1, expected pass but overall status fail per differential report.",
+      "requirement": "Golden submission must pass",
+      "status": "fail"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 are not exercised by dedicated mutants in the validation run (untested_requirements), though logically covered by evaluate.py code paths; low risk since golden passes and baseline fails on other checks.",
+      "evidence": "per_requirement_coverage shows FR3 and FR4 covered:false, mutants_targeting:0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider adding explicit mutants targeting FR3 (miscomputed summary counts) and FR4 (malformed JSON/extra top-level key) to close the untested_requirements gap and strengthen confidence in those checks.",
+    "No security-intent leakage detected in public artifacts (README.md, metadata.json, inputs/) - fault model and register_map are appropriately generic without revealing ground-truth classification."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden passes FR1; vulnerable/baseline mutant fails FR1 with missing register names",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR2; type/format checks validated by mutation",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Logic present in evaluate.py checks summary consistency; golden passes, though no dedicated mutant",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Logic present in evaluate.py checks JSON envelope/schema_version; golden passes, though no dedicated mutant",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline (empty registers) fails SR1 as required by acceptance criteria; golden passes",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR2; mutation targeting confirms detection capability",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline fails SR3 (0/5 keyword matches); golden passes with substantive justifications",
+      "requirement": "SR3",
+      "status": "pass"
+    }
+  ]
+}

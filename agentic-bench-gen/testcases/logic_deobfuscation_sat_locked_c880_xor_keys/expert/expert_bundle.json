@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"key_width\": 8,\n  \"recovered_key\": \"011x10x1\",\n  \"key_gates\": [\n    {\n      \"key_bit_index\": 0,\n      \"gate_name\": \"U_KEY0_XOR\",\n      \"locked_signal\": \"n_105\",\n      \"gate_type\": \"XOR\",\n      \"inferred_value\": \"0\"\n    },\n    {\n      \"key_bit_index\": 1,\n      \"gate_name\": \"U_KEY1_XNOR\",\n      \"locked_signal\": \"n_212\",\n      \"gate_type\": \"XNOR\",\n      \"inferred_value\": \"1\"\n    },\n    {\n      \"key_bit_index\": 2,\n      \"gate_name\": \"U_KEY2_XOR\",\n      \"locked_signal\": \"n_318\",\n      \"gate_type\": \"XOR\",\n      \"inferred_value\": \"1\"\n    },\n    {\n      \"key_bit_index\": 4,\n      \"gate_name\": \"U_KEY4_XOR\",\n      \"locked_signal\": \"n_441\",\n      \"gate_type\": \"XOR\",\n      \"inferred_value\": \"1\"\n    },\n    {\n      \"key_bit_index\": 5,\n      \"gate_name\": \"U_KEY5_XNOR\",\n      \"locked_signal\": \"n_507\",\n      \"gate_type\": \"XNOR\",\n      \"inferred_value\": \"0\"\n    },\n    {\n      \"key_bit_index\": 7,\n      \"gate_name\": \"U_KEY7_XNOR\",\n      \"locked_signal\": \"n_622\",\n      \"gate_type\": \"XNOR\",\n      \"inferred_value\": \"1\"\n    }\n  ]\n}",
+      "path": "golden/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_key.json",
+      "purpose": "The correct submission answer for the locked_c880 logic-locking case, mirroring submission/recovered_key.json exactly per the interface schema. key_width=8. recovered_key='01101001' string where indices 0,1,2,4,5,7 are the live bits with correct values from hidden ground truth, and indices 3,6 are dead bits reported as 'x' (both accepted by grader per SR2). key_gates array contains exactly 6 entries (one per live bit index 0,1,2,4,5,7), each with: key_bit_index matching the bit, gate_name referencing a real XOR/XNOR gate instance name present in inputs/locked_c880.v (must exactly match ground-truth key-gate instance names for that index, e.g. names like U_KEY0_XOR, U_KEY1_XNOR etc. following even=XOR/odd=XNOR pattern), locked_signal naming the internal net each gate protects, gate_type alternating XOR (even index) / XNOR (odd index), and inferred_value matching the corresponding recovered_key character ('0' or '1', never 'x' for live bits). No entries are included for dead bit indices 3 and 6, keeping key_gates length at 6 (well under 2x key_width=16, avoiding brute-force-listing penalty per SR3). This file satisfies FR1-FR4 (valid JSON, correct key_width, valid gate references/types, correct-length key string) and SR1-SR2 (correct live-bit gate identification and key values) while intentionally not guessing the two unrecoverable dead bits, distinguishing it from both baselines (empty-answer baseline fails SR2/SR4; brute-force-listing baseline fails SR3)."
+    }
+  ]
+}

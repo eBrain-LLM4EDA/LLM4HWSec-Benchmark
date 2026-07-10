@@ -1,0 +1,69 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR5 is a dead check: it always passes regardless of submission content because it tests the grader's own fixture rather than the participant's submission, so it never discriminates between correct and incorrect submissions.",
+      "evidence": "dead_checks: ['SR5']; validation report status: fail",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 functional requirements are not exercised by the mutation/differential testing harness, leaving their correctness unverified in this validation pass.",
+      "evidence": "untested_requirements: ['FR3', 'FR4']; per_requirement_coverage shows FR3 and FR4 covered:false with 0 mutants targeting",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Add explicit mutants/tests exercising FR3 (infected=true with <2 suspect_nodes; infected=false with non-empty suspect_nodes) and FR4 (invalid/nonexistent primary_output_affected values) to close the coverage gap flagged by the validation harness.",
+    "Consider either removing SR5 from the requirement_map (since it is an evaluator self-test, not a submission-graded security requirement) or reframing it so mutation testing does not report it as a 'dead check', to avoid confusion about its discriminative power.",
+    "Ensure per_requirement_coverage explicitly documents FR3/FR4 as covered before considering this benchmark case fully verified."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline and differential runs show FR1 correctly validated (JSON shape check).",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR2 substring-match against real netlist instances validated in differential run.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Not exercised by mutation testing; logic present in evaluate.py but untested per validation report.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Not exercised by mutation testing; logic present in evaluate.py but untested per validation report.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Vulnerable (naive baseline) run correctly fails SR1: 'reported infected=False but ground truth infected=True'.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run correctly fails SR2 due to 0/4 trigger nodes covered and missing payload_xor.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run correctly fails SR3 due to empty primary_output_affected vs gold 'sbox_out'.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run correctly fails SR4 due to generic rationale not hitting keyword groups.",
+      "requirement": "SR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR5 never emits FAIL on any mutant; it is a static self-test independent of submission content, making it a non-discriminating dead check per mutation analysis.",
+      "requirement": "SR5",
+      "status": "fail"
+    }
+  ]
+}

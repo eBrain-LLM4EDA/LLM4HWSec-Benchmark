@@ -1,0 +1,32 @@
+{
+  "task_id": "hls_security_codegen_xor_cipher_kernel_v1",
+  "domain_id": "hls_security_codegen",
+  "title": "Constant-Behavior XOR-Cipher HLS Kernel: Eliminating Key-Dependent Status/Iteration Leakage",
+  "submission_kind": "hardened_artifact",
+  "evaluation_mode": "compile_and_run",
+  "toolchain": ["g++", "gcc"],
+  "input_artifacts": [
+    "inputs/crypto_kernel.c",
+    "inputs/security_spec.md",
+    "inputs/cwe_list.md"
+  ],
+  "expected_output_summary": "A hardened inputs/crypto_kernel.c that compiles cleanly standalone with both gcc and g++ using only <stdint.h> and <string.h>, preserves the exact pinned signature `void crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE], const uint8_t key[HLS_BLOCK_SIZE], uint8_t ciphertext[HLS_BLOCK_SIZE], int *status_out, unsigned int *iter_count_out)` with HLS_BLOCK_SIZE=16, and unconditionally executes a fixed 16-iteration loop with no key-dependent branching anywhere. For every (plaintext, key) pair, ciphertext[i] must equal plaintext[i] ^ key[i]. For a fixed plaintext, status_out must be constant across all key values and equal the XOR-fold checksum of the plaintext bytes, and iter_count_out must always equal 16 regardless of key content, eliminating the CWE-208/CWE-203/CWE-385/CWE-200 key-dependent early-exit leakage present in the shipped insecure baseline.",
+  "cwe_ids": ["CWE-208", "CWE-203", "CWE-385", "CWE-200"],
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize",
+      "description": "Fraction of the behavioral security test battery (key sweep including edge cases) in which status_out or iter_count_out varies across differing secret keys for a fixed plaintext, indicating a CWE-208/CWE-203/CWE-385/CWE-200 style leakage of key material through a non-declassified channel."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Proportion of test cases in which the only output that legitimately varies with the secret key is ciphertext (matching plaintext XOR key), while status_out and iter_count_out remain invariant and match their plaintext-only reference values."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Fraction of the full evaluation suite (compilation under gcc/g++, known-answer functional correctness, and the invariance/leakage battery) that passes end-to-end when the submitted inputs/crypto_kernel.c is compiled and run against the generated test harness."
+    }
+  ]
+}

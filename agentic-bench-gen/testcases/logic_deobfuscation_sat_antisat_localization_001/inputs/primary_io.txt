@@ -1,0 +1,48 @@
+Primary I/O Reference — module top_locked
+============================================
+
+Module: top_locked
+File:   inputs/locked_netlist.v
+
+Port list (name, direction, width):
+------------------------------------------------------------
+Name        Direction   Width   Notes
+------------------------------------------------------------
+in          input       [7:0]   Primary data inputs: in[0]..in[7]
+key         input       [9:0]   Secret key inputs, correct values
+                                 required for functional correctness:
+                                 key[0]..key[9]
+out         output      [0:0]   Primary data output (1 bit)
+------------------------------------------------------------
+
+Detailed bit listing:
+
+Primary inputs:
+  in[0]
+  in[1]
+  in[2]
+  in[3]
+  in[4]
+  in[5]
+  in[6]
+  in[7]
+
+Secret key inputs:
+  key[0]
+  key[1]
+  key[2]
+  key[3]
+  key[4]
+  key[5]
+  key[6]
+  key[7]
+  key[8]
+  key[9]
+
+Primary output:
+  out
+
+Note: key bit indices listed above correspond exactly to the key[i] wire
+names as they appear in inputs/locked_netlist.v (e.g. the entry "key[4]"
+above refers to the exact same wire named key[4] in the netlist text; no
+renumbering or reordering has been applied).

@@ -1,0 +1,64 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR4 (false-positive rate) is never exercised by a failing mutant; validation shows SR4 dead_check and uncovered_requirement. No mutant that mislabels legitimate datapath nodes as suspect/counter/comparator/payload was tested to confirm SR4 actually fails on false positives.",
+      "evidence": "mutation_score report: SR4 dead_check, uncovered_requirement; per_requirement_coverage.SR4 mutants_detected=0, mutants_targeting=1",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 are untested by any mutant in the harness, leaving their correctness unverified via differential mutation testing even though they are structurally checked.",
+      "evidence": "untested_requirements: [FR3, FR4]",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Add a mutant/naive submission variant that mislabels or flags legitimate datapath nodes (e.g., acc_reg, sum_bit, carry, in, out) as suspect/counter/comparator/payload to exercise and confirm SR4 fails appropriately.",
+    "Add mutants that specifically break FR3 (invented node names) and FR4 (short summary) in isolation to raise their mutation coverage above zero.",
+    "Consider lowering fpr_threshold or ensuring at least one adversarial submission in the test suite triggers an SR4 FAIL to demonstrate discrimination."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline and golden both pass FR1; malformed JSON cascades to fail as expected.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "design_name check verified against module datapath_top; mutant detection confirms.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Logic appears correct against shipped netlist.v but no mutant tests it (untested_requirements).",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Summary length check appears correct but untested by mutation harness.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Naive baseline (is_trojan_detected=false) correctly fails SR1; golden passes.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Coverage computed correctly against ground_truth.json true_nodes; golden coverage=1.00, naive baseline coverage=0.00 fails.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mislabeling detection verified; golden passes, naive baseline fails with missing categories.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "No mutant triggers an SR4 failure; false-positive-rate check is present in code but not actively validated by any adversarial test case, so its correctness is unverified.",
+      "requirement": "SR4",
+      "status": "fail"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "task_id": "logic_deobfuscation_sat_locked_c880_xor_keys",
+  "domain_id": "logic_deobfuscation_sat",
+  "title": "XOR Key-Gate Localization and Partial Key Recovery in a Locked Combinational Netlist",
+  "input_artifacts": [
+    "inputs/locked_c880.v",
+    "inputs/design_brief.md",
+    "inputs/oracle_vectors.txt"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_key.json"
+  ],
+  "expected_outputs": {
+    "summary": "A single JSON file submission/recovered_key.json identifying key-controlled gate instances in the locked netlist, their gate types (XOR/XNOR/MUX/BUF/UNKNOWN), and a recovered (possibly partial, with 'x' for unresolved bits) key string consistent with the supplied oracle vectors."
+  },
+  "metrics": [
+    {
+      "name": "key_recovery_rate",
+      "direction": "maximize"
+    },
+    {
+      "name": "key_gate_localization_accuracy",
+      "direction": "maximize"
+    },
+    {
+      "name": "sat_iteration_reduction",
+      "direction": "maximize"
+    },
+    {
+      "name": "schema_validity",
+      "direction": "maximize"
+    }
+  ]
+}

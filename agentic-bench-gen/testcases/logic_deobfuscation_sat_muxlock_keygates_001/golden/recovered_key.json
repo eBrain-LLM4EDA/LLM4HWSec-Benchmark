@@ -1,0 +1,26 @@
+{
+  "key_bits": "0100",
+  "key_gates": [
+    {
+      "instance_name": "u_keymux0",
+      "key_bit_index": 0,
+      "resolved_value": 0
+    },
+    {
+      "instance_name": "u_keymux1",
+      "key_bit_index": 1,
+      "resolved_value": 1
+    },
+    {
+      "instance_name": "u_keymux2",
+      "key_bit_index": 2,
+      "resolved_value": 0
+    },
+    {
+      "instance_name": "u_keymux3",
+      "key_bit_index": 3,
+      "resolved_value": 0
+    }
+  ],
+  "notes": "Traced each u_keymuxN instance in inputs/locked_netlist.v back to the internal wire it intercepts (N10, N11, N16, N19) and identified the mux2x1 primitive's actual select polarity by inspecting its gate-level definition: Y = (S & B) | (~S & A), meaning S=0 forwards input A and S=1 forwards input B. For each locus, both candidate data inputs were compared against the expected NAND-chain definition of that wire in the unlocked reference circuit (N10=NAND(N1,N3), N11=NAND(N3,N6), N16=NAND(N2,N11), N19=NAND(N11,N7)); the candidate matching the correct NAND function was taken as functional and the other (its bitwise inversion) as the decoy. u_keymux0, u_keymux2, and u_keymux3 carry their functional signal on input A, requiring select=0 to forward it, while u_keymux1 carries its functional signal on input B, requiring select=1. This yields key_bits=0100. The result was cross-validated by instantiating inputs/locked_netlist.v with key=4'b0100 under iverilog/vvp and exhaustively comparing its output truth table (N22,N23) over all 32 primary-input combinations against the original unlocked NAND-chain reference netlist, confirming exact functional equivalence."
+}

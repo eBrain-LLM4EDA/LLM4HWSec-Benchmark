@@ -1,0 +1,65 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3 self-check is a tautological, submission-independent computation (it hardcodes an empty key_gates list and checks grading_lib functions in isolation) rather than actually running the naive baseline submission through the grading path. The validation harness confirms it never emits a FAIL on any mutant, making it a dead check that provides no real discrimination of submission quality.",
+      "evidence": "check_activation shows SR3 count 3 in requirement_map but validation report flags dead_checks: ['SR3'] and issue 'SR3 never emitted [TEST] FAIL on any mutant \u2014 provides no discrimination'.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not compute or report the 'sat_iteration_reduction' metric listed in the task spec's evaluation.metrics, even though it is one of four declared grading metrics.",
+      "evidence": "evaluate.py only implements FR1-FR4 schema checks plus SR1 (F1/localization) and SR2 (key_recovery_rate); no code path computes sat_iteration_reduction.",
+      "severity": "low"
+    },
+    {
+      "artifact": "validation report",
+      "description": "Mutation coverage bookkeeping reports FR3 and FR4 as 'untested_requirements' despite the differential run clearly showing FR3 firing a FAIL for the vulnerable/baseline submission, suggesting some inconsistency in how per-requirement coverage was computed (though the actual evaluate.py logic for FR3 appears correct).",
+      "evidence": "differential.vulnerable_run.stdout includes '[TEST] FAIL: FR3: submitted key_gates count 0 != actual keymux instance count 4' yet per_requirement_coverage.FR3.covered is false and FR3 is listed in uncovered_requirements/untested_requirements arrays inconsistently.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Rework SR3 to actually re-run the grading pipeline against the shipped submission/recovered_key.json baseline file (or an explicit fixture of it) rather than a hardcoded synthetic empty-key_gates computation, so it provides real discriminative signal on mutants.",
+    "Add explicit computation and reporting of the 'sat_iteration_reduction' metric in evaluate.py so all four declared metrics in the task spec are actually measured, not just three of them.",
+    "Re-run the mutation/coverage harness after fixing SR3 to confirm FR3/FR4 are properly attributed as covered, since the differential run already shows they function correctly in practice."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run PASS: FR1; vulnerable/naive baseline also structurally valid (all-zero key_bits length 4) so FR1 passes there too, which is expected since FR1 only checks shape.",
+      "requirement": "FR1 (key_bits schema)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs PASS FR2 since empty array is a valid (if empty) JSON array satisfying element-shape checks.",
+      "requirement": "FR2 (key_gates element schema)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run correctly FAILs FR3 ('submitted key_gates count 0 != actual keymux instance count 4'); golden run PASSes FR3.",
+      "requirement": "FR3 (key_gates count == keymux instance count)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs PASS FR4 since baseline JSON is well-formed and includes 'notes'.",
+      "requirement": "FR4 (strict JSON + notes field)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run FAILs SR1 with F1=0.000; golden run PASSes SR1, confirming discrimination works as intended.",
+      "requirement": "SR1 (key_gate_localization_accuracy F1 >= 0.9)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run FAILs SR2 (rate=0.750, mismatched index [1]); golden run PASSes SR2, confirming ground truth key_bits/resolved_value are internally consistent with the shipped netlist.",
+      "requirement": "SR2 (key_recovery_rate >= 0.9)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Validation report explicitly flags SR3 as a dead_check: it always PASSes regardless of submission content because it recomputes a fixed synthetic empty-key_gates scenario rather than grading the actual submitted/baseline JSON, so it never discriminates a real failure.",
+      "requirement": "SR3 (baseline non-triviality self-check)",
+      "status": "fail"
+    }
+  ]
+}

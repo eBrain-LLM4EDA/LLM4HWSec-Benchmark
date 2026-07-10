@@ -1,0 +1,54 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.md",
+    "inputs/secure_boot_check.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: missing real registers in analyzed_registers: byte_count, done, sig_shift\n[TEST] FAIL: FR2: state: width mismatch (got 3 expected 2); auth_ok: line mismatch (got 19 expected near 105); expected_sig: line mismatch (got 21 expected near 95)\n[TEST] PASS: FR3\n[TEST] FAIL: FR4: identifier 'sig_shift_reg' not found verbatim in secure_boot_check.v\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: analyzed_registers has fewer than 6 entries\n[TEST] FAIL: FR2: state: line mismatch (got 1 expected near 50)\n[TEST] FAIL: FR3: missing fsm states: COMPARE, DONE, LOAD\n[TEST] FAIL: FR4: identifier 'some_unknown_reg' not found verbatim in secure_boot_check.v\n[TEST] FAIL: SR1: no critical_nodes entry with signal == 'auth_ok'\n[TEST] FAIL: SR2: no critical_nodes entry with signal == 'state'\n[TEST] FAIL: SR3: missing substantive hardening recommendation(s) for: auth_ok, state\n[TEST] FAIL: SR4: critical_nodes omits both the auth-result and state-control signals\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/reference_secure_boot_check.v",
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "requirement_count": 8,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/report_checks.py",
+    "evaluation/private/rtl_analysis.py"
+  ],
+  "uncovered_requirements": []
+}

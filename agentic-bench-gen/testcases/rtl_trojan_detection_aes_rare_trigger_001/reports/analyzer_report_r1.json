@@ -1,0 +1,67 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py, manifest",
+      "description": "FR3 and FR4 checks are not actively exercised by mutation testing (untested_requirements), meaning schema-conformance-related functional requirements lack direct verification evidence, though the checks exist in code and are logically sound.",
+      "evidence": "per_requirement_coverage shows FR3 and FR4 covered:false, mutants_targeting:0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider adding a mutation test targeting FR3/FR4 (e.g., a submission with a fabricated signal_name or invalid affected_outputs) to fully validate coverage of those functional requirements.",
+    "Optionally rename 'trojan_en' to a more innocuous identifier in aes_core.v to slightly reduce naming-based hinting, though current level is acceptable."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "check_fr1 enforces required keys/types; mutation coverage confirms detection",
+      "requirement": "FR1 schema validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr2 enforces non-empty findings when is_trojan_present true; mutation coverage confirms",
+      "requirement": "FR2 consistency",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr3 logic present and correct, though untested by mutants",
+      "requirement": "FR3 real signal names",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr4 logic present and correct, though untested by mutants",
+      "requirement": "FR4 real output ports",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows SR1 FAIL for baseline; structural heuristic in ground_truth_analysis.py detects trig_cnt/trojan_en pattern generically",
+      "requirement": "SR1 trigger identification",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows SR2 FAIL for baseline; checks bit/xor wording plus out_data in affected_outputs",
+      "requirement": "SR2 payload localization",
+      "status": "pass"
+    },
+    {
+      "evidence": "baseline_run passes (golden), vulnerable_run (baseline shipped submission) fails SR3 as required",
+      "requirement": "SR3 verdict correctness",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr4 counts >2 legitimate signals at confidence>=0.5; mutation coverage confirms",
+      "requirement": "SR4 false positive flooding",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run exit_code=1, status=fail, matching expected",
+      "requirement": "Baseline must fail overall",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md contain no CWE ids, SR ids, or trojan hints; naming (trig_cnt, trojan_en) in aes_core.v is mildly suggestive but plausible as ordinary RTL naming and not a leaked comment",
+      "requirement": "No hidden-intent leakage in public artifacts",
+      "status": "pass"
+    }
+  ]
+}

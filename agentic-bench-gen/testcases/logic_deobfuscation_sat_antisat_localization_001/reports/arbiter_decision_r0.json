@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, coverage_score=1.0, baseline_exit_code=0, and 0 issues. Analyzer status is warning but only flags a low-severity gap (FR3/FR4 untested by mutants) which is below the retention threshold concern and does not indicate a correctness defect \u2014 the checks pass on golden and fail on baseline appropriately. All acceptance criteria per the retention rule (validation pass, analyzer pass/warning, mutation_score>=0.5) are satisfied.",
+  "retain_case": true,
+  "revision_instructions": "Optional follow-up for future iteration (not blocking retention): add mutants that specifically target FR3 (e.g., flip confidence to 0 while value is '0'/'1', or shorten reasoning below the minimum length) and FR4 (report an 'unknown' bit with nonzero confidence) so these two functional requirements have direct mutation coverage rather than relying on inspection-based confidence.",
+  "root_cause": "none"
+}

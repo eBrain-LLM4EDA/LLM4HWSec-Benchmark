@@ -1,0 +1,26 @@
+{
+  "acceptance_criteria": [
+    "evaluate.py compiles submission/recovered_rtl.v together with a generated testbench and inputs/flattened_netlist.v using iverilog, targeting both recovered_design and the reference module.",
+    "The testbench applies at least 2000 randomized 4x16-bit input vectors plus the two known vectors from FR2 and all-zero/all-max corner cases, comparing sum outputs from recovered_design against flattened_netlist.v bit-for-bit each cycle.",
+    "PASS requires 100% match across all applied vectors between recovered_design output and reference netlist output, plus successful compilation and no fail-on-presence structural violations (SR1).",
+    "A naive/empty baseline submission (e.g. a stub module returning sum=0 or an unmodified copy of flattened_netlist.v) must FAIL: the zero-stub fails functional equivalence, and the copied-netlist fails the SR1 non-recovery structural gate."
+  ],
+  "cwe_ids": [
+    "CWE-1039",
+    "CWE-200"
+  ],
+  "ground_truth": "The flattened netlist implements a 32-bit adder tree computing sum = a + b + c + d over four 16-bit unsigned inputs, structured internally as ((a+b) + (c+d)) but flattened to primitive gates with obfuscated net names so the word-level adder-tree structure is not visible from the netlist alone.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Static text scan of submission for instantiation of primitive cell module names (e.g. FA1, XOR2, AND2 from primitive_cells.v) or `include of flattened_netlist.v; if found in bulk (heuristic threshold on gate-primitive instance count), flag as fail-on-presence 'non-recovery' violation regardless of simulation pass, since this indicates the participant sidestepped analysis rather than recovering RTL. This is a supplementary structural gate, never the sole basis for PASS.",
+      "id": "SR1",
+      "requirement": "The evaluator must not accept a submission that merely instantiates or textually copies inputs/flattened_netlist.v (which would trivially pass I/O equivalence without demonstrating recovery); evaluate.py performs a structural check that recovered_rtl.v does not include/instantiate the primitive gate modules defined in primitive_cells.v and is not byte-identical or near-identical (e.g. via gate-count heuristics) to flattened_netlist.v."
+    },
+    {
+      "detection_strategy": "Check that submission does not use non-standard delay constructs (#) that could indicate deliberate timing obfuscation mirroring the original; flag via regex scan for delay control statements, informational only.",
+      "id": "SR2",
+      "requirement": "The recovered design must not leak timing-dependent side channels that could reveal internal carry-chain structure through simulation delays (not applicable to combinational functional grading but tracked for completeness in case of gate-level submissions)."
+    }
+  ],
+  "threat_model": "The design is delivered as a flattened, gate-level netlist with all hierarchy and meaningful signal names stripped, hiding the word-level arithmetic (adder tree) intent. An adversary or engineer inspecting the netlist cannot easily discern that it is a 4-operand adder tree without behavioral/structural analysis; the goal is to test whether a participant can recover correct word-level semantics purely from black-box/gray-box analysis rather than assuming any word boundaries."
+}

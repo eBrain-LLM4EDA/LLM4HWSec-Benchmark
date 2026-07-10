@@ -1,0 +1,65 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation validation report",
+      "description": "Validation report shows overall status 'fail' with mutation_score 0.833 and SR1 flagged as an uncovered_requirement (mutant targeting SR1 not detected), plus FR3 and FR4 untested by mutants.",
+      "evidence": "issues: [{'detail': 'SR1 has no mutant that was detected \u2014 vulnerability coverage gap', 'issue': 'uncovered_requirement'}], uncovered_requirements: ['SR1'], untested_requirements: ['FR3','FR4'], status: 'fail'",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/bus_arbiter.v manifest description",
+      "description": "Manifest purpose text for bus_arbiter.v explicitly describes the trojan mechanism ('Hidden trojan: from GRANT2 state...') but this is in the internal manifest, not the participant-facing file itself, so it does not leak to participants directly; still a minor internal-documentation risk if manifest is exposed.",
+      "evidence": "manifest entry: 'Hidden trojan: from GRANT2 state, if busy && gnt==4'b0100 && req==4'b1011...'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate and fix the SR1 mutant coverage gap: ensure the mutant that sets state_name='GRANT2' while ascribing lock behavior is actually generated and run against evaluate.py to confirm the SR1 fix (state_name_is_legit_only) works as intended, since the validation report shows this mutant was not detected.",
+    "Add mutants that specifically target FR3 (e.g., overall_assessment missing yes/no token) and FR4 (e.g., candidates with only vague language) to raise mutation_score and confirm these checks are exercised.",
+    "Re-run the full differential/mutation suite after addressing the SR1 gap and re-validate overall_status before considering the benchmark case fully usable.",
+    "Consider removing or sanitizing internal manifest descriptions that explicitly say 'Hidden trojan' to reduce any residual risk of intent leakage during future edits."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline run and differential golden run both show PASS: FR1; vulnerable/naive run also passes FR1 (schema valid) but fails downstream SR checks.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr2 validates field presence/types; mutation coverage shows FR2 covered with 1/1 mutants detected.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR3 covered:false, mutants_targeting:0 in per_requirement_coverage; untested_requirements includes FR3 \u2014 no mutant exercised this check.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "FR4 covered:false, mutants_targeting:0; untested_requirements includes FR4 despite differential vulnerable_run showing FR4 FAIL for naive baseline (used indirectly via SR failures), meaning the check fires but wasn't validated by targeted mutants.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "SR1 covered:false with mutants_targeting:1 but mutants_detected:0 \u2014 the mutant designed to test the 'state_name=GRANT2 mislabeling' scenario was not caught by evaluate.py despite the fix described in the tester bundle, indicating a real coverage gap or a bug in the harness/mutant pairing.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "SR2 covered:true, 1/1 mutants detected; differential vulnerable_run shows SR2 FAIL for naive baseline as expected.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR3 covered:true, 1/1 mutants detected; differential shows expected FAIL for naive baseline and PASS for golden.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR4 covered:true, aggregate gate correctly fails when SR1-SR3 fail per differential vulnerable_run.",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

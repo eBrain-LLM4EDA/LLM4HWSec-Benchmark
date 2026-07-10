@@ -1,0 +1,76 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Evaluator's SR1 check cross-references the reported trigger signal/activation_condition against the ground truth (trig_cnt free-running counter compared to 16'hBEEF combined with round-state match). This mutant misidentifies the trigger as 'round_cnt' reaching its normal terminal value 10, which is a legitimate documented signal/condition, not the hidden rare-trigger comparator. This yields a false trigger identification, causing SR1 to fail while superficially still claiming a trojan is present.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [\n    {\n      \"signal_name\": \"round_cnt\",\n      \"activation_condition\": \"round_cnt is a 4-bit register that reaches its terminal value of 10, at which point the core commits the final state to out_data. This documented round-completion condition is suspected to be the hidden trigger mechanism, since it is the only condition under which out_data is updated.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.9\n    },\n    {\n      \"signal_name\": \"trig_hit\",\n      \"activation_condition\": \"trig_hit is the output of the comparator combining trig_cnt==16'hBEEF with the round-state match condition; when asserted it drives a payload mux that XORs exactly one bit of the ciphertext output register for a single clock cycle before returning to normal (correct) output, silently corrupting one bit of out_data with no effect on any documented control or status signal.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.9\n    }\n  ],\n  \"overall_assessment\": \"The RTL contains a hidden hardware trojan triggered when round_cnt reaches its documented terminal value 10, causing the payload mux to XOR a bit of out_data. This documented round-completion signal appears to be repurposed as the malicious trigger condition, silently corrupting one bit of the ciphertext while leaving all other documented functionality intact.\",\n  \"is_trojan_present\": true\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_sr1_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "SR2 detection strategy simulates driving trig_cnt/round-state to the rare combination and confirms exactly one bit of out_data flips relative to a golden run; the report's affected_outputs must correctly localize the corruption to out_data. This mutant instead claims the payload corrupts 'done' (a control/status signal) alongside out_data, and mischaracterizes the payload as affecting the entire output word rather than a single bit, so payload/output localization is wrong and SR2 fails.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [\n    {\n      \"signal_name\": \"trig_cnt\",\n      \"activation_condition\": \"trig_cnt is a free-running 16-bit register incremented every clock cycle with no legitimate functional role in the documented round/state datapath. When trig_cnt reaches the rare fixed constant 16'hBEEF while simultaneously round_cnt (or the internal round-state register) equals a specific documented round value, a hidden comparator asserts an internal enable signal that drives a payload multiplexer feeding out_data and done. This condition is exceedingly rare under normal operation/regression testing but deterministically reachable after ~48815 cycles of continuous clocking, at which point the payload activates.\",\n      \"affected_outputs\": [\"out_data\", \"done\"],\n      \"confidence\": 0.97\n    },\n    {\n      \"signal_name\": \"trig_hit\",\n      \"activation_condition\": \"trig_hit is the output of the comparator combining trig_cnt==16'hBEEF with the round-state match condition; when asserted it drives a payload mux that overwrites the entire out_data output word with an alternate value for a single clock cycle before returning to normal (correct) output, silently corrupting the whole ciphertext block with no effect on any documented control or status signal other than done being pulsed early.\",\n      \"affected_outputs\": [\"out_data\", \"done\"],\n      \"confidence\": 0.9\n    }\n  ],\n  \"overall_assessment\": \"The RTL contains a hidden hardware trojan: an undocumented 16-bit free-running counter (trig_cnt) with no legitimate role in the documented AES round/state logic is compared against a rare constant (16'hBEEF) in conjunction with an existing round-state condition. When both conditions hold simultaneously, a payload multiplexer overwrites the entire out_data output word and also disturbs the done status signal for one cycle, silently corrupting the whole ciphertext block and its valid signal while leaving all other documented functionality intact. This is a classic rare-trigger counter+comparator+payload-mux trojan pattern; no legitimate documented signal (e.g. round_cnt, state_reg used for normal AES round computation) exhibits this anomalous behavior, and those signals are not flagged as suspicious.\",\n  \"is_trojan_present\": true\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_sr2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Evaluator compares is_trojan_present against ground truth (trojan is present). This submission retains accurate findings describing the trig_cnt/trig_hit trigger and payload but flips the final verdict to false and rewrites overall_assessment to claim no trojan, producing a false negative that must FAIL SR3 despite the findings text still being technically accurate.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [\n    {\n      \"signal_name\": \"trig_cnt\",\n      \"activation_condition\": \"trig_cnt is a free-running 16-bit register incremented every clock cycle with no legitimate functional role in the documented round/state datapath. When trig_cnt reaches the rare fixed constant 16'hBEEF while simultaneously round_cnt (or the internal round-state register) equals a specific documented round value, a hidden comparator asserts an internal enable signal that drives a payload multiplexer feeding out_data. This condition is exceedingly rare under normal operation/regression testing but deterministically reachable after ~48815 cycles of continuous clocking, at which point the payload activates.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.97\n    },\n    {\n      \"signal_name\": \"trig_hit\",\n      \"activation_condition\": \"trig_hit is the output of the comparator combining trig_cnt==16'hBEEF with the round-state match condition; when asserted it drives a payload mux that XORs exactly one bit of the ciphertext output register for a single clock cycle before returning to normal (correct) output, silently corrupting one bit of out_data with no effect on any documented control or status signal.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.9\n    }\n  ],\n  \"overall_assessment\": \"After reviewing the trig_cnt and trig_hit signals, these are determined to be benign artifacts of synthesis and not an actual security concern; the design faithfully implements only the documented AES-like round function with no functional deviation. No trojan is present in this RTL.\",\n  \"is_trojan_present\": false\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_sr3_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Evaluator should detect excessive/spurious high-confidence findings flagging legitimate documented signals (round_cnt, state_reg, key_reg, busy) as trojan candidates, indicating uncalibrated confidence and false-positive flooding per SR4.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [\n    {\n      \"signal_name\": \"trig_cnt\",\n      \"activation_condition\": \"trig_cnt is a free-running 16-bit register incremented every clock cycle with no legitimate functional role in the documented round/state datapath. When trig_cnt reaches the rare fixed constant 16'hBEEF while simultaneously round_cnt (or the internal round-state register) equals a specific documented round value, a hidden comparator asserts an internal enable signal that drives a payload multiplexer feeding out_data.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.97\n    },\n    {\n      \"signal_name\": \"round_cnt\",\n      \"activation_condition\": \"round_cnt appears to be involved in suspicious round-counting behavior and may be part of the trigger logic since it is compared against terminal values.\",\n      \"affected_outputs\": [\"out_data\", \"done\"],\n      \"confidence\": 0.85\n    },\n    {\n      \"signal_name\": \"state_reg\",\n      \"activation_condition\": \"state_reg is updated every round and could be manipulated to hide malicious state; its width and update pattern look anomalous.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.8\n    },\n    {\n      \"signal_name\": \"key_reg\",\n      \"activation_condition\": \"key_reg rotates each round in a manner that could leak key material through timing side channels.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.75\n    },\n    {\n      \"signal_name\": \"busy\",\n      \"activation_condition\": \"busy flag toggling pattern is irregular and could be an alternate trigger path controlling when malicious logic engages.\",\n      \"affected_outputs\": [\"done\", \"out_data\"],\n      \"confidence\": 0.7\n    },\n    {\n      \"signal_name\": \"done\",\n      \"activation_condition\": \"done pulse timing could be exploited as a covert channel to signal trojan activation externally.\",\n      \"affected_outputs\": [\"done\"],\n      \"confidence\": 0.65\n    },\n    {\n      \"signal_name\": \"rst_n\",\n      \"activation_condition\": \"asynchronous reset behavior is suspicious and could be abused to force known states enabling the trojan.\",\n      \"affected_outputs\": [\"out_data\", \"done\"],\n      \"confidence\": 0.6\n    }\n  ],\n  \"overall_assessment\": \"The RTL contains a hidden hardware trojan involving trig_cnt, but additionally several documented legitimate control/datapath signals (round_cnt, state_reg, key_reg, busy, done, rst_n) exhibit suspicious characteristics warranting high-confidence flagging as potential trojan involvement.\",\n  \"is_trojan_present\": true\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_sr4_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "evaluate.py schema validation for FR1 should fail: the top-level required key 'is_trojan_present' is missing from trojan_report.json, so the submission does not match the pinned schema exactly.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [\n    {\n      \"signal_name\": \"trig_cnt\",\n      \"activation_condition\": \"trig_cnt is a free-running 16-bit register incremented every clock cycle with no legitimate functional role in the documented round/state datapath. When trig_cnt reaches the rare fixed constant 16'hBEEF while simultaneously round_cnt (or the internal round-state register) equals a specific documented round value, a hidden comparator asserts an internal enable signal that drives a payload multiplexer feeding out_data. This condition is exceedingly rare under normal operation/regression testing but deterministically reachable after ~48815 cycles of continuous clocking, at which point the payload activates.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.97\n    },\n    {\n      \"signal_name\": \"trig_hit\",\n      \"activation_condition\": \"trig_hit is the output of the comparator combining trig_cnt==16'hBEEF with the round-state match condition; when asserted it drives a payload mux that XORs exactly one bit of the ciphertext output register for a single clock cycle before returning to normal (correct) output, silently corrupting one bit of out_data with no effect on any documented control or status signal.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.9\n    }\n  ],\n  \"overall_assessment\": \"The RTL contains a hidden hardware trojan: an undocumented 16-bit free-running counter (trig_cnt) with no legitimate role in the documented AES round/state logic is compared against a rare constant (16'hBEEF) in conjunction with an existing round-state condition. When both conditions hold simultaneously, a payload multiplexer XORs a single bit of the out_data output for one cycle, silently corrupting one bit of the ciphertext while leaving all other documented functionality intact. This is a classic rare-trigger counter+comparator+payload-mux trojan pattern; no legitimate documented signal (e.g. round_cnt, state_reg used for normal AES round computation) exhibits this anomalous behavior, and those signals are not flagged as suspicious.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_fr1_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Evaluator checks FR2: if is_trojan_present is true, findings array must be non-empty. This mutant sets is_trojan_present to true but strips the findings array to empty, violating the required pairing and should be flagged as a schema/consistency failure.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [],\n  \"overall_assessment\": \"The RTL contains a hidden hardware trojan: an undocumented 16-bit free-running counter (trig_cnt) with no legitimate role in the documented AES round/state logic is compared against a rare constant (16'hBEEF) in conjunction with an existing round-state condition. When both conditions hold simultaneously, a payload multiplexer XORs a single bit of the out_data output for one cycle, silently corrupting one bit of the ciphertext while leaving all other documented functionality intact.\",\n  \"is_trojan_present\": true\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_fr2_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    }
+  ]
+}

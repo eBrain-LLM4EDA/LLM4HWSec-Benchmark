@@ -1,0 +1,95 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "Naive byte-by-byte memcmp-style loop with early `return false` on first mismatch (shipped as the insecure baseline; expected to fail the timing-invariance metric while passing plain functional tests)."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of targeted CWEs (CWE-203, CWE-208, CWE-385) for which the behavioral timing/branch-invariance detector flags observable data-dependent timing in the compiled verify(); lower is better.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Measured invariance of verification latency/instruction count across mismatch-position buckets relative to a calibrated non-constant-time baseline, expressed as a normalized score (1.0 = fully invariant, 0.0 = as leaky as naive baseline).",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Fraction of functional/compile requirements (FR1-FR4) that pass when compiling and running mac_verify.cpp against the evaluation harness with g++.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All FR1-FR4 known-answer and mismatch vectors produce correct boolean outputs.",
+      "Timing/instruction-count analysis across mismatch-position buckets (early/mid/late first-difference, plus full-match) shows no statistically significant monotonic trend exceeding the calibrated tolerance, distinguishing hardened code from the shipped insecure baseline which exhibits a clear early-return timing signal.",
+      "Submission compiles without modification to the pinned interface."
+    ],
+    "cwe_ids": [
+      "CWE-203",
+      "CWE-208",
+      "CWE-385"
+    ],
+    "ground_truth": "A correct hardened submission's verify() scans all 16 bytes unconditionally (e.g. via bitwise OR-accumulation of XOR differences) and produces a single boolean at the end; the number of byte-comparisons performed, branch pattern taken, and measured latency are statistically invariant across mismatch positions (early vs late first differing byte), while functional correctness (accept exact matches, reject any mismatch) is fully preserved.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Behavioral: instrument the harness to run verify() over many mismatch-position vectors (mismatch at index 0 vs index 15, etc.) with high repetition counts and compare mean/median latency distributions; flag PASS only if the difference between earliest-mismatch and latest-mismatch timing groups is below a tolerance threshold (e.g. within noise, using a t-test or ratio bound) relative to a deliberately non-constant-time reference baseline shipped in the harness for calibration.",
+        "id": "SR1",
+        "requirement": "The comparison loop must execute a fixed number of iterations (exactly 16) regardless of byte contents, with no data-dependent early return, break, or goto out of the loop."
+      },
+      {
+        "detection_strategy": "Behavioral proxy: run each mismatch-position vector many times and check that the CPU-cycle/instruction count (via repeated timed loops) for a byte-0 mismatch is statistically indistinguishable from a byte-15 mismatch; a naive early-return implementation will show a clear monotonic timing gap that the detector flags as FAIL.",
+        "id": "SR2",
+        "requirement": "The final boolean result must be derived from an accumulated difference (e.g. OR of XORs) computed after the full scan, not from a partial-state variable set and returned mid-loop."
+      },
+      {
+        "detection_strategy": "Interface conformance check: harness only calls verify() with fixed 16-byte arrays per the pinned signature; compilation against the exact signature is enforced, rejecting any variadic or pointer+length redefinition.",
+        "id": "SR3",
+        "requirement": "Buffers are fixed-size (16 bytes); no variable-length or heap-allocated comparison paths that could introduce additional timing variance."
+      }
+    ],
+    "threat_model": "An attacker who cannot see computed_tag submits forged received_tag values and repeatedly measures verify()'s wall-clock latency or instruction/branch count. If the implementation short-circuits on the first mismatching byte (as in a naive memcmp-style loop with early `return false`), the attacker can recover computed_tag one byte at a time by observing which guessed byte value causes a measurably longer comparison, fully breaking the MAC's forgery resistance without needing the key."
+  },
+  "public_spec": {
+    "constraints": [
+      "The comparison must scan all bytes unconditionally and return a single boolean; no early return on the first mismatching byte.",
+      "Preserve the pinned verify() interface and functional correctness (accept valid tags, reject invalid ones).",
+      "Fixed-size buffers only; must compile with g++ against the shipped harness."
+    ],
+    "expected_outputs": [
+      "A compiled binary produced from inputs/mac_verify.cpp plus the evaluator harness that returns correct true/false verify() results for all known-answer test vectors.",
+      "Empirically measured verification latency/instruction-count that does not vary systematically with where in the 16-byte buffer computed_tag and received_tag first differ."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "verify() must return true when computed_tag and received_tag are byte-for-byte identical, for at least 20 distinct randomly generated 16-byte tag values used as known-answer vectors."
+      },
+      {
+        "id": "FR2",
+        "requirement": "verify() must return false whenever any single byte differs between computed_tag and received_tag, tested across all 16 byte positions (single-byte-mismatch vectors) and for tags differing in multiple bytes."
+      },
+      {
+        "id": "FR3",
+        "requirement": "mac_verify.cpp must compile cleanly with g++ (C++11 or later) against the provided mac_verify.h and the evaluator's test harness main(), producing a working executable with no compilation errors or warnings treated as fatal."
+      },
+      {
+        "id": "FR4",
+        "requirement": "verify() must handle the all-zero tag and all-0xFF tag correctly (both as computed_tag and as received_tag), returning the correct boolean per the equality rule above."
+      }
+    ],
+    "input_artifacts": [
+      "mac_verify.cpp",
+      "mac_verify.h",
+      "design_brief.md"
+    ],
+    "interface": "File: mac_verify.cpp (and header mac_verify.h). Must define exactly: `bool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]);` computed_tag is the locally-derived 16-byte authentication tag (secret-derived, not attacker controlled). received_tag is the 16-byte tag supplied by an external party (may be adversarial/forged). Return value: true if and only if all 16 bytes of computed_tag equal the corresponding bytes of received_tag; false otherwise. No other exported symbols, globals, or side files may be required to build; the harness will `#include \"mac_verify.h\"` and link against mac_verify.cpp only. Function must not throw, must not print, must not read/write files, and must return within a bounded number of operations proportional only to the fixed buffer length (16), never to input contents.",
+    "objective": "The file inputs/mac_verify.cpp implements a message-authentication-code verifier used inside an HLS-synthesizable pipeline. Harden and finalize the implementation of the pinned verify() function so that it correctly compares a computed tag against a received tag over fixed-size byte buffers, returning true only when all bytes match exactly. Improve the implementation so that the comparison logic is uniform and does not depend on structural shortcuts (e.g. no early exits keyed to the position of the first difference), while preserving exact functional correctness.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_constant_time_compare_001",
+  "title": "Constant-time tag comparison in an HLS MAC verifier"
+}

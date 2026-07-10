@@ -1,0 +1,57 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/ground_truth.py",
+      "description": "SR1 has no mutant that detected it (mutation_score_meaningful, uncovered_requirement flagged by validator). Vulnerability coverage gap for SR1 means the hidden-state identification check may not be robustly tested by mutation harness.",
+      "evidence": "per_requirement_coverage.SR1.covered=false, mutants_detected=0/1",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or verify a mutant that specifically targets SR1 (e.g. a submission that only names GRANT2/legit states as the sink or uses low confidence) to close the mutation coverage gap.",
+    "Consider adding a golden/expert report to explicitly validate SR1 detection logic end-to-end via a dedicated test case."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "baseline passes FR1 check; mutant coverage 1/1",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutant coverage 1/1",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutant coverage 1/1",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutant coverage 1/1; vulnerable_run fails FR4 as expected",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "uncovered_requirement: no mutant detected failure of SR1 despite vulnerable_run showing SR1 fail correctly; coverage tool flags gap",
+      "requirement": "SR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "mutant coverage 1/1; vulnerable_run fails SR2",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutant coverage 1/1; vulnerable_run fails SR3",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "aggregate gate correctly fails when SR1-3 fail",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

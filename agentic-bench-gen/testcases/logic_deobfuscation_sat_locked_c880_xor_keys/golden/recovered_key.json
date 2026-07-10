@@ -1,0 +1,48 @@
+{
+  "key_width": 8,
+  "recovered_key": "011x10x1",
+  "key_gates": [
+    {
+      "key_bit_index": 0,
+      "gate_name": "U_KEY0_XOR",
+      "locked_signal": "n_105",
+      "gate_type": "XOR",
+      "inferred_value": "0"
+    },
+    {
+      "key_bit_index": 1,
+      "gate_name": "U_KEY1_XNOR",
+      "locked_signal": "n_212",
+      "gate_type": "XNOR",
+      "inferred_value": "1"
+    },
+    {
+      "key_bit_index": 2,
+      "gate_name": "U_KEY2_XOR",
+      "locked_signal": "n_318",
+      "gate_type": "XOR",
+      "inferred_value": "1"
+    },
+    {
+      "key_bit_index": 4,
+      "gate_name": "U_KEY4_XOR",
+      "locked_signal": "n_441",
+      "gate_type": "XOR",
+      "inferred_value": "1"
+    },
+    {
+      "key_bit_index": 5,
+      "gate_name": "U_KEY5_XNOR",
+      "locked_signal": "n_507",
+      "gate_type": "XNOR",
+      "inferred_value": "0"
+    },
+    {
+      "key_bit_index": 7,
+      "gate_name": "U_KEY7_XNOR",
+      "locked_signal": "n_622",
+      "gate_type": "XNOR",
+      "inferred_value": "1"
+    }
+  ]
+}

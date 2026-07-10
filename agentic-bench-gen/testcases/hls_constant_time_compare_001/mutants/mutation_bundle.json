@@ -1,0 +1,64 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Behavioral timing/instruction-count analysis across mismatch-position buckets will detect that the loop exits early on the first mismatching byte via a data-dependent break, producing a monotonic timing gap between early-mismatch and late-mismatch vectors, matching the naive baseline's leaky signature and failing the invariance metric even though functional FR1/FR2/FR4 outputs remain correct.",
+      "files": [
+        {
+          "content": "#include \"mac_verify.h\"\n\nbool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]) {\n    unsigned char diff = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        unsigned char d = static_cast<unsigned char>(computed_tag[i] ^ received_tag[i]);\n        diff = static_cast<unsigned char>(diff | d);\n        if (d != 0) {\n            // Early exit optimization: once a mismatch is found, no need to\n            // keep scanning the remaining bytes since the result is already\n            // determined to be false.\n            break;\n        }\n    }\n\n    return diff == 0;\n}",
+          "path": "inputs/mac_verify.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_compare_001_SR1_domain_specific",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Timing/instruction-count analysis and functional mismatch tests should reveal that the loop now exits early once a difference is detected, reintroducing a data-dependent branch that both breaks the fixed-scan invariance requirement and can flip functional correctness on some mismatch vectors (a partial-state early return rather than a post-loop accumulated decision).",
+      "files": [
+        {
+          "content": "#include \"mac_verify.h\"\n\nbool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]) {\n    unsigned char diff = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        diff = static_cast<unsigned char>(diff | (computed_tag[i] ^ received_tag[i]));\n        if (diff != 0) {\n            return false;\n        }\n    }\n\n    return true;\n}",
+          "path": "inputs/mac_verify.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_compare_001_SR2_condition_negation",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Interface conformance / compile check should reject this redefinition: verify() no longer takes fixed 16-byte arrays but instead accepts a length parameter and uses a heap-allocated buffer internally, violating the pinned fixed-size-buffer signature and introducing variable-length/heap comparison paths with additional timing variance.",
+      "files": [
+        {
+          "content": "#include \"mac_verify.h\"\n#include <cstdlib>\n#include <cstring>\n\n// Internal helper using a heap-allocated, length-parameterized buffer\n// instead of the fixed 16-byte stack buffers mandated by the interface.\nstatic bool verify_impl(const unsigned char* computed_tag, const unsigned char* received_tag, int len) {\n    unsigned char* diffs = static_cast<unsigned char*>(malloc(len));\n    for (int i = 0; i < len; ++i) {\n        diffs[i] = static_cast<unsigned char>(computed_tag[i] ^ received_tag[i]);\n    }\n\n    unsigned char diff = 0;\n    for (int i = 0; i < len; ++i) {\n        diff = static_cast<unsigned char>(diff | diffs[i]);\n    }\n\n    free(diffs);\n    return diff == 0;\n}\n\nbool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]) {\n    return verify_impl(computed_tag, received_tag, 16);\n}",
+          "path": "inputs/mac_verify.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_compare_001_SR3_domain_specific",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "FR1 known-answer vectors with identical computed_tag and received_tag will incorrectly return false for many tag values because the loop is truncated to 15 bytes, so equal buffers whose sole difference is in byte index 15 are never checked, but more critically the final comparison threshold is altered so exact matches are misclassified as mismatches for any tag containing a nonzero last byte pattern.",
+      "files": [
+        {
+          "content": "#include \"mac_verify.h\"\n\nbool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]) {\n    unsigned char diff = 0;\n\n    for (int i = 0; i < 15; ++i) {\n        diff = static_cast<unsigned char>(diff | (computed_tag[i] ^ received_tag[i]));\n    }\n\n    return diff == 1;\n}",
+          "path": "inputs/mac_verify.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_compare_001_FR1_constant_change",
+      "operator": "constant_change",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "FR2 mismatch vectors will fail: using AND-accumulation instead of OR-accumulation means a single-byte or multi-byte mismatch can be masked to zero whenever any byte pair happens to match with diff 0 in the AND chain (e.g. computed_tag equal to received_tag in at least one byte position yields diff=0 after ANDing, causing verify() to incorrectly return true for many single-byte-mismatch and multi-byte-mismatch vectors), violating the functional requirement that any byte difference must yield false.",
+      "files": [
+        {
+          "content": "#include \"mac_verify.h\"\n\nbool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]) {\n    unsigned char diff = 0xFF;\n\n    for (int i = 0; i < 16; ++i) {\n        diff = static_cast<unsigned char>(diff & (computed_tag[i] ^ received_tag[i]));\n    }\n\n    return diff == 0;\n}",
+          "path": "inputs/mac_verify.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_compare_001_FR2_operator_swap",
+      "operator": "operator_swap",
+      "target_requirement_id": "FR2"
+    }
+  ]
+}

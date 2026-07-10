@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "Do not modify inputs/flattened_netlist.v or any other file under inputs/; only submission/recovered_rtl.v is graded.",
+    "The submission file must be self-contained (single file, no includes of other project files).",
+    "The recovered module name and port list must match the interface exactly, or the harness cannot instantiate it and the submission fails.",
+    "Only standard, freely available toolchain components (iverilog, vvp, yosys) may be assumed; no proprietary EDA tools."
+  ],
+  "expected_outputs": [
+    "A single Verilog file submission/recovered_rtl.v defining module recovered_design with the pinned port list, implementing word-level RTL that is behaviorally (I/O) equivalent to inputs/flattened_netlist.v for every possible input vector, verified by exhaustive/randomized simulation against a generated testbench."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "recovered_design must compute sum = a + b + c + d (unsigned 32-bit result of adding all four 16-bit operands) for every combination of inputs, matching inputs/flattened_netlist.v output bit-for-bit."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For the specific known vectors a=16'h0001,b=16'h0002,c=16'h0003,d=16'h0004 the output sum must equal 32'h0000000A; for a=16'hFFFF,b=16'hFFFF,c=16'hFFFF,d=16'hFFFF the output sum must equal 32'h0003FFFC."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The submitted file must compile cleanly with iverilog (no syntax errors) and simulate with vvp without runtime errors, instantiated with the exact port list given in the interface section."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The recovered RTL must be purely combinational (no clock/reset ports, no latches, output must be a function of only a,b,c,d) and must not merely instantiate or wrap the original flattened netlist file."
+    }
+  ],
+  "input_artifacts": [
+    "flattened_netlist.v",
+    "design_brief.md",
+    "primitive_cells.v"
+  ],
+  "interface": "The recovered design MUST be provided in file submission/recovered_rtl.v and MUST define exactly one top-level module named `recovered_design` with this exact port list: `module recovered_design(input [15:0] a, input [15:0] b, input [15:0] c, input [15:0] d, output [31:0] sum);`. Ports: a, b, c, d are four independent unsigned 16-bit input operands (public, no secrets). sum is the unsigned 32-bit output result. No clock or reset ports are used (the design is purely combinational). The same port list and module name are used by inputs/flattened_netlist.v so the harness can instantiate both modules in one testbench and compare outputs cycle-by-cycle (i.e. per input vector) using $monitor/assert style comparison. The submission file must be synthesizable/simulatable standalone (no external dependencies besides standard Verilog).",
+  "objective": "You are given a flattened, gate-level Verilog netlist (produced by a synthesis/obfuscation flow) that implements some combinational arithmetic function over four 16-bit input buses and produces a single output bus. The netlist has been flattened into primitive gates (AND/OR/XOR/NOT/full-adder-like structures) and all original signal names have been stripped or renamed to generic net labels (e.g. n123, n124...), destroying the original word-level structure. Your task is to analyze the netlist, recover its word-level arithmetic intent, and produce a clean, synthesizable, word-level Verilog RTL module that is functionally equivalent (bit-exact, for all input combinations) to the original flattened design. Submit your recovered RTL as a single self-contained Verilog file.",
+  "response_format": "A single file at submission/recovered_rtl.v containing valid Verilog-2001 (or SystemVerilog subset supported by iverilog) source defining module recovered_design(input [15:0] a, input [15:0] b, input [15:0] c, input [15:0] d, output [31:0] sum); No other files are graded."
+}

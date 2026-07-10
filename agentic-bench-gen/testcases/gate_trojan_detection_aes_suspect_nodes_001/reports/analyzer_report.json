@@ -1,0 +1,61 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 have no dedicated mutants in the differential harness, though the check logic itself is present and exercised structurally by SR-related mutants.",
+      "evidence": "per_requirement_coverage shows FR3 and FR4 with mutants_targeting: 0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Add explicit mutants for FR3 (infected=true with <2 suspect_nodes; infected=false with non-empty suspect_nodes) and FR4 (infected=true with invalid port name; infected=false with non-empty primary_output_affected) to raise coverage confidence, though current risk is low given exit-code correctness on baseline and golden runs."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Validated JSON shape checks; mutant detected",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Substring match against parsed instances; mutant detected",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Logic present but no mutant specifically targets it in the harness run",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Logic present but no mutant specifically targets it in the harness run",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Golden passes, vulnerable/naive baseline fails with correct reason",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Coverage/payload check correctly rejects naive baseline",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "primary_output_affected match required; naive baseline fails",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Keyword-group rationale check rejects generic rationale",
+      "requirement": "SR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Naive baseline correctly fails as functionally equivalent to naive fixture",
+      "requirement": "SR5",
+      "status": "pass"
+    }
+  ]
+}

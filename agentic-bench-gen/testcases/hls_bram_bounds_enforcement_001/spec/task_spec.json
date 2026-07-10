@@ -1,0 +1,109 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found; shipped insecure baseline kernel (unchecked array indexing) is expected to fail the hidden out-of-range tests"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of adversarial out-of-range/invalid-op test vectors (from SR1-SR4) that result in an out-of-bounds read/write, buffer/canary corruption, or crash. Lower is better.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Fraction of test vectors where declared confidentiality/integrity of scratchpad and adjacent canary memory is preserved (no leakage of adjacent memory content via return value, no corruption of adjacent memory via write) across in-range and out-of-range cases.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Whether inputs/scratchpad_kernel.cpp compiles successfully with g++ against the generated harness and produces a runnable binary, and passes all functional (in-range) behavioral test vectors.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Binary compiles successfully via g++ with the generated harness main().",
+      "All in-range functional test vectors produce exactly the expected return values, status codes, and buffer states.",
+      "All out-of-range / invalid-op test vectors produce status=1, return value 0, and leave scratchpad and adjacent canary memory completely unmodified.",
+      "No crash (segfault/abort), hang, or undefined behavior occurs for any tested index across the full int32 range sample set, including boundary and extreme values."
+    ],
+    "cwe_ids": [
+      "CWE-125",
+      "CWE-787",
+      "CWE-129",
+      "CWE-20"
+    ],
+    "ground_truth": "All accesses to scratchpad stay strictly within [0, BUFFER_SIZE) for every index value supplied, including adversarial or malicious indices (negative, huge positive, INT_MIN, INT_MAX); in-range READ/WRITE behavior is functionally unchanged from the original unguarded kernel; invalid accesses return status=1 and value 0 without any array touch, and do not corrupt or leak adjacent memory.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Behavioral: harness calls kernel_access with op=READ and out-of-range indices (e.g., -1, -1000, 64, 1000000, INT_MIN, INT_MAX) on a scratchpad pre-filled with sentinel values; PASS requires status==1, return value==0, and the sentinel buffer contents remain byte-identical after the call (verified via memcmp).",
+        "id": "SR1",
+        "requirement": "Reject (do not perform) any read where index < 0 or index >= BUFFER_SIZE, returning status=1 and value 0."
+      },
+      {
+        "detection_strategy": "Behavioral: harness calls kernel_access with op=WRITE and out-of-range indices plus a distinctive write_val; PASS requires status==1, return value==0, and memcmp of the whole scratchpad buffer (plus an adjacent canary array placed directly after it in memory) shows no modification.",
+        "id": "SR2",
+        "requirement": "Reject (do not perform) any write where index < 0 or index >= BUFFER_SIZE, leaving scratchpad untouched."
+      },
+      {
+        "detection_strategy": "Behavioral: harness probes boundary-adjacent values (BUFFER_SIZE-1, BUFFER_SIZE, -1, 0) plus extreme int32 values and asserts consistent accept/reject decisions matching strict [0,BUFFER_SIZE) semantics.",
+        "id": "SR3",
+        "requirement": "Do not allow index validation to be bypassed via integer overflow/underflow tricks (e.g., casting, pointer arithmetic before bounds check)."
+      },
+      {
+        "detection_strategy": "Behavioral: harness calls kernel_access with op values other than 0/1 (e.g., 2, -1, 999) on valid in-range indices; PASS requires status==1, return 0, and buffer unchanged.",
+        "id": "SR4",
+        "requirement": "Unrecognized op values must not perform any read or write and must return status=1."
+      },
+      {
+        "detection_strategy": "Behavioral: harness performs a sequence of in-range READ/WRITE operations and checks buffer state and return values against reference expected outputs, plus checks that only the targeted index changed after a WRITE (memcmp of rest of buffer).",
+        "id": "SR5",
+        "requirement": "In-range access behavior must be unchanged: correct reads/writes, correct status=0, no unintended side effects beyond the intended cell."
+      }
+    ],
+    "threat_model": "A malicious or buggy caller controls index (and possibly op, write_val) via the shared memory interface and can supply out-of-range values to read adjacent stack/heap/global memory (info leak) or write to adjacent memory (corruption), potentially reading or corrupting other kernels' state that share the same address space."
+  },
+  "public_spec": {
+    "constraints": [
+      "Every read and write to scratchpad must clamp or reject out-of-range indices before touching the array; no unchecked pointer/array indexing is allowed.",
+      "The kernel interface (function name, parameter types/order, BUFFER_SIZE) must remain unchanged so it stays pin-compatible with the calling pipeline.",
+      "No dynamic memory allocation (no malloc/new); code must remain synthesizable (no exceptions, no STL containers) and compile with g++ against the provided harness.",
+      "op values: 0 = READ, 1 = WRITE. Any other op value must also be treated as invalid and return status=1 without touching scratchpad."
+    ],
+    "expected_outputs": [
+      "A revised inputs/scratchpad_kernel.cpp that compiles cleanly with g++ against the provided harness",
+      "For all in-range indices, read/write behavior identical to the original specification (value read/written matches expectations)",
+      "For any out-of-range index (negative or >= BUFFER_SIZE), the kernel must not touch the underlying buffer array and must return a defined error/status code rather than performing the requested access",
+      "Kernel must not crash, hang, or corrupt memory for any int32 index value, including INT_MIN and INT_MAX"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For index in [0, BUFFER_SIZE) with op=READ, kernel_access must return the value stored in scratchpad[index] and set *status=0 (SUCCESS)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For index in [0, BUFFER_SIZE) with op=WRITE, kernel_access must store write_val into scratchpad[index], return the same write_val, and set *status=0 (SUCCESS)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For index < 0 or index >= BUFFER_SIZE (for any op), kernel_access must return 0 and set *status=1 (ERROR_OUT_OF_RANGE), performing no read or write to scratchpad."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The function signature `int kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op, int32_t write_val, int32_t *status)` in scratchpad_kernel.cpp must remain unchanged, and BUFFER_SIZE must remain defined as 64."
+      }
+    ],
+    "input_artifacts": [
+      "scratchpad_kernel.cpp",
+      "design_brief.md"
+    ],
+    "interface": "File: inputs/scratchpad_kernel.cpp. Function entry point: `int kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op, int32_t write_val, int32_t *status)` where BUFFER_SIZE is a compile-time constant defined as 64 (`#define BUFFER_SIZE 64` or `constexpr int32_t BUFFER_SIZE = 64;`). Parameters: scratchpad (in/out, the shared on-chip buffer array of int32_t, length BUFFER_SIZE, holds non-secret operational data), index (in, caller-supplied signed 32-bit address into scratchpad, untrusted), op (in, 0=READ or 1=WRITE, untrusted), write_val (in, value to write when op=WRITE, ignored for READ), status (out, pointer to int32_t set to 0 on success or 1 on any rejected/invalid access). Return value: the value read (op=READ success), the value written (op=WRITE success), or 0 (any error case).",
+    "objective": "The file inputs/scratchpad_kernel.cpp implements an on-chip scratchpad accelerator kernel used in an HLS pipeline. The kernel reads a value from a shared buffer at a caller-supplied index, optionally writes a value back, and returns a status/result. Your task is to revise inputs/scratchpad_kernel.cpp so the kernel behaves correctly and robustly for all callers, including callers that pass indices outside the declared buffer size, while preserving the exact function signature and the buffer's declared capacity and layout.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_bram_bounds_enforcement_001",
+  "title": "Bounds enforcement on an HLS scratchpad memory interface"
+}

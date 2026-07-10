@@ -1,0 +1,42 @@
+{
+  "task_id": "logic_deobfuscation_sat_antisat_localization_001",
+  "domain_id": "logic_deobfuscation_sat",
+  "title": "Anti-SAT block localization in a hardened locked netlist",
+  "description": "Analyze a gate-level locked netlist and its locking description to identify key-gating structures and any key bit values that can be determined purely from netlist structure. Submit findings as a JSON report.",
+  "input_artifacts": [
+    "inputs/locked_netlist.v",
+    "inputs/locking_description.md",
+    "inputs/primary_io.txt"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_key.json"
+  ],
+  "output_summary": "A JSON report identifying key-gating gate/wire locations, per-key-bit structural findings (value, confidence, reasoning) for all declared key inputs, and a free-text topology summary describing how identified gating structures connect to the primary output.",
+  "metrics": [
+    {
+      "name": "key_recovery_rate",
+      "description": "Fraction of key bits correctly and non-trivially recovered (limited to structurally recoverable bits) versus falsely claimed bits elsewhere.",
+      "direction": "maximize"
+    },
+    {
+      "name": "key_gate_localization_accuracy",
+      "description": "Fraction of the hidden set of key-gating instance names correctly listed in key_gate_locations.",
+      "direction": "maximize"
+    },
+    {
+      "name": "sat_iteration_reduction",
+      "description": "Estimated reduction in SAT-attack iterations achievable given the reported structural findings, computed by evaluate.py from how much of the gating topology and constant-tied bits were correctly exposed (proxy score, not a live attack run).",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_bit_rate",
+      "description": "Fraction of non-recoverable key bits reported with value and confidence >0.5 without netlist-backed justification.",
+      "direction": "minimize"
+    }
+  ],
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ]
+}

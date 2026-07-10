@@ -1,0 +1,92 @@
+{
+  "domain_id": "hardware_reverse_engineering",
+  "evaluation": {
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of the 4 opcode operations (add, sub, and, or) correctly identified and implemented, measured via per-opcode simulation pass/fail.",
+        "direction": "maximize",
+        "name": "word_recovery_rate"
+      },
+      {
+        "description": "Degree to which the recovered module's port list and combinational structure conform to the pinned interface (module name, port widths, purely combinational).",
+        "direction": "maximize",
+        "name": "structural_match_accuracy"
+      },
+      {
+        "description": "Percentage of randomized+directed (a,b,sel) test vectors for which recovered_datapath output matches the reference gate_netlist.v output exactly, via iverilog/vvp simulation.",
+        "direction": "maximize",
+        "name": "functional_equivalence"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All FR1-FR4 checks pass for a randomized + directed test vector sweep spanning at least 200 (a,b,sel) combinations including edge cases (0, 255, overflow/underflow points).",
+      "The baseline (empty/naive) submission fails at least one functional check, demonstrating the benchmark discriminates correct recoveries from trivial stubs.",
+      "No static-only pass path exists: correctness is determined solely by simulated output comparison against the reference gate netlist."
+    ],
+    "cwe_ids": [
+      "CWE-697",
+      "CWE-682"
+    ],
+    "ground_truth": "gate_netlist.v is a flattened bit-blasted implementation of: y = sel==00 ? a+b : sel==01 ? a-b : sel==10 ? (a&b) : (a|b), built from a ripple-carry adder/subtractor (via XOR-conditional invert + carry chain) and gate-level AND/OR arrays, with a 4-way bit-sliced multiplexer selecting among the four bit-computed results per output bit. The bit-blasting deliberately interleaves adder carry logic with the mux select wires so that no single gate cluster visibly corresponds to 'add' or 'subtract' \u00e2 the reverse engineer must trace carry propagation across all 8 bit-slices to recognize the arithmetic structure.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Directed testbench vectors with known non-commutative (a,b) pairs (e.g., a=5,b=3 and a=3,b=5) distinguish add-vs-sub and correct operand order; failures here indicate CWE-697 (Incorrect Comparison) style logic-recovery mistakes leading to wrong opcode mapping.",
+        "id": "SR1",
+        "requirement": "The recovered module must not silently default to an incorrect operation for select codes 00 or 01 (e.g., mixing up add and subtract, or computing b-a instead of a-b), since this reflects a common reverse-engineering error of misreading the carry-in/invert convention."
+      },
+      {
+        "detection_strategy": "Test boundary cases (a=255,b=1 for add overflow; a=0,b=1 for subtract underflow) and verify y wraps modulo 256 with no extraneous bits set, guarding against CWE-682 (Incorrect Calculation) style width-recovery errors.",
+        "id": "SR2",
+        "requirement": "The recovered netlist's arithmetic width and wraparound behavior (8-bit modulo arithmetic, no extra carry-out bit leaking into y) must match the original, since an incorrect width recovery could expose or misrepresent internal carry state."
+      }
+    ],
+    "threat_model": "An adversary (or IP thief) is given only the flattened gate netlist without word-level annotations. They must reconstruct the high-level word-level semantics (the opcode-to-operation mapping) purely from gate topology and simulation, which is exactly the reverse-engineering task; a naive or incomplete recovery (e.g., only recovering AND/OR but guessing add/sub wrong sign convention, or swapping add/sub select codes) should fail functional equivalence checks."
+  },
+  "public_spec": {
+    "constraints": [
+      "The submission must not modify any file under inputs/.",
+      "The recovered_datapath module must be purely combinational (no clocked always blocks, no latches).",
+      "The design must not instantiate or depend on any vendor-specific primitives; only standard Verilog constructs are allowed.",
+      "The output y must be driven for every combination of sel; undefined sel values (there are none beyond 2'b00-2'b11) need not be handled specially."
+    ],
+    "expected_outputs": [
+      "A single Verilog file submission/recovered_rtl.v containing a module named recovered_datapath with the exact port list specified in the interface.",
+      "The recovered module must reproduce the output of gate_netlist.v for all 4 select values across a broad sweep of operand values."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted module recovered_datapath must compile cleanly with iverilog alongside a generated testbench with no syntax or elaboration errors."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For select=2'b00, the module output y must equal a+b (8-bit wraparound, no carry-out port) for all tested (a,b) pairs."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For select=2'b01, the module output y must equal a-b (8-bit wraparound, two's complement) for all tested (a,b) pairs."
+      },
+      {
+        "id": "FR4",
+        "requirement": "For select=2'b10 the output y must equal (a & b), and for select=2'b11 the output y must equal (a | b), for all tested (a,b) pairs."
+      }
+    ],
+    "input_artifacts": [
+      "gate_netlist.v",
+      "design_brief.md",
+      "testbench_template.v"
+    ],
+    "interface": "File: submission/recovered_rtl.v must define exactly one module named 'recovered_datapath' with port list: module recovered_datapath(input [7:0] a, input [7:0] b, input [1:0] sel, output [7:0] y); Ports: a (8-bit, public operand A), b (8-bit, public operand B), sel (2-bit, public opcode select: 00=add,01=sub,10=and,11=or per functional requirements), y (8-bit, public result output). No additional ports, no clock, purely combinational. The module must be synthesizable/simulatable standalone (no external includes beyond standard Verilog).",
+    "objective": "You are given a flattened, bit-level gate netlist of a small combinational datapath with two 8-bit data inputs, a 2-bit select input, and an 8-bit output. The netlist was produced by bit-blasting a word-level design into primitive gates (AND, OR, XOR, NAND, NOR, XNOR, NOT, and multiplexers built from these), which obscures the original word-level operation performed for each select value. Your job is to analyze the netlist and produce a clean, word-level Verilog module that is functionally equivalent to the original gate-level design for every possible input combination.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hw_reveng_mux_alu_datapath_001",
+  "title": "Recover a MUX-based ALU Datapath's Word-Level Function"
+}

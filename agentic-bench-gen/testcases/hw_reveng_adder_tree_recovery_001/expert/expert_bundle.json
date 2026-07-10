@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "module recovered_design(\n    input  [15:0] a,\n    input  [15:0] b,\n    input  [15:0] c,\n    input  [15:0] d,\n    output [31:0] sum\n);\n\n    // Recovered word-level RTL: sum = a + b + c + d\n    // Computed as an adder tree ((a+b) + (c+d)) matching the\n    // original flattened netlist's internal structure.\n\n    wire [31:0] ab_sum;\n    wire [31:0] cd_sum;\n\n    assign ab_sum = {16'b0, a} + {16'b0, b};\n    assign cd_sum = {16'b0, c} + {16'b0, d};\n\n    assign sum = ab_sum + cd_sum;\n\nendmodule",
+      "path": "golden/recovered_rtl.v"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_rtl.v",
+      "purpose": "Reference correct recovery: module recovered_design(input [15:0] a,b,c,d, output [31:0] sum) implementing sum = a+b+c+d as pure word-level combinational RTL: assign sum = {16'b0,a} + {16'b0,b} + {16'b0,c} + {16'b0,d}; (or equivalent tree ((a+b)+(c+d))). Single self-contained file, no includes, no clock/reset, no instantiation of primitive_cells.v or flattened_netlist.v. Must satisfy FR1-FR4: bit-exact match vs inputs/flattened_netlist.v for FR2 vectors (0x0001+0x0002+0x0003+0x0004=0xA; 0xFFFF*4=0x3FFFC) and all randomized/corner vectors, compiles cleanly with iverilog, purely combinational, passes SR1 structural gate (no gate-primitive instances, not a copy of flattened_netlist.v)."
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "acceptance_criteria": [],
+  "cwe_ids": [
+    "CWE-321",
+    "CWE-200"
+  ],
+  "ground_truth": "locked_c880.v embeds an 8-bit key bus keyIn[0:7]. Six of the eight key bits gate genuine internal signals through XOR (even bit index) or XNOR (odd bit index) key gates inserted on fanout-heavy internal nets; the other two key bits are 'don't-care' bits wired to gates whose output does not affect any primary output for the given oracle vectors (interference-free but functionally dead-ended under the sampled input space), making them unrecoverable from the oracle set alone and legitimately reportable as 'x'. The correct key string is 01101001xx-style with the two dead bits at fixed known positions (indices 3 and 6). A functioning SAT-attack style enumeration over the provided oracle_vectors.txt, combined with structural analysis of gate fan-in patterns (XOR/XNOR gates with one operand tied to a key primary input), recovers all 6 live bits exactly; the 2 dead bits admit no unique value and both '0' and '1' must be accepted for them.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare each 'key_gates' entry's gate_name and gate_type against the hidden ground-truth key-gate table; count exact matches on the 6 live indices.",
+      "id": "SR1",
+      "requirement": "The submission must correctly identify at least 5 of the 6 live (non-dead) key-controlled gates by instance name and correctly report their gate_type (XOR/XNOR)."
+    },
+    {
+      "detection_strategy": "String-compare recovered_key against the golden key at the 6 live index positions only, ignoring positions 3 and 6.",
+      "id": "SR2",
+      "requirement": "The 'recovered_key' string must match the hidden golden key at all 6 live bit positions exactly; the 2 dead-bit positions (indices 3 and 6) may be '0', '1', or 'x' and are not penalized."
+    },
+    {
+      "detection_strategy": "Reject/penalize submissions whose key_gates list size grossly exceeds key_width (e.g. >2x key_width) or that includes duplicate/contradictory entries for the same key_bit_index, since this indicates guessing rather than analysis.",
+      "id": "SR3",
+      "requirement": "Reported key gates must not simply enumerate every gate in the netlist as a key gate (must show genuine localization, not brute-force listing)."
+    },
+    {
+      "detection_strategy": "Baseline naive submission (all-x key, empty key_gates) is scored under the same rubric and must fall below the pass threshold.",
+      "id": "SR4",
+      "requirement": "A trivial/empty answer (all bits 'x', empty key_gates list) must score at or near zero and FAIL."
+    }
+  ],
+  "threat_model": "An attacker with netlist (gate-level) access plus a functional oracle (a working chip or set of I/O pairs) attempts to recover the secret activation key protecting a logic-locked IP block. Weak locking-gate placement (on low-observability or structurally distinctive XOR/XNOR gates directly wired to named key ports) allows key bits to be inferred or brute-forced far faster than key-width would suggest, defeating the intended protection."
+}

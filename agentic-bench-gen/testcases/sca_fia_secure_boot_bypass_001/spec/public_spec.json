@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "The RTL must be self-contained synthesizable Verilog-2001, simulatable with iverilog/vvp without external IP.",
+    "The fault model (fault_model.md) describes a single-bit stuck-at or transient bit-flip fault injected into exactly one flip-flop per simulated run, active for one clock cycle.",
+    "Do not modify inputs/secure_boot_check.v or inputs/fault_model.md; only submit submission/vulnerability_report.json.",
+    "The report must be reproducible from static inspection of the RTL plus the fault model; participants need not run simulation but may use iverilog/vvp/yosys optionally to validate claims."
+  ],
+  "expected_outputs": [
+    "A submission/vulnerability_report.json file enumerating all flip-flops/states in the secure-boot RTL (FR-graded)",
+    "A list of critical_nodes identifying which specific register(s) and control signal(s), if faulted, cause the design to report authentication success without a valid signature match (SR-graded)",
+    "Hardening recommendations (e.g. dual-rail comparison, TMR, complementary invariant checks) targeted at the identified critical nodes"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must list every flip-flop instance name found in secure_boot_check.v (as declared with 'reg' and clocked in an always @(posedge clk) block) under a field 'analyzed_registers', with no fewer than 6 entries."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For each entry in 'analyzed_registers', the report must include the register's declared bit-width and the RTL line number(s) where it is assigned, matching the actual contents of secure_boot_check.v within +/-2 lines."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must include a top-level field 'fsm_states' listing every distinct state encoding/parameter defined in the module's state machine (e.g. IDLE, LOAD, COMPARE, DONE or equivalent), matching the parameter/localparam names declared in secure_boot_check.v."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must conform to the JSON schema given in response_format: it must be valid JSON, include all required top-level keys, and every listed register/state name must be a literal substring found in secure_boot_check.v."
+    }
+  ],
+  "input_artifacts": [
+    "secure_boot_check.v",
+    "fault_model.md",
+    "design_brief.md"
+  ],
+  "interface": "Submission file: submission/vulnerability_report.json (UTF-8 JSON, single object). Required top-level keys: 'analyzed_registers' (array of objects each with 'name': string, 'width': integer, 'line': integer or [start,end] array), 'fsm_states' (array of strings), 'critical_nodes' (array of objects each with 'signal': string, 'reason': string, 'exploit_scenario': string), 'hardening_recommendations' (array of objects each with 'target_signal': string, 'technique': string, 'rationale': string). All signal/register/state names referenced anywhere in the report must exactly match identifiers appearing in inputs/secure_boot_check.v (case-sensitive substring match). evaluate.py parses this JSON, cross-references named identifiers against inputs/secure_boot_check.v via static text/AST search, and optionally invokes iverilog+vvp on inputs/secure_boot_check.v with an injected fault testbench to confirm claimed exploit scenarios for the 'critical_nodes' entries.",
+  "objective": "Analyze the provided RTL module implementing a secure-boot signature verification pipeline and its accompanying fault model, then produce a structured vulnerability report describing how single-bit faults propagate through the design's state machine and registers, and recommend hardening measures for the affected flip-flops and control logic.",
+  "response_format": "vulnerability_report.json must be a single JSON object with exactly the keys: analyzed_registers (array), fsm_states (array of strings), critical_nodes (array), hardening_recommendations (array). No other top-level keys are required but extras are ignored. All numeric fields must be integers; all name fields must be strings matching literal identifiers in secure_boot_check.v."
+}

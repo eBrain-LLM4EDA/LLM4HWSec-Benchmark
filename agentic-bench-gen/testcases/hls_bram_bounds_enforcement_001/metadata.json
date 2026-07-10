@@ -1,0 +1,36 @@
+{
+  "task_id": "hls_bram_bounds_enforcement_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Bounds enforcement on an HLS scratchpad memory interface",
+  "submission_kind": "hardened_artifact",
+  "evaluation_mode": "compile_and_run",
+  "input_artifacts": [
+    "inputs/scratchpad_kernel.cpp",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "summary": "A revised inputs/scratchpad_kernel.cpp implementing kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op, int32_t write_val, int32_t *status) with BUFFER_SIZE fixed at 64, the same function name/parameter list/parameter order as the shipped baseline, and no added main(). The kernel must validate index and op before touching the scratchpad buffer: in-range reads/writes (0 <= index < BUFFER_SIZE, op in {0,1}) must behave exactly as the straightforward READ/WRITE semantics, while any out-of-range index or unrecognized op must leave the buffer completely untouched, return 0, and set *status = 1. The kernel must never crash or exhibit undefined behavior for any int32_t index value, including boundary and extreme values.",
+    "artifact_to_submit": "inputs/scratchpad_kernel.cpp"
+  },
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "description": "Fraction of adversarial out-of-range/invalid-op test vectors that result in an out-of-bounds read/write, buffer/canary corruption, or crash.",
+      "direction": "minimize"
+    },
+    {
+      "name": "information_flow_correctness",
+      "description": "Fraction of test vectors where confidentiality/integrity of scratchpad and adjacent memory is preserved (no leakage via return value, no corruption of adjacent memory) across in-range and out-of-range cases.",
+      "direction": "maximize"
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "description": "Whether inputs/scratchpad_kernel.cpp compiles successfully with g++ against the generated harness and produces a runnable binary that passes all functional (in-range) behavioral test vectors.",
+      "direction": "maximize"
+    }
+  ],
+  "toolchain": [
+    "g++",
+    "gcc"
+  ]
+}

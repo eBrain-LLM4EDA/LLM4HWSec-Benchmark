@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR2 is not actively exercised by the shipped baseline mutant since the baseline uses valid identifiers; FR2's fabricated-name-detection path is untested by differential run, though logic appears sound by code inspection.",
+      "evidence": "per_requirement_coverage.FR2.covered=false, mutants_detected=0",
+      "severity": "low"
+    },
+    {
+      "artifact": "requirement_map",
+      "description": "FR3 and FR4 are listed as untested_requirements in the validation report despite having explicit checks in evaluate.py; coverage gap is in the differential test suite, not in the grader logic itself.",
+      "evidence": "untested_requirements: ['FR3','FR4']",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider adding a dedicated mutant test case with a fabricated suspect_nodes entry to actively exercise FR2 detection in the differential harness.",
+    "Consider adding explicit mutant scenarios isolating FR3 (inconsistent infected/suspect_nodes) and FR4 (generic rationale with no netlist tokens) to close the untested_requirements gap in the validation report."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "baseline_run and golden_run both PASS FR1; malformed submission would fail types/keys check",
+      "requirement": "FR1 schema correctness",
+      "status": "pass"
+    },
+    {
+      "evidence": "logic in netlist_utils.identifier_present is correct via inspection, though not exercised by a failing mutant in the differential run",
+      "requirement": "FR2 verbatim identifier check",
+      "status": "pass"
+    },
+    {
+      "evidence": "explicit check in evaluate.py; baseline (infected=true, non-empty suspect_nodes) is consistent so FR3 passes on baseline as expected",
+      "requirement": "FR3 infected/suspect_nodes consistency",
+      "status": "pass"
+    },
+    {
+      "evidence": "significant_identifiers/tokenize check present; baseline rationale contains netlist tokens so FR4 passes correctly on both baseline and golden",
+      "requirement": "FR4 rationale grounding",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows SR1 FAIL for baseline (infected=true); golden_run passes",
+      "requirement": "SR1 infected=false ground truth",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows SR2 FAIL for baseline listing benign nets; golden passes",
+      "requirement": "SR2 suspect_nodes empty",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows SR3 FAIL (0 of 3 categories grounded) for baseline generic rationale; golden passes with grounded explanation",
+      "requirement": "SR3 rationale substantively grounded",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md read as plain engineering docs; no CWE/SR ids or 'intentionally vulnerable' language present",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are specific schema/consistency/grounding checks, not a single generic restatement",
+      "requirement": "Functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ]
+}

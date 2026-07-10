@@ -1,0 +1,41 @@
+{
+  "task_id": "hw_reveng_adder_tree_recovery_001",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover an adder tree from a flattened netlist",
+  "objective": "Analyze a flattened, gate-level Verilog netlist over four 16-bit input buses (a, b, c, d) and a single 32-bit output (sum), and produce a clean, synthesizable, word-level Verilog RTL module that is behaviorally (I/O) equivalent to the reference netlist for every input combination.",
+  "input_artifacts": [
+    "inputs/flattened_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/primitive_cells.v"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_rtl.v"
+  ],
+  "expected_output_summary": "A single self-contained Verilog file at submission/recovered_rtl.v defining module recovered_design(input [15:0] a, input [15:0] b, input [15:0] c, input [15:0] d, output [31:0] sum) implementing word-level combinational RTL that reproduces the reference netlist's behavior bit-for-bit across randomized and corner-case test vectors, without merely wrapping or copying the provided netlist/primitive cells.",
+  "evaluation": {
+    "mode": "simulate",
+    "toolchain": ["iverilog", "vvp", "yosys"],
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ],
+    "metrics": [
+      {
+        "name": "word_recovery_rate",
+        "direction": "maximize",
+        "description": "Fraction of required word-level functional behavior correctly reproduced across the full randomized+corner-case test vector suite; computed as (# vectors matching)/(# vectors applied)."
+      },
+      {
+        "name": "structural_match_accuracy",
+        "direction": "maximize",
+        "description": "Binary/graded score indicating whether the submission passes the structural non-recovery gate (i.e. is genuinely word-level recovered RTL rather than a disguised copy of the flattened netlist or a wrapper around its primitives)."
+      },
+      {
+        "name": "functional_equivalence",
+        "direction": "maximize",
+        "description": "Overall PASS/FAIL verdict: 1 if 100% of test vectors match between recovered_design and the reference flattened netlist AND compilation succeeds AND the structural gate passes; 0 otherwise."
+      }
+    ]
+  }
+}

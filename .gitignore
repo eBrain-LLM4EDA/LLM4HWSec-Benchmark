@@ -8,5 +8,7 @@ __pycache__
 .env
 runs
 venv/
-results
 agentic-reverse-eng/
+hls-bench-agentic/
+hls-security-benchmark/
+reverse-engineering-benchmark/

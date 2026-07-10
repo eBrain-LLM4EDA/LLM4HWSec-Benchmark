@@ -1,0 +1,42 @@
+{
+  "task_id": "rtl_trojan_detection_aes_rare_trigger_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "RTL Hardware Trojan Detection in AES-like Core",
+  "evaluation_mode": "report_grading",
+  "input_artifacts": [
+    "inputs/aes_core.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs_summary": "A single JSON report at submission/trojan_report.json listing any suspicious internal signals found in inputs/aes_core.v that are not accounted for by inputs/design_brief.md, each with an activation condition, the output port(s) affected, and a confidence score in [0.0, 1.0], along with an overall free-text assessment and a boolean verdict (is_trojan_present) on whether the design contains undocumented/injected behavior.",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Whether the submitted report correctly flags is_trojan_present=true and identifies the trigger comparator signal per the relevant security requirements."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported high-confidence (>=0.5) findings that name legitimate documented signals from design_brief.md rather than the actual trojan trigger/payload logic."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Accuracy of the reported activation_condition and affected_outputs in matching the hidden rare-counter/state comparator and the single-bit corruption on the affected output."
+    },
+    {
+      "name": "schema_conformance",
+      "direction": "maximize",
+      "description": "Whether trojan_report.json matches the pinned JSON schema and references only real signals/ports from aes_core.v."
+    }
+  ],
+  "toolchain_available": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "notes": "evaluate.py reads inputs/ for reference and grades only submission/trojan_report.json. The shipped starter submission is a naive placeholder answer and is expected to fail grading; participants must replace it with their own analysis."
+}

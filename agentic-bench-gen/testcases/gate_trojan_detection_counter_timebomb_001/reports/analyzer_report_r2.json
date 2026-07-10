@@ -1,0 +1,74 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Automated mutation analysis flags SR2 as a 'dead check' (check_activation shows no isolated SR2-only FAIL across the mutant suite) even though the differential run against the naive baseline submission clearly shows SR2 failing correctly (coverage 0.00 below threshold). This suggests the mutant set lacks a targeted SR2-only mutant to confirm discriminative power in isolation, though the mechanism itself appears functionally correct.",
+      "evidence": "dead_checks: [\"SR2\"] while differential.vulnerable_run.stdout shows '[TEST] FAIL: SR2: coverage 0.00 below required threshold 0.66'",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "No mutants were generated/run that specifically target FR3 (invalid node name reference) or FR4 (short summary), leaving those functional requirements formally untested by the mutation suite even though their code paths are present and appear correct on manual review.",
+      "evidence": "untested_requirements: [\"FR3\", \"FR4\"]; per_requirement_coverage shows FR3 and FR4 covered:false, mutants_targeting:0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add at least one mutant that only breaks FR3 (e.g., invents a non-existent net name in suspect_nodes) and one that only breaks FR4 (e.g., truncates summary below 20 chars) to close the FR3/FR4 mutation coverage gap.",
+    "Investigate and resolve the discrepancy between check_activation (which shows SR2 count of 0) and the differential vulnerable_run (which shows SR2 FAIL firing correctly) \u2014 likely a mutant-suite bookkeeping issue rather than a grader defect, but should be reconciled for a clean validation report.",
+    "Once FR3/FR4-targeted mutants and the SR2 dead-check discrepancy are addressed, re-run validation to confirm overall_status can be upgraded to pass."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run PASS: FR1; malformed/missing-field cases handled by evaluate.py logic.",
+      "requirement": "FR1 schema validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: FR2; mutant detected per per_requirement_coverage.",
+      "requirement": "FR2 design_name matches module",
+      "status": "pass"
+    },
+    {
+      "evidence": "Logic present and correct on manual review of evaluate.py, but no mutant exercised this path (mutants_targeting: 0), so empirical verification is missing.",
+      "requirement": "FR3 valid node references",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Logic present and correct on manual review, but untested by mutation suite (mutants_targeting: 0).",
+      "requirement": "FR4 summary length",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Naive baseline submission (is_trojan_detected=false) correctly produces '[TEST] FAIL: SR1' in vulnerable_run; golden passes.",
+      "requirement": "SR1 is_trojan_detected true",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows '[TEST] FAIL: SR2: coverage 0.00 below required threshold 0.66 (0/6 true nodes matched)' for naive baseline; golden passes with coverage=1.00. Flagged as a 'dead_check' by the aggregate mutation report, which is a documentation/tooling inconsistency worth double-checking but not evidence of a broken check.",
+      "requirement": "SR2 coverage of true trigger+payload nodes",
+      "status": "pass"
+    },
+    {
+      "evidence": "Naive baseline FAILs SR3 ('no correctly-labeled node found for categories: counter, comparator, payload'); golden PASSes.",
+      "requirement": "SR3 correct stage_labels categorization",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: SR4: fpr=0.00; logic revised per repair notes to catch mislabeled real datapath nodes without prefix-matching loophole.",
+      "requirement": "SR4 false-positive-rate bound",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run exit_code=1, status='fail', matching expected='fail'.",
+      "requirement": "Naive/empty baseline must fail overall",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, metadata.json contain no CWE ids, SR ids, or explicit statements that the design is intentionally backdoored; design_brief.md frames the counter/comparator/payload absence only via functional scope language.",
+      "requirement": "No leakage of hidden CWE/SR ids or threat model into public artifacts",
+      "status": "pass"
+    }
+  ]
+}

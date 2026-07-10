@@ -1,0 +1,71 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/recovered_rtl.v vs evaluation harness",
+      "description": "Differential validation shows the expert golden solution is REJECTED by evaluate.py (exit code 1, FR2/FR4/SR3 all fail with cycle mismatches), meaning the reference netlist behavior encoded in the golden RTL does not match the actual simulated flattened_netlist.v output. This indicates either the golden solution incorrectly implements the '1011' detector, or the flattened_netlist.v gate logic (which is convoluted and contains suspicious placeholder/unused wires like n19_dup, m2b, and ad-hoc De Morgan chains) does not actually implement the documented '1011' non-overlapping detector semantics described in the ground_truth and design comments.",
+      "evidence": "golden_run: [TEST] FAIL: FR2: output mismatch on 2/30 cycles; FAIL: FR4: mismatch on 7/65 cycles; FAIL: SR3: mismatch on 1/12 cycles",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential status",
+      "description": "Since the golden run fails, the benchmark case is unusable as-is: there is no verified-correct submission that passes the grader, so mutation_score is meaningless (0.0) and coverage cannot be trusted.",
+      "evidence": "differential.status: fail; mutation_score_meaningful: false",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/flattened_netlist.v",
+      "description": "The netlist contains structurally suspicious/inconsistent gate wiring (e.g., the next-state logic for s1 seems to omit a term for 'from_start_1', and comments contradict actual gate connections in several places), suggesting the netlist itself may not faithfully implement the stated non-overlapping '1011' Moore detector, which is the root cause of the golden/vulnerable both failing FR2/FR4/SR3.",
+      "evidence": "Both golden_run and vulnerable_run fail FR2 with mismatches on the shipped stimulus, which should only happen if the reference oracle disagrees with any correct implementation of the documented behavior.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Re-derive the flattened_netlist.v gate-level logic to ensure it actually implements the documented non-overlapping '1011' Moore detector; verify via an independent reference simulation before shipping.",
+    "Fix the golden/recovered_rtl.v (or the netlist) so that the golden solution passes FR2, FR4, and SR3 against the actual reference netlist simulation.",
+    "Re-run the differential check after correcting the mismatch and confirm golden_run exits 0 while a naive/empty baseline still exits non-zero.",
+    "Add an internal consistency test (e.g., a reference Python/behavioral model compared against the gate netlist simulation) during benchmark authoring to catch such netlist/golden divergences before publishing."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and vulnerable runs report PASS: FR1",
+      "requirement": "FR1 structural port check",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run FAILs FR2 with 2/30 mismatches, indicating grader/ground-truth incoherence",
+      "requirement": "FR2 shipped stimulus functional equivalence",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both runs PASS FR3",
+      "requirement": "FR3 compile success",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run FAILs FR4 with 7/65 mismatches",
+      "requirement": "FR4 hidden random sequences",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both runs PASS SR1",
+      "requirement": "SR1 banned construct scan",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs PASS SR2",
+      "requirement": "SR2 port set exactness",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run FAILs SR3 with 1/12 mismatches",
+      "requirement": "SR3 adversarial sequences",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run expected=pass but ok=false (rejected); vulnerable_run correctly rejected but for the wrong/coincidental reason since golden also fails",
+      "requirement": "Differential validation: golden accepted, baseline rejected",
+      "status": "fail"
+    }
+  ]
+}

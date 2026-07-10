@@ -1,0 +1,5 @@
+{
+  "final_round": 1,
+  "note": "Later rounds regressed; canonical artifacts/reports are from restored_round. Per-round history is in the *_r<N>.json reports.",
+  "restored_round": 0
+}

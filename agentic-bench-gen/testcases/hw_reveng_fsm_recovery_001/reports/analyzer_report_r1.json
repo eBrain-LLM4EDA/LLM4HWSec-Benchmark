@@ -1,0 +1,66 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/recovered_rtl.v + evaluation/evaluate.py",
+      "description": "The golden expert solution fails the grader (FR2, FR4, SR3 all FAIL with mismatches against the reference netlist), meaning either the golden RTL is functionally incorrect or the reference flattened_netlist.v behavior does not match what the golden solution implements. This is a critical coherence failure between ground truth and grader.",
+      "evidence": "differential.golden_run shows FR2/FR4/SR3 FAIL with output mismatches (10/30, 18/65, 4/12 cycles) despite golden being expected to pass",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.vulnerable_run",
+      "description": "The vulnerable/baseline run also fails but the failure pattern (fewer mismatches than golden) suggests the reference netlist's actual simulated behavior does not correspond to a clean non-overlapping '1011' detector as described, or the golden solution encodes the wrong semantics (e.g. overlapping vs non-overlapping matching, or off-by-one timing of the pulse).",
+      "evidence": "vulnerable_run mismatches (6/30, 8/65, 1/12) are lower than golden_run mismatches, indicating inconsistency in expected behavior definition",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/flattened_netlist.v",
+      "description": "The netlist file contains extensive prose comments explaining the intended FSM structure (IDLE/GOT1/GOT10/GOT101/PULSE states, '1011' pattern matching semantics) which essentially hands the reverse-engineering answer to participants directly in the artifact they are told not to modify but are allowed to read, undermining the reverse-engineering challenge itself. This isn't a security leak of CWE/SR ids, but it substantially trivializes the task versus the intended difficulty.",
+      "evidence": "Comments like 'PULSE is entered the cycle after the completing 1 of a 1011 match' explicitly describe the exact behavior to recover",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Re-derive the golden recovered_rtl.v by actually simulating the shipped inputs/flattened_netlist.v (with primitives.v) against the stimulus and vector generators, and fix any discrepancy between the described '1011' non-overlapping detector semantics and the netlist's actual gate-level behavior (check timing/registration of d_pulse and next-state logic, especially the extra unused n1/n2 XOR-mix wires and the exact cycle alignment of the PULSE output).",
+    "Ensure golden_run in the differential harness passes with 0 mismatches on all FR2/FR4/SR3 checks before shipping; the differential validation must show golden=pass and vulnerable=fail for the benchmark to be usable.",
+    "Trim or remove the explicit state-name/semantic comments in inputs/flattened_netlist.v (IDLE/GOT1/GOT10/GOT101/PULSE and the '1011' match description) so the task genuinely requires reverse engineering rather than reading English commentary that states the answer.",
+    "Re-run the full differential (golden vs baseline) after fixing the netlist/golden mismatch to confirm mutation_score reflects a meaningful accept/reject boundary."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and vulnerable both PASS FR1 (port structure check)",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS FR2 with 10/30 mismatches \u2014 golden should pass but does not",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both runs PASS FR3 (compile success)",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS FR4 with 18/65 mismatches on hidden random sequence",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both runs PASS SR1 (no banned constructs)",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs PASS SR2 (exact port set)",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS SR3 with 4/12 mismatches on adversarial sequence, and vulnerable run also fails but with different mismatch count, indicating incoherent ground truth",
+      "requirement": "SR3",
+      "status": "fail"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "task_id": "gate_clean_netlist_fp_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Trojan-free gate-level netlist (false-positive discipline)",
+  "description": "Analyze a gate-level structural Verilog netlist for module ctrl_datapath, together with its design brief and primary I/O list, and produce a hardware Trojan detection report indicating whether the design is infected and, if so, which nets/instances are suspect.",
+  "input_artifacts": [
+    "inputs/gate_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/primary_io.txt"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_output_fields": {
+    "infected": "boolean - whether the netlist is judged to contain a hardware Trojan",
+    "suspect_nodes": "array of strings - net or gate instance names, verbatim from inputs/gate_netlist.v, implicated as trigger/payload logic (empty if not infected)",
+    "rationale": "string - explanation grounded in specific net/module names from inputs/gate_netlist.v and the documented intent in inputs/design_brief.md",
+    "confidence": "number in [0,1] - confidence in the verdict"
+  },
+  "evaluation": {
+    "mode": "report_grading",
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "name": "detection_rate",
+        "description": "Whether the report correctly identifies the design as clean (true negative rate on this clean-design case); scored 1.0 if infected=false and suspect_nodes empty, else 0.0.",
+        "direction": "maximize"
+      },
+      {
+        "name": "false_positive_rate",
+        "description": "Fraction of benign rare-activity nets (reset tree, init counter, saturation comparator) incorrectly listed in suspect_nodes; must be 0 for a passing submission.",
+        "direction": "minimize"
+      },
+      {
+        "name": "inference_latency",
+        "description": "Wall-clock time taken by evaluate.py to parse and grade the submitted trojan_report.json (and optional toolchain cross-check), reported in seconds.",
+        "direction": "minimize"
+      }
+    ]
+  },
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ],
+  "constraints": [
+    "Do not modify any file under inputs/; only create/modify submission/trojan_report.json.",
+    "submission/trojan_report.json must be valid JSON matching the pinned schema exactly.",
+    "Every entry in suspect_nodes must exactly match an identifier present in inputs/gate_netlist.v."
+  ]
+}

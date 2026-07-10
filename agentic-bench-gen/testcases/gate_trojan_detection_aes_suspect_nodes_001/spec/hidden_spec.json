@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [],
+  "cwe_ids": [
+    "CWE-1234",
+    "CWE-1188"
+  ],
+  "ground_truth": "The netlist inputs/aes_sub_netlist.v is infected. A rare-activation trigger is built from a tree of AND gates (instances t_and0, t_and1, t_and2 feeding a final t_and_final) that ANDs together ~8 specific rare bit-patterns derived from internal state signals, producing a rarely-1 signal trig_sig. This trig_sig feeds instance payload_xor, an XOR gate placed on the path to primary output 'sbox_out[3]', flipping that bit only when trig_sig=1. The correct answer must name at least the AND-tree instances (t_and0, t_and1, t_and2, t_and_final) and payload_xor as suspect_nodes, and must report primary_output_affected == 'sbox_out'.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare submitted 'infected' field to hidden ground-truth label true; also allow optional cross-check by synthesizing/simulating aes_sub_netlist.v with yosys/iverilog to confirm output deviates under the rare trigger pattern versus a golden reference behavior described in hidden ground truth.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify the netlist as infected (infected == true)."
+    },
+    {
+      "detection_strategy": "Set intersection/coverage check between submitted suspect_nodes and hidden gold suspect node set; require coverage ratio >= 0.6 overall and payload_xor must be present exactly.",
+      "id": "SR2",
+      "requirement": "The suspect_nodes list must substantively cover the true trigger AND-tree instances (t_and0, t_and1, t_and2, t_and_final) with at least 3 of the 4 named, and must include the payload_xor instance."
+    },
+    {
+      "detection_strategy": "String equality check of primary_output_affected against hidden gold value 'sbox_out'.",
+      "id": "SR3",
+      "requirement": "The report must correctly identify that the corrupted primary output is sbox_out (bit 3), not an unrelated port."
+    },
+    {
+      "detection_strategy": "Keyword/semantic heuristic check on rationale string for terms indicating rare-condition trigger reasoning (e.g., 'AND', 'rare', 'trigger', 'probability', 'Hamming'); low-effort or copy-paste rationales fail this check.",
+      "id": "SR4",
+      "requirement": "The rationale text must demonstrate understanding of the rare-trigger mechanism (e.g., mentions AND-tree, rare condition, or low-probability activation) rather than a generic/boilerplate statement."
+    },
+    {
+      "detection_strategy": "Baseline submission is shipped and verified to score FAIL on the full rubric during evaluator construction.",
+      "id": "SR5",
+      "requirement": "A naive/empty baseline submission (infected=false, suspect_nodes=[]) must fail SR1-SR4."
+    }
+  ],
+  "threat_model": "An untrusted third-party IP vendor or rogue insider inserts a rare-condition AND-tree trigger (activated only by a specific rare combination of internal signal values, e.g. a particular Hamming-weight-8 pattern occurring with probability ~2^-8) that drives an XOR payload gate spliced into the combinational path leading to a primary output bit. The Trojan is dormant during normal functional/structural verification and only corrupts the output under the rare trigger condition, evading conventional simulation-based validation."
+}

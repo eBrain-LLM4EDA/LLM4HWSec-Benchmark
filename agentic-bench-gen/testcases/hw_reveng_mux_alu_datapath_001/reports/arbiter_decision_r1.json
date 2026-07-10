@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, coverage_score=1.0, baseline_exit_code=0, issue_count=0, and analyzer_status=warning (not failing). The only flagged issue is low-severity: FR4 (AND/OR check) lacks a dedicated mutant in the current bundle, though the requirement is exercised by the baseline harness and passes/fails appropriately elsewhere. This does not breach the retention threshold (mutation_score >= 0.5) or validation pass requirement. All meets criteria for retention as-is; the FR4 mutant gap is a minor coverage improvement opportunity, not a blocking defect.",
+  "retain_case": true,
+  "revision_instructions": "Optional follow-up (non-blocking): add a mutant that corrupts the bitwise select mapping (e.g., swaps the AND and OR result arrays or flips which sel value routes to each) so that FR4 has an explicit mutant target and its detection strength is empirically verified rather than inferred from the baseline/golden differential alone. This is a coverage-strengthening suggestion only; current validation already meets retention thresholds.",
+  "root_cause": "none"
+}

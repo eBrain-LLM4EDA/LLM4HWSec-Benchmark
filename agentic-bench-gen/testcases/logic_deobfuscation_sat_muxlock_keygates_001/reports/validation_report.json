@@ -1,0 +1,113 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/locked_netlist.v",
+    "inputs/locking_description.md",
+    "inputs/primary_io_list.txt",
+    "metadata.json",
+    "submission/recovered_key.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 1,
+    "FR3": 2,
+    "SR1": 3,
+    "SR2": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [
+    "SR3"
+  ],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: submitted key_gates count 0 != actual keymux instance count 4 in locked_netlist.v\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: F1=0.000 (<0.9); missing=4 extra=0 pairs vs hidden ground truth\n[TEST] FAIL: SR2: key_recovery_rate=0.750 (<0.9); mismatched true-lock bit indices=[1]\n[TEST] PASS: SR3\n"
+    }
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "expert_files": [
+    "golden/recovered_key.json",
+    "ground_truth/key_loci.json",
+    "ground_truth/locked_netlist.v",
+    "ground_truth/locking_description.md",
+    "ground_truth/original_netlist.v",
+    "ground_truth/primary_io_list.txt"
+  ],
+  "issues": [
+    {
+      "detail": "SR3 never emitted [TEST] FAIL on any mutant \u2014 provides no discrimination",
+      "issue": "dead_check"
+    }
+  ],
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/grading_lib.py",
+    "evaluation/private/ground_truth.json"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR3",
+    "FR4"
+  ]
+}

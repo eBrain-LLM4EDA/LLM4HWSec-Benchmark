@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, coverage_score=1.0, baseline_exit_code=0, and analyzer_status=warning (not fail). The single analyzer issue is low severity and self-resolves: it questions why FR3/FR4 show as 'not covered' in per_requirement_coverage despite the differential run clearly showing both fail against the vulnerable baseline (FR3 and FR4 FAIL markers present in vulnerable_run.stdout). This is a labeling artifact of the mutation-coverage bookkeeping, not an actual gap in evaluate.py's checks or discrimination power, as confirmed by golden acceptance (all 9 PASS) and vulnerable rejection (5 requirements FAIL). All retention thresholds are met.",
+  "retain_case": true,
+  "revision_instructions": "No changes required for retention. Optional follow-up (non-blocking): investigate the mutation-coverage bookkeeping so that per_requirement_coverage correctly marks FR3 and FR4 as covered when the differential vulnerable run demonstrates they fail as expected, to avoid future false-confidence readings in coverage metrics.",
+  "root_cause": "none"
+}

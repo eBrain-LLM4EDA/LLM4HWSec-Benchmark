@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "Do not edit any file under inputs/; submit only submission/vulnerability_report.json.",
+    "The RTL module must be self-contained and synthesizable/simulatable with iverilog without external IP.",
+    "The fault model document describes only public, generic SEU assumptions (bit-flip probability per clock, no timing side-channel details) and must not reveal which specific registers are most critical.",
+    "Register bit-widths and names referenced in the report must match those declared in controller_datapath.v exactly."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json containing a flip-flop inventory, per-register classification, TMR recommendation, and justification for each register group found in controller_datapath.v"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must list every register group declared as `reg`/flip-flop storage in controller_datapath.v (matched by signal name), with no omissions and no fabricated register names that do not appear in the RTL."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Each entry in the 'registers' array must include the exact fields: signal_name (string), bit_width (integer matching the RTL declaration), category (one of 'control_state' or 'data_pipeline'), tmr_recommended (boolean), and justification (non-empty string)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must include a top-level 'summary' object with integer fields total_registers, control_state_count, data_pipeline_count, and tmr_recommended_count, and these counts must be internally consistent with the 'registers' array (e.g., tmr_recommended_count equals the number of entries with tmr_recommended=true)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must be valid JSON parseable by a standard JSON library and must include a top-level 'schema_version' field with value '1.0'."
+    }
+  ],
+  "input_artifacts": [
+    "controller_datapath.v",
+    "fault_model.md",
+    "register_map.json"
+  ],
+  "interface": "Submission file: submission/vulnerability_report.json (UTF-8 JSON). Required top-level shape: {\"schema_version\": \"1.0\", \"summary\": {\"total_registers\": <int>, \"control_state_count\": <int>, \"data_pipeline_count\": <int>, \"tmr_recommended_count\": <int>}, \"registers\": [{\"signal_name\": <string>, \"bit_width\": <int>, \"category\": \"control_state\"|\"data_pipeline\", \"tmr_recommended\": <bool>, \"justification\": <string>}, ...]}. evaluate.py reads inputs/controller_datapath.v, inputs/fault_model.md, inputs/register_map.json for reference, parses submission/vulnerability_report.json against this schema, and grades field presence/format (FR1-FR4) plus substantive correctness against hidden ground truth (SR1-SR3). No other files are read from submission/.",
+  "objective": "Analyze the provided RTL module (a small controller-plus-datapath design) together with the accompanying fault model document, and produce a structured report that inventories every flip-flop group in the design, classifies each as control/state logic or data-pipeline logic, and recommends whether it should receive triple-modular-redundancy (TMR) hardening against single-event upsets (SEUs). Use the RTL source and fault model as your only inputs; do not modify them.",
+  "response_format": "A single JSON file at submission/vulnerability_report.json matching the interface schema above. No markdown, no code fences, no additional top-level keys."
+}

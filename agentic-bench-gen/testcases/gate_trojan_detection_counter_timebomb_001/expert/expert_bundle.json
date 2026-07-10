@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\",\n    \"trig_and\",\n    \"payload_xor\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[3]\": \"counter\",\n    \"trig_and\": \"comparator\",\n    \"payload_xor\": \"payload\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  },\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree comparator node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates a payload XOR gate (payload_xor) spliced onto the primary output path, silently corrupting the true output after prolonged operation. This subcircuit is absent from the design_brief functional specification. The legitimate datapath nodes (sum_bit, carry) were verified against the documented adder/accumulator behavior and are not part of the trojan.\"\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "Correct submission answer matching FR1-FR4 against the actual shipped inputs/netlist.v. design_name='datapath_top' (exact module name in netlist.v). is_trojan_detected=true (SR1). suspect_nodes lists only real identifiers from the shipped 4-bit counter: cnt_reg[0], cnt_reg[1], cnt_reg[2], cnt_reg[3] (no cnt_reg[4..7], since counter is only 4 bits wide), plus comparator node 'trig_and' and payload node 'payload_xor' - satisfies SR2 coverage and SR4 low false-positive since no legitimate datapath nodes are included as suspects. stage_labels maps cnt_reg[0..3] to 'counter', 'trig_and' to 'comparator', 'payload_xor' to 'payload', and the real documented datapath nets 'sum_bit' and 'carry' (not 'sum'/'cout') to 'datapath', satisfying SR3. summary is a non-empty (>=20 char) string describing static gate-level tracing of the undocumented 4-bit counter feeding an AND-tree comparator gating an XOR on the output path. All referenced net names exactly match identifiers declared in inputs/netlist.v (FR3)."
+    }
+  ]
+}

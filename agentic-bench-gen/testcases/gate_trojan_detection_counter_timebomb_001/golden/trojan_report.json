@@ -1,0 +1,23 @@
+{
+  "design_name": "datapath_top",
+  "is_trojan_detected": true,
+  "suspect_nodes": [
+    "cnt_reg[0]",
+    "cnt_reg[1]",
+    "cnt_reg[2]",
+    "cnt_reg[3]",
+    "trig_and",
+    "payload_xor"
+  ],
+  "stage_labels": {
+    "cnt_reg[0]": "counter",
+    "cnt_reg[1]": "counter",
+    "cnt_reg[2]": "counter",
+    "cnt_reg[3]": "counter",
+    "trig_and": "comparator",
+    "payload_xor": "payload",
+    "sum_bit": "datapath",
+    "carry": "datapath"
+  },
+  "summary": "Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree comparator node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates a payload XOR gate (payload_xor) spliced onto the primary output path, silently corrupting the true output after prolonged operation. This subcircuit is absent from the design_brief functional specification. The legitimate datapath nodes (sum_bit, carry) were verified against the documented adder/accumulator behavior and are not part of the trojan."
+}

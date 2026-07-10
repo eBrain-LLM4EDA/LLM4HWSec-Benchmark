@@ -1,0 +1,10 @@
+{
+  "analyzer_status": "warning",
+  "coverage_score": 1.0,
+  "issue_count": 4,
+  "min_coverage_score": 0.8,
+  "min_mutation_score": 0.5,
+  "mutation_score": 1.0,
+  "overall_status": "fail",
+  "validation_status": "fail"
+}

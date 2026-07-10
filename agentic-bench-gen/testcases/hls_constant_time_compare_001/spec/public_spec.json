@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The comparison must scan all bytes unconditionally and return a single boolean; no early return on the first mismatching byte.",
+    "Preserve the pinned verify() interface and functional correctness (accept valid tags, reject invalid ones).",
+    "Fixed-size buffers only; must compile with g++ against the shipped harness."
+  ],
+  "expected_outputs": [
+    "A compiled binary produced from inputs/mac_verify.cpp plus the evaluator harness that returns correct true/false verify() results for all known-answer test vectors.",
+    "Empirically measured verification latency/instruction-count that does not vary systematically with where in the 16-byte buffer computed_tag and received_tag first differ."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "verify() must return true when computed_tag and received_tag are byte-for-byte identical, for at least 20 distinct randomly generated 16-byte tag values used as known-answer vectors."
+    },
+    {
+      "id": "FR2",
+      "requirement": "verify() must return false whenever any single byte differs between computed_tag and received_tag, tested across all 16 byte positions (single-byte-mismatch vectors) and for tags differing in multiple bytes."
+    },
+    {
+      "id": "FR3",
+      "requirement": "mac_verify.cpp must compile cleanly with g++ (C++11 or later) against the provided mac_verify.h and the evaluator's test harness main(), producing a working executable with no compilation errors or warnings treated as fatal."
+    },
+    {
+      "id": "FR4",
+      "requirement": "verify() must handle the all-zero tag and all-0xFF tag correctly (both as computed_tag and as received_tag), returning the correct boolean per the equality rule above."
+    }
+  ],
+  "input_artifacts": [
+    "mac_verify.cpp",
+    "mac_verify.h",
+    "design_brief.md"
+  ],
+  "interface": "File: mac_verify.cpp (and header mac_verify.h). Must define exactly: `bool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]);` computed_tag is the locally-derived 16-byte authentication tag (secret-derived, not attacker controlled). received_tag is the 16-byte tag supplied by an external party (may be adversarial/forged). Return value: true if and only if all 16 bytes of computed_tag equal the corresponding bytes of received_tag; false otherwise. No other exported symbols, globals, or side files may be required to build; the harness will `#include \"mac_verify.h\"` and link against mac_verify.cpp only. Function must not throw, must not print, must not read/write files, and must return within a bounded number of operations proportional only to the fixed buffer length (16), never to input contents.",
+  "objective": "The file inputs/mac_verify.cpp implements a message-authentication-code verifier used inside an HLS-synthesizable pipeline. Harden and finalize the implementation of the pinned verify() function so that it correctly compares a computed tag against a received tag over fixed-size byte buffers, returning true only when all bytes match exactly. Improve the implementation so that the comparison logic is uniform and does not depend on structural shortcuts (e.g. no early exits keyed to the position of the first difference), while preserving exact functional correctness.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

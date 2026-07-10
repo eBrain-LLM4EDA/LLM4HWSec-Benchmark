@@ -1,0 +1,105 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub chip-level Trojan benchmarks",
+      "naive baseline: empty candidates list / generic FSM-only report (must FAIL)"
+    ],
+    "metrics": [
+      {
+        "description": "Whether the top-ranked (or any) candidate correctly identifies key_shadow_reg as leak_source_reg and status_dbg as leak_sink_output.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported candidates that reference signals/registers not implicated in the actual Trojan (e.g., flagging benign tx_busy logic as malicious).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Accuracy of the described trigger condition (tx_data[7]==1 with tx_start) and payload path (key_shadow_reg[3:0] -> status_dbg) compared to hidden ground truth.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      },
+      {
+        "description": "Whether submission/trojan_report.json parses and matches the pinned JSON schema (candidates array with required fields, summary string).",
+        "direction": "maximize",
+        "name": "format_compliance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission that names key_shadow_reg as leak_source_reg and status_dbg as leak_sink_output, assigns confidence >= 0.5 to that candidate as the top-ranked one, and describes the tx_data[7]/tx_start trigger condition PASSES on all SRs.",
+      "A submission with an empty candidates array, or one that only flags unrelated signals (e.g., tx or tx_busy) without ever mentioning key_shadow_reg or status_dbg, FAILS SR1-SR4.",
+      "A submission that is well-formed JSON per schema but reports irrelevant/generic findings passes FR1-FR2 (format) but fails SR1-SR3 (substantive correctness), demonstrating the format/substance separation."
+    ],
+    "cwe_ids": [
+      "CWE-200",
+      "CWE-514",
+      "CWE-506"
+    ],
+    "ground_truth": "uart_tx.v instantiates an internal 8-bit register named key_shadow_reg (loaded once from a scrambled combination of tx_data on the first few transmissions and retained thereafter, mimicking a 'secret' state) whose low nibble is continuously multiplexed onto status_dbg[3:0] whenever tx_start is asserted with tx_data[7]==1'b1, disguised inside what looks like ordinary FSM-state debug reporting logic (status_dbg = fsm_state normally, but status_dbg = key_shadow_reg[3:0] under the trigger condition). Correct submissions must name key_shadow_reg as the leak source register and status_dbg as the leaking output net, and identify the rare trigger condition (tx_data[7]==1 combined with tx_start) as the activation mechanism.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Grep/parse inputs/uart_tx.v for the register name and confirm the candidate's leak_source_reg field matches (allowing case-insensitive/substring match); cross-check by simulating with iverilog/vvp that status_dbg value depends on tx_data[7] rather than pure FSM state when tx_start pattern varies.",
+        "id": "SR1",
+        "requirement": "The submitted report must correctly identify key_shadow_reg as the source register whose bits are being leaked."
+      },
+      {
+        "detection_strategy": "Check leak_sink_output field equals 'status_dbg'; verify via testbench simulation that toggling tx_data[7] while holding FSM state constant changes status_dbg.",
+        "id": "SR2",
+        "requirement": "The submitted report must correctly identify status_dbg as the output net through which the leak surfaces."
+      },
+      {
+        "detection_strategy": "Text-match rationale/location_hint against known trigger condition keywords (tx_data[7], MSB, bit 7, tx_start) and optionally replay the provided testbench with varied tx_data patterns to confirm the leak is conditional, not constant.",
+        "id": "SR3",
+        "requirement": "The submitted report must describe the rare trigger condition (tx_data[7]==1 with tx_start asserted) with reasonable fidelity, not a generic 'always active' claim."
+      },
+      {
+        "detection_strategy": "Reject reports where candidates array is empty, all confidences are 0, or rationale fields are boilerplate/generic with no reference to actual signal names present in inputs/uart_tx.v.",
+        "id": "SR4",
+        "requirement": "The report must not be a naive/empty submission (e.g., empty candidates list or placeholder text) \u2014 it must substantively engage with the specific Trojan mechanism."
+      }
+    ],
+    "threat_model": "An attacker embeds a small extra always-block and a rarely-triggered mux condition inside an otherwise-standard, test-passing UART transmitter. During normal operation status_dbg reports harmless FSM state, so functional/regression tests pass. Under a rare, attacker-chosen input pattern (tx_data MSB set on tx_start), the debug output silently leaks 4 bits of an internal secret-like register per transmission, allowing slow exfiltration over many bytes sent through legitimate UART traffic."
+  },
+  "public_spec": {
+    "constraints": [
+      "Ship clean-looking RTL where the leak path is a small, plausible-looking extra assignment.",
+      "Keep the module self-contained and elaboratable with iverilog -g2012.",
+      "Hidden ground truth names the leak source register and the leaking output net."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing a ranked list of Trojan candidates with confidence scores and rationale"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/trojan_report.json must be valid JSON matching the pinned schema: a 'candidates' array (each with id, signal_name, location_hint, leak_source_reg, leak_sink_output, confidence as a float in [0.0,1.0], and rationale as non-empty string) and a top-level 'summary' string."
+      },
+      {
+        "id": "FR2",
+        "requirement": "At least one candidate entry must reference an output port that actually exists in inputs/uart_tx.v's port list (tx, tx_busy, tx_done, or status_dbg) in its signal_name or leak_sink_output field."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report's candidate with the highest confidence score must have confidence >= 0.5, and confidence values across all candidates must be distinct enough to establish a clear top-ranked candidate (no ties at the maximum)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The functional UART behavior described in design_brief.md (8N1 framing, tx_busy asserted during transmission, tx_done pulsed for one cycle after the stop bit) must be referenced or acknowledged as intact/uncompromised in the summary field, confirming the analysis distinguishes benign functional logic from anomalous logic."
+      }
+    ],
+    "input_artifacts": [
+      "uart_tx.v",
+      "uart_tx_tb.v",
+      "design_brief.md"
+    ],
+    "interface": "Input artifact inputs/uart_tx.v defines module uart_tx with ports: input wire clk, input wire rst_n, input wire [7:0] tx_data, input wire tx_start, output reg tx, output reg tx_busy, output reg tx_done, output reg [3:0] status_dbg. status_dbg is documented as a debug/status nibble reflecting internal FSM state for bring-up use. Participants must submit a single JSON file at submission/trojan_report.json (this exact path; it is NOT a modification of inputs/uart_tx.v) with this schema: {\"candidates\": [{\"id\": string, \"signal_name\": string, \"location_hint\": string, \"leak_source_reg\": string, \"leak_sink_output\": string, \"confidence\": number (0.0-1.0), \"rationale\": string}], \"summary\": string}. The harness reads inputs/uart_tx.v and inputs/uart_tx_tb.v for reference and optionally re-simulates with iverilog/vvp/yosys to cross-check claims made in submission/trojan_report.json, but PASS/FAIL is determined by grading the submitted JSON content against hidden ground truth.",
+    "objective": "A third-party UART transmitter core (uart_tx.v) has been submitted for security review prior to integration into a larger SoC. Analyze the provided RTL design and produce a structured analysis report identifying any anomalous logic, its location, and your confidence that it represents a deliberately inserted hardware Trojan rather than benign design choice. The core implements standard 8N1 UART transmission with a byte-wide data input, start/stop framing, and status/handshake outputs.",
+    "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface. No other files are graded."
+  },
+  "task_id": "rtl_uart_leak_trojan_001",
+  "title": "Information-leaking Trojan in a UART Transmitter"
+}

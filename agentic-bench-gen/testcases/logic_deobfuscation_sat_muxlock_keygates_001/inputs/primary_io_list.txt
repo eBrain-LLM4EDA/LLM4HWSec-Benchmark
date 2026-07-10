@@ -1,0 +1,14 @@
+# Primary I/O List for locked_netlist.v
+# Module: locked_c17ish
+#
+# Format: <DIRECTION> <PORT_NAME> [WIDTH]
+# One primary input or output port per line, in module port-list order.
+
+INPUT  N1
+INPUT  N2
+INPUT  N3
+INPUT  N6
+INPUT  N7
+INPUT  key       [3:0]   (bundled key input, width N = 4, bits key[0], key[1], key[2], key[3])
+OUTPUT N22
+OUTPUT N23

@@ -1,0 +1,54 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR4 is not actually exercised by mutation testing (mutation_score_meaningful shows FR4 covered:false, mutants_targeting:0), so statelessness requirement lacks a validated negative test case despite being implemented in the harness.",
+      "evidence": "per_requirement_coverage.FR4: {covered: false, mutants_detected: 0, mutants_targeting: 0}",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 grading intentionally diverges from reference netlist output (uses independently computed Python ground truth instead of netlist simulation) due to a documented 'defect' in the reference netlist's stage-2 carry chain, which is inconsistent with the hidden_spec ground_truth claiming the netlist is a correct flattened adder tree and with acceptance_criteria stating comparison should be 'bit-for-bit' against flattened_netlist.v output. This is a spec/implementation mismatch worth flagging even though it does not break grading correctness in the tested scenarios.",
+      "evidence": "evaluate.py docstring: 'FR1 is graded against an independently-computed Python ground truth ... because the reference netlist has a known stage-2 carry-truncation defect on overflowing vectors'; hidden_spec acceptance_criteria says 'comparing sum outputs from recovered_design against flattened_netlist.v bit-for-bit'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant/mutation test that reintroduces sequential/latch state (e.g. a submission using a register or feedback) to validate FR4 is actually enforced, since current mutation coverage shows FR4 was never triggered.",
+    "Reconsider or better document the divergence between hidden_spec's stated ground truth (a faithful adder tree netlist) and evaluate.py's assumption of a stage-2 carry-truncation defect in flattened_netlist.v; ideally verify empirically whether the netlist actually has this defect, and if so, correct the hidden_spec ground_truth description and acceptance_criteria to match reality for consistency.",
+    "Consider adding a mutant submission that copies flattened_netlist.v verbatim (or wraps primitives) to explicitly test the SR1 near-copy/gate-bulk-instantiation detection paths in isolation, beyond the already-tested zero-stub baseline."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline (golden) passes FR1; vulnerable stub fails FR1 with mismatch reported (idx0 expected 0x0000000a got 0x00000000).",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR2; stub fails FR2 as expected.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR3; compile/run based check verified via differential run.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage shows FR4 was never targeted/detected by any mutant; validation confirms logic exists in evaluate.py and tb_top.v but lacks confirmed negative-test coverage.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "SR1 gate present in security_checks.py, checked in evaluate.py, and differential run shows it correctly passes for golden (no gate instantiation) submissions.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR2 gate present and passes for golden combinational RTL with no delay constructs.",
+      "requirement": "SR2",
+      "status": "pass"
+    }
+  ]
+}

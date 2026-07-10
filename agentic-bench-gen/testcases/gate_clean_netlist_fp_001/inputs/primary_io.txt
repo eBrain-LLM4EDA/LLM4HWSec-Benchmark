@@ -1,0 +1,37 @@
+ctrl_datapath primary I/O
+
+clk            input        System clock. All sequential elements (reset synchronizer,
+                             init counter, accumulator, output-valid register) are
+                             clocked on the rising edge of clk.
+
+rst_n          input  1b     Active-low asynchronous reset from the top-level reset
+                             network. Passed through the internal 2-flop
+                             release-synchronizer (rst_sync1, rst_sync2, rst_sync_n)
+                             before reaching any downstream flop in the datapath.
+
+in_valid       input  1b     Indicates data_in carries a valid sample this cycle.
+                             Combined with init_done_latched (via U_DPEN_AND) to form
+                             datapath_en, which gates accumulation and out_valid.
+
+data_in        input  [7:0]  Incoming 8-bit data sample to be accumulated (or passed
+                             through directly depending on mode[0]).
+
+mode           input  [1:0]  Output path selector. mode[0] (buffered as mode0_sel)
+                             chooses between pass-through of data_in and presenting
+                             the accumulator contents acc_reg on data_out. mode[1] is
+                             reserved for future extensions and is not consumed by
+                             any gate in this revision of the block.
+
+data_out       output [7:0]  Selected output value: either data_in or acc_reg,
+                             chosen per-bit by U_OUTMUX0..U_OUTMUX7 based on
+                             mode0_sel.
+
+out_valid      output 1b     Registered one cycle after datapath_en (via
+                             U_OUTVALID_FF); indicates data_out reflects a sample
+                             taken after the power-on initialization window
+                             (init_done_latched) has completed.
+
+overflow_flag  output 1b     Registered version of the saturation comparator
+                             sat_cmp_ge_max (via U_OVFLAG_FF); asserts for one cycle
+                             whenever the accumulator addition saturates and acc_next
+                             is clamped to all-ones instead of wrapping.

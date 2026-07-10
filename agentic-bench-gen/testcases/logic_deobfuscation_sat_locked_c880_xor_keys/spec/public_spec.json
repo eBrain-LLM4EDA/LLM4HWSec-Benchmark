@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "Do not modify any file under inputs/; all findings go into the single submitted answer file.",
+    "The netlist (locked_c880.v) is a self-contained, synthesizable structural Verilog module with a fixed port list: primary inputs, primary outputs, and a dedicated key input bus.",
+    "oracle_vectors.txt lists a finite set of (primary_input_vector, primary_output_vector) pairs captured by exercising the unlocked golden circuit; you may use them as an input/output oracle but you do not have direct access to the golden netlist.",
+    "Key bits you cannot determine with confidence from the given oracle vectors must be reported as \"unknown\" rather than guessed arbitrarily.",
+    "The submitted file must be valid JSON and must validate against the schema given in the interface."
+  ],
+  "expected_outputs": [
+    "submission/recovered_key.json containing identified key-gate locations, inferred gate types, and a recovered (possibly partial) key string consistent with the supplied oracle vectors"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/recovered_key.json must be valid JSON containing the top-level keys \"key_gates\", \"recovered_key\", and \"key_width\", matching the schema described in the interface section."
+    },
+    {
+      "id": "FR2",
+      "requirement": "\"key_width\" must equal the number of bits on the key input bus declared in locked_c880.v (this can be read directly from the netlist's port declaration)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Each entry in \"key_gates\" must reference a gate instance name that actually exists in locked_c880.v and must specify a \"gate_type\" of one of: XOR, XNOR, MUX, BUF, UNKNOWN."
+    },
+    {
+      "id": "FR4",
+      "requirement": "\"recovered_key\" must be a string whose length equals \"key_width\", using characters '0', '1', or 'x' (for bits the participant could not determine) for each corresponding key bit position, ordered from key[0] to key[key_width-1]."
+    }
+  ],
+  "input_artifacts": [
+    "locked_c880.v",
+    "design_brief.md",
+    "oracle_vectors.txt"
+  ],
+  "interface": "The submission is the file submission/recovered_key.json (no code execution). It MUST parse as JSON with exactly this top-level shape: { \"key_width\": <integer>, \"recovered_key\": \"<string of length key_width over {0,1,x}>\", \"key_gates\": [ { \"key_bit_index\": <integer 0..key_width-1>, \"gate_name\": \"<string, must match a gate instance name in inputs/locked_c880.v>\", \"locked_signal\": \"<string, name of the internal net the key gate protects>\", \"gate_type\": \"XOR\"|\"XNOR\"|\"MUX\"|\"BUF\"|\"UNKNOWN\", \"inferred_value\": \"0\"|\"1\"|\"x\" } , ... ] }. evaluate.py reads inputs/locked_c880.v, inputs/design_brief.md, and inputs/oracle_vectors.txt for reference/cross-checks (optionally invoking iverilog/vvp to simulate locked_c880.v with a candidate key) and grades only submission/recovered_key.json against hidden ground truth on key gate identification accuracy and key bit correctness.",
+  "objective": "You are given a gate-level combinational netlist derived from the ISCAS-85 c880 benchmark that has been modified with additional key-controlled gates and a set of input/output oracle vectors captured from the unlocked (golden) circuit. Analyze the netlist and the oracle vectors to determine, for as many key bits as possible, (a) which gates in the netlist are key-controlled, (b) what type of gate implements each key input (e.g. XOR/XNOR/MUX), and (c) the most likely value of each key bit consistent with the oracle vectors. Produce your findings as a single JSON answer file.",
+  "response_format": "A single JSON file at submission/recovered_key.json conforming exactly to the schema given in 'interface'. No other files are graded."
+}

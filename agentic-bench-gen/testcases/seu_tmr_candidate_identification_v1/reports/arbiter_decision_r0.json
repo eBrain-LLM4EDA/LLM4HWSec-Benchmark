@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, coverage_score=1.0, baseline_exit_code=0, analyzer_status=pass, and issue_count=0. All FR/SR requirements pass on golden and correctly fail on baseline/mutants. The only analyzer note (FR3/FR4 lacking dedicated mutants) is flagged low severity and does not affect overall pass status or discrimination, since golden passes and baseline fails on other required checks (SR1, SR3, FR1).",
+  "retain_case": true,
+  "revision_instructions": "No mandatory changes required. Optional improvement: add mutants that corrupt the summary counts (targeting FR3) and that produce malformed JSON or omit/alter the schema_version field (targeting FR4) to close the untested_requirements gap and further strengthen mutation coverage confidence.",
+  "root_cause": "none"
+}

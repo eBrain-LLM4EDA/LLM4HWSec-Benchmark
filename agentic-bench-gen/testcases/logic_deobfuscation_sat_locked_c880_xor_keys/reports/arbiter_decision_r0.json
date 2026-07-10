@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs meet retention criteria: mutation_score=1.0, coverage_score=1.0, validation_status=pass, baseline_exit_code=0, issue_count=0, analyzer_status=pass. The golden solution is accepted, the naive baseline correctly fails SR1/SR2/SR4, and the differential test confirms proper discrimination. The only analyzer note is a minor low-severity observation that FR3/FR4 lack dedicated mutants, but both are still verified as logically sound and pass in the baseline run; this does not block retention per the stated thresholds.",
+  "retain_case": true,
+  "revision_instructions": "No revision required. Optional future improvement: add mutants targeting FR3 (invalid gate_name/gate_type values) and FR4 (wrong-length or invalid-character recovered_key strings) to strengthen mutation coverage for those functional requirements.",
+  "root_cause": "none"
+}

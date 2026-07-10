@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs meet retention thresholds: mutation_score=1.0, coverage_score=1.0, validation_status=pass, baseline_exit_code=0, issue_count=0, analyzer_status=pass. The golden submission is accepted, the baseline (empty findings) correctly fails on SR1/SR2/SR3, and all mutants across FR1, FR2, SR1, SR2, SR3, SR4 are detected. The only analyzer note is a low-severity observation that FR3/FR4 lack dedicated mutation coverage, but both requirements have correct, logically sound checks and are exercised structurally; this does not affect the pass thresholds or overall correctness.",
+  "retain_case": true,
+  "revision_instructions": "No revision required for retention. Optional improvement (non-blocking): add mutants that submit a fabricated signal_name not present in aes_core.v (to directly exercise FR3) and an affected_outputs entry naming a non-port string (to directly exercise FR4), so mutation coverage evidence is complete for those two functional requirements.",
+  "root_cause": "none"
+}

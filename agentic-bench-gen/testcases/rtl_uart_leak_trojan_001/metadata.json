@@ -1,0 +1,57 @@
+{
+  "task_id": "rtl_uart_leak_trojan_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Information-leaking Trojan in a UART Transmitter",
+  "description": "Perform a security-focused review of a third-party UART transmitter RTL core and produce a structured analysis report identifying any anomalous or suspicious logic, its location, and your confidence that it represents a deliberately inserted issue rather than a benign design choice.",
+  "input_artifacts": [
+    "inputs/uart_tx.v",
+    "inputs/uart_tx_tb.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "output_schema": {
+    "top_level_fields": [
+      "candidates",
+      "summary"
+    ],
+    "candidate_fields": [
+      "id",
+      "signal_name",
+      "location_hint",
+      "leak_source_reg",
+      "leak_sink_output",
+      "confidence",
+      "rationale"
+    ],
+    "notes": "candidates is a non-empty array; confidence is a float in [0.0, 1.0]; summary is a non-empty string."
+  },
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "description": "Whether the top-ranked (or any) candidate correctly identifies the true leak source register as leak_source_reg and the true leak sink output as leak_sink_output.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "Fraction of reported candidates that reference signals/registers not implicated in the actual anomalous logic (e.g., flagging unrelated benign logic as malicious).",
+      "direction": "minimize"
+    },
+    {
+      "name": "trigger_payload_localization",
+      "description": "Accuracy of the described trigger condition and payload path compared to the hidden ground truth.",
+      "direction": "maximize"
+    },
+    {
+      "name": "format_compliance",
+      "description": "Whether submission/trojan_report.json parses and matches the pinned JSON schema (candidates array with required fields, summary string).",
+      "direction": "maximize"
+    }
+  ]
+}

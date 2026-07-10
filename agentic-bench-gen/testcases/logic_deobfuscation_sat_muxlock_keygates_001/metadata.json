@@ -1,0 +1,64 @@
+{
+  "task_id": "logic_deobfuscation_sat_muxlock_keygates_001",
+  "domain_id": "logic_deobfuscation_sat",
+  "title": "MUX-Locked Netlist Key-Gate Identification",
+  "objective": "Analyze a MUX-locked gate-level Verilog netlist and identify, for every key-controlled multiplexer, its instance name, the key bit index that drives its select input, and the key bit value that makes it forward the functionally correct signal.",
+  "input_artifacts": [
+    "inputs/locked_netlist.v",
+    "inputs/locking_description.md",
+    "inputs/primary_io_list.txt"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_key.json"
+  ],
+  "expected_outputs": {
+    "description": "A single JSON file at submission/recovered_key.json containing the full recovered key vector (key_bits) and, for every keymux instance present in inputs/locked_netlist.v, an entry in key_gates identifying its instance_name, key_bit_index, and resolved_value.",
+    "key_width": 4,
+    "key_gate_count": 4,
+    "key_gate_instance_names": [
+      "u_keymux0",
+      "u_keymux1",
+      "u_keymux2",
+      "u_keymux3"
+    ],
+    "schema": {
+      "key_bits": "string of 0/1 characters, length N (N = width of the 'key' input port declared in inputs/locked_netlist.v; N = 4 for this netlist)",
+      "key_gates": [
+        {
+          "instance_name": "string, must match a keymux instance name present in inputs/locked_netlist.v",
+          "key_bit_index": "integer, 0-indexed position into key_bits / the key port (0..3)",
+          "resolved_value": "0 or 1"
+        }
+      ],
+      "notes": "string, may be empty; summary of analysis method"
+    }
+  },
+  "metrics": [
+    {
+      "name": "key_recovery_rate",
+      "direction": "maximize",
+      "description": "Fraction of true lock key bit positions where submitted key_bits matches hidden ground-truth key value."
+    },
+    {
+      "name": "key_gate_localization_accuracy",
+      "direction": "maximize",
+      "description": "F1 score comparing submitted (instance_name, key_bit_index) pairs in key_gates against hidden ground-truth keymux loci."
+    },
+    {
+      "name": "sat_iteration_reduction",
+      "direction": "maximize",
+      "description": "Estimated reduction in SAT-attack iterations achievable using the submitted key/locus hypothesis versus brute-force key search over N bits, computed as 1 - (log2(ambiguous_bits+1)/N)."
+    },
+    {
+      "name": "schema_validity",
+      "direction": "maximize",
+      "description": "Binary indicator that submission/recovered_key.json parses and satisfies the pinned FR1-FR4 schema."
+    }
+  ],
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ],
+  "notes": "Grading is performed purely on the content of submission/recovered_key.json, evaluated against a hidden ground-truth key vector and hidden ground-truth keymux locus list. The toolchain listed above may optionally be used by the evaluator, or by participants, for self-checking via simulation of inputs/locked_netlist.v. The locked netlist declares a key port of width N=4 and contains exactly 4 keymux-named multiplexer instances (u_keymux0, u_keymux1, u_keymux2, u_keymux3); a correct submission must report exactly 4 key_gates entries and a 4-character key_bits string. Each keymux implements Y = (S & B) | (~S & A), so S=0 selects input A and S=1 selects input B; resolved_value must be reported under this convention."
+}

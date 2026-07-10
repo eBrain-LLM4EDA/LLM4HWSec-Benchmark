@@ -1,0 +1,64 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/ground_truth.py",
+      "description": "SR1 mutation coverage gap: no mutant specifically targeting SR1 (hidden state identification) was detected as failing distinctly, indicating the SR1 check may be redundant with SR2/SR4 or not independently exercised by the mutation suite.",
+      "evidence": "per_requirement_coverage.SR1.covered=false with mutants_targeting=1 but mutants_detected=0; uncovered_requirements includes SR1",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 are untested by the mutation suite even though the checks exist and are exercised functionally in the vulnerable_run differential.",
+      "evidence": "untested_requirements: ['FR3','FR4']",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant that specifically flips only the hidden-state name/encoding reference (e.g., an otherwise-correct report but naming a legitimate GRANT state as the sink) to directly exercise SR1 in isolation from SR2/SR3.",
+    "Add mutants targeting FR3 (e.g., ambiguous/hedged overall_assessment) and FR4 (e.g., candidate referencing a state name but no signal/bit-pattern) to raise mutation score.",
+    "Consider making the SR1 detection strategy less dependent on the same textual cues used for SR2 to ensure independent test signal."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "baseline_run passes FR1; mutation coverage confirmed",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation coverage confirmed",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "checked functionally in vulnerable_run (PASS) but no mutant coverage",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows FR4 correctly FAILs on baseline; no mutant coverage recorded",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run correctly fails SR1, but mutation testing did not detect a targeted mutant for SR1, flagged as uncovered_requirement",
+      "requirement": "SR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "mutation coverage confirmed; vulnerable_run correctly fails",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation coverage confirmed; vulnerable_run correctly fails",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "aggregate gate correctly fails on baseline and vulnerable run",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

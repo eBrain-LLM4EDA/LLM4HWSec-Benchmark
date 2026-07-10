@@ -1,0 +1,51 @@
+{
+  "task_id": "sca_fia_secure_boot_bypass_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Fault-injection bypass points in a secure-boot comparator",
+  "description": "Analyze a secure-boot signature-verification RTL module and its fault model, then produce a structured vulnerability report identifying registers, FSM states, fault-injection bypass points, and hardening recommendations.",
+  "input_artifacts": [
+    "inputs/secure_boot_check.v",
+    "inputs/fault_model.md",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "expected_outputs": {
+    "analyzed_registers": "Array of every flip-flop declared and clocked in secure_boot_check.v, each with name, bit-width, and RTL line reference.",
+    "fsm_states": "Array of every distinct FSM state parameter/localparam name defined in secure_boot_check.v.",
+    "critical_nodes": "Array of the specific register(s)/control signal(s) whose single-bit fault would bypass authentication, each with signal, reason, and exploit_scenario.",
+    "hardening_recommendations": "Array of targeted mitigations for each critical node, each with target_signal, technique, and rationale."
+  },
+  "evaluation": {
+    "evaluation_mode": "report_grading",
+    "metrics": [
+      {
+        "name": "leakage_detection_accuracy",
+        "direction": "maximize",
+        "description": "Fraction of hidden security requirements whose target signals/registers are correctly and specifically identified in the submitted critical_nodes list."
+      },
+      {
+        "name": "fault_coverage",
+        "direction": "maximize",
+        "description": "Fraction of flip-flops/FSM states in secure_boot_check.v that appear correctly in analyzed_registers/fsm_states, verifying static-analysis completeness."
+      },
+      {
+        "name": "hardening_precision",
+        "direction": "maximize",
+        "description": "Fraction of hardening_recommendations entries that target an actual critical_node signal with a substantive redundancy/complementary-check technique, rather than generic or irrelevant advice."
+      }
+    ]
+  },
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "submission_contract": "Participants do not modify inputs/. They submit submission/vulnerability_report.json, which evaluate.py grades against the reference RTL and fault model. A naive/empty placeholder report must fail.",
+  "constraints": [
+    "Do not modify inputs/secure_boot_check.v, inputs/fault_model.md, or inputs/design_brief.md.",
+    "Only submission/vulnerability_report.json is graded.",
+    "All signal/register/state names referenced in the report must exactly match identifiers in inputs/secure_boot_check.v."
+  ]
+}

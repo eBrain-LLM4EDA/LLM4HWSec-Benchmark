@@ -1,0 +1,122 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2: coverage=1.00\n[TEST] PASS: SR3\n[TEST] PASS: SR4: fpr=0.00\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/baseline_testbench.v",
+    "inputs/design_brief.md",
+    "inputs/netlist.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 1,
+    "SR1": 1,
+    "SR3": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [
+    "SR2",
+    "SR4"
+  ],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2: coverage=1.00\n[TEST] PASS: SR3\n[TEST] PASS: SR4: fpr=0.00\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: is_trojan_detected is not true (got False)\n[TEST] FAIL: SR2: coverage 0.00 below required threshold 0.66 (0/6 true nodes matched)\n[TEST] FAIL: SR3: no correctly-labeled node found for categories: counter, comparator, payload\n[TEST] PASS: SR4: fpr=0.00\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "SR2 never emitted [TEST] FAIL on any mutant \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "SR4 never emitted [TEST] FAIL on any mutant \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "SR4 has no mutant that was detected \u2014 vulnerability coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_score": 0.833,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.json"
+  ],
+  "uncovered_requirements": [
+    "SR4"
+  ],
+  "untested_requirements": [
+    "FR3",
+    "FR4"
+  ]
+}

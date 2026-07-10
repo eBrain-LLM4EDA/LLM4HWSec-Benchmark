@@ -1,0 +1,34 @@
+{
+  "constraints": [
+    "Keep RTL under 200 lines.",
+    "Include private trigger/payload annotation as hidden ground truth."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a list of candidate suspicious signal findings, each with an activation-condition description, affected output(s), and a confidence score in [0,1], plus an overall summary rationale."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON matching the pinned schema exactly: top-level keys findings (array), overall_assessment (string), is_trojan_present (boolean); each findings entry must include signal_name (string), activation_condition (string), affected_outputs (array of strings), and confidence (number between 0.0 and 1.0 inclusive)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "If is_trojan_present is true, findings must contain at least one entry; if is_trojan_present is false, findings may be empty."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Every signal_name referenced in findings must correspond to an actual identifier (wire/reg/port name) that appears verbatim in inputs/aes_core.v."
+    },
+    {
+      "id": "FR4",
+      "requirement": "Every string in affected_outputs for a given finding must be one of the declared output ports of the aes_core module as listed in inputs/aes_core.v."
+    }
+  ],
+  "input_artifacts": [
+    "aes_core.v",
+    "design_brief.md"
+  ],
+  "interface": "The submission is a single JSON file at submission/trojan_report.json (no other files are graded). Schema: {\"findings\": [ {\"signal_name\": string (name of the suspicious net/reg as it appears in aes_core.v), \"activation_condition\": string (plain-English or Verilog-expression description of the internal state/condition that triggers anomalous behavior), \"affected_outputs\": [string] (names of module output ports altered when the condition fires), \"confidence\": number in [0.0,1.0] } ], \"overall_assessment\": string (free-text summary, e.g. 'suspicious rare-trigger logic found' or 'no anomalies found'), \"is_trojan_present\": boolean }. evaluate.py reads inputs/aes_core.v for reference and grades only submission/trojan_report.json. The baseline shipped submission has findings: [] and is_trojan_present: false, and must FAIL.",
+  "objective": "You are given a compact synthesizable Verilog module implementing an AES-like round-function core (inputs/aes_core.v), along with a design brief (inputs/design_brief.md) describing its intended datapath and control behavior. Analyze the RTL to determine whether it faithfully implements only the documented function, or whether it contains any additional internal logic whose behavior deviates from the documented specification under certain internal states. Produce an analysis report identifying any suspicious internal signals, the conditions under which they activate, which outputs they affect, and your confidence in each finding.",
+  "response_format": "Submit exactly one file: submission/trojan_report.json, UTF-8 encoded, valid JSON, matching the schema in 'interface'. No other files are graded."
+}

@@ -1,0 +1,10 @@
+{
+  "analyzer_status": "pass",
+  "coverage_score": 1.0,
+  "issue_count": 2,
+  "min_coverage_score": 0.8,
+  "min_mutation_score": 0.5,
+  "mutation_score": 1.0,
+  "overall_status": "pass",
+  "validation_status": "pass"
+}

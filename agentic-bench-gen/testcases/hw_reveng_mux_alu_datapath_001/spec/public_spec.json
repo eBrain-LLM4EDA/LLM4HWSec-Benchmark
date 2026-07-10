@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The submission must not modify any file under inputs/.",
+    "The recovered_datapath module must be purely combinational (no clocked always blocks, no latches).",
+    "The design must not instantiate or depend on any vendor-specific primitives; only standard Verilog constructs are allowed.",
+    "The output y must be driven for every combination of sel; undefined sel values (there are none beyond 2'b00-2'b11) need not be handled specially."
+  ],
+  "expected_outputs": [
+    "A single Verilog file submission/recovered_rtl.v containing a module named recovered_datapath with the exact port list specified in the interface.",
+    "The recovered module must reproduce the output of gate_netlist.v for all 4 select values across a broad sweep of operand values."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted module recovered_datapath must compile cleanly with iverilog alongside a generated testbench with no syntax or elaboration errors."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For select=2'b00, the module output y must equal a+b (8-bit wraparound, no carry-out port) for all tested (a,b) pairs."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For select=2'b01, the module output y must equal a-b (8-bit wraparound, two's complement) for all tested (a,b) pairs."
+    },
+    {
+      "id": "FR4",
+      "requirement": "For select=2'b10 the output y must equal (a & b), and for select=2'b11 the output y must equal (a | b), for all tested (a,b) pairs."
+    }
+  ],
+  "input_artifacts": [
+    "gate_netlist.v",
+    "design_brief.md",
+    "testbench_template.v"
+  ],
+  "interface": "File: submission/recovered_rtl.v must define exactly one module named 'recovered_datapath' with port list: module recovered_datapath(input [7:0] a, input [7:0] b, input [1:0] sel, output [7:0] y); Ports: a (8-bit, public operand A), b (8-bit, public operand B), sel (2-bit, public opcode select: 00=add,01=sub,10=and,11=or per functional requirements), y (8-bit, public result output). No additional ports, no clock, purely combinational. The module must be synthesizable/simulatable standalone (no external includes beyond standard Verilog).",
+  "objective": "You are given a flattened, bit-level gate netlist of a small combinational datapath with two 8-bit data inputs, a 2-bit select input, and an 8-bit output. The netlist was produced by bit-blasting a word-level design into primitive gates (AND, OR, XOR, NAND, NOR, XNOR, NOT, and multiplexers built from these), which obscures the original word-level operation performed for each select value. Your job is to analyze the netlist and produce a clean, word-level Verilog module that is functionally equivalent to the original gate-level design for every possible input combination.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

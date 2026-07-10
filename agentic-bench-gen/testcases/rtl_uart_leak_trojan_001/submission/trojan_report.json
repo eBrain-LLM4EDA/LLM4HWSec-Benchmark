@@ -1,0 +1,14 @@
+{
+  "candidates": [
+    {
+      "id": "c1",
+      "signal_name": "tx_busy",
+      "location_hint": "main transmit FSM, ST_STOP case branch",
+      "leak_source_reg": "none",
+      "leak_sink_output": "none",
+      "confidence": 0.1,
+      "rationale": "No significant anomalies found beyond a minor timing note: tx_busy deasserts in the same cycle tx_done pulses, which is a slightly unusual but not incorrect handshake ordering. Overall the design appears to implement a conventional 8N1 transmitter with no unexpected behavior observed."
+    }
+  ],
+  "summary": "Design appears functionally standard, no Trojan detected. The core implements normal 8N1 framing with tx_busy and tx_done behaving as expected; no evidence of deliberately inserted malicious logic was identified."
+}

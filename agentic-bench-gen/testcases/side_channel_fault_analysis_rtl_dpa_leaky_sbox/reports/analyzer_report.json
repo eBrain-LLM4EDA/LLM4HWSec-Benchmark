@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/analysis.py",
+      "description": "FR3 (schema validity) and FR4 (no dangling references) are not exercised by any mutant in the differential/mutation testing, though the checks exist and pass on the golden submission.",
+      "evidence": "per_requirement_coverage shows FR3 and FR4 covered:false with 0 mutants targeting; untested_requirements lists FR3, FR4.",
+      "severity": "low"
+    },
+    {
+      "artifact": "validation report",
+      "description": "dead_checks lists FR2 as dead, but per_requirement_coverage and the vulnerable-run differential show FR2 actually detects a mutant (hd_variance mismatch), which appears to be an internal inconsistency in the validation tooling rather than a real defect in the task artifacts.",
+      "evidence": "dead_checks: ['FR2'] vs per_requirement_coverage.FR2.mutants_detected: 1 and vulnerable_run stdout showing '[TEST] FAIL: FR2: ...'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider adding a mutation specifically targeting FR3 (e.g., malformed JSON types) and FR4 (e.g., a dangling target_signal reference) so these checks are exercised in the differential mutation suite, improving confidence they are wired correctly.",
+    "Reconcile the discrepancy between dead_checks (listing FR2 as dead) and per_requirement_coverage (showing FR2 as covered with 1 mutant detected) in the validation tooling output, since this seems to be a labeling inconsistency rather than a real gap."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline (golden) passes FR1; naive placeholder submission fails FR1 with 'signals array missing entries for: key_mix_reg, sbox_out_reg'.",
+      "requirement": "FR1 fault_coverage - all four registers must appear in signals array",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; vulnerable/naive submission fails FR2 due to hd_variance=0.0 vs recomputed ground truth 2.46, showing the check is behaviorally active despite being flagged 'dead' in one summary field.",
+      "requirement": "FR2 consistency of plaintext_reg hd_variance with re-simulation",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR3; check_schema logic validates types/fields correctly, though no mutant specifically targets this check.",
+      "requirement": "FR3 schema validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR4; check_fr4 logic present and correct, though not separately mutant-tested.",
+      "requirement": "FR4 no dangling recommendation references",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run fails SR1 ('key_mix_reg missing or malformed'); golden passes. GT-band widening (factor 5) plus 1.3x submitted-ratio check enforces the real leakage discrimination.",
+      "requirement": "SR1 key_mix_reg correctly flagged and quantitatively distinguished from plaintext_reg",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run fails SR2; golden passes.",
+      "requirement": "SR2 sbox_out_reg correctly flagged as leaking",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr3 compares submitted hd_variance rankings and recommendation targets; vulnerable run fails SR3 due to missing key_mix_reg entry, and golden passes with correct ranking/targeting.",
+      "requirement": "SR3 leaky signals must outrank non-leaky signals and receive hardening focus",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable/naive submission (empty recommendations) fails SR4 with 'no recognized countermeasure recommendation for: key_mix_reg, sbox_out_reg'; golden passes.",
+      "requirement": "SR4 hardening recommendations must name a recognized countermeasure technique for key_mix_reg and sbox_out_reg",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, power_model.md, and metadata.json describe the task in neutral engineering terms without mentioning CWE ids, SR ids, DPA/CPA threat model, or flagging any signal as intentionally leaky; ground-truth signal roles are only documented in the private analysis.py module.",
+      "requirement": "No leakage of hidden CWE/SR ids or vulnerability hints in public artifacts",
+      "status": "pass"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "key_width": 4,
+  "key_bits": "0100",
+  "loci": [
+    {
+      "instance_name": "u_keymux0",
+      "key_bit_index": 0,
+      "resolved_value": 0,
+      "functional_input_port": "A"
+    },
+    {
+      "instance_name": "u_keymux1",
+      "key_bit_index": 1,
+      "resolved_value": 1,
+      "functional_input_port": "B"
+    },
+    {
+      "instance_name": "u_keymux2",
+      "key_bit_index": 2,
+      "resolved_value": 0,
+      "functional_input_port": "A"
+    },
+    {
+      "instance_name": "u_keymux3",
+      "key_bit_index": 3,
+      "resolved_value": 0,
+      "functional_input_port": "A"
+    }
+  ]
+}

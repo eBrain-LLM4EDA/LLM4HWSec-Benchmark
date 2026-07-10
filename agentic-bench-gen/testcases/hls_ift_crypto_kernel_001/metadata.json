@@ -1,0 +1,32 @@
+{
+  "task_id": "hls_ift_crypto_kernel_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Uniform-Timing XOR-Stream Cipher Kernel for HLS Synthesis",
+  "description": "Harden a byte-wise XOR-stream cipher kernel intended for HLS synthesis (PandA-Bambu-style C subset) so that it exhibits deterministic, synthesis-friendly behavior for every valid input. The submitted kernel must always fully process the entire buffer, produce correct XOR output, and report a single, consistent status/iterations pair for any valid length and any key content.",
+  "input_artifacts": [
+    "inputs/kernel.c"
+  ],
+  "expected_output": "A hardened inputs/kernel.c that compiles cleanly with gcc/g++ using only fixed-size arrays and no dynamic allocation, recursion, or variable-bound loops, and that produces correct ciphertext output plus a consistent status/iterations pair across all valid lengths and all possible key contents.",
+  "metrics": [
+    {
+      "name": "behavioral_consistency_rate",
+      "direction": "minimize",
+      "description": "Fraction of targeted robustness/consistency properties for which the harness detects a violation via output variation across randomized-key trials or via a static scan for disallowed source constructs, measured on the submitted inputs/kernel.c."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Aggregate measure of whether status and iterations remain invariant across randomized-key trials with fixed plaintext/len, combined with correctness of the output ciphertext."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Whether inputs/kernel.c compiles successfully with gcc/g++ and passes a scan for constructs incompatible with HLS synthesis (dynamic allocation, recursion, variable-bound loops, non-constant early exits)."
+    }
+  ],
+  "toolchain": [
+    "gcc",
+    "g++"
+  ],
+  "submission_kind": "hardened_artifact"
+}

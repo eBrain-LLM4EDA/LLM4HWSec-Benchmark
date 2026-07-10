@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "module recovered_datapath(\n    input  [7:0] a,\n    input  [7:0] b,\n    input  [1:0] sel,\n    output [7:0] y\n);\n\n    reg [7:0] y_r;\n\n    always @* begin\n        case (sel)\n            2'b00: y_r = a + b;\n            2'b01: y_r = a - b;\n            2'b10: y_r = a & b;\n            2'b11: y_r = a | b;\n            default: y_r = 8'b0;\n        endcase\n    end\n\n    assign y = y_r;\n\nendmodule",
+      "path": "golden/recovered_rtl.v"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_rtl.v",
+      "purpose": "Correct golden answer for submission/recovered_rtl.v. Defines exactly one module 'recovered_datapath(input [7:0] a, input [7:0] b, input [1:0] sel, output [7:0] y)', purely combinational, no clock/latches, no vendor primitives. Implements: sel=00 -> y=a+b (8-bit wraparound), sel=01 -> y=a-b (8-bit wraparound two's complement), sel=10 -> y=a&b, sel=11 -> y=a|b. Uses a single combinational always @* block with case(sel) or continuous assign with ternary chain over sel, driving y for all 4 sel values with no extra carry-out bits. This is the ground-truth word-level recovery of inputs/gate_netlist.v per the design_brief.md semantics; must compile standalone with iverilog and match gate_netlist.v exactly for all (a,b,sel) via simulation."
+    }
+  ]
+}

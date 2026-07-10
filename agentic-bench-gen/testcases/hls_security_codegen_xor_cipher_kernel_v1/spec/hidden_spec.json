@@ -1,0 +1,39 @@
+{
+  "acceptance_criteria": [
+    "Submission compiles successfully with both gcc and g++ using only <stdint.h> and <string.h>.",
+    "All known-answer functional test vectors produce ciphertext == plaintext XOR key.",
+    "Across >=200 key values (including specified edge cases) with fixed plaintext, status_out is constant and matches the independently computed plaintext checksum.",
+    "Across the same key sweep, iter_count_out is constant and equals 16 in every run.",
+    "No run of the harness crashes, hangs, or produces undefined/uninitialized ciphertext bytes."
+  ],
+  "cwe_ids": [
+    "CWE-208",
+    "CWE-203",
+    "CWE-385",
+    "CWE-200"
+  ],
+  "ground_truth": "The shipped baseline inputs/crypto_kernel.c contains a secret-dependent early-exit: it checks `if (key[0] == 0) { *status_out = 1; *iter_count_out = 0; return; }` before running the main 16-iteration XOR loop, and otherwise runs the loop, sets ciphertext correctly, and sets *status_out to 0 and *iter_count_out to 16. This creates a key-dependent branch that leaks one bit of the key (whether key[0]==0) through both status_out and iter_count_out, and additionally fails to XOR the ciphertext in that branch (ciphertext left uninitialized/zeroed), which also leaks key information through ciphertext behavior discrepancies. A correct hardened reference implementation removes all key-dependent control flow: it unconditionally executes a fixed 16-iteration loop that computes ciphertext[i] = plaintext[i] ^ key[i] for every i, sets iter_count_out = 16 unconditionally after the loop (or increments a counter every iteration with no early exits/breaks/continues gated on key), and computes status_out solely from the plaintext bytes (e.g., XOR-fold checksum), never reading key inside any conditional that could short-circuit before the loop completes. No comparison of any kind may branch on key content.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Behavioral: for a fixed plaintext, invoke crypto_kernel with a large set (>= 200) of distinct keys spanning edge cases (all-zero key, key[0]==0 with other bytes nonzero, key[15]==0, all-0xFF key, and pseudo-random keys from a fixed seed) and assert every resulting status_out is identical and equals the expected checksum computed independently by the harness from the plaintext.",
+      "id": "SR1",
+      "requirement": "status_out must be invariant across all secret key values for a fixed plaintext, and must equal the XOR-fold checksum of that plaintext."
+    },
+    {
+      "detection_strategy": "Behavioral: for the same key/plaintext sweep as SR1, assert iter_count_out == 16 in every run; any run producing a different value (e.g. 0) indicates an early-exit vulnerability.",
+      "id": "SR2",
+      "requirement": "iter_count_out must equal HLS_BLOCK_SIZE (16) for every invocation regardless of key content (no early return/short-circuit on secret data)."
+    },
+    {
+      "detection_strategy": "Behavioral: compare each byte of the returned ciphertext against an independently computed plaintext[i]^key[i] reference for a battery of known-answer vectors plus the same key sweep used in SR1/SR2.",
+      "id": "SR3",
+      "requirement": "ciphertext must equal plaintext XOR key for every (plaintext, key) pair, including the edge-case keys used to probe leakage, so that hardening does not break functional correctness or silently skip the XOR computation in any branch."
+    },
+    {
+      "detection_strategy": "Behavioral cross-run diffing: run the harness pairwise across the full key sweep with identical plaintext and assert byte-for-byte equality of the (status_out, iter_count_out) tuple across all runs; a fail-on-presence grep for banned patterns like `if(key` / `if (key` gating a `return`/`break`/`continue` may be used only as an auxiliary fast pre-check, never as a substitute for the behavioral PASS.",
+      "id": "SR4",
+      "requirement": "No aspect of externally observable behavior (status_out, iter_count_out, or process exit/error behavior) may differ between any two runs that share the same plaintext but use different keys."
+    }
+  ],
+  "threat_model": "An attacker can invoke crypto_kernel repeatedly with a fixed, attacker-chosen public plaintext while the secret key varies across many unknown values (including adversarially chosen edge-case keys such as all-zero key, key with a zero first byte, key with a zero last byte, and high-entropy random keys). The attacker observes only: (1) the public ciphertext output (approved/declassified channel), (2) the public status_out value, and (3) the public iter_count_out value (a proxy for execution timing/loop trip count). The attacker must not be able to distinguish any two different secret keys, or infer any bit of key material, from variation in status_out or iter_count_out; only ciphertext may vary with the key, and only in the exact plaintext XOR key relationship."
+}

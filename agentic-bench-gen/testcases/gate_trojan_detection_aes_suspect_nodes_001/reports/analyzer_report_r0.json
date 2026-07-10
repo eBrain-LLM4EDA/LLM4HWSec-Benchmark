@@ -1,0 +1,69 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR5 is a dead/tautological check that never emits FAIL on any tested mutant, providing no discriminative value; validation report flags it explicitly.",
+      "evidence": "differential.vulnerable_run shows SR5 PASS even when SR1-SR4 fail; mutation_score report lists SR5 as dead_check",
+      "severity": "medium"
+    },
+    {
+      "artifact": "requirement_map / mutation coverage",
+      "description": "FR3 and FR4 are untested by the mutation suite (no mutants target consistency between infected/suspect_nodes length or primary_output_affected validity), leaving these functional requirements unverified by differential testing despite being checked in evaluate.py.",
+      "evidence": "per_requirement_coverage.FR3.mutants_targeting=0, FR4.mutants_targeting=0; uncovered listed under untested_requirements",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Redesign SR5 to be an independently meaningful check (e.g., verify the shipped baseline submission specifically triggers FAIL on SR1/SR2/SR3/SR4 as a fixture test) or remove it from graded requirements since it is currently a vacuous tautology.",
+    "Add mutation/differential test cases that specifically violate FR3 (e.g., infected=true with suspect_nodes=[] or infected=false with non-empty suspect_nodes) and FR4 (e.g., infected=true with an invalid port name) to confirm these functional requirements are enforced.",
+    "Consider clarifying in evaluate.py or README that FR3/FR4 are functionally checked even though no adversarial mutant currently exercises them, to preserve confidence in grader correctness."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline and golden runs both PASS FR1; vulnerable mutant run also passes FR1 correctly since JSON is well-formed.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage shows FR2 detected by 1/1 targeting mutant.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "No mutants targeted FR3; coverage report lists it as untested despite being checked in code.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutants targeted FR4; coverage report lists it as untested despite being checked in code.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Vulnerable run shows SR1 FAIL correctly when infected=false; golden run passes.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run shows SR2 FAIL correctly with 0/4 coverage; golden run passes with correct node coverage.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run shows SR3 FAIL correctly on wrong output; golden run passes.",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run shows SR4 FAIL correctly on generic rationale; golden run passes.",
+      "requirement": "SR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR5 is tautological and never produces a FAIL signal in any tested scenario, so it provides no real security-behavior verification despite being labeled as a security requirement.",
+      "requirement": "SR5",
+      "status": "fail"
+    }
+  ]
+}

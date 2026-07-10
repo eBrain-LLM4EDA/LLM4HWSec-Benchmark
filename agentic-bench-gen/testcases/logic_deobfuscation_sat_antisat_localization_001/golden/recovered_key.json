@@ -1,0 +1,70 @@
+{
+  "key_bits": [
+    {
+      "key_input": "key[0]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the functional block g(X,K_lower) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[1]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the functional block g(X,K_lower) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[2]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the functional block g(X,K_lower) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[3]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the functional block g(X,K_lower) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[4]",
+      "value": "0",
+      "confidence": 1.0,
+      "reasoning": "The instance tied_key_const_0 in locked_netlist.v hard-ties this literal to logic 0 inside the g'(X,K_upper) branch feeding antisat_gbar_inst, making this bit structurally recoverable with certainty directly from the constant-tie cell."
+    },
+    {
+      "key_input": "key[5]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the functional block g(X,K_lower) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[6]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the complementary block g'(X,K_upper) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[7]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the complementary block g'(X,K_upper) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[8]",
+      "value": "unknown",
+      "confidence": 0,
+      "reasoning": "This bit only feeds the complementary block g'(X,K_upper) as a live literal and affects only correctness of func_out_masked under the Anti-SAT topology; it is not tied to any constant cell in the netlist, so it cannot be structurally recovered without an oracle."
+    },
+    {
+      "key_input": "key[9]",
+      "value": "1",
+      "confidence": 1.0,
+      "reasoning": "The instance tied_key_const_1 in locked_netlist.v hard-ties this literal to logic 1 inside the g'(X,K_upper) branch feeding antisat_gbar_inst, making this bit structurally recoverable with certainty directly from the constant-tie cell."
+    }
+  ],
+  "key_gate_locations": [
+    "antisat_g_inst",
+    "antisat_gbar_inst",
+    "antisat_gate"
+  ],
+  "topology_summary": "The locked netlist implements an Anti-SAT-style masking structure built from two structurally near-mirror-image branches instantiated as antisat_g_inst and antisat_gbar_inst. Both branches consume the same subset of primary inputs X, but antisat_g_inst is driven by the lower key bits key[0..4] (block g(X,K_lower)) while antisat_gbar_inst is driven by the upper key bits key[5..9] (block g'(X,K_upper)) using inverted key literals relative to the matching fan-in of the first branch. The outputs of these two branches feed the gate instance antisat_gate, which combines them (AND/XOR-based gating) to produce an internal signal, antisat_out, that acts as a rarely-asserted discriminator. This antisat_out signal is then ANDed/XORed with the true functional result net, func_out_masked, so that only when the key is fully correct does func_out_masked pass through unmodified to the primary output port, out. Two of the key literals feeding antisat_gbar_inst, key[4] and key[9], are hard-tied through dedicated tie-off cells named tied_key_const_0 and tied_key_const_1 respectively, making those two bits directly and unambiguously recoverable by inspection of the netlist alone, while all remaining key bits influence only the functional correctness of func_out_masked and cannot be determined without a working oracle."
+}

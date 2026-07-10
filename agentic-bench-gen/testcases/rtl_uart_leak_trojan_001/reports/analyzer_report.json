@@ -1,0 +1,57 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/*, requirement_map",
+      "description": "FR3 and FR4 are untested by the mutation harness (no mutant specifically targeting them), though they are present and enforced in grader.py.",
+      "evidence": "per_requirement_coverage shows FR3 and FR4 covered:false, mutants_targeting:0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Add a mutant/test case specifically targeting FR3 (e.g., tied max confidence) and FR4 (e.g., summary omitting integrity keyword) to raise coverage confidence for these functional requirements.",
+    "Consider adding an explicit negative test where the vulnerable/naive submission has confidence >=0.5 but wrong leak identification, to further validate SR1/SR2 discrimination independent of FR3."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "check_fr1 validates schema types/fields; baseline and golden both satisfy; mutation coverage confirmed",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr2 validates real output port reference; covered by mutation",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr3 enforces confidence>=0.5 and unique max; vulnerable_run shows correct FAIL, though no dedicated mutant",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr4 enforces functional+integrity keywords in summary; present in golden and vulnerable passes it since vulnerable summary meets keyword bar (acceptable design choice)",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr1 confirms leak_source_reg=key_shadow_reg on top candidate; mutation detected",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr2 confirms leak_sink_output=status_dbg; mutation detected",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr3 confirms trigger condition wording; mutation detected",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr4 rejects naive/boilerplate submission; differential run confirms baseline fails SR1-SR4",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

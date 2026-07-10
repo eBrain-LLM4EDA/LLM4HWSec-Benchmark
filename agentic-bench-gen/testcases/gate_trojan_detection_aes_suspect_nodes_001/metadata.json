@@ -1,0 +1,53 @@
+{
+  "task_id": "gate_trojan_detection_aes_suspect_nodes_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Suspect-Node Localization in a Synthesized AES-like Netlist",
+  "summary": "Analyze a small gate-level Verilog netlist of a synthesized AES-like datapath block, determine whether it is infected with a hardware Trojan, and if so, localize the suspect trigger/payload gate instances and the affected primary output.",
+  "input_artifacts": [
+    "inputs/aes_sub_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/port_map.json"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "submission_contract": "Participants do not modify files under inputs/. They write a single JSON analysis report to submission/trojan_report.json. A starter (naive) submission is already present at that path and is expected to fail grading; it must be replaced with a real analysis.",
+  "expected_outputs": {
+    "description": "A single JSON object at submission/trojan_report.json with top-level keys: 'infected' (boolean), 'suspect_nodes' (array of exact gate/wire instance names from inputs/aes_sub_netlist.v), 'rationale' (non-empty string explaining the structural/functional reasoning), and 'primary_output_affected' (string matching an output port name from inputs/port_map.json, or empty string if 'infected' is false).",
+    "required_keys": [
+      "infected",
+      "suspect_nodes",
+      "rationale",
+      "primary_output_affected"
+    ]
+  },
+  "evaluation": {
+    "mode": "report_grading",
+    "metrics": [
+      {
+        "name": "detection_rate",
+        "direction": "maximize",
+        "description": "Fraction of security requirements correctly satisfied by the submitted trojan_report.json relative to hidden ground truth, focused on correct identification of infection status, suspect trigger/payload nodes, and affected primary output."
+      },
+      {
+        "name": "false_positive_rate",
+        "direction": "minimize",
+        "description": "Fraction of submitted suspect_nodes entries that do not correspond to any real Trojan-related instance (spurious accusations against benign gates)."
+      },
+      {
+        "name": "inference_latency",
+        "direction": "minimize",
+        "description": "Wall-clock time (seconds) taken by the evaluator to parse and grade the submitted report, including any optional yosys/iverilog/vvp cross-check simulation."
+      }
+    ]
+  },
+  "baselines": [
+    "Trust-Hub",
+    "CASlab GAINESIS"
+  ],
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ]
+}

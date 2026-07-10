@@ -1,0 +1,92 @@
+{
+  "domain_id": "hardware_reverse_engineering",
+  "evaluation": {
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required word-level functional behavior (sum = a+b+c+d) correctly reproduced across the full randomized+corner-case test vector suite; computed as (# vectors matching)/(# vectors applied).",
+        "direction": "maximize",
+        "name": "word_recovery_rate"
+      },
+      {
+        "description": "Binary/graded score indicating whether the submission passes the SR1 non-recovery structural gate (i.e. is genuinely word-level recovered RTL rather than a disguised copy of the flattened netlist or a wrapper around its primitives).",
+        "direction": "maximize",
+        "name": "structural_match_accuracy"
+      },
+      {
+        "description": "Overall PASS/FAIL verdict: 1 if 100% of test vectors match between recovered_design and the reference flattened netlist AND compilation succeeds AND SR1 structural gate passes; 0 otherwise.",
+        "direction": "maximize",
+        "name": "functional_equivalence"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "evaluate.py compiles submission/recovered_rtl.v together with a generated testbench and inputs/flattened_netlist.v using iverilog, targeting both recovered_design and the reference module.",
+      "The testbench applies at least 2000 randomized 4x16-bit input vectors plus the two known vectors from FR2 and all-zero/all-max corner cases, comparing sum outputs from recovered_design against flattened_netlist.v bit-for-bit each cycle.",
+      "PASS requires 100% match across all applied vectors between recovered_design output and reference netlist output, plus successful compilation and no fail-on-presence structural violations (SR1).",
+      "A naive/empty baseline submission (e.g. a stub module returning sum=0 or an unmodified copy of flattened_netlist.v) must FAIL: the zero-stub fails functional equivalence, and the copied-netlist fails the SR1 non-recovery structural gate."
+    ],
+    "cwe_ids": [
+      "CWE-1039",
+      "CWE-200"
+    ],
+    "ground_truth": "The flattened netlist implements a 32-bit adder tree computing sum = a + b + c + d over four 16-bit unsigned inputs, structured internally as ((a+b) + (c+d)) but flattened to primitive gates with obfuscated net names so the word-level adder-tree structure is not visible from the netlist alone.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Static text scan of submission for instantiation of primitive cell module names (e.g. FA1, XOR2, AND2 from primitive_cells.v) or `include of flattened_netlist.v; if found in bulk (heuristic threshold on gate-primitive instance count), flag as fail-on-presence 'non-recovery' violation regardless of simulation pass, since this indicates the participant sidestepped analysis rather than recovering RTL. This is a supplementary structural gate, never the sole basis for PASS.",
+        "id": "SR1",
+        "requirement": "The evaluator must not accept a submission that merely instantiates or textually copies inputs/flattened_netlist.v (which would trivially pass I/O equivalence without demonstrating recovery); evaluate.py performs a structural check that recovered_rtl.v does not include/instantiate the primitive gate modules defined in primitive_cells.v and is not byte-identical or near-identical (e.g. via gate-count heuristics) to flattened_netlist.v."
+      },
+      {
+        "detection_strategy": "Check that submission does not use non-standard delay constructs (#) that could indicate deliberate timing obfuscation mirroring the original; flag via regex scan for delay control statements, informational only.",
+        "id": "SR2",
+        "requirement": "The recovered design must not leak timing-dependent side channels that could reveal internal carry-chain structure through simulation delays (not applicable to combinational functional grading but tracked for completeness in case of gate-level submissions)."
+      }
+    ],
+    "threat_model": "The design is delivered as a flattened, gate-level netlist with all hierarchy and meaningful signal names stripped, hiding the word-level arithmetic (adder tree) intent. An adversary or engineer inspecting the netlist cannot easily discern that it is a 4-operand adder tree without behavioral/structural analysis; the goal is to test whether a participant can recover correct word-level semantics purely from black-box/gray-box analysis rather than assuming any word boundaries."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not modify inputs/flattened_netlist.v or any other file under inputs/; only submission/recovered_rtl.v is graded.",
+      "The submission file must be self-contained (single file, no includes of other project files).",
+      "The recovered module name and port list must match the interface exactly, or the harness cannot instantiate it and the submission fails.",
+      "Only standard, freely available toolchain components (iverilog, vvp, yosys) may be assumed; no proprietary EDA tools."
+    ],
+    "expected_outputs": [
+      "A single Verilog file submission/recovered_rtl.v defining module recovered_design with the pinned port list, implementing word-level RTL that is behaviorally (I/O) equivalent to inputs/flattened_netlist.v for every possible input vector, verified by exhaustive/randomized simulation against a generated testbench."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "recovered_design must compute sum = a + b + c + d (unsigned 32-bit result of adding all four 16-bit operands) for every combination of inputs, matching inputs/flattened_netlist.v output bit-for-bit."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For the specific known vectors a=16'h0001,b=16'h0002,c=16'h0003,d=16'h0004 the output sum must equal 32'h0000000A; for a=16'hFFFF,b=16'hFFFF,c=16'hFFFF,d=16'hFFFF the output sum must equal 32'h0003FFFC."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The submitted file must compile cleanly with iverilog (no syntax errors) and simulate with vvp without runtime errors, instantiated with the exact port list given in the interface section."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The recovered RTL must be purely combinational (no clock/reset ports, no latches, output must be a function of only a,b,c,d) and must not merely instantiate or wrap the original flattened netlist file."
+      }
+    ],
+    "input_artifacts": [
+      "flattened_netlist.v",
+      "design_brief.md",
+      "primitive_cells.v"
+    ],
+    "interface": "The recovered design MUST be provided in file submission/recovered_rtl.v and MUST define exactly one top-level module named `recovered_design` with this exact port list: `module recovered_design(input [15:0] a, input [15:0] b, input [15:0] c, input [15:0] d, output [31:0] sum);`. Ports: a, b, c, d are four independent unsigned 16-bit input operands (public, no secrets). sum is the unsigned 32-bit output result. No clock or reset ports are used (the design is purely combinational). The same port list and module name are used by inputs/flattened_netlist.v so the harness can instantiate both modules in one testbench and compare outputs cycle-by-cycle (i.e. per input vector) using $monitor/assert style comparison. The submission file must be synthesizable/simulatable standalone (no external dependencies besides standard Verilog).",
+    "objective": "You are given a flattened, gate-level Verilog netlist (produced by a synthesis/obfuscation flow) that implements some combinational arithmetic function over four 16-bit input buses and produces a single output bus. The netlist has been flattened into primitive gates (AND/OR/XOR/NOT/full-adder-like structures) and all original signal names have been stripped or renamed to generic net labels (e.g. n123, n124...), destroying the original word-level structure. Your task is to analyze the netlist, recover its word-level arithmetic intent, and produce a clean, synthesizable, word-level Verilog RTL module that is functionally equivalent (bit-exact, for all input combinations) to the original flattened design. Submit your recovered RTL as a single self-contained Verilog file.",
+    "response_format": "A single file at submission/recovered_rtl.v containing valid Verilog-2001 (or SystemVerilog subset supported by iverilog) source defining module recovered_design(input [15:0] a, input [15:0] b, input [15:0] c, input [15:0] d, output [31:0] sum); No other files are graded."
+  },
+  "task_id": "hw_reveng_adder_tree_recovery_001",
+  "title": "Recover an adder tree from a flattened netlist"
+}

@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "#include <stdint.h>\n#include <string.h>\n\n#define HLS_BLOCK_SIZE 16\n\nvoid crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE],\n                    const uint8_t key[HLS_BLOCK_SIZE],\n                    uint8_t ciphertext[HLS_BLOCK_SIZE],\n                    int *status_out,\n                    unsigned int *iter_count_out)\n{\n    int checksum = 0;\n\n    for (int i = 0; i < HLS_BLOCK_SIZE; i++) {\n        ciphertext[i] = (uint8_t)(plaintext[i] ^ key[i]);\n        checksum ^= plaintext[i];\n    }\n\n    *status_out = checksum;\n    *iter_count_out = HLS_BLOCK_SIZE;\n}",
+      "path": "golden/crypto_kernel.c"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/crypto_kernel.c",
+      "purpose": "Hardened HLS-style XOR-cipher kernel replacing inputs/crypto_kernel.c verbatim (must be byte-identical filename so pipeline can overwrite inputs/crypto_kernel.c with this file). Must include only <stdint.h> and <string.h>, define `#define HLS_BLOCK_SIZE 16`, and implement exactly: `void crypto_kernel(const uint8_t plaintext[HLS_BLOCK_SIZE], const uint8_t key[HLS_BLOCK_SIZE], uint8_t ciphertext[HLS_BLOCK_SIZE], int *status_out, unsigned int *iter_count_out)`. Implementation: declare `int checksum = 0;` computed purely from plaintext bytes via a fixed 16-iteration `for` loop (`for (int i = 0; i < HLS_BLOCK_SIZE; i++) { ciphertext[i] = plaintext[i] ^ key[i]; checksum ^= plaintext[i]; }`) with no conditional branches, no early return/break/continue, and no comparisons involving `key` anywhere in the function body. After the loop unconditionally: `*status_out = checksum;` and `*iter_count_out = HLS_BLOCK_SIZE;`. No use of key in any conditional expression, no global/static mutable state, no malloc/recursion, no other headers, no extra entry points, and no main() (harness supplies main). Function must have C linkage compatible with both gcc and g++ compilation (plain C code, no C++-only constructs, so it compiles identically under both toolchains without needing extern \"C\" wrapping since the file itself is compiled as .c or as C++ directly). This is the sole file in the golden bundle; it stands alone and requires no other golden files to build or run, since the evaluation harness (test-harness main()) is supplied externally by evaluate.py per the domain's compile_and_run contract."
+    }
+  ]
+}

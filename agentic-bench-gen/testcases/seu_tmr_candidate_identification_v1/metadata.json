@@ -1,0 +1,65 @@
+{
+  "task_id": "seu_tmr_candidate_identification_v1",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "SEU Hardening Candidate Identification for a Controller/Datapath RTL Module",
+  "objective": "Analyze the provided RTL module together with the accompanying fault model document, and produce a structured report that inventories every flip-flop group in the design, classifies each as control/state logic or data-pipeline logic, and recommends whether it should receive triple-modular-redundancy (TMR) hardening against single-event upsets (SEUs).",
+  "input_artifacts": [
+    "inputs/controller_datapath.v",
+    "inputs/fault_model.md",
+    "inputs/register_map.json"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "constraints": [
+    "Do not edit any file under inputs/; submit only submission/vulnerability_report.json.",
+    "The RTL module must be treated as self-contained and synthesizable/simulatable with iverilog without external IP.",
+    "Register bit-widths and names referenced in the report must match those declared in controller_datapath.v exactly."
+  ],
+  "expected_outputs": {
+    "description": "A single JSON file at submission/vulnerability_report.json containing a flip-flop inventory, per-register classification (control_state or data_pipeline), TMR recommendation, and justification for each register group found in controller_datapath.v.",
+    "schema": {
+      "schema_version": "1.0",
+      "summary": {
+        "total_registers": "int",
+        "control_state_count": "int",
+        "data_pipeline_count": "int",
+        "tmr_recommended_count": "int"
+      },
+      "registers": [
+        {
+          "signal_name": "string",
+          "bit_width": "int",
+          "category": "control_state | data_pipeline",
+          "tmr_recommended": "bool",
+          "justification": "non-empty string"
+        }
+      ]
+    }
+  },
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Fraction of the ground-truth control_state registers correctly identified and flagged tmr_recommended=true in the submission, relative to fabricated or missing entries.",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Proportion of all registers declared in controller_datapath.v that appear with a valid, schema-conformant entry in the submitted report (no omissions).",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Precision of TMR recommendations: correctly recommended control_state registers divided by total registers recommended for TMR, penalizing over-hardening of data-pipeline registers.",
+      "direction": "maximize"
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "evaluation_mode": "report_grading",
+  "submission_kind": "analysis_report",
+  "notes": "evaluate.py reads the input artifacts under inputs/ for reference and grades submission/vulnerability_report.json for schema conformance and substantive correctness against a private ground-truth classification. A naive or empty submission is expected to fail grading."
+}

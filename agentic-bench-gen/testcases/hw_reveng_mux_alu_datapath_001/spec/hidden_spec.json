@@ -1,0 +1,25 @@
+{
+  "acceptance_criteria": [
+    "All FR1-FR4 checks pass for a randomized + directed test vector sweep spanning at least 200 (a,b,sel) combinations including edge cases (0, 255, overflow/underflow points).",
+    "The baseline (empty/naive) submission fails at least one functional check, demonstrating the benchmark discriminates correct recoveries from trivial stubs.",
+    "No static-only pass path exists: correctness is determined solely by simulated output comparison against the reference gate netlist."
+  ],
+  "cwe_ids": [
+    "CWE-697",
+    "CWE-682"
+  ],
+  "ground_truth": "gate_netlist.v is a flattened bit-blasted implementation of: y = sel==00 ? a+b : sel==01 ? a-b : sel==10 ? (a&b) : (a|b), built from a ripple-carry adder/subtractor (via XOR-conditional invert + carry chain) and gate-level AND/OR arrays, with a 4-way bit-sliced multiplexer selecting among the four bit-computed results per output bit. The bit-blasting deliberately interleaves adder carry logic with the mux select wires so that no single gate cluster visibly corresponds to 'add' or 'subtract' \u00e2 the reverse engineer must trace carry propagation across all 8 bit-slices to recognize the arithmetic structure.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Directed testbench vectors with known non-commutative (a,b) pairs (e.g., a=5,b=3 and a=3,b=5) distinguish add-vs-sub and correct operand order; failures here indicate CWE-697 (Incorrect Comparison) style logic-recovery mistakes leading to wrong opcode mapping.",
+      "id": "SR1",
+      "requirement": "The recovered module must not silently default to an incorrect operation for select codes 00 or 01 (e.g., mixing up add and subtract, or computing b-a instead of a-b), since this reflects a common reverse-engineering error of misreading the carry-in/invert convention."
+    },
+    {
+      "detection_strategy": "Test boundary cases (a=255,b=1 for add overflow; a=0,b=1 for subtract underflow) and verify y wraps modulo 256 with no extraneous bits set, guarding against CWE-682 (Incorrect Calculation) style width-recovery errors.",
+      "id": "SR2",
+      "requirement": "The recovered netlist's arithmetic width and wraparound behavior (8-bit modulo arithmetic, no extra carry-out bit leaking into y) must match the original, since an incorrect width recovery could expose or misrepresent internal carry state."
+    }
+  ],
+  "threat_model": "An adversary (or IP thief) is given only the flattened gate netlist without word-level annotations. They must reconstruct the high-level word-level semantics (the opcode-to-operation mapping) purely from gate topology and simulation, which is exactly the reverse-engineering task; a naive or incomplete recovery (e.g., only recovering AND/OR but guessing add/sub wrong sign convention, or swapping add/sub select codes) should fail functional equivalence checks."
+}

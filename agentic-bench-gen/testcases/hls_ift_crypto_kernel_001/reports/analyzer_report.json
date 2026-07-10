@@ -1,0 +1,66 @@
+{
+  "issues": [
+    {
+      "artifact": "validation report / expert_files",
+      "description": "FR3 and FR4 are listed as untested/uncovered by mutants (per_requirement_coverage shows covered:false, mutants_targeting:0 for both), though the differential run shows baseline still fails FR1/FR2/SR1/SR2/SR3/SR4 sufficiently to reject it. Minor coverage gap but does not block overall usability.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Consider adding a mutant that only breaks FR3 (e.g., correct status/no key-branch but truncates loop count independent of key) or only breaks FR4 (e.g., implicit-int/missing prototype) to close the minor coverage gap noted in the validation report.",
+    "Otherwise the benchmark case is well-constructed: clear separation of functional vs security requirements, no hidden-intent leakage in public artifacts, and correct accept/reject behavior on golden and baseline submissions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Interface, MAX_LEN, status/iterations semantics, and constraints are consistent across README.md, metadata.json, hidden_spec, and evaluation harness.",
+      "requirement": "Public/hidden spec coherence",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run exit_code 0 all PASS; differential.vulnerable_run exit_code 1 with FAIL on FR1, FR2, SR1, SR2, SR3, SR4 as expected.",
+      "requirement": "Grader accepts correct submission and rejects baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py checks FR1-FR4 and SR1-SR4 corresponding to cwe_violation_rate, information_flow_correctness, and synthesis_pass_rate via behavioral trials and static scan.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map explicitly tags FR1-FR4 as functional and SR1-SR4 as security, each with distinct detection strategies.",
+      "requirement": "Requirement map separates functional and security requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "harness_main.cpp runs 220 randomized-key trials including all-zero, all-0xFF, and scattered-zero keys with fixed plaintext/len, directly exercising the key-dependent early-exit vulnerability class.",
+      "requirement": "Security behaviors actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are plain C/C++/Python source with no external dependencies, network calls, or unsafe operations.",
+      "requirement": "Artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically an HLS-synthesis-oriented C kernel with fixed-size arrays, single fixed-trip loop, and PandA-Bambu style constraints; static scan targets HLS-unsynthesizable constructs.",
+      "requirement": "Benchmark adapted to domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py is deterministic, uses fixed seeds (srand(1000+idx)), and prints parseable PASS/FAIL lines for all 8 requirements; coverage_score 1.0, mutation_score 1.0.",
+      "requirement": "No unverifiable gaps",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md and metadata.json use only generic determinism/consistency language; no CWE ids, SR ids, or security-framing found in public_spec files. Hidden threat model is isolated to evaluation/private/security_notes.md, which is explicitly excluded from the participant bundle.",
+      "requirement": "No leakage of hidden security intent in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 (ciphertext correctness, status behavior, full buffer population, clean build) are each distinct and directly checked by evaluate.py against the pinned interface.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4)",
+      "status": "pass"
+    }
+  ]
+}

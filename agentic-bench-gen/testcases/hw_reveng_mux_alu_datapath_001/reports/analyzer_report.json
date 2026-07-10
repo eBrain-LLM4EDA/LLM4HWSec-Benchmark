@@ -1,0 +1,71 @@
+{
+  "issues": [
+    {
+      "artifact": "inputs/gate_netlist.v",
+      "description": "The ground-truth reference netlist contains a genuine multiply-driven-net bug (e.g. `xor (s0, a[0], binv0); xor (s0, s0, sel[0]);` \u2014 three separate gate primitives all continuously driving wire s0), which under real iverilog/vvp simulation resolves to X for the arithmetic (sel=00/01) paths. This means the artifact participants are told to 'simulate first, read structure second' (per README and design_brief.md) cannot actually be used to empirically confirm the add/sub sel-encoding or carry/overflow behavior as instructed \u2014 undermining the core reverse-engineering exercise the task claims to test.",
+      "evidence": "evaluate.py docstring: 'this evaluator intentionally does NOT compile or simulate inputs/gate_netlist.v for functional grading... produces X on its y output for essentially all sel=00/01 vectors under real iverilog simulation, making direct signal comparison against it unusable even for a genuinely correct recovered module.'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py + evaluation/tb_compare.v",
+      "description": "Grading is performed entirely against a hand-written behavioral reference (case statement computing a+b/a-b/a&b/a|b directly) rather than by simulating and comparing against inputs/gate_netlist.v as the ground-truth oracle. This contradicts both the README's documented grading methodology ('Compare ... against the output y of the reference gate_netlist') and the hidden_spec acceptance criterion 'No static-only pass path exists: correctness is determined solely by simulated output comparison against the reference gate netlist.' As implemented, the netlist is never simulated for scoring at all, so the benchmark effectively degenerates into 'implement a standard 8-bit ALU per the stated word-level semantics' rather than genuine gate-level reverse engineering, even though functionally the two should coincide if the netlist were bug-free.",
+      "evidence": "tb_compare.v: 'This testbench deliberately does NOT instantiate inputs/gate_netlist.v... Instead, the expected value is computed here with ordinary behavioral Verilog arithmetic.'",
+      "severity": "medium"
+    },
+    {
+      "artifact": "validation report / evaluation/evaluate.py",
+      "description": "Mutation coverage analysis flags FR4 as untested by targeted mutants (per_requirement_coverage.FR4.covered = false, mutants_targeting = 0), despite the differential run showing FR4 correctly failing against the naive baseline. This suggests the FR4 check, while functionally exercised in the provided differential example, was not independently validated by a mutant specifically designed to break only FR4 (e.g. AND-only or OR-only logic error), leaving a minor verification gap for that specific requirement.",
+      "evidence": "per_requirement_coverage: {\"FR4\": {\"covered\": false, \"mutants_detected\": 0, \"mutants_targeting\": 0}}, \"untested_requirements\": [\"FR4\"]",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Fix the multiply-driven-net bug in inputs/gate_netlist.v (e.g. use intermediate wire names for the two-stage XOR in each bit slice instead of re-driving the same net) so the reference netlist actually simulates to defined values for all sel/operand combinations, restoring the netlist's usability as the true oracle.",
+    "Once the netlist is fixed, update evaluate.py/tb_compare.v to instantiate and simulate inputs/gate_netlist.v directly as the comparison oracle (per the README's stated methodology and the hidden acceptance criteria), rather than relying on a hand-coded behavioral reference that happens to mirror the same formulas.",
+    "Add or confirm a mutant that isolates FR4 alone (e.g. only corrupts the AND/OR array while leaving add/sub correct) to close the mutation-coverage gap noted for FR4.",
+    "Consider clarifying in README/design_brief that direct simulation of gate_netlist.v may yield undefined (X) results for certain paths until the netlist bug is fixed, or remove that instruction if the bug is left as-is."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run PASS: FR1; vulnerable/naive stub still compiles cleanly (PASS: FR1) since it only fails behaviorally, which is expected since FR1 only checks compile/elaboration and static combinational constructs.",
+      "requirement": "FR1 (clean compile, purely combinational, pinned interface)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: FR2; naive baseline FAIL: FR2 (sel=00 mismatch a=255 b=255: exp=254 rec=255) confirming discrimination.",
+      "requirement": "FR2 (sel=00 add)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: FR3; naive baseline FAIL: FR3 (sel=01 mismatch a=255 b=255: exp=0 rec=255).",
+      "requirement": "FR3 (sel=01 sub)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: FR4; naive baseline FAIL: FR4 (sel=10 mismatch a=255 b=1). However mutation report marks FR4 as untested by a dedicated mutant, a minor verification gap.",
+      "requirement": "FR4 (sel=10 and / sel=11 or)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: SR1; naive baseline FAIL: SR1 (sel=00 a=5 b=3: expected 8 but recovered module produced 5).",
+      "requirement": "SR1 (non-commutative add/sub operand order check)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: SR2; naive baseline FAIL: SR2 (sel=00 a=255 b=1: expected 0 but recovered module produced 255).",
+      "requirement": "SR2 (overflow/underflow width wraparound check)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md and design_brief.md withhold the explicit sel encoding, stating it must be inferred; metadata.json contains no CWE/SR ids or ground-truth mapping.",
+      "requirement": "No leak of hidden sel-to-opcode mapping in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py/tb_compare.v explicitly avoid simulating inputs/gate_netlist.v due to a multiply-driven-net bug, instead grading against an independently hand-coded behavioral reference \u2014 contradicting the hidden_spec acceptance criterion and the README's documented grading description.",
+      "requirement": "Grading based on simulated comparison against reference gate netlist (hidden acceptance criterion)",
+      "status": "fail"
+    }
+  ]
+}

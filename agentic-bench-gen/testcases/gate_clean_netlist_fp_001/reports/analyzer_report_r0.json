@@ -1,0 +1,74 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + netlist_utils.py",
+      "description": "SR3 requirement is a dead check per validation report: no mutant was generated that triggers an SR3-specific failure (all mutants that fail SR3 also fail SR1/SR2 simultaneously), so SR3's discriminative power is unverified.",
+      "evidence": "validation report: dead_checks: ['SR3'], per_requirement_coverage.SR3.mutants_detected=0",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 and FR4 requirements are untested by the mutant suite (no mutant isolates infected/suspect_nodes inconsistency or generic-rationale-only failure), leaving these functional checks unverified despite being logically sound in the grader code.",
+      "evidence": "validation report: untested_requirements: ['FR3','FR4']",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant that sets infected=false but suspect_nodes non-empty (violating FR3 while still passing SR1) to properly isolate FR3 coverage.",
+    "Add a mutant with infected=false, suspect_nodes=[], but a generic/unsupported rationale (e.g. 'looks clean') that fails FR4 without failing SR1/SR2, to isolate FR4.",
+    "Add a mutant with infected=false, suspect_nodes=[], and a rationale that mentions only 1 of the 3 categories (e.g. only saturation) to specifically trigger an SR3-only failure and confirm SR3 discriminates independently from SR1/SR2."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "mutation coverage confirmed: 1/1 mutants detected",
+      "requirement": "FR1 schema correctness",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation coverage confirmed: 1/1 mutants detected",
+      "requirement": "FR2 verbatim identifiers",
+      "status": "pass"
+    },
+    {
+      "evidence": "logic present in evaluate.py but no mutant exercised this path (untested_requirements)",
+      "requirement": "FR3 infected/suspect_nodes consistency",
+      "status": "unknown"
+    },
+    {
+      "evidence": "logic present in evaluate.py but no mutant exercised this path (untested_requirements)",
+      "requirement": "FR4 grounded rationale",
+      "status": "unknown"
+    },
+    {
+      "evidence": "golden passes, naive baseline fails with infected=true",
+      "requirement": "SR1 infected=false ground truth",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden passes, naive baseline fails with non-empty suspect_nodes",
+      "requirement": "SR2 suspect_nodes empty",
+      "status": "pass"
+    },
+    {
+      "evidence": "dead_check flagged; no mutant isolates SR3 alone, so its discrimination is unverified though logic appears reasonable",
+      "requirement": "SR3 rationale grounded in >=2 benign categories",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run exit_code=1, FAIL on SR1, SR2, SR3",
+      "requirement": "Baseline (naive submission) must fail overall",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run exit_code=0, all PASS",
+      "requirement": "Golden/correct submission must pass overall",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md read as plain engineering docs without CWE/SR ids or 'intentionally vulnerable' language",
+      "requirement": "No hidden-intent leakage in public artifacts",
+      "status": "pass"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "SR1 checks that key_gates exactly matches the hidden ground-truth locus set of 4 keymux instances with correct key_bit_index mapping. This mutant omits the u_keymux3 locus entirely (only 3 of 4 true loci reported) and misassigns key_bit_index 1 to u_keymux2 (an incorrect index for that instance, colliding with u_keymux1's true index). This drops recall on the true locus set and introduces an incorrect index mapping, causing key_gate_localization_accuracy (F1 over instance_name+key_bit_index pairs) to fall well below 0.9, and also violates FR3's count-must-equal-4 requirement as a side effect.",
+      "files": [
+        {
+          "content": "{\n  \"key_bits\": \"0100\",\n  \"key_gates\": [\n    {\n      \"instance_name\": \"u_keymux0\",\n      \"key_bit_index\": 0,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux1\",\n      \"key_bit_index\": 1,\n      \"resolved_value\": 1\n    },\n    {\n      \"instance_name\": \"u_keymux2\",\n      \"key_bit_index\": 1,\n      \"resolved_value\": 0\n    }\n  ],\n  \"notes\": \"Traced each u_keymuxN instance in inputs/locked_netlist.v back to the internal wire it intercepts and identified the mux2x1 primitive's select polarity: Y = (S & B) | (~S & A), meaning S=0 forwards input A and S=1 forwards input B. Compared candidate data inputs against the expected NAND-chain definitions of N10, N11, N16 in the unlocked reference circuit to determine resolved values. Did not locate a fourth lock site during this pass; assuming only three keymux instances are present based on the wires examined.\"}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "mutant_sr1_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "evaluate.py bitwise compares submitted key_bits against hidden ground-truth key '0100' at each identified keymux locus; flipping bit index 1 from '1' to '0' yields key_bits='0000', which mismatches the ground truth at key_bit_index 1 (u_keymux1 resolved_value should be 1). This should be caught by SR2's bitwise comparison and/or by simulating locked_netlist.v with the submitted key and finding output mismatch against the golden unlocked reference, causing key_recovery_rate to drop below the 0.9 PASS threshold.",
+      "files": [
+        {
+          "content": "{\n  \"key_bits\": \"0000\",\n  \"key_gates\": [\n    {\n      \"instance_name\": \"u_keymux0\",\n      \"key_bit_index\": 0,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux1\",\n      \"key_bit_index\": 1,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux2\",\n      \"key_bit_index\": 2,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux3\",\n      \"key_bit_index\": 3,\n      \"resolved_value\": 0\n    }\n  ],\n  \"notes\": \"Traced each u_keymuxN instance in inputs/locked_netlist.v back to the internal wire it intercepts (N10, N11, N16, N19) and identified the mux2x1 primitive's select polarity: Y = (S & B) | (~S & A), meaning S=0 forwards input A and S=1 forwards input B. Compared both candidate data inputs at each locus against the expected NAND-chain definition of that wire in the unlocked reference circuit. All four loci were assessed as carrying their functional signal on input A, requiring select=0 at every locus, yielding key_bits=0000.\"\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "mutant_sr2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "evaluate.py grades submission/recovered_key.json against hidden ground truth: key_bits='0000' mismatches the true key at 3 of 4 loci (only bit2 happens to match) and key_gates is empty, so key_gate_localization_accuracy=0.0 and key_recovery_rate<0.9 (well below both PASS thresholds), causing FAIL just like the naive baseline the task explicitly requires to fail (SR3).",
+      "files": [
+        {
+          "content": "{\n  \"key_bits\": \"0000\",\n  \"key_gates\": [],\n  \"notes\": \"Assumed default key value of all zeros and did not enumerate individual keymux instances; relied on the netlist's default select polarity without tracing each locus back to its functional NAND-chain definition.\"\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "mutant_sr3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Schema validator checks that key_bits is a string of exactly N=4 characters matching the width of the 'key' port declared in inputs/locked_netlist.v. This mutant shortens key_bits to 3 characters ('010'), violating FR1's length requirement even though key_gates still references key_bit_index 3.",
+      "files": [
+        {
+          "content": "{\n  \"key_bits\": \"010\",\n  \"key_gates\": [\n    {\n      \"instance_name\": \"u_keymux0\",\n      \"key_bit_index\": 0,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux1\",\n      \"key_bit_index\": 1,\n      \"resolved_value\": 1\n    },\n    {\n      \"instance_name\": \"u_keymux2\",\n      \"key_bit_index\": 2,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux3\",\n      \"key_bit_index\": 3,\n      \"resolved_value\": 0\n    }\n  ],\n  \"notes\": \"Traced each u_keymuxN instance in inputs/locked_netlist.v back to the internal wire it intercepts (N10, N11, N16, N19) and identified the mux2x1 primitive's actual select polarity by inspecting its gate-level definition: Y = (S & B) | (~S & A), meaning S=0 forwards input A and S=1 forwards input B. For each locus, both candidate data inputs were compared against the expected NAND-chain definition of that wire in the unlocked reference circuit. This yields key_bits=0100 conceptually, but the string was truncated to 3 characters here, violating the required N=4 length.\"\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "mutant_fr1_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Schema validation of key_gates entries should fail because one element is missing the required 'key_bit_index' field, violating FR2's required-field schema (instance_name, key_bit_index, resolved_value) for every element.",
+      "files": [
+        {
+          "content": "{\n  \"key_bits\": \"0100\",\n  \"key_gates\": [\n    {\n      \"instance_name\": \"u_keymux0\",\n      \"key_bit_index\": 0,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux1\",\n      \"resolved_value\": 1\n    },\n    {\n      \"instance_name\": \"u_keymux2\",\n      \"key_bit_index\": 2,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux3\",\n      \"key_bit_index\": 3,\n      \"resolved_value\": 0\n    }\n  ],\n  \"notes\": \"Traced each u_keymuxN instance in inputs/locked_netlist.v back to the internal wire it intercepts and identified the mux2x1 select polarity. Result cross-validated via iverilog/vvp truth-table comparison against the unlocked reference.\"\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "mutant_fr2_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    }
+  ]
+}

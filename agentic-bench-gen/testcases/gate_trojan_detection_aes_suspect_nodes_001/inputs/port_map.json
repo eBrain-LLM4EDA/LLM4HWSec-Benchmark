@@ -1,0 +1,25 @@
+{
+  "module": "aes_sub_datapath",
+  "ports": [
+    {
+      "name": "state_in",
+      "direction": "input",
+      "width": 8
+    },
+    {
+      "name": "key_byte",
+      "direction": "input",
+      "width": 8
+    },
+    {
+      "name": "round_cnt",
+      "direction": "input",
+      "width": 4
+    },
+    {
+      "name": "sbox_out",
+      "direction": "output",
+      "width": 4
+    }
+  ]
+}

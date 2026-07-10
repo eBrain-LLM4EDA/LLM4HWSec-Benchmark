@@ -1,0 +1,33 @@
+{
+  "acceptance_criteria": [
+    "submission/vulnerability_report.json exists and parses as valid JSON matching the pinned schema (FR1-FR4)",
+    "All 5 control_state registers correctly identified and marked tmr_recommended=true (SR1)",
+    "No more than 1 of 3 data_pipeline registers marked tmr_recommended=true (SR2)",
+    "Majority of control_state justifications reference silent-corruption rationale (SR3)",
+    "Baseline empty/naive submission (e.g., empty registers array or all-false recommendations) fails SR1 and thus fails overall"
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-1231",
+    "CWE-354"
+  ],
+  "ground_truth": "controller_datapath.v contains a finite-state-machine controller (state register 'ctrl_state', a mode/config latch 'mode_reg', and an interrupt-pending flag 'irq_pending_reg') plus a data pipeline (multiply-accumulate registers 'mac_acc_reg', 'data_stage1_reg', 'data_stage2_reg', and an output FIFO pointer set 'fifo_wr_ptr'/'fifo_rd_ptr' which are also control-adjacent). The correct classification: ctrl_state, mode_reg, irq_pending_reg, fifo_wr_ptr, and fifo_rd_ptr are 'control_state' and must have tmr_recommended=true because a single bit-flip silently redirects control flow or corrupts addressing with no self-correcting mechanism, per the fault model's SEU persistence assumption. mac_acc_reg, data_stage1_reg, and data_stage2_reg are 'data_pipeline' and tmr_recommended=false because their errors are bounded, transient, and typically overwritten each cycle or catchable by downstream checksum/parity, so TMR there is unjustified area/power overhead. A correct report must recommend TMR for at least all 5 control-state registers and must not recommend TMR for more than 1 of the 3 data-pipeline registers (over-hardening data path indicates lack of prioritization).",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse submission registers array; check each of the 5 named signals appears with category=='control_state' and tmr_recommended==true. Fail if any is missing, misclassified, or not recommended for TMR.",
+      "id": "SR1",
+      "requirement": "The report must correctly classify all 5 control/state-related registers (ctrl_state, mode_reg, irq_pending_reg, fifo_wr_ptr, fifo_rd_ptr) as category='control_state' with tmr_recommended=true."
+    },
+    {
+      "detection_strategy": "Count entries among the 3 data-pipeline signals with tmr_recommended==true; fail if count > 1.",
+      "id": "SR2",
+      "requirement": "The report must not over-recommend TMR on more than 1 of the 3 data-pipeline registers (mac_acc_reg, data_stage1_reg, data_stage2_reg), demonstrating prioritization of control logic over datapath."
+    },
+    {
+      "detection_strategy": "Run keyword/substring heuristic over justification fields of the 5 control_state entries; require at least 3 of 5 to contain a relevant term; optionally cross-check via yosys/iverilog simulation that flipping the named register's bit at inputs/controller_datapath.v produces divergent FSM trace to corroborate the claim.",
+      "id": "SR3",
+      "requirement": "Justification text for control-state registers must reference the silent/unrecoverable nature of state corruption (e.g., mentions 'state', 'control flow', 'address', or 'silent') rather than generic boilerplate, indicating genuine analysis rather than a template answer."
+    }
+  ],
+  "threat_model": "An attacker or radiation-induced fault injects a single-event upset flipping exactly one bit in exactly one flip-flop per fault window. The adversary's goal (or the natural hazard) is to corrupt state silently: a flipped control/state register causes the FSM to enter an invalid or attacker-favorable state, skip an authentication/interrupt check, or corrupt an address pointer, with no downstream detection. Flipped data-pipeline registers cause bounded arithmetic error that is often masked by subsequent overwrites or existing checksums, making them lower priority for TMR under a fixed area/power hardening budget."
+}

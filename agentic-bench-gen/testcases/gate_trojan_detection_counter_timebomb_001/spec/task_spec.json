@@ -1,0 +1,106 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of true trigger+payload nodes (counter bits, comparator, payload gate) correctly named or labeled in the submitted report versus the hidden ground-truth node set.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of nodes reported as suspect/trigger/payload that are actually legitimate documented datapath nodes in the hidden ground truth.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time in seconds taken by evaluate.py to parse and grade the submitted trojan_report.json (excludes any optional iverilog/vvp cross-check simulation time).",
+        "direction": "minimize",
+        "name": "inference_latency"
+      },
+      {
+        "description": "Binary indicator (1/0) of whether submission/trojan_report.json satisfies the pinned JSON schema (FR1-FR4).",
+        "direction": "maximize",
+        "name": "schema_validity"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "submission/trojan_report.json parses as valid JSON and satisfies FR1-FR4 schema checks",
+      "is_trojan_detected == true (SR1)",
+      "coverage of true trigger+payload nodes in suspect_nodes/stage_labels >= 66% (SR2)",
+      "stage_labels correctly categorize counter/comparator/payload roles per SR3 tolerance rules",
+      "false_positive_rate on suspect_nodes below threshold per SR4",
+      "a shipped baseline naive submission (empty suspect_nodes, is_trojan_detected=false) fails at least SR1 and SR2"
+    ],
+    "cwe_ids": [
+      "CWE-506",
+      "CWE-912"
+    ],
+    "ground_truth": "netlist.v implements a documented datapath (e.g., an 8-bit adder/accumulator) plus an undocumented free-running N-bit counter (nodes named cnt_reg[0..N-1] or similar) feeding an N-input AND/comparator gate (node trig_and or eqN) that computes the terminal count; the comparator output gates a payload XOR/MUX gate (node payload_xor or out_corrupt) inserted on the primary output path, corrupting the true output once the counter saturates. The trigger nodes are the counter registers and terminal-count comparator; the payload node is the gate it enables on the output net.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Ground truth netlist contains an inserted counter+comparator+payload subcircuit absent from the documented functional spec; correct reports must flag is_trojan_detected=true. A naive/empty baseline report defaults to false or omits the field, causing FAIL.",
+        "id": "SR1",
+        "requirement": "The submitted report must correctly identify is_trojan_detected as true."
+      },
+      {
+        "detection_strategy": "evaluate.py loads a hidden node-role map (from a sidecar ground-truth file not shipped to participants) and checks set overlap/coverage between reported suspect_nodes/stage_labels and the true trigger+payload node set, requiring at least 2/3 of true trigger/payload nodes to be named and none of the true datapath-only nodes mislabeled as counter/comparator/payload with high false-positive rate.",
+        "id": "SR2",
+        "requirement": "suspect_nodes must include (or clearly correspond via stage_labels) the actual counter register bits, the terminal-count comparator gate, and the payload gate identified in the hidden ground-truth netlist annotation."
+      },
+      {
+        "detection_strategy": "String/label comparison against hidden ground-truth stage map with tolerance for partial bit-level naming (e.g., cnt_reg[3] counted as counter node).",
+        "id": "SR3",
+        "requirement": "stage_labels must correctly map the counter nodes to 'counter', the comparator node to 'comparator', and the output-corrupting node to 'payload', not to 'datapath' or 'io'."
+      },
+      {
+        "detection_strategy": "Compute false_positive_rate = (# reported suspect nodes not in true trigger/payload set) / (# reported suspect nodes); require this below a threshold (e.g., 0.4) for PASS.",
+        "id": "SR4",
+        "requirement": "The report must not mislabel the legitimate documented datapath (adder/accumulator) logic as trojan/payload nodes, which would indicate a high false-positive rate rather than genuine localization."
+      }
+    ],
+    "threat_model": "Attacker arms a hardware Trojan that lies dormant, silently counting clock cycles via an unused/undocumented counter. After a fixed number of cycles the counter reaches its terminal count, a comparator (AND-tree over counter bits) asserts a trigger signal, and a payload gate (XOR or mux) inserted on the true output path flips or corrupts the output, causing a functional failure only after prolonged operation -- evading short simulation-based verification."
+  },
+  "public_spec": {
+    "constraints": [
+      "Provide a compact netlist with a free-running counter whose terminal count gates a payload gate.",
+      "Use primitive gates / assign statements only; include the counter, comparator, and payload nodes in hidden ground truth."
+    ],
+    "expected_outputs": [
+      "A submission/trojan_report.json file classifying each net/gate of interest by role and stating whether the design matches its documented specification, including a list of any suspect signal names."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The report must be valid JSON with top-level fields: 'design_name' (string), 'is_trojan_detected' (boolean), 'suspect_nodes' (array of strings, exact net/wire names as they appear in netlist.v), and 'stage_labels' (object mapping net/wire name to one of: 'counter', 'comparator', 'payload', 'datapath', 'io')."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The 'design_name' field must exactly match the module name declared in netlist.v (verifiable by reading the module header)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "Every net name referenced in 'suspect_nodes' and 'stage_labels' must be a valid identifier that appears in netlist.v (as a wire, reg, or gate output declaration)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a 'summary' string field (non-empty, at least 20 characters) describing the overall analysis method used."
+      }
+    ],
+    "input_artifacts": [
+      "netlist.v",
+      "design_brief.md",
+      "baseline_testbench.v"
+    ],
+    "interface": "Submission file: submission/trojan_report.json (UTF-8 encoded JSON, no other files graded). Required schema: {\"design_name\": string, \"is_trojan_detected\": boolean, \"suspect_nodes\": [string, ...], \"stage_labels\": {<net_name>: <one of 'counter'|'comparator'|'payload'|'datapath'|'io'>, ...}, \"summary\": string}. evaluate.py reads inputs/netlist.v for reference and grades only submission/trojan_report.json; it does not require participants to modify inputs/. Optional cross-checks may simulate inputs/netlist.v with iverilog/vvp using inputs/baseline_testbench.v to confirm reported trigger conditions, but PASS/FAIL is determined by grading the submitted JSON content.",
+    "objective": "Analyze the provided gate-level netlist of a small synchronous datapath and produce a structured report identifying every node's functional role (e.g., counter/state element, comparator/decision logic, arithmetic/datapath logic, output driver) and flag any node whose behavior deviates from the documented functional specification of the module.",
+    "response_format": "A single JSON file at submission/trojan_report.json matching the schema in 'interface'. No markdown, no comments, no trailing commentary."
+  },
+  "task_id": "gate_trojan_detection_counter_timebomb_001",
+  "title": "Gate-Level Trojan Detection: Counter Time-Bomb Localization"
+}

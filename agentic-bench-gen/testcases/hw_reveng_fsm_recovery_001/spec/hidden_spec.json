@@ -1,0 +1,32 @@
+{
+  "acceptance_criteria": [
+    "iverilog compiles submission/recovered_rtl.v plus an evaluator-authored testbench without errors.",
+    "For the shipped stimulus.txt sequence, recovered_fsm's out sequence matches the reference netlist's out sequence on every cycle.",
+    "For >=5 hidden pseudo-random sequences (length >=64) and >=2 adversarial sequences designed around the '1011' boundary cases, recovered_fsm's out matches the reference netlist's out on every cycle.",
+    "Static banned-construct scan finds no direct instantiation of primitives.v gate modules and no textual copy of flattened_netlist.v content inside recovered_rtl.v.",
+    "recovered_fsm module has exactly ports clk, rst, in, out with correct 1-bit directions."
+  ],
+  "cwe_ids": [
+    "CWE-1120",
+    "CWE-670"
+  ],
+  "ground_truth": "The flattened netlist implements a 4-state Moore FSM that detects the non-overlapping serial pattern '1011' on input 'in', asserting 'out'=1 for exactly one clock cycle when the pattern completes, then returning to the initial state to search again. Internally the netlist uses two flip-flops (state encoded as S0=00, S1=01, S2=10, S3=11 in the gate netlist, but the encoding is obscured by XOR-mixed gate logic and non-mnemonic net names) plus combinational next-state and output logic built from NAND/NOR/XOR primitives instantiated from primitives.v. A correct recovery need not use the same encoding, only equivalent behavior.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Static banned-construct scan (fail-on-presence only) of submission/recovered_rtl.v for instantiations of primitive module names defined in inputs/primitives.v (e.g. NAND2, NOR2, XOR2, DFF) or direct textual inclusion of inputs/flattened_netlist.v; presence causes FAIL regardless of simulated correctness.",
+      "id": "SR1",
+      "requirement": "The recovered RTL must not merely re-embed the original gate-level netlist verbatim (e.g. by wrapping primitives.v gates inside recovered_fsm); it must be expressed at the word/register level using synthesizable behavioral constructs, so that the recovery step reflects genuine structural understanding rather than pass-through obfuscation."
+    },
+    {
+      "detection_strategy": "Interface conformance check: recovered_fsm must have exactly the four ports clk, rst, in, out with correct directions and 1-bit widths; extra ports cause FAIL.",
+      "id": "SR2",
+      "requirement": "The recovered module must not leak or depend on any internal debug/backdoor signal that might exist in the flattened netlist beyond the public clk/rst/in/out interface."
+    },
+    {
+      "detection_strategy": "Evaluator generates hidden randomized and adversarial stimulus sequences at grading time (not shipped in inputs/) and compares cycle-by-cycle output against the reference netlist simulation.",
+      "id": "SR3",
+      "requirement": "Behavioral equivalence must hold under adversarial/edge-case input sequences (e.g. repeated resets mid-pattern, back-to-back overlapping near-matches like '10110111011'), not just the sample stimulus, to rule out a submission that overfits to the shipped stimulus file."
+    }
+  ],
+  "threat_model": "A flattened, gate-level netlist with meaningless net names (e.g. n12, n47) and gate-mixed state encoding obscures the control intent of the design, preventing engineers from auditing, verifying, or safely modifying the controller logic. This mirrors reverse-engineering-resistant obfuscation used to hide IP or malicious backdoors in third-party sequential IP cores."
+}

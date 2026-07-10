@@ -1,0 +1,59 @@
+{
+  "issues": [
+    {
+      "artifact": "differential/golden",
+      "description": "The golden reference solution fails the evaluator (FR2, FR4, SR3), meaning the harness rejects a correct submission. This indicates a mismatch between the flattened_netlist.v ground truth logic (state timing/latency) and the golden recovered_rtl.v behavioral model, or a bug in evaluate.py's stimulus/comparison logic.",
+      "evidence": "golden_run stdout shows FAIL: FR2 (9/30 mismatch), FAIL: FR4 (12/65 mismatch), FAIL: SR3 (3/16 mismatch) despite golden being the expert-authored correct answer.",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential",
+      "description": "Since golden_rejected, mutation_score is 0.0 and not meaningful, so there's no evidence the checks actually discriminate correct vs vulnerable submissions.",
+      "evidence": "mutation_score: 0.0, mutation_score_meaningful: false",
+      "severity": "high"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Regenerate or fix the golden recovered_rtl.v so its state transition/output timing exactly matches the corrected flattened_netlist.v (verify the exact latency between pattern completion and pulse assertion via simulation).",
+    "Re-run the differential validation after fixing the golden solution to confirm it passes all requirements while the naive baseline still fails.",
+    "Double check that the flattened_netlist.v ground truth (5-state, one-cycle-lag Moore FSM) matches the intended behavior described in design_brief.md and that the golden answer was derived from the actual corrected netlist, not an earlier version."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and vulnerable runs show PASS: FR1",
+      "requirement": "FR1 structural port check",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails FR2 with 9/30 mismatches, indicating harness/ground-truth incoherence",
+      "requirement": "FR2 shipped stimulus equivalence",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both runs show PASS: FR3",
+      "requirement": "FR3 compile success",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails FR4 with 12/65 mismatches",
+      "requirement": "FR4 hidden random sequences",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both runs show PASS: SR1",
+      "requirement": "SR1 banned construct scan",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs show PASS: SR2",
+      "requirement": "SR2 port set exactness",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails SR3 with 3/16 mismatches",
+      "requirement": "SR3 adversarial sequences",
+      "status": "fail"
+    }
+  ]
+}

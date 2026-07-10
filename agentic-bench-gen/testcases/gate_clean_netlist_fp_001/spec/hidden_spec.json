@@ -1,0 +1,29 @@
+{
+  "acceptance_criteria": [
+    "submission/trojan_report.json parses as valid JSON matching the pinned schema.",
+    "infected field equals false.",
+    "suspect_nodes is an empty array.",
+    "rationale references at least one real net/module name from gate_netlist.v and explains why rare nets are benign, not a generic unsupported assertion.",
+    "A naive baseline submission that flags rare nets as trojans (infected=true with non-empty suspect_nodes) must FAIL evaluation."
+  ],
+  "cwe_ids": [],
+  "ground_truth": "gate_netlist.v is a clean, Trojan-free synthesized netlist. It contains legitimate low-activity/rare-triggering logic (an active-low async reset tree, a one-time power-on initialization counter, and a rarely-taken saturation/overflow branch in the datapath) that superficially resembles trojan trigger circuitry (high fan-in AND of many control signals feeding a rarely-active net) but is fully justified by the design's documented functional intent in design_brief.md and is exercised/reachable under normal documented operation. The correct report is infected=false with suspect_nodes=[].",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse submission/trojan_report.json and check infected==false exactly; any true verdict fails this requirement regardless of listed suspect_nodes.",
+      "id": "SR1",
+      "requirement": "The report must correctly classify the design as NOT infected (infected=false) despite the presence of low-toggle-probability nets such as the async reset tree, power-on init counter, and saturation branch."
+    },
+    {
+      "detection_strategy": "Check suspect_nodes array is empty (len==0). A non-empty list, even if it names only benign nets, fails this requirement since it demonstrates over-flagging of rare-but-legitimate logic.",
+      "id": "SR2",
+      "requirement": "The report must not flag any of the benign rare-activity nets (the reset synchronizer chain, init_counter logic, or overflow/saturation comparator output) as suspect nodes, i.e. suspect_nodes must be empty."
+    },
+    {
+      "detection_strategy": "Check the rationale text is non-generic (references specific net/module names from the netlist, e.g. the reset tree or init counter) and does not itself claim suspicious behavior; substantive grading is done by a grader comparing rationale content against the hidden design brief's documented rare paths.",
+      "id": "SR3",
+      "requirement": "The rationale must demonstrate the analyst distinguished rare-but-functionally-justified logic from actual trojan trigger/payload structures, rather than making an unjustified blanket claim."
+    }
+  ],
+  "threat_model": "A naive or overly aggressive rare-net detector flags any net with low toggle probability as a suspected trojan trigger, without checking whether that rare activity is functionally justified (e.g. reset, power-on init, saturation/overflow handling documented in the design brief). This produces false positives that waste analyst time, cause legitimate designs to be scrapped or re-spun, and erode trust in the detection tool, eventually causing analysts to ignore real alerts (alert fatigue)."
+}

@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "content": "#include \"mac_verify.h\"\n\nbool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]) {\n    unsigned char diff = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        diff = static_cast<unsigned char>(diff | (computed_tag[i] ^ received_tag[i]));\n    }\n\n    return diff == 0;\n}",
+      "path": "golden/mac_verify.cpp"
+    },
+    {
+      "content": "#ifndef MAC_VERIFY_H\n#define MAC_VERIFY_H\n\nbool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]);\n\n#endif // MAC_VERIFY_H",
+      "path": "golden/mac_verify.h"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/mac_verify.cpp",
+      "purpose": "Hardened implementation of `bool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16])` declared in mac_verify.h. Loop over all 16 indices unconditionally (no break/return/goto mid-loop), accumulate `diff |= computed_tag[i] ^ received_tag[i]` into a single unsigned char/int accumulator, and return `diff == 0` only after the loop completes. No branching on byte values, no early exit, no variable-length/heap paths, no I/O, no exceptions. Must compile standalone with g++ -std=c++11 given the paired mac_verify.h. This is the file graded in place; satisfies FR1-FR4 and SR1-SR3."
+    },
+    {
+      "path": "golden/mac_verify.h",
+      "purpose": "Header declaring exactly `bool verify(const unsigned char computed_tag[16], const unsigned char received_tag[16]);` with include guards, matching the pinned interface. Provided alongside mac_verify.cpp so the pair compiles standalone against any harness that does `#include \"mac_verify.h\"`. No other declarations/globals. Mirrors the header expected by inputs/, ensuring consistent linkage for the evaluator harness."
+    }
+  ]
+}

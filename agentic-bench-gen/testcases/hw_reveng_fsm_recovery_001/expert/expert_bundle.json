@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "module recovered_fsm(\n    input  clk,\n    input  rst,\n    input  in,\n    output out\n);\n\n    localparam S0 = 2'd0; // idle / searching for first '1'\n    localparam S1 = 2'd1; // saw '1'\n    localparam S2 = 2'd2; // saw '10'\n    localparam S3 = 2'd3; // saw '101'\n\n    reg [1:0] state;\n    reg [1:0] next_state;\n    reg       match_pulse;\n\n    always @(*) begin\n        case (state)\n            S0: next_state = in ? S1 : S0;\n            S1: next_state = in ? S1 : S2;\n            S2: next_state = in ? S3 : S0;\n            default: next_state = in ? S1 : S0; // S3: pattern completed, non-overlapping restart\n        endcase\n    end\n\n    always @(*) begin\n        // Pulses when the FSM is in S3 (having just consumed the final '1'\n        // of the '1011' sequence) \u2014 this is the cycle after the pattern\n        // completes, matching the Moore output timing of the original netlist.\n        match_pulse = (state == S3);\n    end\n\n    always @(posedge clk) begin\n        if (rst)\n            state <= S0;\n        else\n            state <= next_state;\n    end\n\n    assign out = match_pulse;\n\nendmodule",
+      "path": "golden/recovered_rtl.v"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_rtl.v",
+      "purpose": "Golden word-level Verilog implementing module recovered_fsm(input clk, input rst, input in, output out) matching interface exactly (all 1-bit ports). Implements a Moore FSM detecting non-overlapping serial pattern '1011' on 'in': uses a 2-bit state register (localparam S0=2'd0 idle/searching '1', S1=2'd1 saw '10', S2=2'd2 saw '101', S3=2'd3 saw '1011'/match) updated in a single always @(posedge clk) block with synchronous active-high reset (rst=1 forces state<-S0 on next edge). Next-state logic via case statement on current state and 'in': S0: in?S1:S0; S1: in?S1:S2; S2: in?S3:S0; S3: in?S1:S0 (non-overlapping restart after match, re-checking last bit appropriately per '1011' overlap semantics). Output 'out' is a Moore output = (state==S3) ? 1'b1 : 1'b0, registered version to align with pattern-detect-then-return-to-search behavior producing exactly one-cycle pulse on completion. No gate primitives instantiated, no textual copy of flattened_netlist.v, no extra ports/signals beyond clk/rst/in/out (all internal signals are local reg/wire declared inside the module, none exposed as ports). Self-contained single-file module compiles standalone with iverilog. This file is the exact answer graded at submission/recovered_rtl.v."
+    }
+  ]
+}

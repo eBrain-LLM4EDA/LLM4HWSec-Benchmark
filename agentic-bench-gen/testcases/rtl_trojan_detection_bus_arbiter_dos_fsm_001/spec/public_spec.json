@@ -1,0 +1,35 @@
+{
+  "constraints": [
+    "Do not modify inputs/bus_arbiter.v; submit only submission/trojan_report.json.",
+    "The report should be self-contained: an evaluator with only inputs/bus_arbiter.v and the report must be able to verify claims via simulation with iverilog/vvp if desired.",
+    "Confidence scores must be between 0.0 and 1.0."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a list of candidate anomalous states/transitions, a confidence score per candidate, and a rationale referencing specific signals and states in bus_arbiter.v"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json must be valid JSON matching the schema in interface: top-level keys 'candidates' (non-empty array), 'overall_assessment' (string), 'recommended_fix' (string)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Each entry in 'candidates' must include non-empty 'state_name', 'trigger_condition', 'rationale', 'impact' string fields and a numeric 'confidence' field between 0.0 and 1.0 inclusive."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report's 'overall_assessment' field must explicitly state whether the arbiter can enter a state from which it never asserts any gnt bit again (a permanent denial-of-service condition), i.e. answer yes or no with justification."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must reference at least one concrete state name and one concrete signal condition that literally appear in inputs/bus_arbiter.v (not generic placeholders), demonstrating the analysis was grounded in the provided RTL."
+    }
+  ],
+  "input_artifacts": [
+    "bus_arbiter.v",
+    "design_brief.md"
+  ],
+  "interface": "The RTL file inputs/bus_arbiter.v defines module bus_arbiter with ports: input clk, input rst_n, input [3:0] req (one bit per master, req[i] asserted means master i requests the bus), output reg [3:0] gnt (one-hot grant vector, gnt[i] asserted means master i is granted the bus), output reg busy (asserted while a grant is outstanding). The module is synchronous to posedge clk with active-low asynchronous reset rst_n. Participants must NOT modify inputs/bus_arbiter.v. The answer file submission/trojan_report.json must be a JSON object with this exact top-level schema: {\"candidates\": [{\"state_name\": string, \"trigger_condition\": string, \"confidence\": number (0.0-1.0), \"rationale\": string, \"impact\": string}], \"overall_assessment\": string, \"recommended_fix\": string}. At least one entry in 'candidates' must identify the malicious lock state and its triggering request sequence to be considered a correct submission.",
+  "objective": "Review the provided RTL bus-arbiter design (a Verilog FSM that grants bus access to multiple requesting masters) and produce an analysis report describing the design's finite-state behavior, any state(s) that could cause the arbiter to stop granting bus access to legitimate masters, and the exact request sequence that reaches such a state. Report your findings as a structured JSON document.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

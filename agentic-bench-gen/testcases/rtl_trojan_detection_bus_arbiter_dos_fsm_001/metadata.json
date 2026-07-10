@@ -1,0 +1,38 @@
+{
+  "task_id": "rtl_trojan_detection_bus_arbiter_dos_fsm_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Denial-of-service FSM Trojan in a bus arbiter",
+  "objective": "Review the provided RTL bus-arbiter design and produce a structured analysis report describing the design's finite-state behavior, identifying any state(s) that could cause the arbiter to stop granting bus access to legitimate masters, and the exact request sequence that reaches such a state.",
+  "input_artifacts": [
+    "inputs/bus_arbiter.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs": {
+    "summary": "A JSON report at submission/trojan_report.json listing candidate anomalous FSM states/transitions with confidence scores and rationale grounded in the actual RTL, plus an explicit overall_assessment of whether a permanent denial-of-service condition exists in the arbiter's state machine, and a recommended_fix.",
+    "schema": {
+      "candidates": "non-empty array of {state_name, trigger_condition, confidence (0.0-1.0), rationale, impact}",
+      "overall_assessment": "string explicitly answering the liveness/DoS question with justification",
+      "recommended_fix": "string describing remediation or stating none is needed"
+    }
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of hidden security requirements about the correct sink state, trigger pattern/origin, and DoS assessment that the submitted report satisfies."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported candidate states/transitions that do not correspond to the actual hidden lock state/trigger, out of all reported candidates."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Accuracy score measuring how precisely the reported trigger_condition matches the true triggering request pattern and originating state."
+    }
+  ]
+}

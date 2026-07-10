@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "locked_netlist.v must be fully self-contained synthesizable structural Verilog using only standard gate primitives (and/or/xor/not/nand/nor/mux built from these) so it can be simulated with iverilog/vvp without external libraries.",
+    "The netlist must declare a single module with primary inputs, primary outputs, and one bundled input port named 'key' of width N.",
+    "Every key-controlled multiplexer instance name must contain the substring 'keymux' so participants can grep for candidate loci without prior knowledge of the exact locking scheme.",
+    "locking_description.md must state the total number of inserted key gates and the general MUX-locking mechanism, but must not reveal instance names or key values.",
+    "primary_io_list.txt must list all primary input and output port names of locked_netlist.v for reference."
+  ],
+  "expected_outputs": [
+    "submission/recovered_key.json containing the full recovered key vector and per-gate details"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted recovered_key.json must contain a top-level field 'key_bits' that is a string of exactly N characters (0/1), where N equals the number of key input ports declared in locked_netlist.v (module port key[N-1:0])."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The submitted recovered_key.json must contain a field 'key_gates' that is a JSON array; each element must have fields 'instance_name' (string matching a MUX instance name present in locked_netlist.v), 'key_bit_index' (integer), and 'resolved_value' (0 or 1)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The number of entries in 'key_gates' must equal the number of key-controlled multiplexer instances actually present in locked_netlist.v (this count is stated in locking_description.md as the total lock count)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The recovered_key.json must be valid JSON parsable by a standard JSON library, with no trailing commas or comments, and must include a top-level field 'notes' (string, may be empty) summarizing the analysis method."
+    }
+  ],
+  "input_artifacts": [
+    "locked_netlist.v",
+    "locking_description.md",
+    "primary_io_list.txt"
+  ],
+  "interface": "Submission file: submission/recovered_key.json (UTF-8 JSON, no other files graded). Required schema: {\"key_bits\": \"<string of 0/1 chars, length N>\", \"key_gates\": [{\"instance_name\": \"<string>\", \"key_bit_index\": <int>, \"resolved_value\": 0|1}, ...], \"notes\": \"<string>\"}. N = width of the 'key' input port declared in inputs/locked_netlist.v. Each key_gates[i].key_bit_index must be a valid index into key_bits (0-indexed, matching the bit position used in the netlist's key[i] port connections). evaluate.py reads inputs/locked_netlist.v, inputs/locking_description.md, and inputs/primary_io_list.txt for reference and compares submission/recovered_key.json against hidden ground truth; it may optionally invoke yosys/iverilog/vvp to simulate inputs/locked_netlist.v with the submitted key_bits and cross-check output equivalence against a reference golden netlist, but PASS/FAIL is determined by grading the submitted JSON content.",
+  "objective": "You are given a gate-level combinational Verilog netlist that has been modified by inserting key-controlled 2-to-1 multiplexers at several internal wire locations. Each inserted multiplexer has two data inputs and one select input driven by a dedicated key input port (key[i]). Analyze the netlist and the accompanying locking description to determine, for every key-controlled multiplexer, its instance name and the key bit value (0 or 1) that makes that multiplexer forward the input which reproduces the netlist's intended combinational behavior. Report your findings as a single JSON answer file.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

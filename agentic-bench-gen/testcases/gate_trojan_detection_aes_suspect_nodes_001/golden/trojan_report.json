@@ -1,0 +1,12 @@
+{
+  "infected": true,
+  "suspect_nodes": [
+    "t_and0",
+    "t_and1",
+    "t_and2",
+    "t_and_final",
+    "payload_xor"
+  ],
+  "rationale": "The netlist contains a rare-activation Trojan trigger built from a tree of AND gates: instances t_and0, t_and1, and t_and2 each AND together specific bits derived from internal state signals, and their outputs are combined by t_and_final into a single signal trig_sig. This structure implements a rare condition (approximately a Hamming-weight-8 pattern with activation probability around 2^-8) that is essentially never true during normal functional simulation, which is why conventional testing does not expose it. trig_sig is fed into instance payload_xor, an XOR gate spliced into the combinational path driving primary output sbox_out. When trig_sig is 0 (the overwhelming majority of the time), payload_xor passes the correct value through, but when the rare AND-tree condition is satisfied and trig_sig becomes 1, payload_xor flips bit 3 of sbox_out, corrupting the datapath output only under this low-probability trigger event. The combination of a multi-level AND-tree rare trigger (t_and0/t_and1/t_and2 -> t_and_final) feeding an XOR payload gate on the sbox_out path is the classic structure of a stealthy, rare-condition hardware Trojan.",
+  "primary_output_affected": "sbox_out"
+}

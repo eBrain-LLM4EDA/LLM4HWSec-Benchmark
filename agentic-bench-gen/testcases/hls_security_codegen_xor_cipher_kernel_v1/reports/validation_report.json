@@ -1,0 +1,85 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/crypto_kernel.c",
+    "inputs/cwe_list.md",
+    "inputs/security_spec.md",
+    "metadata.json"
+  ],
+  "check_activation": {
+    "FR1": 3,
+    "SR1": 2,
+    "SR2": 2,
+    "SR3": 3,
+    "SR4": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: known-answer vector 3 ciphertext mismatch\n[TEST] FAIL: SR1: key-dependent status_out detected at sweep idx 0 (status=1 expected=170)\n[TEST] FAIL: SR2: iter_count_out=0 != 16 at sweep idx 0 (possible early-exit)\n[TEST] FAIL: SR3: ciphertext mismatch at record VEC idx=3\n[TEST] FAIL: SR4: observable behavior differs between keys at sweep idx 2 (tuple=(170, 16) reference=(1, 0))\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/crypto_kernel.c"
+  ],
+  "issues": [],
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 5,
+  "status": "pass",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": []
+}

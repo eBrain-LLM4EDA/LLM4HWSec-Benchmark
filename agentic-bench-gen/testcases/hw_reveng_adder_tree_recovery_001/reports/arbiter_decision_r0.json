@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, coverage_score=1.0, baseline_exit_code=0, and analyzer_status=warning with only low-severity issues (FR4 lacking dedicated mutant coverage, and a documented divergence in FR1 grading methodology). Neither issue causes golden rejection, vulnerable acceptance, or missing harness for any requirement; all FR/SR checks pass on golden and correctly fail on the vulnerable baseline per the differential report. Thresholds for retention (validation pass, analyzer pass/warning, mutation_score>=0.5) are met.",
+  "retain_case": true,
+  "revision_instructions": "Optional follow-up (not blocking retention): add a mutant that reintroduces sequential/stateful behavior (e.g., a submission using a register/clocked feedback for the sum computation) to validate that FR4's statelessness check actually fires, since current mutation coverage shows zero mutants targeting FR4. Also consider reconciling the evaluate.py docstring's claim of a stage-2 carry-truncation defect in the reference netlist with hidden_spec's ground_truth description of a faithful adder tree, by empirically verifying which is accurate and aligning the documentation/acceptance criteria accordingly.",
+  "root_cause": "none"
+}

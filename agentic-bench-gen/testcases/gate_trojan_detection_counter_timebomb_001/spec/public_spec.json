@@ -1,0 +1,35 @@
+{
+  "constraints": [
+    "Provide a compact netlist with a free-running counter whose terminal count gates a payload gate.",
+    "Use primitive gates / assign statements only; include the counter, comparator, and payload nodes in hidden ground truth."
+  ],
+  "expected_outputs": [
+    "A submission/trojan_report.json file classifying each net/gate of interest by role and stating whether the design matches its documented specification, including a list of any suspect signal names."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The report must be valid JSON with top-level fields: 'design_name' (string), 'is_trojan_detected' (boolean), 'suspect_nodes' (array of strings, exact net/wire names as they appear in netlist.v), and 'stage_labels' (object mapping net/wire name to one of: 'counter', 'comparator', 'payload', 'datapath', 'io')."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The 'design_name' field must exactly match the module name declared in netlist.v (verifiable by reading the module header)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Every net name referenced in 'suspect_nodes' and 'stage_labels' must be a valid identifier that appears in netlist.v (as a wire, reg, or gate output declaration)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a 'summary' string field (non-empty, at least 20 characters) describing the overall analysis method used."
+    }
+  ],
+  "input_artifacts": [
+    "netlist.v",
+    "design_brief.md",
+    "baseline_testbench.v"
+  ],
+  "interface": "Submission file: submission/trojan_report.json (UTF-8 encoded JSON, no other files graded). Required schema: {\"design_name\": string, \"is_trojan_detected\": boolean, \"suspect_nodes\": [string, ...], \"stage_labels\": {<net_name>: <one of 'counter'|'comparator'|'payload'|'datapath'|'io'>, ...}, \"summary\": string}. evaluate.py reads inputs/netlist.v for reference and grades only submission/trojan_report.json; it does not require participants to modify inputs/. Optional cross-checks may simulate inputs/netlist.v with iverilog/vvp using inputs/baseline_testbench.v to confirm reported trigger conditions, but PASS/FAIL is determined by grading the submitted JSON content.",
+  "objective": "Analyze the provided gate-level netlist of a small synchronous datapath and produce a structured report identifying every node's functional role (e.g., counter/state element, comparator/decision logic, arithmetic/datapath logic, output driver) and flag any node whose behavior deviates from the documented functional specification of the module.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema in 'interface'. No markdown, no comments, no trailing commentary."
+}

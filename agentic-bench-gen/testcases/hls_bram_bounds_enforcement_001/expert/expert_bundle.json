@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+      "path": "golden/scratchpad_kernel.cpp"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/scratchpad_kernel.cpp",
+      "purpose": "Hardened HLS scratchpad kernel implementing exact pinned interface: `int kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op, int32_t write_val, int32_t *status)` with `constexpr int32_t BUFFER_SIZE = 64;` (no #define to avoid macro clashes with harness, but value must be 64). Includes <cstdint>, no exceptions/STL/dynamic allocation. Logic: validate `index >= 0 && index < BUFFER_SIZE` BEFORE any array touch (no pointer arithmetic prior to check, no casts that could wrap); if invalid, set *status=1 and return 0 without touching scratchpad. Then check op: if op==0 (READ), set *status=0, return scratchpad[index]. If op==1 (WRITE), scratchpad[index]=write_val, set *status=0, return write_val. Any other op (not 0 or 1) sets *status=1, returns 0, no array access. Comparison uses signed int32_t index against BUFFER_SIZE directly (safe since BUFFER_SIZE small positive constant, no overflow risk from index<0 check done first via short-circuit). This single file is the complete deliverable; no main() included; must compile standalone as a translation unit included/compiled alongside a harness main()."
+    }
+  ]
+}

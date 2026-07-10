@@ -1,0 +1,38 @@
+{
+  "acceptance_criteria": [
+    "submission/trojan_report.json parses as valid JSON and satisfies FR1-FR4 schema checks",
+    "is_trojan_detected == true (SR1)",
+    "coverage of true trigger+payload nodes in suspect_nodes/stage_labels >= 66% (SR2)",
+    "stage_labels correctly categorize counter/comparator/payload roles per SR3 tolerance rules",
+    "false_positive_rate on suspect_nodes below threshold per SR4",
+    "a shipped baseline naive submission (empty suspect_nodes, is_trojan_detected=false) fails at least SR1 and SR2"
+  ],
+  "cwe_ids": [
+    "CWE-506",
+    "CWE-912"
+  ],
+  "ground_truth": "netlist.v implements a documented datapath (e.g., an 8-bit adder/accumulator) plus an undocumented free-running N-bit counter (nodes named cnt_reg[0..N-1] or similar) feeding an N-input AND/comparator gate (node trig_and or eqN) that computes the terminal count; the comparator output gates a payload XOR/MUX gate (node payload_xor or out_corrupt) inserted on the primary output path, corrupting the true output once the counter saturates. The trigger nodes are the counter registers and terminal-count comparator; the payload node is the gate it enables on the output net.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Ground truth netlist contains an inserted counter+comparator+payload subcircuit absent from the documented functional spec; correct reports must flag is_trojan_detected=true. A naive/empty baseline report defaults to false or omits the field, causing FAIL.",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly identify is_trojan_detected as true."
+    },
+    {
+      "detection_strategy": "evaluate.py loads a hidden node-role map (from a sidecar ground-truth file not shipped to participants) and checks set overlap/coverage between reported suspect_nodes/stage_labels and the true trigger+payload node set, requiring at least 2/3 of true trigger/payload nodes to be named and none of the true datapath-only nodes mislabeled as counter/comparator/payload with high false-positive rate.",
+      "id": "SR2",
+      "requirement": "suspect_nodes must include (or clearly correspond via stage_labels) the actual counter register bits, the terminal-count comparator gate, and the payload gate identified in the hidden ground-truth netlist annotation."
+    },
+    {
+      "detection_strategy": "String/label comparison against hidden ground-truth stage map with tolerance for partial bit-level naming (e.g., cnt_reg[3] counted as counter node).",
+      "id": "SR3",
+      "requirement": "stage_labels must correctly map the counter nodes to 'counter', the comparator node to 'comparator', and the output-corrupting node to 'payload', not to 'datapath' or 'io'."
+    },
+    {
+      "detection_strategy": "Compute false_positive_rate = (# reported suspect nodes not in true trigger/payload set) / (# reported suspect nodes); require this below a threshold (e.g., 0.4) for PASS.",
+      "id": "SR4",
+      "requirement": "The report must not mislabel the legitimate documented datapath (adder/accumulator) logic as trojan/payload nodes, which would indicate a high false-positive rate rather than genuine localization."
+    }
+  ],
+  "threat_model": "Attacker arms a hardware Trojan that lies dormant, silently counting clock cycles via an unused/undocumented counter. After a fixed number of cycles the counter reaches its terminal count, a comparator (AND-tree over counter bits) asserts a trigger signal, and a payload gate (XOR or mux) inserted on the true output path flips or corrupts the output, causing a functional failure only after prolonged operation -- evading short simulation-based verification."
+}

@@ -1,0 +1,44 @@
+{
+  "registers": [
+    {
+      "signal_name": "ctrl_state",
+      "bit_width": 3,
+      "description": "Current state of the main controller FSM (IDLE, LOAD, COMPUTE, OUTPUT, ERROR)."
+    },
+    {
+      "signal_name": "mode_reg",
+      "bit_width": 2,
+      "description": "Operating mode/configuration latch, updated externally via mode_wr_en."
+    },
+    {
+      "signal_name": "irq_pending_reg",
+      "bit_width": 1,
+      "description": "Interrupt-pending flag, set when the FIFO would overflow during OUTPUT and cleared on irq_ack."
+    },
+    {
+      "signal_name": "fifo_wr_ptr",
+      "bit_width": 4,
+      "description": "Write-side address pointer into the output FIFO memory."
+    },
+    {
+      "signal_name": "fifo_rd_ptr",
+      "bit_width": 4,
+      "description": "Read-side address pointer into the output FIFO memory."
+    },
+    {
+      "signal_name": "mac_acc_reg",
+      "bit_width": 32,
+      "description": "Running multiply-accumulate sum produced during the COMPUTE state."
+    },
+    {
+      "signal_name": "data_stage1_reg",
+      "bit_width": 16,
+      "description": "First pipeline staging register for an incoming data operand, loaded during LOAD state."
+    },
+    {
+      "signal_name": "data_stage2_reg",
+      "bit_width": 16,
+      "description": "Second pipeline staging register for an incoming data operand, loaded directly from data_in during LOAD state."
+    }
+  ]
+}

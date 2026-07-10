@@ -1,0 +1,59 @@
+{
+  "task_id": "hw_reveng_mux_alu_datapath_001",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover a MUX-based ALU Datapath's Word-Level Function",
+  "description": "Given a flattened, obfuscated gate-level netlist of a small combinational ALU-style datapath (two 8-bit operands, a 2-bit select, one 8-bit output), reverse-engineer and reconstruct a clean word-level Verilog module that is functionally equivalent to the reference netlist for every input combination.",
+  "submission_kind": "analysis_report",
+  "evaluation_mode": "simulate",
+  "input_artifacts": [
+    "inputs/gate_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_template.v"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_rtl.v"
+  ],
+  "expected_output_summary": "A single Verilog file at submission/recovered_rtl.v defining exactly one module named recovered_datapath with the pinned port list (a[7:0], b[7:0], sel[1:0], y[7:0]), purely combinational, that reproduces the reference gate_netlist.v output exactly across a broad randomized and directed simulation sweep of (a,b,sel) vectors.",
+  "interface": {
+    "module": "recovered_datapath",
+    "ports": [
+      { "name": "a", "direction": "input", "width": 8 },
+      { "name": "b", "direction": "input", "width": 8 },
+      { "name": "sel", "direction": "input", "width": 2 },
+      { "name": "y", "direction": "output", "width": 8 }
+    ]
+  },
+  "metrics": [
+    {
+      "name": "word_recovery_rate",
+      "description": "Fraction of the 4 opcode operations (add, sub, and, or) correctly identified and implemented, measured via per-opcode simulation pass/fail.",
+      "direction": "maximize"
+    },
+    {
+      "name": "structural_match_accuracy",
+      "description": "Degree to which the recovered module's port list and combinational structure conform to the pinned interface (module name, port widths, purely combinational).",
+      "direction": "maximize"
+    },
+    {
+      "name": "functional_equivalence",
+      "description": "Percentage of randomized+directed (a,b,sel) test vectors for which recovered_datapath output matches the reference gate_netlist.v output exactly, via iverilog/vvp simulation.",
+      "direction": "maximize"
+    }
+  ],
+  "baselines": [
+    "HAL benchmarks",
+    "ISCAS'85",
+    "ITC'99"
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "constraints": [
+    "The submission must not modify any file under inputs/.",
+    "The recovered_datapath module must be purely combinational (no clocked always blocks, no latches).",
+    "The design must not instantiate or depend on any vendor-specific primitives; only standard Verilog constructs are allowed.",
+    "The output y must be driven for every combination of sel."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "candidates": [
+    {
+      "id": "C1",
+      "signal_name": "status_dbg",
+      "location_hint": "uart_tx.v: output assignment / mux logic driving status_dbg inside the main FSM output always-block, in the conditional branch that overrides the normal fsm_state reporting path",
+      "leak_source_reg": "key_shadow_reg",
+      "leak_sink_output": "status_dbg",
+      "confidence": 0.95,
+      "rationale": "uart_tx.v contains an internal register key_shadow_reg that is loaded once from a scrambled combination of tx_data bits during the first few transmissions and then retained across subsequent transmissions, functioning as a hidden secret-like state register with no legitimate functional role in UART framing. Under normal operation, status_dbg is documented and behaves as a debug nibble reflecting the internal FSM state (per design_brief.md). However, an additional conditional mux branch in the output assignment logic overrides this: whenever tx_start is asserted AND tx_data[7]==1'b1 (a rare, attacker-chosen trigger condition on the MSB of the transmitted byte), status_dbg is instead driven from key_shadow_reg[3:0] rather than fsm_state. This allows 4 bits of the shadow register to be exfiltrated per triggering transmission over the legitimate status_dbg debug port, disguised as ordinary FSM-state reporting. This matches the pattern of a rare-trigger information-leak Trojan (CWE-200 information exposure, CWE-514 covert channel, CWE-506 embedded malicious logic): functional/regression tests pass because the override only activates on the rare tx_data[7]==1 with tx_start condition, while normal traffic shows only benign FSM-state values on status_dbg."
+    }
+  ],
+  "summary": "Analysis of uart_tx.v identifies a deliberately inserted information-leak Trojan: the internal register key_shadow_reg, loaded from scrambled tx_data content and retained across transmissions, has its low nibble (key_shadow_reg[3:0]) covertly multiplexed onto the status_dbg output whenever the rare trigger condition tx_start && tx_data[7]==1'b1 is met, in place of the documented FSM-state debug value. This constitutes a slow, low-bandwidth exfiltration channel hidden inside a plausible-looking debug/status feature. Core UART functional behavior -- 8N1 framing, tx_busy asserted throughout transmission, and tx_done pulsed for exactly one cycle after the stop bit -- remains intact and uncompromised; the anomaly is isolated to the status_dbg debug path and does not affect the tx/tx_busy/tx_done data-path correctness."
+}

@@ -1,0 +1,42 @@
+{
+  "control_state_registers": [
+    "ctrl_state",
+    "mode_reg",
+    "irq_pending_reg",
+    "fifo_wr_ptr",
+    "fifo_rd_ptr"
+  ],
+  "data_pipeline_registers": [
+    "mac_acc_reg",
+    "data_stage1_reg",
+    "data_stage2_reg"
+  ],
+  "sr3_keywords": [
+    "state",
+    "control flow",
+    "control-flow",
+    "address",
+    "addressing",
+    "silent",
+    "unrecoverable",
+    "undetected",
+    "uncorrected",
+    "corrupt",
+    "no self-correct",
+    "no self correct",
+    "no detection",
+    "unnoticed",
+    "no error indication",
+    "not caught",
+    "not detected",
+    "unchecked",
+    "propagate",
+    "misdirect",
+    "invalid state",
+    "wrong state",
+    "irq",
+    "pointer",
+    "out of bounds",
+    "fsm"
+  ]
+}
