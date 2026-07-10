@@ -1,0 +1,61 @@
+# NOTE: free-tier OpenRouter models usually clamp completions far below the
+# max_tokens requested here (often ~8K) and are prone to repetition loops on
+# long JSON outputs. The client now fails fast with a clear error in both
+# cases instead of burning tokens on doubling retries. The bundle agents use
+# `per_file: true` (one plan call + one plain-text call per file) so each
+# response stays small enough to fit under free-tier completion clamps.
+defaults:
+  temperature: 0.15
+  max_tokens: 16000
+
+agents:
+  idea_generator:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/idea_generator.md
+    schema: schemas/idea_bundle.schema.json
+    temperature: 0.35
+  architect:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/architect.md
+    schema: schemas/task_spec.schema.json
+    temperature: 0.15
+  artifact_builder:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/artifact_builder.md
+    schema: schemas/file_bundle.schema.json
+    temperature: 0.10
+    max_tokens: 32000
+    per_file: true
+  expert:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/expert.md
+    schema: schemas/file_bundle.schema.json
+    temperature: 0.05
+    max_tokens: 32000
+    per_file: true
+  # The Tester emits evaluate.py plus a per-requirement harness for every FR/SR,
+  # so it is the largest output in the pipeline — give it the most headroom.
+  # The limit can also be overridden centrally via `agent_max_tokens.tester`
+  # in pipeline.yaml.
+  tester:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/tester.md
+    schema: schemas/tester_bundle.schema.json
+    temperature: 0.05
+    max_tokens: 48000
+    per_file: true
+  mutator:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/mutator.md
+    schema: schemas/mutation_bundle.schema.json
+    temperature: 0.15
+  analyzer:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/analyzer.md
+    schema: schemas/analyzer_report.schema.json
+    temperature: 0.05
+  arbiter:
+    model: google/gemma-4-31b-it:free
+    prompt: prompts/arbiter.md
+    schema: schemas/arbiter_decision.schema.json
+    temperature: 0.0

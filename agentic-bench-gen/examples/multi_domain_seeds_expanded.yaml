@@ -1,0 +1,216 @@
+# Expanded multi-domain seed set: three tasks per domain across all six
+# hardware-security domains. Each seed carries the fields the IdeaGenerator and
+# Architect consume (seed_id, domain_id, title, objective, constraints,
+# threat_model, ground_truth). Keep the CWE/security-property list in the hidden
+# spec only — it drives the private evaluation harness and must never appear as
+# a public input artifact.
+#
+# Domains and their submission contracts (see src/agentic_bench_gen/domains.py):
+#   hls_security_codegen        -> hardened_artifact (edit C/C++ in place, g++)
+#   rtl_trojan_detection        -> analysis_report (trojan_report.json)
+#   gate_trojan_detection       -> analysis_report (trojan_report.json)
+#   hardware_reverse_engineering-> analysis_report (recovered_rtl.v, simulate)
+#   side_channel_fault_analysis -> analysis_report (vulnerability_report.json)
+#   logic_deobfuscation_sat     -> analysis_report (recovered_key.json)
+
+# ----------------------------------------------------------------------------
+# 1. Security-Aware HLS Code Generation (hardened_artifact, compile_and_run)
+# ----------------------------------------------------------------------------
+- seed_id: hls_ift_crypto_kernel
+  domain_id: hls_security_codegen
+  title: Information-flow hardened crypto HLS kernel
+  objective: Harden a small HLS stream-cipher kernel so that secret key bytes never influence any public status or auxiliary output, only the declassified ciphertext.
+  constraints:
+    - Use C/C++ compatible with PandA-Bambu style HLS (fixed-size arrays, no dynamic allocation, no STL in the kernel body).
+    - Keep the CWE/security-property list in the hidden spec only.
+    - Loops must be constant-trip-count with no secret-dependent early exits; include synthesis-oriented checks.
+  threat_model: An attacker observes public status/error outputs and execution behavior; secret key bytes must not influence them except through approved ciphertext outputs.
+  ground_truth: Secret-to-public flows are allowed only through explicitly listed declassified ciphertext outputs.
+
+- seed_id: hls_constant_time_compare
+  domain_id: hls_security_codegen
+  title: Constant-time tag comparison in an HLS MAC verifier
+  objective: Rewrite an HLS message-authentication verifier so that tag comparison takes the same time and control path regardless of how many bytes match.
+  constraints:
+    - The comparison must scan all bytes unconditionally and return a single boolean; no early return on the first mismatching byte.
+    - Preserve the pinned verify() interface and functional correctness (accept valid tags, reject invalid ones).
+    - Fixed-size buffers only; must compile with g++ against the shipped harness.
+  threat_model: An attacker submits forged tags and measures verification latency or observes a data-dependent branch to recover the correct tag byte-by-byte.
+  ground_truth: A correct submission's verification time and control flow are invariant to the tag contents; only the final accept/reject bit depends on the input.
+
+- seed_id: hls_bram_bounds_enforcement
+  domain_id: hls_security_codegen
+  title: Bounds enforcement on an HLS scratchpad memory interface
+  objective: Add access-control and bounds enforcement to an HLS accelerator that reads and writes a shared on-chip scratchpad addressed by a caller-supplied index.
+  constraints:
+    - Every read and write must clamp or reject out-of-range indices before touching the array; no unchecked pointer/array indexing.
+    - Keep the pinned kernel interface (index, length, data pointers) unchanged.
+    - No dynamic allocation; must be synthesizable and compile with g++ against the harness.
+  threat_model: A malicious caller supplies indices outside the declared buffer to read or corrupt adjacent state through the shared memory interface.
+  ground_truth: All accesses stay within the declared buffer bounds for every input, including adversarial out-of-range indices; in-range behavior is unchanged.
+
+# ----------------------------------------------------------------------------
+# 2. RTL Hardware Trojan Detection (analysis_report, trojan_report.json)
+# ----------------------------------------------------------------------------
+- seed_id: rtl_aes_rare_trigger
+  domain_id: rtl_trojan_detection
+  title: Rare-trigger Trojan in AES-like RTL
+  objective: Detect suspicious trigger and payload logic in a compact RTL module and report the trigger/payload nets with a confidence score.
+  constraints:
+    - Keep RTL under 200 lines.
+    - Include private trigger/payload annotation as hidden ground truth.
+  threat_model: Attacker inserts dormant logic activated by a rare internal counter/state combination.
+  ground_truth: Trigger is a rare state comparator; payload corrupts one output bit when the trigger fires.
+
+- seed_id: rtl_uart_leak_trojan
+  domain_id: rtl_trojan_detection
+  title: Information-leaking Trojan in a UART transmitter
+  objective: Identify a Trojan in a UART TX module that siphons an internal secret register onto an otherwise-unused status or handshake output.
+  constraints:
+    - Ship clean-looking RTL where the leak path is a small, plausible-looking extra assignment.
+    - Keep the module self-contained and elaboratable with iverilog -g2012.
+    - Hidden ground truth names the leak source register and the leaking output net.
+  threat_model: Attacker exfiltrates key/secret bits through a low-attention side output while normal UART traffic still passes functional tests.
+  ground_truth: The Trojan routes bits of a secret internal register to a status/debug output that should be independent of that register.
+
+- seed_id: rtl_fsm_deadlock_trojan
+  domain_id: rtl_trojan_detection
+  title: Denial-of-service FSM Trojan in a bus arbiter
+  objective: Detect a Trojan in an RTL bus-arbiter FSM that drives the machine into an unreachable-by-spec lock state on a rare request pattern.
+  constraints:
+    - Provide a compact FSM (under ~200 lines) with a legitimate-looking extra state/transition.
+    - Elaboratable with iverilog -g2012; include a private annotation of the malicious state and triggering transition.
+  threat_model: Attacker triggers a specific grant-request sequence that wedges the arbiter, denying service to all masters.
+  ground_truth: A specific rare transition leads to a sink state with no spec-legal exit; the trigger is the request pattern that reaches it.
+
+# ----------------------------------------------------------------------------
+# 3. Gate-Level Trojan Detection (analysis_report, trojan_report.json)
+# ----------------------------------------------------------------------------
+- seed_id: gate_aes_suspect_nodes
+  domain_id: gate_trojan_detection
+  title: Gate-level Trojan suspect-node localization
+  objective: Classify a small synthesized-style netlist as infected and identify the trigger and payload nodes.
+  constraints:
+    - Use simple Verilog primitives / assign-level gates.
+    - Include node labels in the hidden ground truth.
+  threat_model: Attacker inserts a rare-activation AND-tree trigger driving an XOR payload near a primary output.
+  ground_truth: Suspect nodes include a rare-trigger AND tree and a payload XOR near the output.
+
+- seed_id: gate_clean_netlist_fp
+  domain_id: gate_trojan_detection
+  title: Trojan-free gate-level netlist (false-positive discipline)
+  objective: Decide whether a small gate-level netlist contains a Trojan and, for a clean design, report no suspect nodes rather than flagging benign rare logic.
+  constraints:
+    - Ship a genuinely clean synthesized-style netlist containing naturally low-activity nets (e.g. reset/init logic) that a naive detector might over-flag.
+    - Ground truth marks the design as clean with an empty suspect-node set.
+  threat_model: A detector that flags any rare net produces false positives on legitimate low-activity logic, wasting analyst effort and eroding trust.
+  ground_truth: The netlist is Trojan-free; the correct report is infected=false with no suspect nodes.
+
+- seed_id: gate_counter_timebomb_nodes
+  domain_id: gate_trojan_detection
+  title: Time-bomb counter Trojan localization in a gate netlist
+  objective: Localize the trigger and payload of a counter-based time-bomb Trojan in a gate-level netlist and label its stages.
+  constraints:
+    - Provide a compact netlist with a free-running counter whose terminal count gates a payload gate.
+    - Use primitive gates / assign statements only; include the counter, comparator, and payload nodes in hidden ground truth.
+  threat_model: Attacker arms a Trojan that fires after a fixed number of clock cycles, corrupting an output once the counter saturates.
+  ground_truth: Trigger nodes are the counter and its terminal-count comparator; the payload is the gate it enables at the output.
+
+# ----------------------------------------------------------------------------
+# 4. Hardware Reverse Engineering (analysis_report, recovered_rtl.v, simulate)
+# ----------------------------------------------------------------------------
+- seed_id: reverse_flattened_adder_tree
+  domain_id: hardware_reverse_engineering
+  title: Recover an adder tree from a flattened netlist
+  objective: Recover word-level intent and RTL from an obfuscated gate/bit-level design that implements an adder tree.
+  constraints:
+    - Include a public flattened netlist and hidden word-level RTL.
+    - Recovered RTL must be simulatable and functionally equivalent to the original I/O behavior.
+  threat_model: The design is delivered flattened/obfuscated with no word-level structure, hiding its arithmetic intent.
+  ground_truth: The design implements a 32-bit adder tree over four 16-bit inputs.
+
+- seed_id: reverse_fsm_from_netlist
+  domain_id: hardware_reverse_engineering
+  title: Recover an FSM from a flattened sequential netlist
+  objective: Reconstruct a readable RTL state machine (states, encoding, and transitions) from a flattened gate-level sequential circuit.
+  constraints:
+    - Ship a small sequential netlist (flip-flops plus next-state logic) with the state encoding obscured.
+    - Recovered RTL must simulate to the same output sequence as the original for the provided input stimulus.
+  threat_model: A flattened netlist hides the control structure, preventing understanding or modification of the controller.
+  ground_truth: The circuit is a small Moore FSM (e.g. a 4-state sequence detector) whose transition/output behavior the recovered RTL must reproduce.
+
+- seed_id: reverse_mux_datapath_intent
+  domain_id: hardware_reverse_engineering
+  title: Recover a MUX-based datapath's word-level function
+  objective: Recover the word-level operation of a bit-sliced datapath that selects between arithmetic results under an opcode.
+  constraints:
+    - Provide a flattened bit-level netlist of a small ALU-like datapath with a select/opcode input.
+    - Recovered RTL must be functionally equivalent across all opcodes for the provided vectors.
+  threat_model: Bit-blasting an ALU into gates hides which opcode maps to which arithmetic/logic operation.
+  ground_truth: The datapath computes add / subtract / bitwise operations selected by a 2-bit opcode over word-level operands.
+
+# ----------------------------------------------------------------------------
+# 5. Side-Channel and Fault Analysis (analysis_report, vulnerability_report.json)
+# ----------------------------------------------------------------------------
+- seed_id: rtl_fault_tmr_candidates
+  domain_id: side_channel_fault_analysis
+  title: SEU hardening candidate identification
+  objective: Analyze RTL and a fault model to identify the flip-flops that require triple-modular-redundancy hardening.
+  constraints:
+    - Include the RTL and a fault model describing single-event-upset assumptions.
+    - Hidden ground truth prioritizes state/control registers over data-pipeline registers.
+  threat_model: Single-event upsets in critical control registers cause silent, unrecoverable state corruption.
+  ground_truth: State/control registers are critical and need TMR; data pipeline registers are lower priority.
+
+- seed_id: rtl_dpa_leaky_sbox
+  domain_id: side_channel_fault_analysis
+  title: Power side-channel leakage localization in an S-box datapath
+  objective: Identify the registers/nets in an RTL crypto datapath whose Hamming-distance transitions leak key-dependent information under a power model.
+  constraints:
+    - Ship RTL for a small S-box/round datapath plus a leakage (Hamming-distance) model.
+    - Hidden ground truth lists the key-dependent leaking registers and the recommended masking/isolation points.
+  threat_model: An attacker uses differential power analysis on switching activity of key-dependent intermediate registers to recover key bits.
+  ground_truth: The leaking nodes are the key-mixing and S-box output registers; hardening isolates or masks those intermediates.
+
+- seed_id: rtl_fault_bypass_check
+  domain_id: side_channel_fault_analysis
+  title: Fault-injection bypass points in a secure-boot comparator
+  objective: Locate the flip-flops/branches in a secure-boot RTL check where a single injected fault would skip verification and grant access.
+  constraints:
+    - Provide RTL for a signature/authentication check plus a single-bit fault model.
+    - Hidden ground truth names the fault-sensitive comparison result registers and control signals.
+  threat_model: An attacker glitches a specific control flip-flop to force the authentication result to "pass" without a valid signature.
+  ground_truth: The critical nodes are the authentication-result register and the branch/enable it gates; hardening adds redundancy or a complementary check.
+
+# ----------------------------------------------------------------------------
+# 6. Logic Deobfuscation / SAT Attack (analysis_report, recovered_key.json)
+# ----------------------------------------------------------------------------
+- seed_id: locked_c880_xor_keys
+  domain_id: logic_deobfuscation_sat
+  title: XOR key-gate localization in a locked combinational netlist
+  objective: Identify the key gates and recover a partial key from a logic-locked combinational netlist.
+  constraints:
+    - Use a compact ISCAS-style combinational netlist.
+    - Include the private key and key-gate labels as hidden ground truth.
+  threat_model: XOR/XNOR key gates protect selected internal signals; the key is partially recoverable from oracle vectors.
+  ground_truth: XOR key gates protect selected internal signals; a partial key is recoverable from input/output oracle vectors.
+
+- seed_id: locked_muxlock_keygates
+  domain_id: logic_deobfuscation_sat
+  title: MUX-based lock key-gate identification
+  objective: Locate the key-controlled multiplexers in a MUX-locked netlist and determine which key value restores correct function.
+  constraints:
+    - Ship a compact combinational netlist locked with key-driven 2:1 multiplexers.
+    - Hidden ground truth records each key-MUX location and the correct select value.
+  threat_model: MUX-based locking hides the correct signal path behind key-controlled selects; the wrong key routes a corrupted signal.
+  ground_truth: Each key gate is a 2:1 MUX selected by a key bit; the correct key routes the functional (non-decoy) input at every lock.
+
+- seed_id: locked_antisat_block
+  domain_id: logic_deobfuscation_sat
+  title: Anti-SAT block localization in a hardened locked netlist
+  objective: Identify the Anti-SAT hardening structure in a locked netlist and report the key-gate locations plus any key bits recoverable despite the SAT-attack resistance.
+  constraints:
+    - Provide a small combinational netlist augmented with an Anti-SAT-style block feeding the functional output.
+    - Hidden ground truth marks the Anti-SAT block gates, its key inputs, and any structurally recoverable key bits.
+  threat_model: Anti-SAT blocks flatten the SAT-attack discriminating-input advantage, forcing structural reasoning rather than pure oracle queries.
+  ground_truth: The Anti-SAT block is the complementary-function structure gating the output; its key inputs and location are the required findings, with recoverable bits noted where the structure exposes them.

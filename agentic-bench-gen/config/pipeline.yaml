@@ -4,15 +4,48 @@ openrouter:
   base_url: https://openrouter.ai/api/v1
   referer_env: OPENROUTER_REFERER
   title_env: OPENROUTER_TITLE
-  timeout_seconds: 120
+  timeout_seconds: 300
   max_retries: 3
+  # Hard ceiling for output tokens. If a response is truncated (finish_reason=
+  # 'length'), the client auto-doubles max_tokens up to this cap before failing.
+  # Sonnet 4.x caps at 64K output.
+  max_output_tokens: 64000
+  # OpenRouter unified reasoning control (global default). Hidden reasoning
+  # tokens are BILLED AS COMPLETION TOKENS and count against each agent's
+  # max_tokens, so a reasoning-default model can burn an agent's whole output
+  # budget before emitting any JSON (seen as truncation at the agent's limit).
+  # Disabled here by default; the thinking agents (architect, tester, analyzer,
+  # arbiter) opt into effort-based thinking per agent in agents.yaml, which
+  # overrides this. For models that cannot disable reasoning use e.g.
+  # `reasoning: {effort: low}`; set `reasoning: null` for the provider default.
+  reasoning:
+    enabled: false
+  # Provider routing pin. OpenRouter serves anthropic/claude-sonnet-5 from 7
+  # endpoints (Anthropic, Amazon Bedrock x3, Google Vertex x2, Azure). The
+  # non-Anthropic ones apply an EXTRA safety layer that content-filters this
+  # benchmark's vulnerability-heavy prompts — seen as finish_reason=
+  # 'content_filter', empty completions (out=1), and responses cut at 1-2K
+  # tokens mislabeled as 'length'. Pinning to Anthropic-direct avoids all of
+  # it; set allow_fallbacks true (or drop this block) only if you prefer
+  # availability over stability.
+  provider:
+    order: ["anthropic"]
+    allow_fallbacks: false
+
+# Per-agent output token limits. Overrides the agent's max_tokens in
+# agents.yaml — lower these to reduce the credits OpenRouter reserves per call.
+# The Tester emits the most (evaluate.py + a harness per requirement).
+agent_max_tokens:
+  tester: 48000
 
 pipeline:
-  expand_seeds: true
+  expand_seeds: false
   max_repair_rounds: 2
-  # HardSecBench-style construction keeps golden artifacts and harnesses in
-  # independent branches, then reconciles failures through the Arbiter.
-  hardsecbench_style: true
+  # After the Tester emits an evaluator, the golden/baseline differential gate
+  # runs immediately; on failure the Tester is retried with the evaluator's
+  # runtime output (never the golden source) up to this many times. Each retry
+  # is re-checked and the best bundle is kept.
+  tester_preflight_retries: 2
   generate_mutants: true
   mutants_per_case: 5
 
@@ -22,3 +55,21 @@ validation:
   require_domain_metric: true
   min_coverage_score: 0.80
   min_mutation_score: 0.50
+
+# Untrusted, LLM-generated evaluate.py + mutant code is executed here. By
+# default it runs inside a single shared, network-isolated Docker container
+# (the case workspace is bind-mounted at /work — the image is never rebuilt
+# per case). Add analysis tools (yosys, iverilog, ...) to docker/Dockerfile as
+# the benchmark grows; evaluators just call them. Set use_docker: false to fall
+# back to host execution (not recommended outside trusted/dev runs).
+execution:
+  use_docker: true
+  docker_image: agentic-bench-gen-runner:latest
+  network: none
+  memory_limit: 2g
+  cpus: "2.0"
+  pids_limit: 512
+  # Evaluators grade behaviorally (g++ compile + execute, iverilog + vvp), so
+  # give each run headroom beyond a pure-Python static pass.
+  timeout_seconds: 120
+  extra_docker_args: []

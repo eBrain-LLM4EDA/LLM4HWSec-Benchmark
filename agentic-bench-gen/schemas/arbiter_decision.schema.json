@@ -4,6 +4,7 @@
   "additionalProperties": false,
   "required": [
     "retain_case",
+    "observed_mutation_score",
     "artifact_to_revise",
     "root_cause",
     "rationale",
@@ -13,13 +14,18 @@
     "retain_case": {
       "type": "boolean"
     },
+    "observed_mutation_score": {
+      "type": "number",
+      "description": "Copy the exact numeric mutation_score value from the validation report verbatim — do not round or estimate"
+    },
     "artifact_to_revise": {
       "type": "string",
       "enum": [
         "none",
         "specification",
         "case_artifacts",
-        "evaluation_framework"
+        "evaluation_framework",
+        "mutants"
       ]
     },
     "root_cause": {
@@ -29,7 +35,8 @@
         "specification_issue",
         "artifact_issue",
         "evaluation_issue",
-        "validation_issue"
+        "validation_issue",
+        "mutation_issue"
       ]
     },
     "rationale": {

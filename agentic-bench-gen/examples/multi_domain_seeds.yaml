@@ -4,7 +4,8 @@
   objective: Add information-flow tracking checks to a small HLS crypto kernel and evaluate leakage prevention.
   constraints:
     - Use C/C++ compatible with PandA-Bambu style HLS.
-    - Include CWE/security-property list and synthesis-oriented checks.
+    - Keep the CWE/security-property list in the hidden spec only (it drives the private evaluation harness and must never appear as a public input artifact).
+    - Include synthesis-oriented checks.
   threat_model: Secret key bytes must not influence public status outputs except through approved ciphertext/data outputs.
   ground_truth: Secret-to-public flows are allowed only through explicitly listed declassified outputs.
 
@@ -43,15 +44,6 @@
   constraints:
     - Include fault model and expected hardening suggestions.
   ground_truth: State/control registers are critical; data pipeline registers have lower priority.
-
-- seed_id: adversarial_uart_trojan
-  domain_id: adversarial_ht_generation
-  title: Detector-stress UART Trojan generation
-  objective: Generate a functionally correct Trojan variant and report evasion strategy against a detector stub.
-  constraints:
-    - Include clean target RTL and detector contract.
-    - Generated Trojan must preserve normal UART tests.
-  ground_truth: Evasion should avoid simple rare-net fanout and suspicious counter signatures.
 
 - seed_id: locked_c880_xor_keys
   domain_id: logic_deobfuscation_sat

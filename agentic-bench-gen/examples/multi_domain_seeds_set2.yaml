@@ -1,0 +1,101 @@
+# Second multi-domain seed set: ONE new task per domain across all six
+# hardware-security domains, distinct from multi_domain_seeds.yaml and
+# multi_domain_seeds_expanded.yaml (no shared seed_ids or task ideas).
+#
+# Each seed carries the fields the IdeaGenerator and Architect consume
+# (seed_id, domain_id, title, objective, constraints, threat_model,
+# ground_truth). Keep the CWE/security-property list in the hidden spec only —
+# it drives the private evaluation harness and must never appear as a public
+# input artifact.
+#
+# Domains and their submission contracts (see src/agentic_bench_gen/domains.py):
+#   hls_security_codegen        -> hardened_artifact (edit C/C++ in place, g++)
+#   rtl_trojan_detection        -> analysis_report (trojan_report.json)
+#   gate_trojan_detection       -> analysis_report (trojan_report.json)
+#   hardware_reverse_engineering-> analysis_report (recovered_rtl.v, simulate)
+#   side_channel_fault_analysis -> analysis_report (vulnerability_report.json)
+#   logic_deobfuscation_sat     -> analysis_report (recovered_key.json)
+
+# ----------------------------------------------------------------------------
+# 1. Security-Aware HLS Code Generation (hardened_artifact, compile_and_run)
+# ----------------------------------------------------------------------------
+- seed_id: hls_constant_time_modexp
+  domain_id: hls_security_codegen
+  title: Constant-time modular exponentiation in an HLS RSA-style kernel
+  objective: Harden an HLS modular-exponentiation kernel so that the sequence of operations and control flow are independent of the secret exponent bits, while preserving the computed result.
+  constraints:
+    - Use C/C++ compatible with PandA-Bambu style HLS (fixed-size arrays, no dynamic allocation, no STL in the kernel body).
+    - The exponent bit loop must be constant-trip-count and perform the same operations every iteration (e.g. an always-multiply / Montgomery-ladder structure); no branch that skips the multiply when an exponent bit is 0.
+    - Keep the pinned modexp() interface and functional correctness (identical result to the reference for every valid input); keep the CWE/security-property list in the hidden spec only.
+  threat_model: An attacker measures per-iteration timing or observes a secret-exponent-dependent branch (square-and-multiply skip) to recover private exponent bits.
+  ground_truth: A correct submission executes the same operation schedule and control path for every exponent value; only the returned residue depends on the inputs.
+
+# ----------------------------------------------------------------------------
+# 2. RTL Hardware Trojan Detection (analysis_report, trojan_report.json)
+# ----------------------------------------------------------------------------
+- seed_id: rtl_opcode_privilege_trojan
+  domain_id: rtl_trojan_detection
+  title: Cheat-code opcode Trojan in a simple processor decode stage
+  objective: Detect dormant logic in a compact instruction-decode module that raises a privilege/enable flag when a specific rare opcode (or opcode sequence) is decoded, and report the trigger and payload nets with a confidence score.
+  constraints:
+    - Keep the RTL under 200 lines of synthesizable Verilog (single decode/control module, no external memories).
+    - The Trojan trigger is a specific reserved/undocumented opcode pattern; the payload asserts a control signal (e.g. privilege_ok or write_enable) that the legitimate decode never asserts for that opcode.
+    - Include a private trigger/payload annotation in the ground truth (exact opcode value and payload net name).
+  threat_model: An attacker who can issue instructions supplies the reserved opcode to silently gain elevated control, bypassing the normal permission logic.
+  ground_truth: The trigger is an equality match on a reserved opcode field; the payload forces a single control/permission output high, diverging from the golden decoder only on that opcode.
+
+# ----------------------------------------------------------------------------
+# 3. Gate-Level Trojan Detection (analysis_report, trojan_report.json)
+# ----------------------------------------------------------------------------
+- seed_id: gate_multiplier_and_tree_trigger
+  domain_id: gate_trojan_detection
+  title: Combinational AND-tree Trojan in a synthesized multiplier netlist
+  objective: Classify a small gate-level multiplier netlist as infected and localize the rarely-satisfiable combinational trigger and the payload gate it drives.
+  constraints:
+    - Use simple Verilog primitives / assign-level gates (AND, OR, NAND, INV, XOR); no behavioral operators.
+    - The trigger is a wide AND-tree over specific internal product/partial-sum nets that is satisfied for only a rare input combination; the payload is a MUX/XOR that flips one product output bit when the trigger fires.
+    - Provide node labels in the ground truth (trigger AND-tree gates and payload gate).
+  ground_truth: Suspect nodes are the rare AND-tree trigger over selected partial-product nets and the payload gate that corrupts one output bit only when the trigger is high.
+
+# ----------------------------------------------------------------------------
+# 4. Hardware Reverse Engineering (analysis_report, recovered_rtl.v, simulate)
+#    Sequential design: exact clock timing is part of the answer, so the
+#    Architect must pin the timing contract in public_spec.interface.
+# ----------------------------------------------------------------------------
+- seed_id: reverse_lfsr_scrambler_from_netlist
+  domain_id: hardware_reverse_engineering
+  title: Recover an 8-bit LFSR scrambler from a flattened netlist
+  objective: Recover word-level RTL for a clocked 8-bit linear-feedback shift-register scrambler from a flattened gate-level netlist, reproducing its exact cycle-by-cycle output stream.
+  constraints:
+    - Ship a public flattened netlist (DFFs plus XOR/INV feedback primitives) and hidden word-level RTL for the recovered LFSR.
+    - The recovered module must be a synchronous design with a synchronous active-high reset that seeds a fixed initial state; the serial output tap and the shift direction must match the reference on every clock cycle after reset.
+    - Metrics should include structural match and cycle-accurate functional equivalence against the reference netlist.
+  ground_truth: The design is a maximal-length 8-bit Fibonacci LFSR with a fixed feedback polynomial and seed; its output bit each cycle is the tap of the current state, and the state advances one shift per rising clock edge.
+
+# ----------------------------------------------------------------------------
+# 5. Side-Channel and Fault Analysis (analysis_report, vulnerability_report.json)
+# ----------------------------------------------------------------------------
+- seed_id: rtl_present_round_register_dpa
+  domain_id: side_channel_fault_analysis
+  title: DPA leakage of round-key bits in a PRESENT cipher datapath
+  objective: Analyze a lightweight PRESENT-style block-cipher RTL and identify the registers whose switching activity (Hamming-weight/Hamming-distance leakage) exposes round-key bits to a differential power analysis attacker, plus hardening suggestions.
+  constraints:
+    - Ship compact synthesizable RTL for one PRESENT round (key-add, S-box layer, permutation) with a registered round state.
+    - Include a leakage/power model (e.g. Hamming distance on the round-state register) in the inputs and expected leaky-register labels in the ground truth.
+    - Suggestions may include masking or register isolation; keep the security-property list in the hidden spec only.
+  threat_model: An attacker collects power traces across many known plaintexts and correlates the round-state register transitions with hypothesized key bits to recover the round key.
+  ground_truth: The round-state register immediately after the key-add/S-box layer is the primary DPA leakage point; pipeline/control registers not carrying key-dependent intermediate values are low priority.
+
+# ----------------------------------------------------------------------------
+# 6. Logic Deobfuscation and SAT Attack Assistance (analysis_report,
+#    recovered_key.json)
+# ----------------------------------------------------------------------------
+- seed_id: locked_sfll_hd_comparator
+  domain_id: logic_deobfuscation_sat
+  title: SFLL-HD key recovery on a stripped-functionality locked comparator
+  objective: Identify the key-controlled restore/strip logic in a small SFLL-HD (stripped-functionality logic locking) protected comparator block and recover the protected key cube from the shipped oracle vectors.
+  constraints:
+    - Use a compact combinational netlist implementing a comparator whose functionality is stripped for a protected input cube and restored by a key-controlled restore unit.
+    - Provide public locking hints (locking scheme = SFLL-HD, key width) and a small set of oracle input/output vectors; keep the private key and protected-cube labels in the ground truth.
+    - Metrics should include key-gate localization accuracy and recovered-key correctness.
+  ground_truth: The key programs a Hamming-distance-based restore unit around one protected input pattern; the correct key equals that protected cube, recoverable by aligning the oracle vectors with the stripped output.

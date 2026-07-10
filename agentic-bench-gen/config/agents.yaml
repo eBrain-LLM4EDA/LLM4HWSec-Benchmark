@@ -1,45 +1,114 @@
+# Per-agent settings.
+#
+# `reasoning` enables extended thinking for an agent (OpenRouter's unified
+# `reasoning` field), controlled by EFFORT level (low/medium/high) — the
+# supported knob for adaptive-thinking models; `max_tokens` thinking budgets
+# are silently unenforced on sonnet-5. Thinking bills INSIDE the agent's
+# max_tokens (only a summary is returned), so reasoning agents get
+# correspondingly larger max_tokens. Anthropic requires
+# temperature=1 when extended thinking is enabled, hence temperature: 1.0 on
+# those agents. Agents without a `reasoning` key inherit the global
+# `openrouter.reasoning` from pipeline.yaml (disabled by default).
+#
+# `per_file: true` switches an agent to two-phase bundle generation: one JSON
+# plan (manifest, no contents), then one plain-text completion per file. No
+# single response has to fit a whole bundle, so output-token limits stop
+# aborting cases (netlists, multi-file harnesses), and a truncated file
+# retries alone instead of regenerating the entire bundle.
+#
+# `plan_max_tokens` (per_file agents only) budgets the phase-1 PLAN call —
+# the manifest never needs the full per-file budget. The plan runs at
+# plan_max_tokens (+ the agent's reasoning budget, doubled when reasoning is
+# on), still capped by max_tokens; per-file emissions always get the full
+# max_tokens. NOTE on reasoning budgets: adaptive-thinking models (sonnet-5)
+# do not enforce `reasoning: {max_tokens: N}` — the full thinking bills inside
+# completion_tokens and only a short summary comes back, so treat these
+# budgets as hints, not caps; thinking scales with the request's max_tokens.
+
 defaults:
   temperature: 0.15
   max_tokens: 16000
 
 agents:
   idea_generator:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/idea_generator.md
     schema: schemas/idea_bundle.schema.json
     temperature: 0.35
+  # The Architect designs the task contract everything else builds on — give
+  # it a bounded thinking budget.
   architect:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/architect.md
     schema: schemas/task_spec.schema.json
-    temperature: 0.15
+    temperature: 1.0
+    max_tokens: 24000
+    reasoning:
+      effort: medium
   artifact_builder:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/artifact_builder.md
     schema: schemas/file_bundle.schema.json
     temperature: 0.10
+    max_tokens: 32000
+    per_file: true
+    # Ships ONLY participant-facing files. The Expert (golden/) and Tester
+    # (evaluation/, tests/) generate their artifacts independently; any such
+    # planned file is dropped before emission so it neither bills nor pollutes
+    # the workspace.
+    allowed_paths: ["README.md", "metadata.json", "inputs/", "submission/"]
   expert:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/expert.md
     schema: schemas/file_bundle.schema.json
     temperature: 0.05
+    max_tokens: 32000
+    reasoning:
+      effort: medium
+    per_file: true
+    # Produces only the private golden solution / oracle.
+    allowed_paths: ["golden/", "ground_truth/"]
+  # The Tester designs the checks — the hardest reasoning in the pipeline —
+  # and emits the largest bundle: it gets both thinking and per-file emission.
+  # Its limit can also be overridden centrally via `agent_max_tokens.tester`
+  # in pipeline.yaml.
   tester:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/tester.md
-    schema: schemas/file_bundle.schema.json
-    temperature: 0.05
+    schema: schemas/tester_bundle.schema.json
+    temperature: 1.0
+    max_tokens: 48000
+    reasoning:
+      effort: high
+    per_file: true
+    # Measured: tester plans truncated at the default 12000x2=24000 budget on
+    # EVERY call (one full-cost wasted response each), then passed at 48000.
+    # 16000 starts the plan call at 32000 (2x with reasoning on) so the first
+    # attempt fits, with one doubling left before max_tokens.
+    plan_max_tokens: 16000
+    # Owns the evaluation framework and private harnesses only.
+    allowed_paths: ["evaluation/", "tests/"]
   mutator:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/mutator.md
     schema: schemas/mutation_bundle.schema.json
+    reasoning:
+      effort: medium
     temperature: 0.15
   analyzer:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/analyzer.md
     schema: schemas/analyzer_report.schema.json
-    temperature: 0.05
+    temperature: 1.0
+    max_tokens: 24000
+    reasoning:
+      effort: medium
+  # Diagnosis quality drives the whole repair loop — worth a thinking budget.
   arbiter:
-    model: anthropic/claude-sonnet-4.5
+    model: anthropic/claude-sonnet-5
     prompt: prompts/arbiter.md
     schema: schemas/arbiter_decision.schema.json
-    temperature: 0.0
+    temperature: 1.0
+    max_tokens: 24000
+    reasoning:
+      effort: medium
