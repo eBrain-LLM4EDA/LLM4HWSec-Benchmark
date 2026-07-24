@@ -92,10 +92,10 @@ class EvaluationRunner:
         """
         Runs evaluation/evaluate.py against a copy of the workspace.
 
-        Copies the full workspace tree to a temp directory so evaluation/,
-        tests/, inputs/, golden/ and ground_truth/ are all available, then
-        overlays mutant_dir files on top (overwriting originals) before
-        executing evaluate.py.  A non-zero exit code is returned as
+        Copies the participant inputs, evaluator, and supporting harness files
+        to a temp directory, excluding private generation artifacts such as the
+        golden solution. It then overlays mutant_dir files on top before
+        executing evaluate.py. A non-zero exit code is returned as
         status="fail", meaning the mutant was detected.
 
         When use_docker is set the evaluator runs inside the shared, network-
@@ -107,17 +107,20 @@ class EvaluationRunner:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
             tmp = Path(tmpdir)
 
-            # Copy full workspace so the evaluator has all supporting files.
-            # Skip mutant staging dirs so we never re-copy a growing pile of
-            # mutant trees into each evaluation run.
+            # Generated evaluators are untrusted. They need public inputs,
+            # submissions, and Tester-owned harnesses, but must never be able to
+            # read the Expert's answer or generation reports from the sandbox.
             shutil.copytree(
                 workspace, tmp, dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns("mutant_*"),
+                ignore=shutil.ignore_patterns(
+                    "mutant_*", "golden", "ground_truth", "expert", "mutants",
+                    "reports", "artifacts",
+                ),
             )
 
             # Overlay mutant files, replacing the originals they target
             if mutant_dir is not None and Path(mutant_dir).exists():
-                shutil.copytree(mutant_dir, tmp, dirs_exist_ok=True)
+                self._copy_overlay(Path(mutant_dir), tmp)
 
             eval_script = tmp / "evaluation" / "evaluate.py"
             if not eval_script.exists():
@@ -132,6 +135,26 @@ class EvaluationRunner:
             if self.use_docker:
                 return self._run_docker(tmp)
             return self._run_host(tmp, eval_script)
+
+    @staticmethod
+    def _copy_overlay(source: Path, destination: Path) -> None:
+        """Copy overlay contents without applying source-root permissions.
+
+        `copytree(..., dirs_exist_ok=True)` copies the source directory's mode
+        onto the destination root. Temporary overlay roots are normally 0700,
+        which made `/work` inaccessible to the non-root Docker user after a
+        golden or mutant overlay. Copying entries individually preserves the
+        already-accessible sandbox root.
+        """
+        for item in source.rglob("*"):
+            if item.is_symlink():
+                raise ValueError(f"Overlay symlinks are not allowed: {item}")
+            target = destination / item.relative_to(source)
+            if item.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+            elif item.is_file():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, target)
 
     def _run_host(self, tmp: Path, eval_script: Path) -> dict[str, Any]:
         start = time.time()

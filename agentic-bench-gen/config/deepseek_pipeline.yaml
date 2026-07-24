@@ -1,0 +1,41 @@
+agents_config: config/agents_deepseek_v4_pro.yaml
+
+openrouter:
+  base_url: https://openrouter.ai/api/v1
+  referer_env: OPENROUTER_REFERER
+  title_env: OPENROUTER_TITLE
+  timeout_seconds: 300
+  max_retries: 3
+  max_output_tokens: 64000
+  reasoning:
+    enabled: false
+  provider:
+    sort: price
+    allow_fallbacks: true
+
+agent_max_tokens:
+  tester: 48000
+
+pipeline:
+  expand_seeds: false
+  max_repair_rounds: 2
+  tester_preflight_retries: 2
+  generate_mutants: true
+  mutants_per_case: 5
+
+validation:
+  require_case_readme: true
+  require_requirement_harnesses: true
+  require_domain_metric: true
+  min_coverage_score: 0.80
+  min_mutation_score: 0.50
+
+execution:
+  use_docker: true
+  docker_image: agentic-bench-gen-runner:latest
+  network: none
+  memory_limit: 2g
+  cpus: "2.0"
+  pids_limit: 512
+  timeout_seconds: 120
+  extra_docker_args: []

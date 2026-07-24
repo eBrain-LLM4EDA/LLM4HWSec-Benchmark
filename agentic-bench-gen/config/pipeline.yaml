@@ -10,14 +10,9 @@ openrouter:
   # 'length'), the client auto-doubles max_tokens up to this cap before failing.
   # Sonnet 4.x caps at 64K output.
   max_output_tokens: 64000
-  # OpenRouter unified reasoning control (global default). Hidden reasoning
-  # tokens are BILLED AS COMPLETION TOKENS and count against each agent's
-  # max_tokens, so a reasoning-default model can burn an agent's whole output
-  # budget before emitting any JSON (seen as truncation at the agent's limit).
-  # Disabled here by default; the thinking agents (architect, tester, analyzer,
-  # arbiter) opt into effort-based thinking per agent in agents.yaml, which
-  # overrides this. For models that cannot disable reasoning use e.g.
-  # `reasoning: {effort: low}`; set `reasoning: null` for the provider default.
+  # Disable extended reasoning globally. Both agent configuration files also
+  # set this explicitly so no configured model can inherit provider-default
+  # thinking or be re-enabled by a pipeline-only override.
   reasoning:
     enabled: false
   # Provider routing pin. OpenRouter serves anthropic/claude-sonnet-5 from 7

@@ -26,6 +26,7 @@
   constraints:
     - Use simple Verilog primitives/assign gates.
     - Include node labels in ground truth.
+  threat_model: An attacker inserts a low-activity trigger cone and output-corrupting payload after synthesis; the analyst must distinguish it from legitimate rare logic.
   ground_truth: Suspect nodes include rare trigger AND tree and payload XOR near output.
 
 - seed_id: reverse_flattened_adder_tree
@@ -35,6 +36,7 @@
   constraints:
     - Include public netlist and hidden word-level RTL.
     - Metrics should include structural match and functional equivalence hooks.
+  threat_model: A flattened implementation conceals arithmetic structure and signal grouping from an analyst who must recover maintainable RTL.
   ground_truth: The design implements a 32-bit adder tree over four 16-bit inputs.
 
 - seed_id: rtl_fault_tmr_candidates
@@ -43,6 +45,7 @@
   objective: Analyze RTL and fault model to identify vulnerable flip-flops requiring TMR.
   constraints:
     - Include fault model and expected hardening suggestions.
+  threat_model: A single-event upset can corrupt persistent control state and cause silent malfunction unless critical registers are identified for redundancy.
   ground_truth: State/control registers are critical; data pipeline registers have lower priority.
 
 - seed_id: locked_c880_xor_keys
@@ -52,5 +55,5 @@
   constraints:
     - Use a compact ISCAS-style combinational netlist.
     - Include private key and key-gate labels.
+  threat_model: An attacker has the locked netlist and limited oracle vectors and attempts to identify lock gates and recover key bits.
   ground_truth: XOR key gates protect selected internal signals; partial key is recoverable from oracle vectors.
-

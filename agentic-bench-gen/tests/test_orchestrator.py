@@ -2,6 +2,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import yaml
+
 from agentic_bench_gen.agents import FileBundleAgent, JsonAgent
 from agentic_bench_gen.orchestrator import (
     _deterministic_retain,
@@ -14,6 +16,8 @@ from agentic_bench_gen.orchestrator import (
     _round_quality_key,
     _scrub_public_security_ids,
     _snapshot_workspace,
+    _validate_mutant_candidate,
+    _validate_seed_rows,
     load_agents,
 )
 
@@ -113,6 +117,33 @@ def test_load_agents_selects_bundle_mode_and_reasoning(tmp_path):
     assert not isinstance(agents["thinker"], FileBundleAgent)
     assert agents["thinker"].config.reasoning == {"max_tokens": 8000}
     assert agents["plain"].config.reasoning is None
+
+
+def test_all_repository_agent_configs_disable_reasoning():
+    root = Path(__file__).resolve().parents[1]
+    pipeline = yaml.safe_load((root / "config" / "pipeline.yaml").read_text())
+    assert pipeline["openrouter"]["reasoning"] == {"enabled": False}
+
+    for filename in ("agents.yaml", "agents_free.yaml", "agents_deepseek_v4_pro.yaml"):
+        config = yaml.safe_load((root / "config" / filename).read_text())
+        assert config["defaults"]["reasoning"] == {"enabled": False}
+        assert all("reasoning" not in agent for agent in config["agents"].values())
+
+
+def test_deepseek_v4_pro_config_uses_one_model_and_compatible_routing():
+    root = Path(__file__).resolve().parents[1]
+    agents = yaml.safe_load((root / "config" / "agents_deepseek_v4_pro.yaml").read_text())
+    pipeline = yaml.safe_load((root / "config" / "deepseek_pipeline.yaml").read_text())
+
+    assert {agent["model"] for agent in agents["agents"].values()} == {
+        "deepseek/deepseek-v4-pro"
+    }
+    assert pipeline["agents_config"] == "config/agents_deepseek_v4_pro.yaml"
+    assert pipeline["openrouter"]["reasoning"] == {"enabled": False}
+    assert pipeline["openrouter"]["provider"] == {
+        "sort": "price",
+        "allow_fallbacks": True,
+    }
 
 
 def test_plan_mutation_targets_covers_every_sr_at_least_once():
@@ -373,3 +404,50 @@ def test_arbiter_schema_accepts_mutants_revision():
         "rationale": "the SR1 mutant is semantically equivalent to the golden",
         "revision_instructions": "regenerate the SR1 mutant with an observable defect",
     }, schema)
+
+
+def test_seed_validation_rejects_duplicate_ids_and_unknown_domains():
+    seed = {
+        "seed_id": "s1", "domain_id": "hls_security_codegen", "title": "t",
+        "objective": "o", "constraints": ["c"], "threat_model": "tm", "ground_truth": "gt",
+    }
+    assert _validate_seed_rows([seed]) == [seed]
+    try:
+        _validate_seed_rows([seed, dict(seed)])
+    except ValueError as exc:
+        assert "Duplicate seed_id" in str(exc)
+    else:
+        raise AssertionError("duplicate seed_id was accepted")
+
+    bad = dict(seed, seed_id="s2", domain_id="not_a_domain")
+    try:
+        _validate_seed_rows([bad])
+    except ValueError as exc:
+        assert "Unknown domain" in str(exc)
+    else:
+        raise AssertionError("unknown domain was accepted")
+
+
+def test_mutator_candidate_must_match_target_and_submission_path():
+    valid = {"mutants": [{
+        "mutant_id": "m1", "operator": "constant_change",
+        "target_requirement_id": "SR1", "expected_detection": "x",
+        "files": [{"path": "inputs/code.c", "content": "bad"}],
+    }]}
+    assert _validate_mutant_candidate(valid, "SR1", {"inputs/code.c"})["mutant_id"] == "m1"
+
+    wrong_target = {"mutants": [dict(valid["mutants"][0], target_requirement_id="FR1")]}
+    try:
+        _validate_mutant_candidate(wrong_target, "SR1", {"inputs/code.c"})
+    except ValueError as exc:
+        assert "required target" in str(exc)
+    else:
+        raise AssertionError("wrong target was accepted")
+
+    unsafe = {"mutants": [dict(valid["mutants"][0], files=[{"path": "../code.c", "content": "bad"}])]}
+    try:
+        _validate_mutant_candidate(unsafe, "SR1", {"inputs/code.c"})
+    except ValueError as exc:
+        assert "unsafe path" in str(exc)
+    else:
+        raise AssertionError("unsafe mutant path was accepted")

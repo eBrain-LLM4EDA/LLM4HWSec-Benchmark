@@ -8,6 +8,13 @@ from typing import Any
 from .utils import write_json, write_text
 
 
+def is_safe_relative_path(path: str | Path) -> bool:
+    """Return whether a generated path is non-empty, relative, and contained."""
+    raw = str(path).strip()
+    candidate = Path(raw)
+    return bool(raw) and raw != "." and not candidate.is_absolute() and ".." not in candidate.parts
+
+
 class Workspace:
     """Sandboxed benchmark case workspace."""
 
@@ -16,6 +23,8 @@ class Workspace:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def path(self, rel: str | Path) -> Path:
+        if not is_safe_relative_path(rel):
+            raise ValueError(f"Unsafe workspace path: {rel!r}")
         candidate = (self.root / rel).resolve()
         try:
             candidate.relative_to(self.root)
@@ -44,4 +53,3 @@ class Workspace:
         if dst_path.exists():
             shutil.rmtree(dst_path)
         shutil.copytree(self.root, dst_path)
-

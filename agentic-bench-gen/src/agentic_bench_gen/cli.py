@@ -39,7 +39,9 @@ def main() -> None:
         # reproduces the dynamic (baseline/differential/mutation) verdict rather
         # than the static estimate.
         cfg_path = Path(args.config)
-        exec_cfg = read_yaml(cfg_path).get("execution", {}) if cfg_path.exists() else {}
+        if not cfg_path.is_file():
+            parser.error(f"Pipeline config does not exist: {cfg_path}")
+        exec_cfg = read_yaml(cfg_path).get("execution", {})
         runner = BenchGenOrchestrator._build_runner(exec_cfg)
         runner.check_available()
         report = validate_benchmark_case(

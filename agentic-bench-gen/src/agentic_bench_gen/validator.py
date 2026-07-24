@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import re
 import tempfile
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 from .domains import DomainProfile, get_domain_profile, submission_paths
 from .runner import EvaluationRunner
-from .workspace import Workspace
+from .workspace import Workspace, is_safe_relative_path
 
 # Requirement IDs may contain hyphens (e.g. "SR-1") in addition to word chars,
 # so match a permissive identifier rather than just [\w].
@@ -221,18 +222,59 @@ def validate_benchmark_case(
         issues.append({"issue": "missing_evaluator_readme", "path": "evaluation/README.md"})
 
     req_ids = _requirement_ids(task_spec)
+    requirement_entries = _requirement_entries(task_spec)
+    requirement_counts = Counter(req_id for req_id, _ in requirement_entries if req_id)
+    for req_id, count in sorted(requirement_counts.items()):
+        if count > 1:
+            issues.append({
+                "issue": "duplicate_requirement_id",
+                "detail": f"{req_id} is declared {count} times; requirement IDs must be unique across FRs and SRs",
+            })
+    for req_id, req_type in requirement_entries:
+        if not req_id:
+            issues.append({
+                "issue": "missing_requirement_id",
+                "detail": f"A {req_type} requirement has an empty ID",
+            })
     if not tester_bundle.get("requirement_map"):
         issues.append({
             "issue": "missing_requirement_map",
             "detail": "tester_bundle has no requirement_map — coverage cannot be established and every requirement will be reported uncovered",
         })
-    mapped_ids = {str(item.get("requirement_id", "")) for item in tester_bundle.get("requirement_map", [])}
+    requirement_map = tester_bundle.get("requirement_map", []) or []
+    mapped_id_list = [str(item.get("requirement_id", "")).strip() for item in requirement_map]
+    mapped_ids = {req_id for req_id in mapped_id_list if req_id}
+    for req_id, count in sorted(Counter(mapped_id_list).items()):
+        if req_id and count > 1:
+            issues.append({
+                "issue": "duplicate_requirement_mapping",
+                "detail": f"requirement_map contains {count} entries for {req_id}; each requirement must map exactly once",
+            })
+    declared_types = {req_id: req_type for req_id, req_type in requirement_entries if req_id}
+    for item in requirement_map:
+        req_id = str(item.get("requirement_id", "")).strip()
+        mapped_type = str(item.get("requirement_type", "")).strip()
+        if req_id and req_id not in req_ids:
+            issues.append({
+                "issue": "unknown_requirement_mapping",
+                "detail": f"requirement_map references undeclared requirement {req_id}",
+            })
+        elif req_id and mapped_type and mapped_type != declared_types.get(req_id):
+            issues.append({
+                "issue": "requirement_type_mismatch",
+                "detail": f"{req_id} is declared as {declared_types.get(req_id)} but mapped as {mapped_type}",
+            })
     for req_id in sorted(req_ids - mapped_ids):
         issues.append({"issue": "missing_requirement_harness", "detail": f"No harness maps to {req_id}"})
 
+    mutant_paths = [
+        str(file_obj.get("path", ""))
+        for mutant in (mutation_bundle or {}).get("mutants", [])
+        for file_obj in mutant.get("files", [])
+    ]
     forbidden_abs = [
-        path for path in list(files) + list(test_files) + list(expert_files)
-        if Path(path).is_absolute() or ".." in Path(path).parts
+        path for path in list(files) + list(test_files) + list(expert_files) + mutant_paths
+        if not is_safe_relative_path(path)
     ]
     for path in forbidden_abs:
         issues.append({"issue": "unsafe_output_path", "path": path})
@@ -258,17 +300,15 @@ def validate_benchmark_case(
                     "issue": "golden_rejected",
                     "detail": "evaluate.py rejects the expert golden solution (PASS expected) — the evaluator is buggy/over-strict or grades the wrong file",
                 })
-            else:
-                # The golden run passes every check, so its stdout must carry a
-                # [TEST] marker for every mapped requirement; missing ids mean
-                # the requirement_map and the script disagree on requirement
-                # naming (e.g. "SR-1" vs "SR1") and coverage stats are bogus.
-                missing_markers = sorted(mapped_ids - _parse_marker_ids(golden.get("stdout", "")))
-                if missing_markers:
-                    issues.append({
-                        "issue": "requirement_id_mismatch",
-                        "detail": f"evaluate.py never emitted [TEST] PASS/FAIL for {missing_markers} on the golden run — requirement_map ids and the script's marker ids must match exactly",
-                    })
+            # Whether or not the run exits successfully, its stdout must carry
+            # a marker for every mapped requirement. Missing IDs localize naming
+            # mismatches that a generic golden_rejected issue cannot explain.
+            missing_markers = sorted(mapped_ids - _parse_marker_ids(golden.get("stdout", "")))
+            if missing_markers:
+                issues.append({
+                    "issue": "requirement_id_mismatch",
+                    "detail": f"evaluate.py never emitted [TEST] PASS/FAIL for {missing_markers} on the golden run — requirement_map ids and the script's marker ids must match exactly",
+                })
         vuln = differential.get("vulnerable_run")
         if vuln is not None and not vuln.get("ok", False):
             issues.append({
@@ -291,19 +331,29 @@ def validate_benchmark_case(
                     f"result is meaningful. stdout: {(_b.get('stdout') or '')[:400]}"
                 ),
             })
-        # Raise issues for dead SR checks and uncovered SR requirements
+        # Every atomic FR and SR must demonstrate discrimination. Treating FR
+        # gaps as advisory produced nominally passing cases with untested public
+        # behavior, contrary to the requirement-level HardSecBench gate.
         for check_id in dms.get("dead_checks", []):
-            if check_id.startswith("SR"):
-                issues.append({
-                    "issue": "dead_check",
-                    "detail": f"{check_id} never emitted [TEST] FAIL on any mutant — provides no discrimination",
-                })
+            issues.append({
+                "issue": "dead_check",
+                "detail": f"{check_id} never emitted [TEST] FAIL on its targeting mutants — provides no discrimination",
+            })
         for req_id in dms.get("uncovered_requirements", []):
-            if req_id.startswith("SR"):
-                issues.append({
-                    "issue": "uncovered_requirement",
-                    "detail": f"{req_id} has no mutant that was detected — vulnerability coverage gap",
-                })
+            issues.append({
+                "issue": "uncovered_requirement",
+                "detail": f"{req_id} has no targeting mutant detected by its own check — requirement coverage gap",
+            })
+        for req_id in dms.get("untested_requirements", []):
+            issues.append({
+                "issue": "untested_requirement",
+                "detail": f"{req_id} has no targeting mutant, so its harness discrimination is unproven",
+            })
+        if dms.get("error_runs", 0):
+            issues.append({
+                "issue": "mutation_execution_error",
+                "detail": f"{dms['error_runs']} mutant run(s) crashed, timed out, or used unsafe paths; mutation quality is incomplete",
+            })
     else:
         mutation_score = _estimate_mutation_score(mutation_bundle or {}, mapped_ids)
 
@@ -320,6 +370,7 @@ def validate_benchmark_case(
         "mutation_score_meaningful": (
             not dms.get("baseline_failed", False)
             and differential.get("status") != "fail"
+            and not dms.get("error_runs", 0)
         ),
         "requirement_count": len(req_ids),
         "case_files": sorted(files),
@@ -374,10 +425,18 @@ def quality_report(
 
 
 def _requirement_ids(task_spec: dict[str, Any]) -> set[str]:
+    return {req_id for req_id, _ in _requirement_entries(task_spec) if req_id}
+
+
+def _requirement_entries(task_spec: dict[str, Any]) -> list[tuple[str, str]]:
     public = task_spec.get("public_spec", {})
     hidden = task_spec.get("hidden_spec", {})
-    reqs = list(public.get("functional_requirements", [])) + list(hidden.get("security_requirements", []))
-    return {str(req.get("id", "")).strip() for req in reqs if str(req.get("id", "")).strip()}
+    return [
+        *[(str(req.get("id", "")).strip(), "functional")
+          for req in public.get("functional_requirements", []) or []],
+        *[(str(req.get("id", "")).strip(), "security")
+          for req in hidden.get("security_requirements", []) or []],
+    ]
 
 
 def _estimate_requirement_coverage(req_ids: set[str], mapped_ids: set[str]) -> float:
@@ -454,18 +513,26 @@ def _run_outcome(result: dict[str, Any]) -> str:
     if status in {"error", "timeout"}:
         return "error"
     stdout = result.get("stdout", "") or ""
-    if _parse_failing_checks(stdout):
-        return "detected"
     if "[TEST] FAIL: SETUP" in stdout:
         return "error"
     if "Traceback (most recent call last)" in (result.get("stderr") or ""):
         return "error"
-    return "detected"
+    if _parse_failing_checks(stdout):
+        return "detected"
+    # A non-zero exit without a requirement FAIL marker is an evaluator or
+    # infrastructure failure, not evidence that a mutant was detected.
+    return "error"
 
 
 def _write_overlay(stage: Path, overlay: dict[str, str]) -> None:
     for rel, content in overlay.items():
-        p = stage / rel
+        if not is_safe_relative_path(rel):
+            raise ValueError(f"Unsafe overlay path: {rel!r}")
+        p = (stage / rel).resolve()
+        try:
+            p.relative_to(stage.resolve())
+        except ValueError as exc:
+            raise ValueError(f"Overlay path escapes staging directory: {rel!r}") from exc
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
 
@@ -510,7 +577,7 @@ def _compute_dynamic_mutation_score(
 
     mutants = mutation_bundle.get("mutants", [])
     if not mutants:
-        return _empty
+        return {**_empty, "untested_requirements": sorted(mapped_ids)}
 
     eval_script = ws.root / "evaluation" / "evaluate.py"
     if not eval_script.exists():
@@ -568,28 +635,39 @@ def _compute_dynamic_mutation_score(
             if target_id not in mapped_ids:
                 continue
 
+            # Targeting is a property of the generated mutant, not of whether
+            # its evaluator run happens to complete successfully.
+            per_req[target_id]["mutants_targeting"] += 1
+
             mutant_dir = stage / f"mutant_{idx}"
             mutant_dir.mkdir(parents=True, exist_ok=True)
-            _write_overlay(mutant_dir, overlay)
-            for f in mutant.get("files", []):
-                p = mutant_dir / f.get("path", "")
-                p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_text(f.get("content", ""))
+            try:
+                _write_overlay(mutant_dir, overlay)
+                _write_overlay(mutant_dir, {
+                    str(file_obj.get("path", "")): str(file_obj.get("content", ""))
+                    for file_obj in mutant.get("files", [])
+                })
+            except ValueError:
+                error_runs += 1
+                continue
 
             res = runner.run_evaluator(ws.root, mutant_dir)
             outcome = _run_outcome(res)
+            failing_checks = _parse_failing_checks(res.get("stdout", ""))
+            for check_id in failing_checks:
+                check_activation[check_id] = check_activation.get(check_id, 0) + 1
             if outcome == "error":
                 error_runs += 1
                 continue
 
             total_valid += 1
-            per_req[target_id]["mutants_targeting"] += 1
-            if outcome == "detected":
+            # A mutant targeting SR2 is not evidence for SR2 when only FR1
+            # rejects it. Keep global rejection and target-specific activation
+            # distinct; the quality score uses the latter.
+            if outcome == "detected" and target_id in failing_checks:
                 detected_count += 1
                 per_req[target_id]["mutants_detected"] += 1
                 per_req[target_id]["covered"] = True
-                for check_id in _parse_failing_checks(res.get("stdout", "")):
-                    check_activation[check_id] = check_activation.get(check_id, 0) + 1
 
     score = round(detected_count / total_valid, 3) if total_valid > 0 else 0.0
 
@@ -712,13 +790,28 @@ def _compute_differential_validation(
         stage = Path(stage_root)
         _write_overlay(stage, overlay)
         golden_result = runner.run_evaluator(ws.root, stage)
-    golden_ok = golden_result.get("status") == "pass"
+    req_ids = _requirement_ids(task_spec)
+    golden_markers = _parse_marker_ids(golden_result.get("stdout", ""))
+    golden_ok = (
+        golden_result.get("status") == "pass"
+        and not _parse_failing_checks(golden_result.get("stdout", ""))
+        and "[TEST] FAIL: SETUP" not in (golden_result.get("stdout", "") or "")
+        and "Traceback (most recent call last)" not in (golden_result.get("stderr", "") or "")
+        and (not req_ids or req_ids.issubset(golden_markers))
+    )
 
     # Vulnerable submission: the workspace as-is is the insecure/naive baseline,
     # which a correct evaluator must reject. A clean "fail" is required — a
     # timeout or infrastructure error is not evidence of rejection.
     vuln_result = runner.run_evaluator(ws.root)
-    vuln_ok = vuln_result.get("status") == "fail"
+    vulnerable_fails = _parse_failing_checks(vuln_result.get("stdout", ""))
+    vuln_ok = (
+        vuln_result.get("status") == "fail"
+        and bool(vulnerable_fails)
+        and (not req_ids or bool(vulnerable_fails.intersection(req_ids)))
+        and "[TEST] FAIL: SETUP" not in (vuln_result.get("stdout", "") or "")
+        and "Traceback (most recent call last)" not in (vuln_result.get("stderr", "") or "")
+    )
 
     return {
         "status": "pass" if (golden_ok and vuln_ok) else "fail",

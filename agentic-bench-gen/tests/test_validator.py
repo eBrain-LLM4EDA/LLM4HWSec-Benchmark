@@ -636,11 +636,18 @@ def test_report_domain_end_to_end_grades_submission_not_inputs():
         ],
     }
     expert_bundle = {"files": [{"path": "golden/trojan_report.json", "content": '{"trigger": ["n42"]}'}]}
-    mutation_bundle = {"mutants": [{
-        "mutant_id": "M1",
-        "target_requirement_id": "SR1",
-        "files": [{"path": "submission/trojan_report.json", "content": '{"trigger": ["n99"]}'}],
-    }]}
+    mutation_bundle = {"mutants": [
+        {
+            "mutant_id": "M1",
+            "target_requirement_id": "SR1",
+            "files": [{"path": "submission/trojan_report.json", "content": '{"trigger": ["n99"]}'}],
+        },
+        {
+            "mutant_id": "M2",
+            "target_requirement_id": "FR1",
+            "files": [{"path": "submission/trojan_report.json", "content": '{"trigger": []}'}],
+        },
+    ]}
     with tempfile.TemporaryDirectory() as tmp:
         ws = Workspace(tmp)
         ws.write_text("inputs/aes.v", "module aes(); endmodule")
@@ -707,8 +714,9 @@ sys.exit(0)
 
     assert result["error_runs"] == 1
     assert result["score"] == 0.0  # excluded, not counted as detected
-    assert "SR1" not in result["dead_checks"]
-    assert "SR1" in result["untested_requirements"]
+    assert "SR1" in result["dead_checks"]
+    assert "SR1" in result["uncovered_requirements"]
+    assert "SR1" not in result["untested_requirements"]
 
 
 def test_validator_flags_requirement_id_mismatch():
@@ -762,8 +770,8 @@ sys.exit(0)
 
     issues = {i["issue"] for i in report["issues"]}
     assert "requirement_id_mismatch" in issues
-    assert "golden_rejected" not in issues
-    assert "vulnerable_accepted" not in issues
+    assert "golden_rejected" in issues
+    assert "vulnerable_accepted" in issues
 
 
 def test_validator_raises_baseline_failed_issue_without_golden():
@@ -1101,3 +1109,70 @@ def test_mutation_score_meaningful_flag_false_when_differential_fails_without_mu
     assert report["differential"]["status"] == "fail"
     assert report["mutation_score"] == 0.0
     assert report["mutation_score_meaningful"] is False
+
+
+def test_mutant_rejected_by_wrong_check_gets_no_target_credit():
+    evaluator = """\
+import pathlib, sys
+src = pathlib.Path("inputs/code.c").read_text()
+print("[TEST] PASS: SR2")
+if "BREAK_FR1" in src:
+    print("[TEST] FAIL: FR1: broken behavior")
+    sys.exit(1)
+print("[TEST] PASS: FR1")
+sys.exit(0)
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Workspace(tmp)
+        ws.write_text("inputs/code.c", "int f(void) { return 0; }")
+        ws.write_text("evaluation/evaluate.py", evaluator)
+        result = _compute_dynamic_mutation_score({"mutants": [{
+            "mutant_id": "M1",
+            "target_requirement_id": "SR2",
+            "files": [{"path": "inputs/code.c", "content": "// BREAK_FR1"}],
+        }]}, {"FR1", "SR2"}, ws)
+
+    assert result["score"] == 0.0
+    assert result["check_activation"]["FR1"] == 1
+    assert result["per_requirement_coverage"]["SR2"]["covered"] is False
+    assert "SR2" in result["dead_checks"]
+    assert "SR2" in result["uncovered_requirements"]
+
+
+def test_unsafe_mutant_path_is_an_error_and_cannot_escape(tmp_path):
+    ws = Workspace(tmp_path / "case")
+    ws.write_text("inputs/code.c", "int f(void) { return 0; }")
+    ws.write_text(
+        "evaluation/evaluate.py",
+        'print("[TEST] PASS: SR1")\n',
+    )
+    result = _compute_dynamic_mutation_score({"mutants": [{
+        "mutant_id": "M1",
+        "target_requirement_id": "SR1",
+        "files": [{"path": "../escape.c", "content": "bad"}],
+    }]}, {"SR1"}, ws)
+
+    assert result["error_runs"] == 1
+    assert result["score"] == 0.0
+    assert not (tmp_path / "escape.c").exists()
+
+
+def test_validator_flags_duplicate_requirement_ids_and_mappings():
+    spec, bundle, tester = _leak_case()
+    spec["hidden_spec"]["security_requirements"][0]["id"] = "FR1"
+    tester["requirement_map"].append(dict(tester["requirement_map"][0]))
+    report = validate_benchmark_case(spec, bundle, tester)
+    kinds = _issue_kinds(report)
+    assert "duplicate_requirement_id" in kinds
+    assert "duplicate_requirement_mapping" in kinds
+
+
+def test_differential_does_not_count_setup_failure_as_vulnerable_rejection():
+    evaluator = 'import sys\nprint("[TEST] FAIL: SETUP: missing tool")\nsys.exit(1)\n'
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Workspace(tmp)
+        ws.write_text("inputs/code.c", _VULN_SRC)
+        ws.write_text("evaluation/evaluate.py", evaluator)
+        diff = _compute_differential_validation(_DIFF_SPEC, _SECURE_GOLDEN, ws)
+    assert diff["status"] == "fail"
+    assert diff["vulnerable_run"]["ok"] is False

@@ -55,6 +55,7 @@
     - Use simple Verilog primitives / assign-level gates (AND, OR, NAND, INV, XOR); no behavioral operators.
     - The trigger is a wide AND-tree over specific internal product/partial-sum nets that is satisfied for only a rare input combination; the payload is a MUX/XOR that flips one product output bit when the trigger fires.
     - Provide node labels in the ground truth (trigger AND-tree gates and payload gate).
+  threat_model: An attacker hides a combinational trigger among legitimate multiplier partial products and corrupts one product bit only for a rare operand pair.
   ground_truth: Suspect nodes are the rare AND-tree trigger over selected partial-product nets and the payload gate that corrupts one output bit only when the trigger is high.
 
 # ----------------------------------------------------------------------------
@@ -70,6 +71,7 @@
     - Ship a public flattened netlist (DFFs plus XOR/INV feedback primitives) and hidden word-level RTL for the recovered LFSR.
     - The recovered module must be a synchronous design with a synchronous active-high reset that seeds a fixed initial state; the serial output tap and the shift direction must match the reference on every clock cycle after reset.
     - Metrics should include structural match and cycle-accurate functional equivalence against the reference netlist.
+  threat_model: A flattened sequential netlist hides the feedback polynomial, seed, shift direction, and output tap needed to understand an undocumented scrambler.
   ground_truth: The design is a maximal-length 8-bit Fibonacci LFSR with a fixed feedback polynomial and seed; its output bit each cycle is the tap of the current state, and the state advances one shift per rising clock edge.
 
 # ----------------------------------------------------------------------------
@@ -98,4 +100,5 @@
     - Use a compact combinational netlist implementing a comparator whose functionality is stripped for a protected input cube and restored by a key-controlled restore unit.
     - Provide public locking hints (locking scheme = SFLL-HD, key width) and a small set of oracle input/output vectors; keep the private key and protected-cube labels in the ground truth.
     - Metrics should include key-gate localization accuracy and recovered-key correctness.
+  threat_model: An attacker uses the locked netlist and a limited functional oracle to identify the protected cube and recover the restore key despite SFLL-HD hardening.
   ground_truth: The key programs a Hamming-distance-based restore unit around one protected input pattern; the correct key equals that protected cube, recoverable by aligning the oracle vectors with the stripped output.

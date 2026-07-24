@@ -10,13 +10,24 @@ from .llm import OpenRouterLLM, _reasoning_active
 from .schemas import load_schema, validate_or_raise
 from .utils import read_text, render_template
 from .logio import console
+from .workspace import is_safe_relative_path
 
 def _path_allowed(path: str, allowed: list[str] | None) -> bool:
     """True when `path` is an exact allowed name or lives under an allowed
-    directory prefix. None disables the restriction (everything allowed)."""
+    directory prefix. None disables ownership restrictions, but never path
+    containment checks."""
+    if not is_safe_relative_path(path):
+        return False
     if not allowed:
         return True
-    return any(path == a or path.startswith(a) for a in allowed)
+    normalized = Path(path).as_posix()
+    for entry in allowed:
+        if entry.endswith("/"):
+            if normalized.startswith(entry) and normalized != entry.rstrip("/"):
+                return True
+        elif normalized == entry:
+            return True
+    return False
 
 
 @dataclass

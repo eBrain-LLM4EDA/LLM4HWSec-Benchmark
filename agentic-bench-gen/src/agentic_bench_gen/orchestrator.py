@@ -8,12 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from .agents import AgentConfig, FileBundleAgent, JsonAgent
-from .domains import profile_as_prompt_context
+from .domains import get_domain_profile, profile_as_prompt_context, submission_paths
 from .llm import OpenRouterLLM
 from .runner import DockerConfig, EvaluationRunner
 from .utils import read_yaml, slugify
 from .validator import _CODE_EXTS, _CWE_ID_RE, _SR_ID_RE, _compute_differential_validation, quality_report, validate_benchmark_case
-from .workspace import Workspace
+from .workspace import Workspace, is_safe_relative_path
 from .logio import console
 
 def _resolve_max_tokens(name: str, spec: dict[str, Any], cfg_defaults: dict[str, Any],
@@ -78,6 +78,33 @@ def _unique_workspace(out_root: Path, task_id: str) -> Path:
         idx += 1
 
 
+def _validate_seed_rows(raw: Any) -> list[dict[str, Any]]:
+    """Validate raw seed YAML before expensive model calls begin."""
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("Seed YAML must contain a non-empty top-level list.")
+    required_strings = ("seed_id", "domain_id", "title", "objective", "threat_model", "ground_truth")
+    seeds: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, seed in enumerate(raw, 1):
+        if not isinstance(seed, dict):
+            raise ValueError(f"Seed row {index} must be a mapping, got {type(seed).__name__}.")
+        for field in required_strings:
+            if not isinstance(seed.get(field), str) or not str(seed[field]).strip():
+                raise ValueError(f"Seed row {index} has missing or empty {field!r}.")
+        seed_id = str(seed["seed_id"]).strip()
+        if seed_id in seen:
+            raise ValueError(f"Duplicate seed_id {seed_id!r} in seed YAML.")
+        seen.add(seed_id)
+        get_domain_profile(str(seed["domain_id"]).strip())
+        constraints = seed.get("constraints")
+        if not isinstance(constraints, list) or not constraints or not all(
+            isinstance(item, str) and item.strip() for item in constraints
+        ):
+            raise ValueError(f"Seed {seed_id!r} must have a non-empty list of string constraints.")
+        seeds.append(seed)
+    return seeds
+
+
 class BenchGenOrchestrator:
     """Domain-modular agentic benchmark generation pipeline."""
 
@@ -128,7 +155,7 @@ class BenchGenOrchestrator:
         )
 
     def generate(self, seed_path: str | Path, out_dir: str | Path) -> list[Path]:
-        seeds = read_yaml(seed_path)
+        seeds = _validate_seed_rows(read_yaml(seed_path))
         out_root = Path(out_dir).resolve()
         out_root.mkdir(parents=True, exist_ok=True)
         # Mirror everything printed from here on into a per-run log file, so a
@@ -344,6 +371,10 @@ class BenchGenOrchestrator:
                         (str(m.get("operator", "")), str(m.get("target_requirement_id", "")))
                         for m in mutation_bundle["mutants"]
                     }
+                    allowed_mutant_paths = set(submission_paths(
+                        get_domain_profile(domain_id),
+                        [str(item) for item in task_spec.get("public_spec", {}).get("input_artifacts", [])],
+                    ))
                     for m_idx, required_target in enumerate(targets):
                         console.print(f"  -> generating mutant {m_idx + 1}/{len(targets)} (target {required_target})...")
                         slot_error = "mutator returned no mutants"
@@ -391,16 +422,22 @@ class BenchGenOrchestrator:
                                 slot_error = str(exc)
                                 console.print(f"  -> [yellow]mutant generation failed (attempt {attempt + 1}):[/yellow] {exc}")
                                 continue
-                            if not m_bundle.get("mutants"):
-                                console.print(f"  -> [yellow]mutator returned no mutants (attempt {attempt + 1}); retrying...[/yellow]")
+                            try:
+                                mutant = _validate_mutant_candidate(
+                                    m_bundle, required_target, allowed_mutant_paths,
+                                )
+                            except ValueError as exc:
+                                slot_error = str(exc)
+                                console.print(
+                                    f"  -> [yellow]invalid mutant (attempt {attempt + 1}):[/yellow] {exc}"
+                                )
                                 continue
-                            mutant = m_bundle["mutants"][0]
                             pair = (str(mutant.get("operator", "")), str(mutant.get("target_requirement_id", "")))
                             if pair in used_pairs and attempt < 2:
                                 console.print(f"  -> [yellow]duplicate pair {pair}, retrying (attempt {attempt + 1})...[/yellow]")
                                 continue
                             used_pairs.add(pair)
-                            mutation_bundle["mutants"].extend(m_bundle["mutants"])
+                            mutation_bundle["mutants"].append(mutant)
                             break
                         else:
                             # All attempts failed: the requirement loses its
@@ -454,9 +491,10 @@ class BenchGenOrchestrator:
                         "issues": [{
                             "artifact": "pipeline",
                             "severity": "medium",
-                            "description": f"Analyzer LLM call failed; no coherence review this round: {exc}",
-                        }],
-                        "synthetic": True,
+                                "description": f"Analyzer LLM call failed; no coherence review this round: {exc}",
+                            }],
+                        "requirement_results": [],
+                        "recommendations": ["Retry the Analyzer coherence review before publication."],
                     }
                 ws.write_json("reports/analyzer_report.json", analyzer_report)
                 ws.write_json(f"reports/analyzer_report_r{round_idx}.json", analyzer_report)
@@ -508,34 +546,34 @@ class BenchGenOrchestrator:
                     )
                     arbiter_decision = {
                         "retain_case": _retain,
+                        "observed_mutation_score": float(validation.get("mutation_score", 0.0)),
                         "artifact_to_revise": "none",
-                        "failure_localization": "",
+                        "root_cause": "none" if _retain else "validation_issue",
+                        "rationale": f"Arbiter LLM call failed; deterministic retention result is {_retain}: {exc}",
                         "revision_instructions": "",
-                        "synthetic": f"Arbiter LLM call failed: {exc}",
                     }
 
-                # Guard: if the Arbiter hallucinated the mutation_score, auto-correct retain_case
-                # in BOTH directions based on the actual, deterministically-computed scores.
+                # Retention is a deterministic quality-gate decision. The
+                # Arbiter diagnoses repairs, but cannot override measured
+                # validation/analyzer status even when it copied the score.
                 _actual_ms = float(validation["mutation_score"])
                 _reported_ms = float(arbiter_decision.get("observed_mutation_score", _actual_ms))
+                _actually_passes = _deterministic_retain(validation, analyzer_report, _min_ms, _min_cs)
                 if abs(_reported_ms - _actual_ms) > 0.01:
                     console.print(
                         f"  [yellow]Arbiter score mismatch: reported {_reported_ms}, "
-                        f"actual {_actual_ms} — re-evaluating retain decision[/yellow]"
+                        f"actual {_actual_ms}.[/yellow]"
                     )
-                    _actually_passes = _deterministic_retain(validation, analyzer_report, _min_ms, _min_cs)
-                    if _actually_passes and not arbiter_decision.get("retain_case", False):
-                        arbiter_decision["retain_case"] = True
-                        arbiter_decision["_score_corrected"] = (
-                            f"hallucinated {_reported_ms}, actual {_actual_ms} — retained on actual scores"
-                        )
-                        console.print("  [green]Corrected: case retained based on actual scores.[/green]")
-                    elif not _actually_passes and arbiter_decision.get("retain_case", False):
-                        arbiter_decision["retain_case"] = False
-                        arbiter_decision["_score_corrected"] = (
-                            f"hallucinated {_reported_ms}, actual {_actual_ms} — un-retained on actual scores"
-                        )
-                        console.print("  [yellow]Corrected: case un-retained; actual scores miss thresholds.[/yellow]")
+                if bool(arbiter_decision.get("retain_case", False)) != _actually_passes:
+                    arbiter_decision["retain_case"] = _actually_passes
+                    correction = (
+                        f"Deterministic quality gates override retain_case to {_actually_passes} "
+                        f"(actual mutation_score={_actual_ms}, validation_status={validation.get('status')})."
+                    )
+                    arbiter_decision["rationale"] = (
+                        str(arbiter_decision.get("rationale", "")).rstrip() + " " + correction
+                    ).strip()
+                    console.print(f"  [yellow]{correction}[/yellow]")
 
                 ws.write_json(f"reports/arbiter_decision_r{round_idx}.json", arbiter_decision)
 
@@ -775,6 +813,35 @@ def _plan_mutation_targets(sr_ids: list[str], fr_ids: list[str], requested: int)
         targets.append(fill[idx % len(fill)])
         idx += 1
     return targets
+
+
+def _validate_mutant_candidate(
+    bundle: dict[str, Any],
+    required_target: str,
+    allowed_paths: set[str],
+) -> dict[str, Any]:
+    """Enforce the one-call/one-target Mutator contract before persistence."""
+    mutants = bundle.get("mutants") or []
+    if len(mutants) != 1:
+        raise ValueError(f"Mutator must return exactly one mutant, got {len(mutants)}.")
+    mutant = mutants[0]
+    actual_target = str(mutant.get("target_requirement_id", "")).strip()
+    if actual_target != required_target:
+        raise ValueError(
+            f"Mutator targeted {actual_target!r}; required target is {required_target!r}."
+        )
+    files = mutant.get("files") or []
+    if not files:
+        raise ValueError("Mutator returned a mutant with no files.")
+    for file_obj in files:
+        path = str(file_obj.get("path", "")).strip()
+        if not is_safe_relative_path(path):
+            raise ValueError(f"Mutator returned unsafe path {path!r}.")
+        if path not in allowed_paths:
+            raise ValueError(
+                f"Mutator path {path!r} is outside submission paths {sorted(allowed_paths)}."
+            )
+    return mutant
 
 
 def _plan_mutant_repair(

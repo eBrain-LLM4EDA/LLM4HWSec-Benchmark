@@ -279,6 +279,16 @@ def test_file_bundle_agent_raises_when_all_files_out_of_scope(tmp_path):
         agent.run({"x": "y"})
 
 
+def test_file_bundle_agent_drops_path_traversal_even_without_scope_rules(tmp_path):
+    plan = {"manifest": [
+        {"path": "../escape.txt", "purpose": "unsafe"},
+        {"path": "inputs/a.c", "purpose": "safe"},
+    ]}
+    agent = _make_agent_with_allowed(tmp_path, plan, None)
+    bundle = agent.run({"x": "y"})
+    assert [item["path"] for item in bundle["files"]] == ["inputs/a.c"]
+
+
 def test_plan_budget_is_not_doubled_without_reasoning(tmp_path):
     prompt = tmp_path / "p.md"
     prompt.write_text("Build {{x}}.")

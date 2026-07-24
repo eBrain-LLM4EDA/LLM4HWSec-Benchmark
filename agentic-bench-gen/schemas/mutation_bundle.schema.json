@@ -6,6 +6,28 @@
     "mutants"
   ],
   "properties": {
+    "skipped": {
+      "type": "string"
+    },
+    "generation_failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_requirement_id",
+          "error"
+        ],
+        "properties": {
+          "target_requirement_id": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "mutants": {
       "type": "array",
       "items": {

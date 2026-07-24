@@ -26,7 +26,7 @@ The generation flow is:
 3. `ArtifactBuilder`: creates participant-facing inputs (a functional but intentionally insecure baseline).
 4. `Expert`: creates the secure golden implementation or private oracle (mirroring input filenames under `golden/`).
 5. `Tester`: creates atomic requirement-level harnesses and the `evaluation/evaluate.py` grader.
-6. `Mutator`: creates corrupted golden submissions (one per security requirement, at minimum) for quality filtering.
+6. `Mutator`: creates corrupted golden submissions targeting every functional and security requirement for quality filtering.
 7. `Validator`: deterministic checks — required files, metrics, harness coverage, the differential gate, and dynamic mutation scoring.
 8. `Analyzer`: LLM review of coherence and evaluability.
 9. `Arbiter`: retains the case or sends one artifact back for repair.
@@ -37,7 +37,7 @@ The generation flow is:
 `evaluation/evaluate.py` grades a **submission**. What counts as the submission is set per domain by its *submission contract* (`domains.py`), which has two kinds:
 
 - **`hardened_artifact`** (e.g. `hls_security_codegen`): the participant edits a code input in place; the evaluator grades the file(s) under `inputs/`. The shipped `inputs/` code is the intentionally-insecure baseline submission.
-- **`analysis_report`** (the other six domains): the participant does not touch the inputs; they submit a separate answer file under `submission/` (e.g. `submission/trojan_report.json`, `submission/recovered_key.json`). The evaluator *reads* the input artifacts for reference and *grades* the answer file. The case ships a naive/empty starter answer as the baseline submission.
+- **`analysis_report`** (the other five domains): the participant does not touch the inputs; they submit a separate answer file under `submission/` (e.g. `submission/trojan_report.json`, `submission/recovered_key.json`). The evaluator *reads* the input artifacts for reference and *grades* the answer file. The case ships a naive/empty starter answer as the baseline submission.
 
 In both cases:
 
@@ -57,7 +57,7 @@ The Mutator deliberately never sees the evaluator's check code or detection stra
 
 ### Token budgets
 
-File-emitting agents (`per_file: true` in agents.yaml) generate bundles in two phases — a JSON plan (manifest, no contents), then one plain-text completion per file — so no single response has to fit an entire bundle under an output-token cap, and a truncated file retries alone. Thinking agents (architect, tester, analyzer, arbiter) run with a bounded extended-reasoning budget (`reasoning: {max_tokens: ...}` in agents.yaml, counted inside the agent's `max_tokens`); all other agents inherit the global `openrouter.reasoning` default (disabled). Per-call token usage (including reasoning tokens) is printed to the console.
+File-emitting agents (`per_file: true` in agents.yaml) generate bundles in two phases — a JSON plan (manifest, no contents), then one plain-text completion per file — so no single response has to fit an entire bundle under an output-token cap, and a truncated file retries alone. Extended reasoning is explicitly disabled in the pipeline and both agent configuration files. Per-call token usage is printed to the console.
 
 Generated workspaces contain:
 
@@ -112,10 +112,23 @@ need the toolchain on PATH).
 
 ## Generate
 
+`examples/multi_domain_seeds_set3.yaml` contains the 30 newest scenarios, with
+five seeds in each supported domain. Seed files are validated before any model
+calls for required fields, known domains, non-empty constraints, and unique IDs
+within the file.
+
 ```bash
 agentic-bench-gen --config config/pipeline.yaml generate \
-  --seed examples/multi_domain_seeds.yaml \
+  --seed examples/multi_domain_seeds_set3.yaml \
   --out runs/demo
+```
+
+To use DeepSeek V4 Pro for every agent instead of the default model:
+
+```bash
+agentic-bench-gen --config config/deepseek_pipeline.yaml generate \
+  --seed examples/multi_domain_seeds_set3.yaml \
+  --out runs/deepseek-v4-pro
 ```
 
 ## Validate

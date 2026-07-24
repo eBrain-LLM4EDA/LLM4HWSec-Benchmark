@@ -1,0 +1,351 @@
+# Third multi-domain seed set: five new tasks per domain across all six
+# hardware-security domains. These scenarios are distinct from the existing
+# seed bundles and carry every field required by the seed validator.
+
+# ----------------------------------------------------------------------------
+# 1. Security-Aware HLS Code Generation
+# ----------------------------------------------------------------------------
+- seed_id: hls_stale_bram_data_clearing
+  domain_id: hls_security_codegen
+  title: Clear stale packet data in a reused HLS buffer
+  objective: Harden a variable-length packet kernel so bytes left from a longer prior invocation cannot appear in the output of a shorter invocation.
+  constraints:
+    - Keep a fixed 32-byte input/output interface and an explicit length in the range 0 through 32.
+    - Initialize every output byte on every invocation; preserve the specified transformation for indices below length.
+    - Use fixed-trip-count loops and no dynamic allocation; compile with g++ against a two-invocation harness.
+  threat_model: Consecutive callers share an accelerator, and a short request can observe secret bytes retained from a previous longer request.
+  ground_truth: After processing length N, output positions N through 31 are zero regardless of all prior calls, while positions below N contain the specified packet transformation.
+
+- seed_id: hls_dma_range_overflow
+  domain_id: hls_security_codegen
+  title: Overflow-safe DMA range validation
+  objective: Harden a DMA descriptor checker so base-plus-length wraparound cannot bypass an allowed-region boundary check.
+  constraints:
+    - Keep a pinned validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) interface.
+    - Reject zero-length, overflowing, and partially out-of-region ranges without performing memory access.
+    - Use fixed-width integer operations compatible with C++ HLS and compile with g++.
+  threat_model: A malicious descriptor chooses a near-maximum base and wrapped end address to make an out-of-region transfer appear in bounds.
+  ground_truth: Validation succeeds exactly when length is nonzero, base is at or above region_start, and the mathematical half-open interval [base, base+length) lies inside the region without 32-bit overflow.
+
+- seed_id: hls_key_indexed_lookup
+  domain_id: hls_security_codegen
+  title: Fixed-pattern lookup for a key-indexed table
+  objective: Rewrite a small substitution kernel so secret-dependent table indices do not change its memory-access trace while preserving all output values.
+  constraints:
+    - Use a fixed 16-entry table and a pinned lookup(uint8_t value, uint8_t key) interface.
+    - Every call must read all 16 entries in the same order and select the result without a secret-dependent branch.
+    - Fixed-trip-count loops only; no dynamic allocation or STL in the kernel body.
+  threat_model: An attacker observes on-chip memory addresses or cache activity and correlates the accessed table entry with secret key bits.
+  ground_truth: The output equals table[(value xor key) & 0x0f], but the sequence and count of table reads and branches are invariant across key values.
+
+- seed_id: hls_privileged_command_dispatch
+  domain_id: hls_security_codegen
+  title: Authorization-safe accelerator command dispatcher
+  objective: Harden an HLS command dispatcher so unprivileged requests cannot invoke register-write operations while ordinary commands remain functional.
+  constraints:
+    - Keep a pinned dispatch(command, privilege, argument, state, status) interface with fixed-width scalar fields.
+    - Unknown or unauthorized commands return a deterministic error and leave all persistent state unchanged.
+    - No dynamic allocation; compile and execute with g++.
+  threat_model: An untrusted caller submits a privileged opcode through the normal command port to modify protected accelerator configuration.
+  ground_truth: Only privilege=1 permits the two documented configuration-write opcodes; all other privilege/opcode combinations either perform their public operation or return the pinned error without state changes.
+
+- seed_id: hls_cross_context_state_reset
+  domain_id: hls_security_codegen
+  title: Isolate persistent HLS state between security contexts
+  objective: Harden a stateful streaming kernel so changing the caller context clears residual accumulator and history state before processing new data.
+  constraints:
+    - Keep a pinned process(context_id, reset, input, output) interface and deterministic reset semantics.
+    - A context change must clear state before the current input is incorporated; repeated calls in one context retain the documented state.
+    - Use only static fixed-width state and synthesizable control flow.
+  threat_model: Two tenants time-share an accelerator and the second tenant infers the first tenant's data from retained state after a context switch.
+  ground_truth: Output after reset or a context-ID change depends only on the current input and initial state; same-context sequences preserve the specified running accumulation.
+
+# ----------------------------------------------------------------------------
+# 2. RTL Hardware Trojan Detection
+# ----------------------------------------------------------------------------
+- seed_id: rtl_clean_debug_controller
+  domain_id: rtl_trojan_detection
+  title: Trojan-free RTL with legitimate debug logic
+  objective: Analyze a compact controller containing disabled-by-default debug and diagnostic paths and correctly report that it has no Hardware Trojan.
+  constraints:
+    - Include low-activity counters and a documented debug-enable input that may look suspicious to a naive detector.
+    - Keep RTL under 200 lines and elaboratable with iverilog -g2012.
+    - Hidden ground truth marks the design clean with empty trigger and payload sets.
+  threat_model: Over-sensitive detection flags legitimate rare debug behavior, producing false positives that make benchmark accuracy meaningless.
+  ground_truth: Every debug path is gated by the documented debug_enable port and has no secret source or undocumented functional effect; infected=false is the correct classification.
+
+- seed_id: rtl_parameter_width_trojan
+  domain_id: rtl_trojan_detection
+  title: Parameter-dependent Trojan in a configurable FIFO
+  objective: Detect malicious RTL that is dormant at the default FIFO width but corrupts the full flag when instantiated at one specific non-default width.
+  constraints:
+    - Provide a synthesizable parameterized FIFO under 200 lines with at least three supported widths.
+    - The trigger must depend on the elaboration parameter and a rare pointer state; hidden labels identify both trigger and payload expressions.
+    - The public analysis must consider multiple legal parameterizations.
+  threat_model: Validation uses only default parameters, allowing an attacker to hide a deployment-specific payload in a generate block.
+  ground_truth: The malicious generate branch exists only for WIDTH=24; at the labeled pointer pattern it suppresses full for one cycle, allowing an overwrite.
+
+- seed_id: rtl_stream_handshake_trojan
+  domain_id: rtl_trojan_detection
+  title: Rare-sequence streaming handshake Trojan
+  objective: Identify trigger and payload logic that drops one transfer after a rare valid-ready backpressure sequence in an AXI-stream-like pipeline.
+  constraints:
+    - Use a compact single-clock ready/valid module with a legitimate one-entry skid buffer.
+    - The trigger is a precise four-cycle handshake history and the payload suppresses one output-valid pulse.
+    - Hidden ground truth names the history register bits and output-valid gate.
+  threat_model: An attacker can shape backpressure to activate a denial or data-loss payload while ordinary traffic tests continue to pass.
+  ground_truth: The trigger shift register recognizes valid-ready history 1011; its terminal match gates m_valid low for exactly one otherwise valid transfer.
+
+- seed_id: rtl_reset_order_trojan
+  domain_id: rtl_trojan_detection
+  title: Reset-order-triggered privilege Trojan
+  objective: Detect dormant logic that asserts a protected mode when two documented reset inputs are released in an unusual order.
+  constraints:
+    - Provide self-contained multi-reset RTL with explicit synchronizers and under 200 lines of synthesizable SystemVerilog.
+    - Normal simultaneous reset behavior must remain correct; hidden labels identify the release-order tracker and protected-mode assignment.
+    - Elaborate with iverilog -g2012.
+  threat_model: An attacker controls board-level reset sequencing and uses an uncommon release order to enter an undocumented privileged mode.
+  ground_truth: Releasing peripheral reset exactly two cycles before core reset sets the labeled sticky trigger; that trigger forces protected_mode high until the next full reset.
+
+- seed_id: rtl_distributed_trigger_exfiltration
+  domain_id: rtl_trojan_detection
+  title: Distributed multi-module exfiltration Trojan
+  objective: Detect a Trojan whose trigger predicates are split across three small RTL modules and whose payload leaks one secret bit on a status output.
+  constraints:
+    - Ship a top module and three submodules, each locally plausible and jointly under 250 lines.
+    - No single submodule contains the complete trigger; hidden ground truth identifies all trigger fragments and the payload mux.
+    - Keep all modules elaboratable together with iverilog -g2012.
+  threat_model: Modular review misses malicious behavior because each trigger fragment appears benign unless cross-module signal flow is reconstructed.
+  ground_truth: Counter terminal, command match, and sticky error predicates combine at top level; when all are true, a payload mux selects secret_reg[0] onto status_out.
+
+# ----------------------------------------------------------------------------
+# 3. Gate-Level Trojan Detection
+# ----------------------------------------------------------------------------
+- seed_id: gate_clean_scan_chain
+  domain_id: gate_trojan_detection
+  title: Clean DFT netlist with rare scan controls
+  objective: Distinguish legitimate scan-enable and test-mode gates from Trojan trigger logic in a clean synthesized-style netlist.
+  constraints:
+    - Include DFFs, scan multiplexers, and a documented test_mode input with naturally low switching activity.
+    - Use primitive gates and assign statements only; hidden ground truth marks the netlist clean.
+    - The correct report must contain no suspect trigger or payload nodes.
+  threat_model: Rare-net heuristics misclassify legitimate design-for-test structures as Trojans and produce costly false alarms.
+  ground_truth: All scan-related nodes are reachable only through documented test_mode and affect only scan shifting; infected=false with empty node lists is correct.
+
+- seed_id: gate_sequential_fsm_trigger
+  domain_id: gate_trojan_detection
+  title: Sequential trigger Trojan in a gate-level controller
+  objective: Localize a multi-cycle FSM trigger synthesized into DFF and primitive logic and the output-corrupting payload it enables.
+  constraints:
+    - Implement the trigger as a four-state sequence recognizer using DFF primitives, not a single combinational comparator.
+    - Use only gate primitives and explicit DFF cells; provide exact hidden trigger-state and payload node labels.
+    - Keep the netlist small enough for exhaustive short-sequence simulation.
+  threat_model: An attacker hides activation state across several flip-flops so combinational rare-net analysis does not reveal the complete trigger.
+  ground_truth: The labeled trigger DFFs recognize input sequence 1101 across four cycles; the terminal state enables an XOR on data_out[2].
+
+- seed_id: gate_clock_enable_payload
+  domain_id: gate_trojan_detection
+  title: Clock-enable suppression Trojan
+  objective: Identify a rare trigger cone whose payload suppresses a critical register-bank clock enable rather than directly corrupting data.
+  constraints:
+    - Model clock gating with a safe enable cell or explicit enable mux, avoiding generated glitchy clocks.
+    - Use primitive gates and DFFs and include hidden labels for the rare trigger and enable-suppression gate.
+    - Normal data outputs remain correct until the trigger activates.
+  threat_model: A denial-of-service Trojan freezes security state updates while leaving combinational outputs apparently normal.
+  ground_truth: A rare four-input NAND cone drives the labeled enable mask; when active it forces update_en low and freezes the authentication state register.
+
+- seed_id: gate_parity_only_payload
+  domain_id: gate_trojan_detection
+  title: Integrity-status-only Trojan payload
+  objective: Detect a Trojan that leaves the main datapath unchanged but suppresses a parity error output for one rare corrupted word.
+  constraints:
+    - Include a clean parity tree and a small rare trigger cone in a primitive-gate netlist.
+    - Hidden ground truth identifies the trigger and the final parity-error masking gate.
+    - Evaluation must not require corruption of a primary data output.
+  threat_model: An attacker masks integrity alarms so downstream logic accepts corrupted data while ordinary functional comparisons still pass.
+  ground_truth: The main data bus is untouched; the labeled trigger forces parity_error low through the final AND gate when data equals the protected rare pattern.
+
+- seed_id: gate_aoi_absorbed_trigger
+  domain_id: gate_trojan_detection
+  title: Trigger absorbed into mapped AOI cells
+  objective: Localize Trojan trigger and payload logic after synthesis has absorbed a rare comparator into AOI/OAI complex-cell instances.
+  constraints:
+    - Use a small technology-mapped cell vocabulary including AOI21, OAI22, INV, XOR, and DFF.
+    - Avoid preserving high-level trigger signal names; hidden ground truth maps the relevant cell instances and nets.
+    - The payload flips one control output only on the trigger condition.
+  threat_model: Technology mapping obscures the recognizable AND-tree shape used by structural Trojan detectors.
+  ground_truth: Two labeled AOI/OAI cells jointly implement the rare state-and-input match; their output controls the labeled payload XOR on control_out.
+
+# ----------------------------------------------------------------------------
+# 4. Hardware Reverse Engineering
+# ----------------------------------------------------------------------------
+- seed_id: reverse_fifo_controller
+  domain_id: hardware_reverse_engineering
+  title: Recover a synchronous FIFO controller and memory semantics
+  objective: Reconstruct readable RTL for a flattened four-entry FIFO including pointer updates, full/empty flags, and registered read timing.
+  constraints:
+    - Ship a DFF/mux netlist with a small memory modeled as registers and a synchronous active-high reset.
+    - Pin that read_data is registered one rising edge after an accepted read and flags reflect post-edge occupancy.
+    - Grade cycle-by-cycle behavior under writes, reads, simultaneous operations, overflow attempts, and underflow attempts.
+  threat_model: Flattening hides storage boundaries and timing semantics needed to integrate or audit an undocumented queue.
+  ground_truth: The design is a depth-4, width-8 FIFO with two-bit pointers plus occupancy count; writes and reads occur only when not full or empty, and read_data has one-cycle latency.
+
+- seed_id: reverse_pipelined_saturating_mac
+  domain_id: hardware_reverse_engineering
+  title: Recover a pipelined signed saturating MAC
+  objective: Lift a bit-level sequential netlist into RTL implementing signed multiply-accumulate with saturation and exact pipeline latency.
+  constraints:
+    - Use signed 8-bit operands, a signed 20-bit accumulator, and a two-stage registered pipeline.
+    - Pin reset, valid propagation, saturation limits, and the exact two-rising-edge input-to-output latency.
+    - Include vectors around positive and negative overflow boundaries.
+  threat_model: Bit-level arithmetic and pipeline registers obscure signedness, overflow behavior, and latency from an analyst.
+  ground_truth: On each accepted input the design computes sat20(acc + signed(a)*signed(b)); result_valid and result appear exactly two rising edges later.
+
+- seed_id: reverse_crc16_serial
+  domain_id: hardware_reverse_engineering
+  title: Recover CRC polynomial and bit-order convention
+  objective: Reconstruct a serial CRC-16 generator from a flattened XOR/DFF network, including polynomial, seed, reflection, and output convention.
+  constraints:
+    - Provide a synchronous serial-bit interface with enable and synchronous active-high reset.
+    - Pin that crc_out reflects current registered state after each enabled rising edge and is stable when enable is low.
+    - Grade known messages and random bit streams cycle by cycle.
+  threat_model: An undocumented integrity block cannot be interoperated with until its polynomial and bit-processing convention are recovered.
+  ground_truth: The circuit implements CRC-16/CCITT-FALSE polynomial 0x1021, seed 0xffff, MSB-first input, no reflection, and no final XOR.
+
+- seed_id: reverse_spi_shift_controller
+  domain_id: hardware_reverse_engineering
+  title: Recover an SPI-like shift controller
+  objective: Recover RTL and protocol timing for a flattened eight-bit serial shift controller with chip-select, clock-enable, and done signaling.
+  constraints:
+    - Use one system clock and a clock-enable pulse rather than a generated serial clock.
+    - Pin that input is sampled and output advances on each enabled rising edge while chip_select is active; done pulses after the eighth bit.
+    - Grade reset, aborted transfers, and back-to-back words cycle by cycle.
+  threat_model: Gate-level state and counters hide framing and edge semantics of an undocumented peripheral interface.
+  ground_truth: The controller shifts MSB first, samples serial_in before shifting on each enabled edge, emits the current MSB, and asserts done for one cycle after eight accepted bits.
+
+- seed_id: reverse_round_robin_arbiter
+  domain_id: hardware_reverse_engineering
+  title: Recover a stateful round-robin arbiter
+  objective: Reconstruct a four-request arbiter and identify its priority rotation and grant timing from a flattened sequential netlist.
+  constraints:
+    - Pin synchronous active-high reset, registered one-hot grants, and one-cycle request-to-grant latency.
+    - Include persistent last-grant state and vectors with simultaneous and continuously asserted requests.
+    - Grade fairness and exact grants over long cycle sequences.
+  threat_model: Flattening hides arbitration policy and persistent priority state needed to reason about fairness and starvation.
+  ground_truth: Grants are registered one-hot; search starts after the previous winner, wraps modulo four, and the pointer advances only when a request is granted.
+
+# ----------------------------------------------------------------------------
+# 5. Side-Channel and Fault Analysis
+# ----------------------------------------------------------------------------
+- seed_id: rtl_masked_sbox_recombination_leak
+  domain_id: side_channel_fault_analysis
+  title: Recombination flaw in a first-order masked S-box
+  objective: Identify where two individually masked shares are recombined in one cycle and create first-order switching leakage.
+  constraints:
+    - Ship compact RTL with two random shares, registered nonlinear processing, and a Hamming-distance leakage model.
+    - Include benign share registers and one flawed recombination register to test localization precision.
+    - Hidden ground truth names the exact recombination net and register.
+  threat_model: A power observer exploits glitches or transitions where both shares meet to recover the unmasked sensitive intermediate.
+  ground_truth: The labeled recombine_xor net and recombined_sbox_q register depend directly on the unmasked S-box value; isolated share registers are not primary first-order leakage points.
+
+- seed_id: rtl_variable_latency_divider
+  domain_id: side_channel_fault_analysis
+  title: Timing leakage in an early-terminating divider
+  objective: Analyze RTL for a divider whose done latency reveals the position of the most significant secret operand bit and recommend a fixed-latency repair.
+  constraints:
+    - Provide a small iterative unsigned divider with start, done, quotient, and an internal iteration counter.
+    - Include a timing observation model and traces for operands with different leading-zero counts.
+    - Hidden ground truth identifies the early-termination condition and counter/control registers.
+  threat_model: An attacker measures start-to-done cycles and infers secret operand magnitude or leading-zero count.
+  ground_truth: The early_done comparator on the remaining dividend causes variable latency; removing it and running all word-width iterations yields the required fixed schedule.
+
+- seed_id: rtl_auth_clock_glitch_window
+  domain_id: side_channel_fault_analysis
+  title: Clock-glitch window in authentication state transition
+  objective: Locate the state and result registers where one skipped update can move an authentication controller from compare directly to grant.
+  constraints:
+    - Ship a synchronous FSM, cycle-indexed transient clock-skip model, and expected normal trace.
+    - Limit the model to one skipped register update while combinational logic continues to evaluate.
+    - Hidden ground truth gives the vulnerable cycle and critical state/result signals.
+  threat_model: An attacker injects a narrow clock glitch during authentication and causes inconsistent updates that grant access without a valid comparison.
+  ground_truth: Skipping auth_result_q while state_q advances at the compare-to-decide boundary leaves a stale pass value; redundant state/result encoding or fail-closed transition coupling blocks it.
+
+- seed_id: rtl_redundant_counter_common_mode_fault
+  domain_id: side_channel_fault_analysis
+  title: Common-mode fault in duplicated security counters
+  objective: Determine why two supposedly redundant timeout counters can be corrupted by one shared-enable fault and identify the common-mode node.
+  constraints:
+    - Include duplicated counters, comparison logic, and a single-bit transient fault model over nets and registers.
+    - The two counters must be separate but share one enable-generation cone.
+    - Hidden ground truth identifies the shared enable and the timeout decision path.
+  threat_model: A single injected fault on common control defeats both redundant computations and suppresses a security timeout.
+  ground_truth: Faulting shared_count_en low stalls both counters identically, so their equality monitor remains satisfied while timeout never asserts; independently generated enables are required.
+
+- seed_id: rtl_second_order_share_leakage
+  domain_id: side_channel_fault_analysis
+  title: Higher-order leakage across masked-share registers
+  objective: Identify a pair of share registers that appears safe under individual first-order analysis but leaks when their transitions are combined.
+  constraints:
+    - Ship two-share masked datapath RTL and both first-order and pairwise Hamming-distance leakage models.
+    - Include enough candidate register pairs to measure localization precision.
+    - Hidden ground truth identifies the temporally aligned leaking pair and safe decoys.
+  threat_model: An attacker combines two centered power samples to cancel masking randomness and recover a secret-dependent intermediate.
+  ground_truth: share0_stage2_q and share1_stage2_q are updated in the same cycle and their joint transition correlates with the unmasked value; retiming one share breaks the alignment.
+
+# ----------------------------------------------------------------------------
+# 6. Logic Deobfuscation and SAT Assistance
+# ----------------------------------------------------------------------------
+- seed_id: locked_cyclic_feedback
+  domain_id: logic_deobfuscation_sat
+  title: Cyclic logic-locking cone localization
+  objective: Identify key-controlled feedback edges in a cyclically locked combinational netlist and recover a key that restores acyclic functional behavior.
+  constraints:
+    - Use a compact gate netlist with two key-controlled feedback edges and a supplied combinational oracle.
+    - Public hints state key width and that cyclic locking is present; hidden ground truth lists feedback gates and the correct key.
+    - Reports must distinguish lock-induced cycles from ordinary reconvergent paths.
+  threat_model: Cyclic locking causes naive SAT unrolling to loop or admit spurious fixed points, obstructing key recovery.
+  ground_truth: Two labeled key MUXes close feedback edges when their bits are wrong; key 10 selects both forward functional paths and removes all combinational cycles.
+
+- seed_id: locked_sarlock_point_function
+  domain_id: logic_deobfuscation_sat
+  title: SARLock point-function key recovery
+  objective: Localize a SARLock-style comparator cone and recover its protected input pattern from netlist structure and oracle vectors.
+  constraints:
+    - Provide a small combinational netlist with a key comparator whose output corrupts one functional output on a single protected input.
+    - Include key width and sparse oracle vectors publicly; keep comparator nodes and key hidden.
+    - Grade both structure localization and exact recovered key.
+  threat_model: A point-function lock minimizes discriminating inputs, making ordinary oracle-guided SAT iterations ineffective.
+  ground_truth: The labeled XNOR-and comparator detects input equal to key 101101; its output XORs result[0], and that protected cube is the correct recovered key.
+
+- seed_id: locked_sequential_keyload_fsm
+  domain_id: logic_deobfuscation_sat
+  title: Sequential lock with key-loaded initial state
+  objective: Recover the key sequence and lock-register locations for an FSM that becomes functional only after the correct multi-cycle key load.
+  constraints:
+    - Ship a small sequential netlist, reset/key_load timing contract, and finite input/output oracle traces.
+    - Use a four-bit key loaded serially over four rising edges; hidden ground truth names key-state DFFs and sequence.
+    - Wrong keys must enter a deterministic decoy behavior rather than an X state.
+  threat_model: Temporal key loading expands key recovery beyond a purely combinational SAT instance and conceals the functional initial state.
+  ground_truth: Serial key sequence 0110 initializes the four labeled lock DFFs to the sole state that reaches the functional FSM; every other sequence enters the decoy loop.
+
+- seed_id: locked_mixed_xor_mux
+  domain_id: logic_deobfuscation_sat
+  title: Mixed XOR and MUX lock classification
+  objective: Locate all lock gates, classify each as XOR/XNOR or MUX locking, and recover the complete key from a compact mixed-scheme netlist.
+  constraints:
+    - Include two XOR-family key gates and two key-controlled MUXes with plausible decoy paths.
+    - Supply a complete-enough oracle vector set and public key width; hide gate labels and correct key.
+    - Grade gate locations, per-gate scheme classification, and key correctness separately.
+  threat_model: Combining lock styles defeats detectors that assume one structural key-gate pattern throughout the design.
+  ground_truth: The four labeled lock sites comprise XOR, XNOR, MUX-functional-on-0, and MUX-functional-on-1 gates in that order; the restoring key is 0101.
+
+- seed_id: unlocked_netlist_negative_control
+  domain_id: logic_deobfuscation_sat
+  title: Unlocked netlist negative control
+  objective: Analyze a clean combinational netlist with ordinary control multiplexers and correctly report that it contains no key gates or recoverable key.
+  constraints:
+    - Include legitimate input-controlled MUXes and XOR logic but no key inputs or locking structure.
+    - The submission format must represent an empty key and empty key-gate list explicitly.
+    - Hidden ground truth marks the design unlocked.
+  threat_model: A structural detector mistakes ordinary XORs or control MUXes for lock gates, generating false key hypotheses.
+  ground_truth: The netlist has no key ports and no locking cone; locked=false, key_bits="", and an empty key_gates list are the only correct findings.
