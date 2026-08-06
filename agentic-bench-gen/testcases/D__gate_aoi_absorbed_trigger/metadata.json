@@ -1,0 +1,30 @@
+{
+  "task_id": "gate_aoi_absorbed_trigger",
+  "domain_id": "gate_trojan_detection",
+  "title": "Trigger absorbed into mapped AOI cells",
+  "input_artifacts": [
+    "design.v",
+    "cells.lib"
+  ],
+  "expected_output": {
+    "submission_file": "submission/trojan_report.json",
+    "description": "A JSON object with four non-empty string arrays: trigger_cells, trigger_nets, payload_cells, payload_nets."
+  },
+  "evaluation_metrics": [
+    {
+      "name": "detection_rate",
+      "description": "Proportion of correctly identified trigger and payload components (cells and nets) out of the total ground truth components.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "Proportion of incorrectly reported components (cells and nets not in the ground truth) out of all reported components.",
+      "direction": "minimize"
+    },
+    {
+      "name": "inference_latency",
+      "description": "Time taken by the evaluation script to grade the submission, measured in seconds.",
+      "direction": "minimize"
+    }
+  ]
+}

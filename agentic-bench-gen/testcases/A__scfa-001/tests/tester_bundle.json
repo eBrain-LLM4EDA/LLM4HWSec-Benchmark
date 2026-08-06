@@ -1,0 +1,83 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for Side-Channel and Fault Analysis Task\n\n## Directory Layout\n\n```\n.\n\u251c\u2500\u2500 inputs/                          # Provided input artifacts (read-only)\n\u2502   \u251c\u2500\u2500 masked_sbox.v                # RTL design under analysis\n\u2502   \u2514\u2500\u2500 leakage_model.txt            # Leakage model description\n\u251c\u2500\u2500 submission/                      # Participant submission area\n\u2502   \u2514\u2500\u2500 vulnerability_report.json    # Answer file to be graded\n\u2514\u2500\u2500 evaluation/                      # Grading infrastructure\n    \u251c\u2500\u2500 README.md                    # This file\n    \u251c\u2500\u2500 evaluate.py                  # Main grading script\n    \u2514\u2500\u2500 private/                     # Private grading data (not shipped)\n        \u2514\u2500\u2500 ground_truth.py          # Hidden ground-truth constants\n```\n\n## Submission Contract\n\nThis is an **analysis_report** task. The participant does **not** modify the input artifacts. Instead, they submit a single answer file:\n\n- **Path:** `submission/vulnerability_report.json`\n- **Format:** A JSON object with three required string fields:\n  - `recombination_net` \u2014 hierarchical name of the net where shares recombine\n  - `recombination_register` \u2014 hierarchical name of the register capturing the recombined value\n  - `leakage_type` \u2014 description of the leakage mechanism\n\n## Grading Contract\n\nThe evaluation follows the **report_grading** contract. `evaluate.py` reads the input artifacts for reference and grades the submitted answer file against hidden ground truth. The toolchain (`iverilog`, `vvp`, `yosys`) is available for optional cross-checks, but verdicts are based solely on the submitted report content.\n\n## Metrics\n\nThe task defines three binary metrics, each mapped to one or more requirements:\n\n| Metric                  | Description                                                                 | Requirements |\n|-------------------------|-----------------------------------------------------------------------------|--------------|\n| `leakage_detection_accuracy` | 1.0 if the exact recombination net and register are correctly identified    | SR1, SR2     |\n| `fault_coverage`        | 1.0 if the report identifies the flawed register without false positives    | SR3          |\n| `hardening_precision`   | 1.0 if the suggested leakage type matches the ground truth                  | (informational) |\n\n## Requirements Checked\n\n`evaluate.py` verifies the following requirements and emits `[TEST] PASS` or `[TEST] FAIL` markers for each:\n\n- **FR1:** The submission file is valid, parseable JSON.\n- **FR2:** The JSON contains the three required fields with non-empty string values.\n- **FR3:** The reported net and register identifiers exist in the provided RTL netlist.\n- **SR1:** The reported recombination net matches the true leakage point.\n- **SR2:** The reported recombination register matches the true storage element.\n- **SR3:** The reported identifiers do not correspond to any benign share registers or nets.\n\nA correct submission passes all requirements; the provided baseline submission is expected to fail at least one requirement.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport os\nimport re\nimport sys\n\n# Import hidden ground truth\nsys.path.insert(0, os.path.join(os.path.dirname(__file__), 'private'))\nfrom ground_truth import GROUND_TRUTH_NET, GROUND_TRUTH_REG, BENIGN_REGISTERS, BENIGN_NETS\n\ndef extract_identifiers(verilog_path):\n    \"\"\"Extract wire and reg identifiers from a Verilog file.\"\"\"\n    identifiers = set()\n    try:\n        with open(verilog_path, 'r') as f:\n            content = f.read()\n    except FileNotFoundError:\n        print(f\"[TEST] FAIL: SETUP: {verilog_path} not found\")\n        sys.exit(1)\n    \n    # Match wire declarations: wire [optional range] name;\n    wire_pattern = r'wire\\s+(?:\\[\\d+:\\d+\\]\\s+)?(\\w+)\\s*;'\n    # Match reg declarations: reg [optional range] name;\n    reg_pattern = r'reg\\s+(?:\\[\\d+:\\d+\\]\\s+)?(\\w+)\\s*;'\n    \n    for match in re.finditer(wire_pattern, content):\n        identifiers.add(match.group(1))\n    for match in re.finditer(reg_pattern, content):\n        identifiers.add(match.group(1))\n    \n    return identifiers\n\ndef main():\n    all_passed = True\n    \n    # Check submission file exists\n    submission_path = os.path.join('submission', 'vulnerability_report.json')\n    if not os.path.exists(submission_path):\n        print(f\"[TEST] FAIL: SETUP: {submission_path} not found\")\n        sys.exit(1)\n    \n    # FR1: Valid JSON parseable\n    try:\n        with open(submission_path, 'r') as f:\n            report = json.load(f)\n        print(\"[TEST] PASS: FR1\")\n    except (json.JSONDecodeError, FileNotFoundError) as e:\n        print(f\"[TEST] FAIL: FR1: {str(e)}\")\n        all_passed = False\n        # Cannot continue without valid JSON\n        sys.exit(1)\n    \n    # FR2: Required fields present and non-empty strings\n    required_fields = ['recombination_net', 'recombination_register', 'leakage_type']\n    fr2_passed = True\n    for field in required_fields:\n        if field not in report:\n            print(f\"[TEST] FAIL: FR2: missing field '{field}'\")\n            fr2_passed = False\n        elif not isinstance(report[field], str) or not report[field].strip():\n            print(f\"[TEST] FAIL: FR2: field '{field}' is empty or not a string\")\n            fr2_passed = False\n    \n    if fr2_passed:\n        print(\"[TEST] PASS: FR2\")\n    else:\n        all_passed = False\n    \n    # Extract identifiers from RTL\n    rtl_path = os.path.join('inputs', 'masked_sbox.v')\n    identifiers = extract_identifiers(rtl_path)\n    \n    # FR3: Reported identifiers exist in netlist\n    net = report.get('recombination_net', '')\n    reg = report.get('recombination_register', '')\n    \n    fr3_passed = True\n    if net not in identifiers:\n        print(f\"[TEST] FAIL: FR3: recombination_net '{net}' not found in RTL\")\n        fr3_passed = False\n    if reg not in identifiers:\n        print(f\"[TEST] FAIL: FR3: recombination_register '{reg}' not found in RTL\")\n        fr3_passed = False\n    \n    if fr3_passed:\n        print(\"[TEST] PASS: FR3\")\n    else:\n        all_passed = False\n    \n    # SR1: recombination_net exactly matches ground truth\n    if net == GROUND_TRUTH_NET:\n        print(\"[TEST] PASS: SR1\")\n    else:\n        print(f\"[TEST] FAIL: SR1: expected '{GROUND_TRUTH_NET}', got '{net}'\")\n        all_passed = False\n    \n    # SR2: recombination_register exactly matches ground truth\n    if reg == GROUND_TRUTH_REG:\n        print(\"[TEST] PASS: SR2\")\n    else:\n        print(f\"[TEST] FAIL: SR2: expected '{GROUND_TRUTH_REG}', got '{reg}'\")\n        all_passed = False\n    \n    # SR3: Neither identifier is a benign register/net\n    benign_set = BENIGN_REGISTERS | BENIGN_NETS\n    if net in benign_set or reg in benign_set:\n        if net in benign_set:\n            print(f\"[TEST] FAIL: SR3: recombination_net '{net}' is a benign identifier\")\n        if reg in benign_set:\n            print(f\"[TEST] FAIL: SR3: recombination_register '{reg}' is a benign identifier\")\n        all_passed = False\n    else:\n        print(\"[TEST] PASS: SR3\")\n    \n    sys.exit(0 if all_passed else 1)\n\nif __name__ == '__main__':\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# Ground truth constants for SCFA-001 task\n# These values are used by evaluate.py to grade the submission\n# DO NOT SHIP TO PARTICIPANTS\n\nGROUND_TRUTH_NET = 'recombine_xor'\nGROUND_TRUTH_REG = 'recombined_sbox_q'\n\nBENIGN_REGISTERS = {\n    'share0_q',\n    'share1_q',\n    'share0_out',\n    'share1_out',\n}\n\nBENIGN_NETS = {\n    'inv_share0',\n    'inv_share1',\n    'a_unmasked',\n    'inv_unmasked',\n}",
+      "path": "evaluation/private/ground_truth.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the directory layout, the role of evaluate.py, the submission contract (participant submits submission/vulnerability_report.json), and the grading contract (report_grading). List the three metrics and their mapping to requirements. Do NOT reveal ground-truth values."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Opens submission/vulnerability_report.json and inputs/masked_sbox.v, inputs/leakage_model.txt. Checks FR1 (valid JSON parseable), FR2 (three required string fields present and non-empty), FR3 (net/register identifiers exist in the RTL netlist via regex extraction of wire/reg declarations). Checks SR1 (recombination_net exactly 'recombine_xor'), SR2 (recombination_register exactly 'recombined_sbox_q'), SR3 (neither identifier matches share0_q, share1_q, share0_out, share1_out, inv_share0, inv_share1, a_unmasked, inv_unmasked). Emits [TEST] PASS/FAIL markers per requirement_map. Exits 0 on all-pass, 1 on any failure."
+    },
+    {
+      "path": "evaluation/private/ground_truth.py",
+      "purpose": "Private module containing the hidden ground-truth constants: GROUND_TRUTH_NET = 'recombine_xor', GROUND_TRUTH_REG = 'recombined_sbox_q', BENIGN_REGISTERS = {'share0_q','share1_q','share0_out','share1_out'}, BENIGN_NETS = {'inv_share0','inv_share1','a_unmasked','inv_unmasked'}. Imported by evaluate.py for SR checks. Never shipped to participants."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "PASS when submission/vulnerability_report.json is valid JSON and parseable by json.load; FAIL on missing file, malformed JSON, or parse error.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when the parsed JSON contains exactly the three keys 'recombination_net', 'recombination_register', 'leakage_type' with non-empty string values; FAIL if any key is missing or any value is empty or non-string.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when the submitted 'recombination_net' and 'recombination_register' values match wire/reg identifiers extracted from inputs/masked_sbox.v via regex; FAIL if either identifier is not found in the netlist.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when submitted 'recombination_net' equals the hidden ground-truth 'recombine_xor'; FAIL on any other value.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when submitted 'recombination_register' equals the hidden ground-truth 'recombined_sbox_q'; FAIL on any other value.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when neither submitted identifier matches any benign register/net in the hidden set (share0_q, share1_q, share0_out, share1_out, inv_share0, inv_share1, a_unmasked, inv_unmasked); FAIL if either identifier is a benign one.",
+      "requirement_id": "SR3",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "task_id": "gate_trojan_detection_cell_substitution_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Detection in a 4-bit Permission Comparator Netlist",
+  "description": "Analyze a flattened, structural gate-level netlist implementing a 4-bit identifier permission-check circuit (perm_check) to determine whether it is functionally faithful to the intended equality-comparator behavior, and report any deviation found.",
+  "interface": {
+    "module": "perm_check",
+    "ports": {
+      "id_in": "input [3:0], identifier presented at runtime",
+      "id_auth": "input [3:0], authorized identifier hardwired/tied off in the netlist",
+      "grant": "output, asserted high iff id_in equals the authorized identifier encoded in the netlist"
+    },
+    "primitive_library": {
+      "file": "inputs/primitive_cells.v",
+      "cells": [
+        {"name": "BUF1", "ports": [".A", ".Y"]},
+        {"name": "INV1", "ports": [".A", ".Y"]},
+        {"name": "AND2", "ports": [".A", ".B", ".Y"]},
+        {"name": "OR2", "ports": [".A", ".B", ".Y"]},
+        {"name": "XOR2", "ports": [".A", ".B", ".Y"]},
+        {"name": "XNOR2", "ports": [".A", ".B", ".Y"]},
+        {"name": "NAND2", "ports": [".A", ".B", ".Y"]},
+        {"name": "NOR2", "ports": [".A", ".B", ".Y"]}
+      ]
+    }
+  },
+  "input_artifacts": [
+    "inputs/netlist.v",
+    "inputs/design_brief.md",
+    "inputs/primitive_cells.v"
+  ],
+  "expected_outputs": [
+    {
+      "path": "submission/trojan_report.json",
+      "description": "Single JSON object with top-level fields verdict, suspect_instances, justification, and (when verdict is trojan_detected) mismatching_inputs and cell_type_analysis."
+    }
+  ],
+  "submission": {
+    "path": "submission/trojan_report.json",
+    "format": "json",
+    "required_fields": ["verdict", "suspect_instances", "justification"],
+    "conditional_fields": {
+      "when": "verdict == trojan_detected",
+      "fields": ["mismatching_inputs", "cell_type_analysis"]
+    }
+  },
+  "toolchain": ["yosys", "iverilog", "vvp"],
+  "evaluation": {
+    "mode": "report_grading",
+    "metrics": [
+      {
+        "name": "detection_rate",
+        "description": "Fraction of graded submissions (across seeded netlist variants, if multiple are generated) that correctly report verdict=trojan_detected with the correct suspect instance identified.",
+        "direction": "maximize"
+      },
+      {
+        "name": "false_positive_rate",
+        "description": "Fraction of submissions that report verdict=trojan_detected or list suspect_instances on a control/trojan-free netlist variant when one is included in the eval suite.",
+        "direction": "minimize"
+      },
+      {
+        "name": "localization_accuracy",
+        "description": "Whether the exact ground-truth instance name and cell-type mismatch (found vs expected primitive) are correctly reported, independent of overall verdict correctness.",
+        "direction": "maximize"
+      },
+      {
+        "name": "inference_latency",
+        "description": "Wall-clock time taken by evaluate.py to grade a single submission, including any optional iverilog/vvp cross-simulation of claimed mismatching inputs.",
+        "direction": "minimize"
+      }
+    ]
+  },
+  "notes": "Participants must not modify anything under inputs/. Only yosys, iverilog, and vvp may be used for optional cross-checks; grading is based solely on the submitted JSON report."
+}

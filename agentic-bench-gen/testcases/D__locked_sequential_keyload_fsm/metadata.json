@@ -1,0 +1,29 @@
+{
+  "task_id": "locked_sequential_keyload_fsm",
+  "domain_id": "logic_deobfuscation_sat",
+  "title": "Sequential lock with key-loaded initial state",
+  "input_artifacts": [
+    "locked_fsm.v",
+    "oracle_traces.txt",
+    "design_brief.md"
+  ],
+  "expected_output": {
+    "file": "submission/recovered_key.json",
+    "schema": {
+      "key_sequence": "string (exactly 4 characters, each '0' or '1')",
+      "lock_registers": "list of 4 strings (hierarchical DFF names in loading order)"
+    }
+  },
+  "metrics": [
+    {
+      "name": "key_recovery_rate",
+      "description": "The fraction of key bits correctly identified in the submission. 1.0 indicates the full 4-bit key is correct.",
+      "direction": "maximize"
+    },
+    {
+      "name": "key_gate_localization_accuracy",
+      "description": "The fraction of lock registers correctly identified by their hierarchical names. 1.0 indicates all four registers are correctly named and ordered.",
+      "direction": "maximize"
+    }
+  ]
+}

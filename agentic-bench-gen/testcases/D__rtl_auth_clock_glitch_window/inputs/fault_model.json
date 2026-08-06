@@ -1,0 +1,14 @@
+{
+  "fault_type": "clock_glitch",
+  "description": "A single narrow clock pulse is injected during a chosen clock cycle, causing exactly one register update to be skipped while all combinational logic continues to evaluate normally.",
+  "capabilities": {
+    "target": "any single register in the design",
+    "effect": "the targeted register retains its previous value for that cycle; all other registers update as usual",
+    "injection_timing": "attacker can choose any clock cycle to inject the glitch"
+  },
+  "assumptions": [
+    "The glitch does not affect combinational logic evaluation.",
+    "Only one register update is skipped per injection.",
+    "The attacker can observe the system's output (access_granted) to determine success."
+  ]
+}

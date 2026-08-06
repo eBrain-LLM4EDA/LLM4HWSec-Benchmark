@@ -1,0 +1,32 @@
+{
+  "acceptance_criteria": [
+    "Binary compiles successfully from the submitted inputs/packet_kernel.cpp using g++ with the test harness main().",
+    "All known-answer vector tests for lengths 0, 1, 8, 17, 31, and 32 pass with exact byte-for-byte match against expected transformed and zero-padded output.",
+    "The stale-data leakage test (SR1/SR2): after a length=32 call with a non-zero input pattern followed by a shorter-length call reusing the same output buffer, all output bytes at indices >= the shorter length are exactly 0x00.",
+    "No output byte at any index >= length ever contains a non-zero value across a randomized sequence of 100 calls with varying lengths and input patterns reusing the same buffers."
+  ],
+  "cwe_ids": [
+    "CWE-459",
+    "CWE-200",
+    "CWE-212"
+  ],
+  "ground_truth": "The insecure baseline uses a static or global 32-byte buffer for out_buf staging (or writes out_buf only for indices [0,length) and skips writing indices [length,32) entirely, relying on the buffer retaining values from the previous invocation). Because the buffer is reused across calls, if a prior call had length=32 and populated all 32 bytes, then a subsequent call with a shorter length (e.g. length=4) will leave indices [4,32) containing transformed byte values from the previous longer call instead of zero. The correct hardened version must explicitly zero-initialize or explicitly write 0x00 to every output index from length to 31 on every single invocation, with no dependency on prior call history, so that after processing length N, output positions N through 31 are always zero regardless of what any previous call wrote there.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Harness invokes process_packet twice: first with length=32 and an input buffer of all 0xFF (or another fixed non-zero pattern), then with length=0 (or any smaller length) and a fresh in_buf of all 0x00, reusing the same out_buf array without clearing it between calls. The evaluator asserts that the second call's output at indices >= length is exactly 0x00; the insecure baseline fails this because it leaves indices [0,32) at leftover 0xFF-derived transformed values from the first call.",
+      "id": "SR1",
+      "requirement": "Every output byte out_buf[0..31] must be explicitly written on every invocation of process_packet, regardless of the value of length."
+    },
+    {
+      "detection_strategy": "Sweep length across several values (0, 1, 8, 17, 31, 32) in sequence, reusing the same out_buf buffer and varying in_buf content (including a prior call with all bytes 0xFF at length=32) between calls. For each length value, verify programmatically that all indices >= length are exactly zero and all indices < length match the exact transformation formula, across the full sequence of calls without resetting the buffer manually between test cases.",
+      "id": "SR2",
+      "requirement": "Output at any index i >= length must never reflect the current call's in_buf content transformed, nor any stale data from a previous call; it must be exactly 0x00."
+    },
+    {
+      "detection_strategy": "Known-answer test: fixed input vector and length=17, assert bytes [0,17) equal precomputed expected transformed values and bytes [17,32) equal zero.",
+      "id": "SR3",
+      "requirement": "The transformation for valid indices below length must remain exactly ((in_buf[i]^0xA5)+i)&0xFF, so that hardening does not break correctness by e.g. zeroing everything unconditionally."
+    }
+  ],
+  "threat_model": "Consecutive callers share a single hardware accelerator instance and its underlying buffer/BRAM storage. An attacker issues a short packet request (small length) immediately after a victim's longer request (larger length) completes. If the kernel does not explicitly clear all output bytes beyond the current length on every call, the attacker's output buffer may still contain leftover transformed bytes derived from the victim's prior secret input, leaking confidential data across the trust boundary between unrelated invocations."
+}

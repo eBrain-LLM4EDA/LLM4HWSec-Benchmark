@@ -1,0 +1,105 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "F1 score of the submitted vulnerable_fault_ids set against the hidden ground-truth two-bit miscorrection set (syndrome!=0 AND overall_parity_error=1 under the flawed decoder).",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Fraction of all 91 enumerated fault_model.json cases that appear exactly once in the submitted fault_cases array with well-formed observed_outputs, cross-checked against iverilog simulation where feasible.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Fraction of required security findings (SR1-SR4: missing overall_parity_error gating, correct miscorrection set, corrupted data_out values, and separate zero-syndrome escape class) that are substantively and correctly present in the report.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "submission/vulnerability_report.json parses as valid JSON and satisfies FR1-FR4 field-presence/format checks.",
+      "The set of reported vulnerable_fault_ids matches the hidden ground-truth miscorrection set with at most 2 symmetric-difference elements.",
+      "For at least 90% of the ground-truth miscorrection set, the report's per-case data_out is verified (via iverilog simulation of secded_codec.v with fault_enum_tb.v-equivalent stimulus) to match the actually-corrupted value produced by the flawed RTL, not the true reference data.",
+      "The report explicitly names the missing overall_parity_error check as the root cause (SR1) and separately flags the zero-syndrome escape class (SR4).",
+      "A baseline empty/naive submission (empty fault_cases array or all-classification='no_error') fails FR2, FR3, SR2, and SR3."
+    ],
+    "cwe_ids": [
+      "CWE-354",
+      "CWE-345",
+      "CWE-1245",
+      "CWE-200"
+    ],
+    "ground_truth": "The flawed secded_codec.v decoder asserts correctable whenever syndrome != 0, without ever checking overall_parity_error to distinguish single-bit from double-bit errors (a correct SECDED decoder should report uncorrectable when syndrome!=0 AND overall_parity_error==0, since that combination signals an even number of errors, i.e. two-bit faults). Consequently, for a specific subset of the 78 two-bit fault cases (those two-bit flips where the resulting syndrome happens to collide with the syndrome pattern of some single Hamming bit position), the decoder computes a nonzero syndrome, sets correctable=1, uncorrectable=0, and applies correction_mask to flip a bit position that is NOT actually one of the two faulty bits -- silently corrupting data_out to a third, wrong value while reporting success. The remaining two-bit faults (those landing on syndrome=0 with overall_parity_error=1, i.e. flips of two data-bearing positions that cancel in the parity tree in specific ways, or flips involving bit 0 combined with another bit) may be classified variously by the flawed logic, but the security-relevant miscorrection set is exactly the two-bit cases where syndrome!=0 and overall_parity_error=1 (these are treated identically to single-bit errors by the flawed 'syndrome!=0 => correctable' rule) even though a correct implementation must treat syndrome!=0 with overall_parity_error=1 as double-error-detected (uncorrectable), not correctable. The report is correct only if it identifies this exact vulnerable subset (two-bit faults with nonzero syndrome and overall_parity_error=1, all misclassified as 'corrected' with a data_out differing from the true reference data) and does not confuse them with the double-bit faults that land on syndrome=0 (which the flawed decoder passes through as 'no_error', silently delivering corrupted data with zero detection -- also a distinct vulnerability class that must be separately flagged as detected_uncorrectable being absent).",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check that the report's hardening_suggestions or a dedicated finding field explicitly describes the missing conjunction of syndrome!=0 with overall_parity_error==0 as the gating condition for 'correctable', or equivalently flags that overall_parity_error is not used in the correctable/uncorrectable decision.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that the decoder's correction decision is driven solely by 'syndrome != 0' without consulting overall_parity_error, i.e. must state/imply the missing double-error-detection check."
+      },
+      {
+        "detection_strategy": "Compare submitted vulnerable_fault_ids (as a set) against the precomputed hidden ground-truth set using set equality with tolerance for at most 2 missing/extra ids (partial credit thresholds), verified by simulating secded_codec.v via iverilog/vvp against fault_model.json using fault_enum_tb.v or an equivalent oracle script.",
+        "id": "SR2",
+        "requirement": "The report's vulnerable_fault_ids list must exactly match the hidden reference set of two-bit fault_ids for which syndrome!=0 and overall_parity_error=1 under the flawed decoder (the miscorrection set), computed against the fixed reference codeword in fault_model.json."
+      },
+      {
+        "detection_strategy": "For each fault_id in the intersection of submitted and ground-truth vulnerable sets, parse observed_outputs.data_out from the report and check it is present, well-formed, and not equal to the reference data value (cross-checked by running the RTL through iverilog+vvp on that specific codeword_in).",
+        "id": "SR3",
+        "requirement": "For every fault case in the miscorrection set, the report's per-case classification must be 'corrected' (matching the flawed decoder's actual behavior) AND observed_outputs.data_out for that case must differ from the true reference 8-bit data value, demonstrating the report captured the silent corruption rather than assuming correctness."
+      },
+      {
+        "detection_strategy": "Check that fault_cases entries whose ground-truth two-bit fault lands on syndrome==0 are classified as 'no_error' in the submission (matching flawed decoder behavior) and that hardening_suggestions or an additional finding explicitly calls out this zero-syndrome double-fault-escape scenario as a separate weakness from the miscorrection cases.",
+        "id": "SR4",
+        "requirement": "The report must separately identify (e.g. via a distinct field or explicit statement) the disjoint class of two-bit faults that produce syndrome==0 (passing through as 'no_error') as a separate, undetected data-corruption risk, distinguishing it from the syndrome!=0 miscorrection class."
+      }
+    ],
+    "threat_model": "An attacker with physical or electromagnetic fault-injection capability (e.g. clock/voltage glitching, laser fault injection on memory arrays protecting cryptographic key material or safety-critical state) induces two simultaneous bit flips in a stored ECC-protected codeword. Because the decoder's correction-enable logic checks only 'syndrome != 0' and never cross-checks the overall (extended) parity bit, a subset of two-bit faults is misclassified as single-bit-correctable: the decoder applies a corrective XOR to a bit that was never actually flipped, silently delivering a third, attacker-influenced wrong data value downstream while asserting 'correctable' status (correctable=1, uncorrectable=0). A relying system (e.g. a key-schedule register or safety interlock) that trusts the correctable/uncorrectable status flags rather than independently re-verifying data integrity will consume this silently corrupted value as if it were trustworthy, enabling fault-injection attacks such as differential fault analysis against cryptographic cores or unsafe actuation in safety systems."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL must be self-contained, synthesizable Verilog-2001 compatible with iverilog, with no vendor primitives.",
+      "The decoder logic must be expressible in under ~120 lines of RTL to keep the analysis tractable.",
+      "fault_model.json must deterministically enumerate all 13 single-bit and all 78 two-bit flip positions relative to one fixed correct reference codeword encoding a fixed 8-bit data value stated in design_brief.md.",
+      "fault_enum_tb.v must be runnable via iverilog+vvp without modification and must not require the participant's submission to run.",
+      "The response_format for the submission is a single JSON file; no other submission files are read by evaluate.py."
+    ],
+    "expected_outputs": [
+      "vulnerability_report.json describing decoder behavior under every enumerated single- and two-bit fault, including classification and hardening suggestions"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "vulnerability_report.json must be valid JSON with a top-level object containing keys 'fault_cases' (array) and 'summary' (object); each element of 'fault_cases' must include 'fault_id' (matching an entry in fault_model.json), 'bit_positions' (array of ints), 'classification' (one of 'no_error','corrected','detected_uncorrectable'), and 'observed_outputs' (object with keys 'syndrome','overall_parity_error','correctable','uncorrectable','correction_mask','data_out')."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must include an entry for every fault_id present in inputs/fault_model.json (91 total cases: 13 single-bit + 78 two-bit), with no missing or duplicated fault_id entries."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For all 13 single-bit fault cases, the reported classification must be 'corrected' and observed_outputs.data_out must equal the correct reference 8-bit data value (i.e. single-bit faults must always be shown as correctly repaired)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The 'summary' object must include integer fields 'num_no_error', 'num_corrected', 'num_detected_uncorrectable' whose sum equals 91 and which match the counts implied by the per-case 'classification' fields."
+      }
+    ],
+    "input_artifacts": [
+      "secded_codec.v",
+      "fault_model.json",
+      "fault_enum_tb.v",
+      "design_brief.md"
+    ],
+    "interface": "The RTL module is defined in inputs/secded_codec.v as: module secded_codec(input wire [7:0] data_in, input wire encode_en, input wire [12:0] codeword_in, output wire [12:0] codeword_out, output wire [7:0] data_out, output wire [3:0] syndrome, output wire overall_parity_error, output wire correctable, output wire uncorrectable, output wire [12:0] correction_mask); The codeword is a 13-bit extended Hamming word: bits [12:1] hold 4 parity bits (positions 1,2,4,8) plus 8 data bits interleaved per standard Hamming placement, and bit [0] holds the overall (extended) parity bit covering all 13 bits. When encode_en=1, the module computes codeword_out from data_in. When encode_en=0, codeword_in is treated as a (possibly faulty) stored codeword; the module computes syndrome (4-bit, nonzero if any single Hamming parity mismatches), overall_parity_error (1 if the extended parity bit is violated), correctable (asserted when the decoder decides to flip a bit via correction_mask), uncorrectable (asserted when the decoder decides the error cannot be safely corrected), correction_mask (13-bit one-hot or zero mask XORed with codeword_in to produce the corrected codeword from which data_out is extracted), and data_out (the 8 data bits extracted after applying correction_mask, or the raw bits if no correction is applied). inputs/fault_model.json enumerates fault cases as a JSON array of objects {\"fault_id\": string, \"bit_positions\": [int,...], \"codeword_in\": \"13-bit binary string\"} covering all C(13,1)=13 single-bit and all C(13,2)=78 two-bit flips applied to a fixed reference correct codeword. inputs/fault_enum_tb.v is an iverilog-compatible testbench that instantiates secded_codec, drives each fault_model.json case through codeword_in, and prints/dumps syndrome, overall_parity_error, correctable, uncorrectable, correction_mask, and data_out per case (usable for optional cross-checking, not required to run). The submission is a JSON file at submission/vulnerability_report.json.",
+    "objective": "Analyze the provided 8-bit extended-Hamming (SECDED-style) encoder/decoder RTL and its fault-injection harness to determine, for the enumerated single-bit and two-bit memory faults, which decoder output signals and internal states are asserted for each fault case, and report the exact set of fault patterns for which the decoder's correction logic modifies the stored data while reporting a successful correction (i.e., 'correctable' status) rather than reporting an uncorrectable/detected-only condition. Produce a structured vulnerability_report.json describing, per fault case, the decoder's classification (no_error / corrected / detected_uncorrectable) and the observed output values.",
+    "response_format": "submission/vulnerability_report.json: a single JSON object {\"fault_cases\": [{\"fault_id\": str, \"bit_positions\": [int,...], \"classification\": \"no_error\"|\"corrected\"|\"detected_uncorrectable\", \"observed_outputs\": {\"syndrome\": str|int, \"overall_parity_error\": 0|1, \"correctable\": 0|1, \"uncorrectable\": 0|1, \"correction_mask\": str, \"data_out\": str}}, ...], \"summary\": {\"num_no_error\": int, \"num_corrected\": int, \"num_detected_uncorrectable\": int}, \"vulnerable_fault_ids\": [str,...], \"hardening_suggestions\": [str,...]}"
+  },
+  "task_id": "sca_fault_secded_double_fault_miscorrection_001",
+  "title": "Double-bit fault miscorrection in a flawed SECDED decoder"
+}

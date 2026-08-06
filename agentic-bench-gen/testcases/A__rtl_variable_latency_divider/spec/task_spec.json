@@ -1,0 +1,88 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "A naive submission with vulnerability_found=false must fail.",
+      "A submission identifying the wrong component must fail."
+    ],
+    "metrics": [
+      {
+        "description": "Whether the submitted report correctly identifies the source of timing leakage.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Whether the recommended fix fully addresses the identified leakage.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Whether the recommended fix is minimal and does not introduce unnecessary changes.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "vulnerability_found is true.",
+      "vulnerable_component correctly identifies the early-termination logic.",
+      "recommended_fix describes a fixed-latency design change."
+    ],
+    "cwe_ids": [
+      "CWE-203",
+      "CWE-208"
+    ],
+    "ground_truth": "The early_done comparator on the remaining dividend causes variable latency; removing it and running all word-width iterations yields the required fixed schedule.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if the 'vulnerable_component' string contains 'early_done' or a description of the comparator logic.",
+        "id": "SR1",
+        "requirement": "The submitted report must correctly identify the 'early_done' signal or the comparator that generates it as the source of variable latency."
+      },
+      {
+        "detection_strategy": "Check if the 'recommended_fix' string contains keywords like 'remove early_done', 'fixed latency', 'all iterations', or 'counter runs to width'.",
+        "id": "SR2",
+        "requirement": "The recommended fix must describe removing the early-termination condition and forcing the divider to run for a fixed number of cycles equal to the data width."
+      }
+    ],
+    "threat_model": "An attacker measures start-to-done cycles and infers secret operand magnitude or leading-zero count."
+  },
+  "public_spec": {
+    "constraints": [
+      "The provided RTL is a small iterative unsigned divider with start, done, quotient, and an internal iteration counter.",
+      "The timing_traces.txt file contains a timing observation model and traces for operands with different leading-zero counts.",
+      "The analysis must be based solely on the provided artifacts."
+    ],
+    "expected_outputs": [
+      "A vulnerability_report.json file in the submission directory that identifies the variable-latency source and proposes a fixed-latency repair."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON and contain the top-level keys 'vulnerability_found', 'vulnerable_component', and 'recommended_fix'."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The 'vulnerability_found' field must be a boolean."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The 'vulnerable_component' field must be a string identifying a specific signal or block in the provided RTL."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The 'recommended_fix' field must be a non-empty string describing a concrete RTL modification."
+      }
+    ],
+    "input_artifacts": [
+      "divider.v",
+      "timing_traces.txt"
+    ],
+    "interface": "The participant submits a single file: submission/vulnerability_report.json. The file must be a JSON object with exactly three keys: 'vulnerability_found' (boolean), 'vulnerable_component' (string), and 'recommended_fix' (string).",
+    "objective": "Analyze the provided RTL for a divider whose done latency varies with operand values. Identify the root cause of the variable latency and recommend a design change to make the latency fixed.",
+    "response_format": "A JSON object with the following schema: {\"vulnerability_found\": <boolean>, \"vulnerable_component\": \"<string>\", \"recommended_fix\": \"<string>\"}"
+  },
+  "task_id": "rtl_variable_latency_divider",
+  "title": "Timing leakage in an early-terminating divider"
+}

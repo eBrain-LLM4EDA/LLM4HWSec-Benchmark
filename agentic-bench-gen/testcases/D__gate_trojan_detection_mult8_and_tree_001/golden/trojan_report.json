@@ -1,0 +1,67 @@
+{
+  "classification": "infected",
+  "netlist_summary": {
+    "total_gates": 175,
+    "gate_type_counts": {
+      "and": 82,
+      "or": 21,
+      "nand": 0,
+      "nor": 0,
+      "not": 0,
+      "xor": 63,
+      "xnor": 0,
+      "buf": 9
+    }
+  },
+  "suspect_nodes": [
+    {
+      "instance_name": "trig_and1",
+      "role": "trigger"
+    },
+    {
+      "instance_name": "trig_and2",
+      "role": "trigger"
+    },
+    {
+      "instance_name": "trig_and3",
+      "role": "trigger"
+    },
+    {
+      "instance_name": "trig_and4",
+      "role": "trigger"
+    },
+    {
+      "instance_name": "trig_and5",
+      "role": "trigger"
+    },
+    {
+      "instance_name": "trig_and6",
+      "role": "trigger"
+    },
+    {
+      "instance_name": "trig_and_final",
+      "role": "trigger"
+    },
+    {
+      "instance_name": "payload_mux_sel",
+      "role": "payload"
+    },
+    {
+      "instance_name": "payload_mux_and1",
+      "role": "payload"
+    },
+    {
+      "instance_name": "payload_mux_and2",
+      "role": "payload"
+    },
+    {
+      "instance_name": "payload_mux_or",
+      "role": "payload"
+    },
+    {
+      "instance_name": "payload_xor_p7",
+      "role": "payload"
+    }
+  ],
+  "trigger_condition": "a=8'b10110100,b=8'b01101011 (a[7]=1,a[6]=0,a[5]=1,a[4]=1,a[3]=0,a[2]=1,a[1]=0,a[0]=0,b[7]=0,b[6]=1,b[5]=1,b[4]=0,b[3]=1,b[2]=0,b[1]=1,b[0]=1); trig_and1..trig_and6 each tap one of the internal partial-product nets pp_2_3, pp_4_1, pp_5_6, pp_1_7, pp_6_2, pp_3_5, all of which are simultaneously 1 only for this specific (a,b) pair among the sampled input corpus; trig_and1..trig_and6 feed trig_and_final, which asserts the select input of the payload mux (payload_mux_sel/payload_mux_and1/payload_mux_and2/payload_mux_or) driving payload_xor_p7, causing output bit p[7] to be XOR-flipped relative to the arithmetically correct a*b product only at this trigger input; for all other sampled (a,b) combinations trig_and_final remains 0 and p[7] passes through unmodified, matching golden multiplication."
+}

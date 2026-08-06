@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "Use only C/C++ constructs supported by PandA-Bambu HLS: fixed-size C arrays, no dynamic memory allocation, no STL containers, no exceptions, no recursion.",
+    "Do not change the function name, parameter types/order, or the header file's declaration.",
+    "The implementation must be self-contained within crypto_kernel.cpp/.h (no additional source files, no external libraries beyond <cstdint>/<cstddef>).",
+    "Do not write to stdout/stderr from within crypto_kernel (keep it a pure computational kernel suitable for synthesis)."
+  ],
+  "expected_outputs": [
+    "A hardened inputs/crypto_kernel.cpp that compiles with g++/gcc against the harness and produces ciphertext = plaintext XOR key for all test vectors.",
+    "A status byte that is always 0x00 (success) for any well-formed 16-byte plaintext/key pair, regardless of the key's contents.",
+    "No change to the declared function signature or header file."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For the known-answer vector plaintext=0x00..0x0F (bytes 0..15) and key=0xFF repeated 16 times, crypto_kernel must produce ciphertext[i] = plaintext[i] XOR key[i] exactly, and status must equal 0x00."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For at least 100 randomly generated (plaintext,key) pairs supplied by the harness, ciphertext[i] must equal plaintext[i] XOR key[i] for every byte i in 0..15."
+    },
+    {
+      "id": "FR3",
+      "requirement": "status must always equal 0x00 for every well-formed 16-byte plaintext/key pair tested by the harness (there is no error condition to signal in this kernel)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The function signature in crypto_kernel.cpp must match the header prototype exactly and the file must compile cleanly with g++ -std=c++11 -Wall with no errors."
+    }
+  ],
+  "input_artifacts": [
+    "crypto_kernel.cpp",
+    "crypto_kernel.h",
+    "design_brief.md"
+  ],
+  "interface": "File inputs/crypto_kernel.cpp must define exactly: void crypto_kernel(const unsigned char plaintext[16], const unsigned char key[16], unsigned char ciphertext[16], unsigned char *status); declared in inputs/crypto_kernel.h. plaintext: 16-byte public input block. key: 16-byte input key (treated as sensitive material by the harness, never printed by the harness). ciphertext: 16-byte output buffer; this is the sole declassified data output and is expected to depend on both plaintext and key (ciphertext[i] = plaintext[i] ^ key[i]). status: single output byte via pointer; this is a PUBLIC status output that must always be set to 0x00 to indicate successful completion for any well-formed 16-byte inputs, and must not vary with key content. The harness includes crypto_kernel.h and links against the compiled crypto_kernel.cpp only; no other entry points are used.",
+  "objective": "Complete and harden the HLS-synthesizable crypto_kernel function in inputs/crypto_kernel.cpp so that it correctly encrypts a 16-byte block and reports a fixed operation-status code, using only C/C++ constructs compatible with PandA-Bambu style high-level synthesis (fixed-size arrays, no dynamic allocation, no STL containers, no recursion).",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

@@ -1,0 +1,37 @@
+{
+  "acceptance_criteria": [
+    "A submission PASSES only if: (1) trojan_report.json validates against the schema (FR1), (2) at least one finding correctly names WIDTH=24 as the affected parameter (SR1), (3) that finding's trigger_condition correctly describes the near-full/pointer-pattern write condition (SR2), (4) that finding's payload_effect correctly describes full-flag suppression causing an overwrite/data corruption (SR3), and (5) that finding is among the highest-confidence findings, not buried beneath unrelated false positives (SR4).",
+    "An empty findings array, or a report that only says 'no issues found', or a report that flags WIDTH=8/16 or unrelated logic without ever mentioning WIDTH=24 and the pointer-triggered full suppression, must FAIL.",
+    "Partial credit: a report identifying WIDTH=24 as suspicious but with a vague/incorrect payload description scores lower on trigger_payload_localization but may still count toward detection_rate if SR1 and SR2 are satisfied."
+  ],
+  "cwe_ids": [
+    "CWE-1295",
+    "CWE-1298",
+    "CWE-691",
+    "CWE-693"
+  ],
+  "ground_truth": "param_fifo.v contains a generate block guarded by `if (WIDTH==24)` that instantiates an alternate write-pointer/full-flag update path. In that branch only, when the write pointer's low 3 bits equal 3'b101 (a rare occupancy/pointer pattern) simultaneously with wr_en asserted and the FIFO nearly full (count == DEPTH-1), the branch forces the registered `full` output to deassert for exactly one clock cycle even though the FIFO is actually full, allowing wr_en to push an extra word that overwrites the oldest unread entry (pointer wraparound collision). At WIDTH=8, WIDTH=16, or any other WIDTH, the generate condition is false and the FIFO uses the honest, spec-compliant full/empty logic, so default-parameter simulation (testbench_default.v, WIDTH=8) never observes the flaw.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check that a finding's affected_parameters or trigger_condition text names WIDTH=24 (or equivalent 24-bit width) specifically, and does not claim the flaw affects all widths uniformly or only the default width.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the malicious/anomalous logic is conditioned on the elaboration parameter WIDTH being set to 24 (not present, or not active, for WIDTH=8 or WIDTH=16)."
+    },
+    {
+      "detection_strategy": "Text-match/keyword and semantic check on trigger_condition for mention of pointer pattern, near-full/almost-full condition, and write enable coinciding; optionally cross-check via iverilog/vvp simulation of param_fifo.v at WIDTH=24 driving the described pointer sequence to confirm full deasserts incorrectly.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify the rare trigger pattern: a specific write-pointer/occupancy condition (pointer low bits or count pattern) coincident with the FIFO being at or near full capacity and a write being attempted."
+    },
+    {
+      "detection_strategy": "Check payload_effect text for mention of full flag misbehavior AND overwrite/corruption of stored/unread data; if only 'flag glitch' is mentioned without overwrite consequence, treat as partial credit at most.",
+      "id": "SR3",
+      "requirement": "The report must correctly identify the payload effect as suppression/incorrect deassertion of the `full` flag leading to an overwrite of unread data (data corruption), not merely a timing glitch with no data-integrity consequence."
+    },
+    {
+      "detection_strategy": "Compare confidence-ranked findings: the highest-confidence finding must correspond to the WIDTH=24 trigger; compute false_positive_rate over findings that do not correspond to the true trojan location.",
+      "id": "SR4",
+      "requirement": "The report must not report only false positives (e.g., flagging benign generate branches for other widths, or flagging normal reset logic) as the primary/highest-confidence finding while missing the WIDTH=24 trojan."
+    }
+  ],
+  "threat_model": "Design validation and regression testing in this organization is performed only against the default instantiation (WIDTH=8) of reusable IP blocks. An insider or supply-chain adversary embeds a generate-guarded alternate datapath that only activates for a specific, non-default elaboration parameter (WIDTH=24) chosen by a downstream integrator for an unrelated bus-width reason, combined with a rare internal pointer state, so that verification at the IP-vendor stage never triggers it, yet the corruption manifests in the field once integrated at the malicious width."
+}

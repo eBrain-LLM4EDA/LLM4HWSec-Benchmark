@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Evaluator's SR1 check builds the net-to-driver map from inputs/tmr_voter_netlist.v and confirms voter_b's driver traces to replica_a's output rather than replica_b's. The submitted root_cause here mischaracterizes the defect as a logic-function change in the voter (an AND/OR gate error) rather than a wiring/connectivity aliasing defect, so it fails the SR1 requirement that the report correctly identify the anomaly as a connectivity defect duplicating one replica's output onto two voter inputs. Even though trojan_present is true and some suspect nets/instances are listed, the root cause narrative contradicts the actual ground-truth mechanism, so SR1's detection_strategy (validating the reported anomaly type against the actual net-driver aliasing) should flag this as not correctly identifying the wiring/connectivity nature of the defect.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_instances\": [\"u_buf1\"],\n  \"suspect_nets\": [\"net_buf1_out\", \"voter_b\", \"net_repb_out\"],\n  \"affected_output\": \"voted_out\",\n  \"root_cause\": \"The voter3 instance u_voter3 contains a logic-function defect: one of its internal AND/OR gates was miswired so that the majority function itself is computed incorrectly for certain input combinations, causing voted_out to sometimes diverge from the true 2-of-3 majority of voter_a, voter_b, and voter_c. This is a functional logic bug in the voter's gate-level implementation rather than any signal routing or net aliasing issue between the replicas and the voter.\",\n  \"confidence\": 0.9\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR1_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "SR2's detection strategy string-matches submission.suspect_instances against the known ground-truth cloning instance name (u_buf1) or requires unambiguous identification of the buffer/tap cell via keyword/net-name overlap. This mutant replaces the correct instance name with 'u_voter3' (a real instance in the netlist, but the majority voter itself, not the cloning cell) and rewrites root_cause to blame the voter generically instead of naming the tap/buffer cell or the replica-to-voter-input relationship. Since suspect_instances no longer references u_buf1 and root_cause no longer unambiguously names the cloning/tap cell or the specific net_repa_out->voter_b aliasing, SR2 must fail even though suspect_nets and other fields remain plausible.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_instances\": [\"u_voter3\"],\n  \"suspect_nets\": [\"net_buf1_out\", \"voter_b\", \"net_repb_out\"],\n  \"affected_output\": \"voted_out\",\n  \"root_cause\": \"The voter instance u_voter3 appears to be misbehaving, causing an incorrect majority result on voted_out. The voting logic itself seems to combine inputs incorrectly, leading to a fault-masking failure whenever a replica misbehaves.\",\n  \"confidence\": 0.9\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Evaluator's SR3 check inspects suspect_nets/root_cause for a reference to net_repb_out as the dangling/unused replica_b output net (or performs a fanout scan confirming zero fanout). This mutant removes net_repb_out from suspect_nets and strips the dangling-output claim from root_cause, so the report fails to flag replica_b's genuine output as disconnected/unused, violating SR3 while still passing SR1/SR2/SR4 and FR1-FR4.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_instances\": [\"u_buf1\"],\n  \"suspect_nets\": [\"net_buf1_out\", \"voter_b\"],\n  \"affected_output\": \"voted_out\",\n  \"root_cause\": \"Instance u_buf1 (a wire_tap) taps net_repa_out, the output of u_replica_a, and drives net_buf1_out, which feeds voter_b instead of net_repb_out. This means both voter_a and voter_b originate from u_replica_a's output. A single stuck-at fault on u_replica_a now propagates to 2 of 3 voter inputs, defeating majority-vote fault masking and corrupting voted_out.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "SR4 requires trojan_present=true; this mutant flips it to false while keeping all other fields (suspect_instances, suspect_nets, root_cause) intact, which per the acceptance criteria must FAIL regardless of the quality of the other findings since trojan_present=false is an automatic fail condition.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": false,\n  \"suspect_instances\": [\"u_buf1\"],\n  \"suspect_nets\": [\"net_buf1_out\", \"voter_b\", \"net_repb_out\"],\n  \"affected_output\": \"voted_out\",\n  \"root_cause\": \"Instance u_buf1 (a wire_tap) taps net_repa_out, the output of u_replica_a, and drives net_buf1_out, which feeds voter_b instead of net_repb_out. This means both voter_a and voter_b originate from u_replica_a's output, while net_repb_out, the genuine output of u_replica_b, is declared and driven but left dangling/unused. A single stuck-at fault on u_replica_a now propagates to 2 of 3 voter inputs, defeating majority-vote fault masking and corrupting voted_out.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR4_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "evaluate.py checks that every entry in suspect_instances corresponds to an actual instance name found in inputs/tmr_voter_netlist.v (FR2). The mutant replaces the correct instance name 'u_buf1' with a fabricated name 'u_bufX1' that does not appear anywhere in the netlist's instance declarations, so the string-match verification against the netlist fails, causing FR2 schema/content validation to fail even though trojan_present, suspect_nets, affected_output, and root_cause remain otherwise plausible.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_instances\": [\"u_bufX1\"],\n  \"suspect_nets\": [\"net_buf1_out\", \"voter_b\", \"net_repb_out\"],\n  \"affected_output\": \"voted_out\",\n  \"root_cause\": \"Instance u_bufX1 (a wire_tap) taps net_repa_out, the output of u_replica_a, and drives net_buf1_out, which feeds voter_b instead of net_repb_out. This means both voter_a and voter_b originate from u_replica_a's output, while net_repb_out, the genuine output of u_replica_b, is declared and driven but left dangling/unused. A single stuck-at fault on u_replica_a now propagates to 2 of 3 voter inputs, defeating majority-vote fault masking and corrupting voted_out.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_FR2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py checks that every string in suspect_nets corresponds to an actual net/wire identifier declared or referenced in inputs/tmr_voter_netlist.v (FR3). This mutant replaces the valid net names with fabricated identifiers that do not appear anywhere in the netlist (e.g. 'net_fake_bypass', 'voter_shadow_net'), so the existence/string-match check against the netlist's declared nets must fail even though trojan_present, affected_output, and suspect_instances remain otherwise correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_instances\": [\"u_buf1\"],\n  \"suspect_nets\": [\"net_fake_bypass\", \"voter_shadow_net\"],\n  \"affected_output\": \"voted_out\",\n  \"root_cause\": \"Instance u_buf1 (a wire_tap) taps net_repa_out, the output of u_replica_a, and drives net_buf1_out, which feeds voter_b instead of net_repb_out. This means both voter_a and voter_b originate from u_replica_a's output, while net_repb_out, the genuine output of u_replica_b, is declared and driven but left dangling/unused. A single stuck-at fault on u_replica_a now propagates to 2 of 3 voter inputs, defeating majority-vote fault masking and corrupting voted_out.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_FR3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "evaluate.py checks that affected_output exactly matches a top-level output port name declared in tmr_top's module header (voted_out). This mutant reports 'voter_out', which does not appear anywhere in the netlist's port list or wire declarations, so FR4 validation must fail even though all other fields remain otherwise correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_instances\": [\"u_buf1\"],\n  \"suspect_nets\": [\"net_buf1_out\", \"voter_b\", \"net_repb_out\"],\n  \"affected_output\": \"voter_out\",\n  \"root_cause\": \"Instance u_buf1 (a wire_tap) taps net_repa_out, the output of u_replica_a, and drives net_buf1_out, which feeds voter_b instead of net_repb_out. This means both voter_a and voter_b originate from u_replica_a's output, while net_repb_out, the genuine output of u_replica_b, is declared and driven but left dangling/unused. A single stuck-at fault on u_replica_a now propagates to 2 of 3 voter inputs, defeating majority-vote fault masking and corrupting voted_out.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_FR4_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

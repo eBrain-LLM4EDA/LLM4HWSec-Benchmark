@@ -1,0 +1,85 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub chip-level Trojan benchmarks"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of Trojan instances correctly identified in the report.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of benign constructs incorrectly flagged as Trojans.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Accuracy of the reported trigger condition and payload effect compared to ground truth.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted report correctly identifies the reset-order dependency as a Trojan trigger.",
+      "The report correctly identifies protected_mode as the payload.",
+      "The report describes the exact two-cycle release gap required for activation.",
+      "The report correctly states that the trigger is sticky until a full simultaneous reset."
+    ],
+    "cwe_ids": [
+      "CWE-1245",
+      "CWE-1262"
+    ],
+    "ground_truth": "Releasing peri_rst_n exactly two clock cycles before core_rst_n sets a sticky trigger bit. This trigger forces protected_mode high and holds it high until both resets are asserted simultaneously again.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Simulate the netlist with various reset release orderings and observe protected_mode. A two-cycle gap between peri_rst_n release and core_rst_n release should cause protected_mode to assert.",
+        "id": "SR1",
+        "requirement": "Detect the reset-order-dependent sticky trigger logic."
+      },
+      {
+        "detection_strategy": "Once protected_mode asserts, confirm it remains high even after normal operation resumes, until a full simultaneous reset occurs.",
+        "id": "SR2",
+        "requirement": "Identify the payload effect (protected_mode assertion) and its persistence."
+      }
+    ],
+    "threat_model": "An attacker with control over board-level reset sequencing can release the peripheral reset two cycles before the core reset to enter an undocumented privileged mode, bypassing normal security controls."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL is self-contained, under 200 lines of synthesizable SystemVerilog.",
+      "The design uses two reset inputs: core_rst_n and peri_rst_n, both active-low.",
+      "The design elaborates correctly with iverilog -g2012.",
+      "Normal simultaneous reset behavior must remain functionally correct."
+    ],
+    "expected_outputs": [
+      "trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "When both core_rst_n and peri_rst_n are asserted (low) simultaneously and then de-asserted (high) simultaneously, the protected_mode output must remain low (0) at all times after reset release."
+      },
+      {
+        "id": "FR2",
+        "requirement": "When core_rst_n is asserted alone and then de-asserted, or peri_rst_n is asserted alone and then de-asserted, the protected_mode output must remain low (0) at all times after reset release."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The design must elaborate without errors using iverilog -g2012."
+      }
+    ],
+    "input_artifacts": [
+      "core_wrapper.sv",
+      "cells.lib"
+    ],
+    "interface": "The submission is a JSON report file named trojan_report.json placed in the submission/ directory. The report must follow the schema described in response_format.",
+    "objective": "Analyze the provided SystemVerilog RTL design and identify any logic that could cause the protected_mode output to assert under non-standard reset sequencing. Document your findings in a structured report.",
+    "response_format": "The trojan_report.json must be a JSON object with the following fields:\n- \"trojan_present\": boolean, true if any suspicious logic is found.\n- \"findings\": array of objects, each describing a suspicious construct. Each object must have:\n  - \"signal_name\": string, the hierarchical name of the suspicious signal or instance.\n  - \"trigger_condition\": string, a human-readable description of the condition that activates the suspicious behavior.\n  - \"payload_effect\": string, a human-readable description of what the suspicious logic does when triggered.\n  - \"confidence\": number between 0.0 and 1.0 indicating confidence that this is a Trojan.\n- \"rationale\": string, overall reasoning for the conclusions."
+  },
+  "task_id": "rtl_reset_order_trojan",
+  "title": "Reset-order-triggered privilege Trojan"
+}

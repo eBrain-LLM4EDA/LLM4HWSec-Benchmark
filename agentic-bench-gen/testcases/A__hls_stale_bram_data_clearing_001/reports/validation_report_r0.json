@@ -1,0 +1,107 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/packet_kernel.cpp",
+    "metadata.json"
+  ],
+  "check_activation": {
+    "FR1": 4,
+    "FR2": 3,
+    "FR3": 6,
+    "SR1": 3,
+    "SR2": 6,
+    "SR3": 4
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [
+    "FR4"
+  ],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] FAIL: FR2: length=0 output byte at index 0 is nonzero: 0xee\n[TEST] FAIL: FR3: length=0 mismatch at index 0: expected 0x00 got 0xee\n[TEST] PASS: SR3\n[TEST] FAIL: SR1: second_length=0: stale nonzero byte at index 0: 0x5a\n[TEST] FAIL: SR2: sr2_sweep: call 1 (len=0) stale/leftover mismatch at index 0: expected 0x00 got 0x5a\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/packet_kernel.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "FR4 never emitted [TEST] FAIL on its targeting mutants \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "FR4 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_score": 0.857,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": [
+    "FR4"
+  ]
+}

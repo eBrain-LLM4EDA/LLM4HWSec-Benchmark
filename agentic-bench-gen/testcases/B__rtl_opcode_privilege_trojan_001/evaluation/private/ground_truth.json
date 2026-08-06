@@ -1,0 +1,28 @@
+{
+  "trigger_opcode_hex": "0xE7",
+  "trigger_opcode_int": 231,
+  "payload_signal": "privilege_ok",
+  "payload_match_regex": "privilege_?ok",
+  "fp_signal_names": ["alu_op", "valid", "write_enable"],
+  "evidence_keywords": [
+    "simulat",
+    "divergen",
+    "undocumented",
+    "reserved",
+    "case",
+    "default",
+    "opcode_map",
+    "clock",
+    "posedge",
+    "sequential",
+    "cross-check",
+    "toggle",
+    "table"
+  ],
+  "banned_generic_phrases": [
+    "trojan detected",
+    "suspicious logic found",
+    "there is a trojan",
+    "malicious code present"
+  ]
+}

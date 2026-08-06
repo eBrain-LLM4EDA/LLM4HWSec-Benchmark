@@ -1,0 +1,125 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: SR4\n[TEST] PASS: FR4\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/lookup_kernel.cpp",
+    "metadata.json"
+  ],
+  "check_activation": {
+    "FR2": 1,
+    "FR3": 5,
+    "FR4": 5,
+    "SR1": 5,
+    "SR2": 5,
+    "SR3": 5
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [
+    "FR1",
+    "SR4"
+  ],
+  "differential": {
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: SR4\n[TEST] PASS: FR4\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: SR4\n[TEST] PASS: FR4\n[TEST] FAIL: FR3: call #0 (value=90,key=0) recorded 1 accesses, expected 16\n[TEST] FAIL: SR3: call #0 (value=90,key=0) recorded 1 accesses, expected 16\n[TEST] FAIL: SR1: trace for key=1 differs from key=0's trace (value fixed at 90): [11] != [10]\n[TEST] FAIL: SR2: trace for value=0 (key fixed at 165) = [5] != canonical [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/lookup_kernel.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "FR1 never emitted [TEST] FAIL on its targeting mutants \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "SR4 never emitted [TEST] FAIL on its targeting mutants \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "FR1 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "SR4 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_score": 0.75,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp",
+    "evaluation/oracle.py",
+    "evaluation/table_accessor.cpp"
+  ],
+  "uncovered_requirements": [
+    "FR1",
+    "SR4"
+  ]
+}

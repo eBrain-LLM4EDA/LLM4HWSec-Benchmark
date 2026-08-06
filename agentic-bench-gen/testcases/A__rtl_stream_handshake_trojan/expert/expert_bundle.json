@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"trojan_present\": true,\n  \"trigger_condition\": \"The trigger activates when a 4-bit shift register (hist_reg[3:0]) that records the history of the valid-ready handshake (valid && ready) on each cycle matches the pattern 1011 (MSB first, meaning the most recent four cycles had handshake outcomes: valid-ready, no-transfer, valid-ready, valid-ready).\",\n  \"payload_effect\": \"When the trigger condition is met, the payload logic forces the m_valid output low for exactly one cycle by gating it with an AND gate (payload_gate), thereby suppressing a single otherwise-valid transfer.\",\n  \"trigger_signals\": [\n    \"hist_reg[0]\",\n    \"hist_reg[1]\",\n    \"hist_reg[2]\",\n    \"hist_reg[3]\"\n  ],\n  \"payload_signals\": [\n    \"payload_gate\"\n  ],\n  \"confidence\": 1.0\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The golden correct answer file for the analysis_report submission. Contains all required fields: trojan_present (true), trigger_condition (exact description of the 4-cycle valid-ready history pattern 1011), payload_effect (forces m_valid low for one cycle, dropping a single valid transfer), trigger_signals (array with hist_reg[0] through hist_reg[3]), payload_signals (array with payload_gate), and confidence (1.0). This file is placed at the submission path during grading and evaluated against the hidden acceptance criteria."
+    }
+  ]
+}

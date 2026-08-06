@@ -1,0 +1,74 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for Gate-Level Trojan Detection\n\n## Grading Contract\n\nThis evaluation follows the **report_grading** contract: the participant submits an answer file, not code. The grading script (`evaluate.py`) reads the submitted answer and grades its content against hidden ground truth. The input artifacts (`inputs/design.v` and `inputs/cells.lib`) are provided for reference and are not modified by the participant.\n\n## Submission File\n\nThe participant must place a single JSON file at:\n\n```\nsubmission/trojan_report.json\n```\n\nThe file must conform to the schema described in the task specification:\n- `trojan_detected` (boolean)\n- `suspect_nodes` (list of strings)\n\n## How Grading Works\n\n`evaluate.py` performs the following checks:\n\n1. **Functional Requirements (FR1\u2013FR3):** Validates the structure and format of the submitted JSON (valid JSON, correct field types, list of strings).\n2. **Security Requirements (SR1\u2013SR2):** Checks the substantive correctness of the reported findings against the hidden ground truth (exact hierarchical node names of the trigger and payload).\n\nEach requirement produces a `[TEST] PASS` or `[TEST] FAIL` marker. The script exits with code 0 if all requirements pass, and non-zero otherwise.\n\n## Available Toolchain\n\nThe evaluation environment includes the following tools, which may be used for optional cross-checks on the input artifacts (e.g., simulating the netlist to confirm a reported trigger):\n\n- `yosys`\n- `iverilog`\n- `vvp`\n\nThese tools are not required for grading the answer file itself but are available if needed.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport sys\nimport os\n\n# Import hidden ground truth\nsys.path.insert(0, os.path.join(os.path.dirname(__file__), 'private'))\nfrom ground_truth import EXPECTED_TROJAN_DETECTED, EXPECTED_SUSPECT_NODES\n\ndef main():\n    submission_path = os.path.join('submission', 'trojan_report.json')\n    all_pass = True\n\n    # FR1: File exists and is valid JSON\n    if not os.path.exists(submission_path):\n        print(\"[TEST] FAIL: FR1: submission/trojan_report.json not found\")\n        all_pass = False\n    else:\n        try:\n            with open(submission_path, 'r') as f:\n                data = json.load(f)\n            print(\"[TEST] PASS: FR1\")\n        except json.JSONDecodeError as e:\n            print(f\"[TEST] FAIL: FR1: invalid JSON: {e}\")\n            all_pass = False\n            # Cannot continue with other checks if JSON is invalid\n            sys.exit(1)\n\n    # FR2: 'trojan_detected' must be a boolean\n    if 'trojan_detected' not in data:\n        print(\"[TEST] FAIL: FR2: missing 'trojan_detected' field\")\n        all_pass = False\n    elif not isinstance(data['trojan_detected'], bool):\n        print(f\"[TEST] FAIL: FR2: 'trojan_detected' must be boolean, got {type(data['trojan_detected']).__name__}\")\n        all_pass = False\n    else:\n        print(\"[TEST] PASS: FR2\")\n\n    # FR3: 'suspect_nodes' must be a list of strings\n    if 'suspect_nodes' not in data:\n        print(\"[TEST] FAIL: FR3: missing 'suspect_nodes' field\")\n        all_pass = False\n    elif not isinstance(data['suspect_nodes'], list):\n        print(f\"[TEST] FAIL: FR3: 'suspect_nodes' must be a list, got {type(data['suspect_nodes']).__name__}\")\n        all_pass = False\n    else:\n        all_strings = all(isinstance(node, str) for node in data['suspect_nodes'])\n        if not all_strings:\n            print(\"[TEST] FAIL: FR3: 'suspect_nodes' must contain only strings\")\n            all_pass = False\n        else:\n            print(\"[TEST] PASS: FR3\")\n\n    # If any FR failed, we may still attempt SR checks if data is usable\n    # SR1: suspect_nodes must contain the trigger cone output net\n    if 'suspect_nodes' in data and isinstance(data['suspect_nodes'], list):\n        suspect_nodes = data['suspect_nodes']\n        if EXPECTED_SUSPECT_NODES[0] in suspect_nodes:\n            print(\"[TEST] PASS: SR1\")\n        else:\n            print(f\"[TEST] FAIL: SR1: missing trigger node '{EXPECTED_SUSPECT_NODES[0]}'\")\n            all_pass = False\n\n        # SR2: suspect_nodes must contain the payload gate\n        if EXPECTED_SUSPECT_NODES[1] in suspect_nodes:\n            print(\"[TEST] PASS: SR2\")\n        else:\n            print(f\"[TEST] FAIL: SR2: missing payload node '{EXPECTED_SUSPECT_NODES[1]}'\")\n            all_pass = False\n    else:\n        # If suspect_nodes is missing or not a list, SR checks cannot pass\n        print(\"[TEST] FAIL: SR1: cannot check, suspect_nodes invalid\")\n        print(\"[TEST] FAIL: SR2: cannot check, suspect_nodes invalid\")\n        all_pass = False\n\n    if all_pass:\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\nif __name__ == '__main__':\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# Hidden ground truth for gate_clock_enable_payload\n# These constants define the correct answer for the Trojan detection task.\n# They are imported by evaluate.py and used to grade the submission.\n\nEXPECTED_TROJAN_DETECTED = True\nEXPECTED_SUSPECT_NODES = ['nand4_out', 'payload_gate']",
+      "path": "evaluation/private/ground_truth.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the grading contract (report_grading), list the required submission file (submission/trojan_report.json), explain that evaluate.py grades the answer against hidden ground truth, and note that the toolchain (yosys, iverilog, vvp) is available for optional cross-checks on inputs/design.v and inputs/cells.lib."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Reads submission/trojan_report.json, validates JSON structure and field types (FR1, FR2, FR3), then checks substantive correctness against hidden ground truth (SR1, SR2). Emits [TEST] PASS/FAIL markers for each requirement. Exits 0 on all-pass, non-zero on any failure. Uses only Python stdlib; no subprocess toolchain invocations needed for grading the answer file itself."
+    },
+    {
+      "path": "evaluation/private/ground_truth.py",
+      "purpose": "Hidden ground truth constants imported by evaluate.py. Defines EXPECTED_TROJAN_DETECTED = True and EXPECTED_SUSPECT_NODES = ['nand4_out', 'payload_gate'] \u2014 the exact hierarchical net names of the trigger cone output and the payload gate that drives the suppressed clock enable signal. These are the only correct answers for this netlist."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "PASS when trojan_report.json is valid JSON and parseable; FAIL when the file is missing, empty, or malformed JSON.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when the 'trojan_detected' field exists and is a boolean; FAIL when the field is missing or is not a boolean.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when 'suspect_nodes' exists, is a list, and every element is a string; FAIL when the field is missing, is not a list, or contains non-string elements.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when the submitted suspect_nodes list contains the hierarchical name of the output net of the 4-input NAND gate that forms the trigger ('nand4_out'); FAIL when that node is missing from the list.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "PASS when the submitted suspect_nodes list contains the hierarchical name of the gate that drives the update_en net low when the trigger is activated ('payload_gate'); FAIL when that node is missing from the list.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    }
+  ]
+}

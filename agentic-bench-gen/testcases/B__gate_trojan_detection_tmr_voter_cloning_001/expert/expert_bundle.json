@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"trojan_present\": true,\n  \"suspect_instances\": [\"u_buf1\"],\n  \"suspect_nets\": [\"net_buf1_out\", \"voter_b\", \"net_repb_out\"],\n  \"affected_output\": \"voted_out\",\n  \"root_cause\": \"Instance u_buf1 (a wire_tap) taps net_repa_out, the output of u_replica_a, and drives net_buf1_out, which feeds voter_b instead of net_repb_out. This means both voter_a and voter_b originate from u_replica_a's output, while net_repb_out, the genuine output of u_replica_b, is declared and driven but left dangling/unused. A single stuck-at fault on u_replica_a now propagates to 2 of 3 voter inputs, defeating majority-vote fault masking and corrupting voted_out.\",\n  \"confidence\": 0.95\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "Golden answer for submission/trojan_report.json. Fields: trojan_present=true; suspect_instances=[\"u_buf1\"] (the wire_tap instance in tmr_top that clones replica_a's output onto voter_b, per exact instance name in inputs/tmr_voter_netlist.v); suspect_nets=[\"net_buf1_out\",\"voter_b\",\"net_repb_out\"] (net_buf1_out and voter_b are the aliased path carrying replica_a's signal into the second voter input instead of replica_b's, and net_repb_out is replica_b's true output net which is declared and driven by u_replica_b but never referenced elsewhere, i.e. dangling/unused since voter_b is fed by net_buf1_out instead); affected_output=\"voted_out\" (the sole top-level output port of tmr_top); root_cause=concise (<=500 chars) text stating that u_buf1 taps net_repa_out (u_replica_a's output) and drives net_buf1_out which feeds voter_b, so both voter_a and voter_b originate from replica_a, while net_repb_out (u_replica_b's real output) is left dangling, defeating single-fault masking since a stuck-at fault on replica_a now controls 2 of 3 voter inputs and can flip voted_out; confidence=0.95 (float in [0,1], not gating). This satisfies FR1-FR4 and SR1-SR4: names the correct cloning instance (SR2), flags the dangling net_repb_out (SR3), identifies voted_out as vulnerable with trojan_present=true (SR4), and captures the wiring/connectivity nature of the defect (SR1)."
+    }
+  ]
+}

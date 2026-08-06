@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 1.0,
+  "rationale": "The validation report shows status=fail due to an untested_requirement for FR1 (0 mutants targeting it, so discrimination is unproven). The analyzer report confirms FR1 has no targeting mutant and the evaluator does not compute the three metrics listed in the task specification (key_recovery_rate, key_gate_localization_accuracy, sat_iteration_reduction). The mutation_score of 1.0 is misleading because FR1 was never tested. The case must be sent back for repair of the evaluation framework to add a mutant for FR1 and implement the required metrics.",
+  "retain_case": false,
+  "revision_instructions": "1. Add a mutant that corrupts submission/recovered_key.json to verify FR1 discrimination. The mutant must cause FR1 to FAIL by either deleting the file, making it invalid JSON, or renaming it. The mutant must target FR1 and be detectable by the existing FR1 check. 2. Implement metric computation in evaluate.py for the three metrics specified in metadata.json and the task specification: key_recovery_rate, key_gate_localization_accuracy, and sat_iteration_reduction. These metrics must be computed and reported in the evaluator output. If these metrics are not intended to be measured, remove them from metadata.json and the task specification instead.",
+  "root_cause": "evaluation_issue",
+  "source_round": 2
+}

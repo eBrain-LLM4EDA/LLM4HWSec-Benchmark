@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "The controller mult_ctrl is a fixed 8-cycle Moore-output FSM: done and product timing must never vary regardless of secret_operand value.",
+    "mul_en is driven combinationally from FSM state and secret_operand bit inspection logic; it is asserted on a given cycle only when the corresponding secret_operand bit position (scanned MSB-first over cycles 1..8) is set.",
+    "traces.csv contains complete per-cycle records for 64 distinct secret_operand values (0x00 through a representative sample up to 0xFF) with public_operand fixed at a constant value across all trials, sufficient to compute enable_count per operand without needing to run simulation.",
+    "Participants must not edit any file under inputs/; only submission/vulnerability_report.json is graded."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must be valid JSON with top-level string/array fields: 'summary' (string), 'timing_analysis' (object with fields 'observed_latency_cycles' (integer) and 'latency_is_constant' (boolean)), 'activity_analysis' (array of objects, one per distinct secret_operand value analyzed, each with fields 'secret_operand' (hex string, e.g. '0x3F'), 'enable_count' (integer count of cycles mul_en=1 observed for that operand in the trace), and 'hamming_weight' (integer, popcount of the operand)), and 'hardening_recommendations' (array of strings)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must state the exact measured value of 'observed_latency_cycles' as 8 and set 'latency_is_constant' to true, consistent with cross-checking inputs/traces.csv, where every trial's done assertion occurs exactly 8 cycles after its start."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The 'activity_analysis' array must cover at least 16 distinct secret_operand values drawn from inputs/traces.csv, and for each entry the reported 'enable_count' must exactly match the count of mul_en=1 rows for that secret_operand in inputs/traces.csv (tolerance: 0, exact integer match)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "Each entry in 'hardening_recommendations' must be a non-empty string; the array must contain at least 2 entries describing concrete circuit-level modifications (e.g., dummy-cycle insertion, constant-weight recoding, always-on enable with masked accumulation) rather than purely statistical or software-level countermeasures."
+    }
+  ],
+  "input_artifacts": [
+    "mult_ctrl.v",
+    "fault_model.md",
+    "trace_manifest.json",
+    "traces.csv",
+    "design_brief.md"
+  ],
+  "interface": "Module under analysis: mult_ctrl (file inputs/mult_ctrl.v). Ports: input clk, input rst_n (active-low synchronous reset), input start (pulse, 1 cycle, begins a transaction), input [7:0] secret_operand (the multiplicand under analysis; treat as the sensitive input), input [7:0] public_operand (multiplier, non-sensitive), output done (Moore output, asserted for exactly 1 cycle, exactly 8 clock cycles after the cycle in which start was sampled high while idle), output [15:0] product (valid and held the cycle done is asserted, until the next start), output mul_en (Mealy output driven by the internal controller FSM; may toggle every cycle of the 8-cycle transaction). Reset: while rst_n=0, done=0, mul_en=0, product=0 on the next clock edge and the controller returns to IDLE. The traces in inputs/traces.csv are per-cycle vectors of {trial_id, secret_operand (hex byte), cycle_index (0..9 relative to start), mul_en, done} produced by simulating this exact module for 64 different secret_operand values with public_operand held constant. Participants submit ONLY the answer file submission/vulnerability_report.json; inputs/ files are read-only reference material and must not be modified.",
+  "objective": "Analyze the provided 8-cycle multiplier controller RTL and its accompanying power-proxy activity traces to characterize the relationship between the controller's internal enable-signal activity and the operand values used across the recorded trace set. Produce a written vulnerability_report.json documenting per-trace enable-activity statistics, the observed relationship between activity counts and operand bit patterns, and concrete hardening recommendations that make per-cycle switching activity uniform across all operand values (not merely uniform completion timing).",
+  "response_format": "A single JSON file at submission/vulnerability_report.json containing exactly the top-level fields described in FR1, with no additional wrapping or markdown."
+}

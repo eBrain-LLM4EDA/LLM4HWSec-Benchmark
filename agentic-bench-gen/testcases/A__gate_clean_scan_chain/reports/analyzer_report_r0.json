@@ -1,0 +1,88 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "evaluate.py crashes with ModuleNotFoundError on both golden and vulnerable runs because it uses 'from evaluation.private.scan_whitelist import SCAN_WHITELIST' but the Python path does not include the parent directory. The evaluator never executes any requirement checks.",
+      "evidence": "stderr: 'ModuleNotFoundError: No module named \\'evaluation\\'' on both golden and vulnerable runs.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (expected PASS) and accepts the known-insecure baseline (expected FAIL) because it crashes before grading. This means the harness cannot discriminate correct from incorrect submissions.",
+      "evidence": "golden_run exit_code=1 (expected pass), vulnerable_run exit_code=1 (expected fail). Both fail identically.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "No requirement IDs (FR1-FR4, SR1-SR2) are ever emitted because the script crashes at import. The requirement_map claims these are tested, but they are dead code.",
+      "evidence": "stdout is empty for both runs; no [TEST] PASS/FAIL lines printed.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "All six requirements (FR1-FR4, SR1-SR2) are untested because no mutants were generated to exercise them, and the preflight differential test failed. Mutation score is 0.0.",
+      "evidence": "untested_requirements: ['FR1','FR2','FR3','FR4','SR1','SR2']; mutation_score: 0.0.",
+      "severity": "high"
+    },
+    {
+      "artifact": "submission/trojan_report.json",
+      "description": "The shipped baseline submission reports infected=true with trigger_nodes and payload_nodes populated, which is a false positive. The evaluator should reject it, but cannot due to the import crash.",
+      "evidence": "baseline content: infected=true, trigger_nodes=['test_mode','scan_enable'], payload_nodes=['scan_mux_out[0]',...]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure the requested metrics (detection_rate, false_positive_rate, inference_latency). It only performs a single report-grading pass/fail check.",
+      "evidence": "No timing instrumentation, no aggregation across multiple tasks; only exit code 0/1.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The public README mentions 'Trojan' and 'infected' which is appropriate for the domain, but does not leak CWE-1269, SR ids, or the threat model. No hidden security intent is exposed.",
+      "evidence": "README content reviewed; no CWE, SR, or threat-model text found.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the import in evaluate.py: either add the project root to sys.path or use a relative import that works when the script is invoked from the repository root (e.g., 'from private.scan_whitelist import SCAN_WHITELIST' after adjusting the directory structure).",
+    "Ensure the evaluator can be run with 'python3 evaluation/evaluate.py' from the repository root without ModuleNotFoundError.",
+    "After fixing the import, re-run the preflight differential test to confirm the golden solution passes and the baseline fails.",
+    "Add mutants or targeted test cases for each requirement (FR1-FR4, SR1-SR2) so that the harness discrimination is proven and mutation score is meaningful.",
+    "If metrics (detection_rate, false_positive_rate, inference_latency) are required, extend the harness to measure and report them, or document that they are measured externally.",
+    "Verify that the requirement_map IDs exactly match the strings emitted by evaluate.py (e.g., 'FR1', 'SR1')."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py crashes at import; no FR1 check executed.",
+      "requirement": "FR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py crashes at import; no FR2 check executed.",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py crashes at import; no FR3 check executed.",
+      "requirement": "FR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py crashes at import; no FR4 check executed.",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py crashes at import; no SR1 check executed.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py crashes at import; no SR2 check executed.",
+      "requirement": "SR2",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

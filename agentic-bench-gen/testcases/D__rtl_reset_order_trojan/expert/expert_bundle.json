@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"trojan_present\": true,\n  \"findings\": [\n    {\n      \"signal_name\": \"protected_mode\",\n      \"trigger_condition\": \"Releasing peri_rst_n exactly two clock cycles before core_rst_n sets a sticky trigger bit.\",\n      \"payload_effect\": \"Forces protected_mode high and holds it high until both resets are asserted simultaneously again.\",\n      \"confidence\": 1.0\n    }\n  ],\n  \"rationale\": \"The design contains a reset-order-dependent Trojan. When peri_rst_n is released two clock cycles before core_rst_n, a sticky trigger bit is set. This trigger forces the protected_mode output high, granting an undocumented privileged mode. The protected_mode remains high even after normal operation resumes, and can only be cleared by asserting both resets simultaneously. This behavior violates the functional requirement that protected_mode must remain low under all reset sequences, and matches the hidden security requirement for a reset-order-triggered privilege escalation Trojan.\"\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The golden answer file for the analysis_report domain. It must be a valid JSON object with fields: trojan_present (true), findings (array of one object with signal_name, trigger_condition, payload_effect, confidence), and rationale. The finding must identify the reset-order dependency trigger: releasing peri_rst_n exactly two clock cycles before core_rst_n sets a sticky trigger bit that forces protected_mode high and holds it until both resets are asserted simultaneously. Confidence must be 1.0. The rationale must explain the two-cycle gap, sticky behavior, and payload effect. This file is placed at submission/trojan_report.json during grading and evaluated against the hidden acceptance criteria."
+    }
+  ]
+}

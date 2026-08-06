@@ -1,0 +1,21 @@
+{
+  "task_id": "gate_clean_scan_chain",
+  "domain_id": "gate_trojan_detection",
+  "title": "Clean DFT netlist with rare scan controls",
+  "input_artifacts": [
+    "scan_controller.v",
+    "design_brief.md"
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json"
+  ],
+  "metrics": [
+    "detection_rate",
+    "false_positive_rate",
+    "inference_latency"
+  ],
+  "baselines": [
+    "Trust-Hub",
+    "CASlab GAINESIS"
+  ]
+}

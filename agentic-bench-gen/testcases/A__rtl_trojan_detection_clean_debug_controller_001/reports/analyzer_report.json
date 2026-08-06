@@ -1,0 +1,74 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR2 uses a broad keyword scan ('idle', 'counter') that could over-flag legitimate future submissions that reference these terms even in acceptable ways (e.g., explaining why the counter is benign) if such text appears within a triggers/payloads entry; however since correct submissions have empty triggers/payloads under infected=false, this is not currently exploitable and only affects malformed infected=true reports.",
+      "evidence": "spurious_keywords = ['debug_enable', 'debug_sel', 'debug_out', 'watchdog', 'idle', 'counter']",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/tb_debug_gate.v / evaluate.py SR3",
+      "description": "Simulation corroboration path is unreachable for a correct golden rationale (by design) and only marginally exercised for baseline (which fails via keyword check alone before simulation could matter), meaning the testbench's mutation coverage is not empirically demonstrated to detect a genuinely broken debug_enable gate in a mutant RTL scenario within this bundle.",
+      "evidence": "SR3 branch: 'if rationale_mentions_gating: sr3_ok = True ... else: sim_result = run_debug_gate_simulation(...)' \u2014 simulation never flips a pass to fail nor a fail to pass in the observed runs.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider tightening SR2's keyword list (e.g. drop bare 'idle' and 'counter') or require keyword co-occurrence with malicious-sounding language, to reduce theoretical risk of over-flagging a nuanced infected=true report that legitimately discusses the counter in an unrelated malicious finding elsewhere in the design.",
+    "Consider adding a mutant RTL variant (e.g., a debug_enable bypass path) to the differential/mutation suite to empirically demonstrate that tb_debug_gate.v's simulation corroboration branch can actually detect a real gating violation, even though it is documented as non-decisive; this would strengthen confidence in the testbench's correctness beyond the current always-passing-on-clean-RTL demonstration.",
+    "Optionally expand FR3's keyword list or add a semantic check to avoid rewarding boilerplate rationales that happen to mention one of the four keywords without genuine engagement (currently the baseline passes FR3 despite being ultimately rejected via SR1-SR3, which is acceptable but slightly weakens FR3's discriminative power)."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run shows [TEST] PASS: FR1; baseline (shipped naive submission) also passes FR1 since it is well-formed JSON with correct key set, consistent with contract intent (FR1 checks structural validity, not correctness).",
+      "requirement": "FR1 (schema validity)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR2 (infected=false, empty arrays); baseline also passes FR2 structurally (infected=true with non-empty populated trigger entries) but is caught later by SR1/SR2/SR3.",
+      "requirement": "FR2 (infected/triggers/payloads consistency)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and baseline both pass FR3 since baseline rationale mentions 'debug-enabled mux' and 'counter' generically; FR3 keyword check is satisfied by baseline too, which is expected per requirement_map (FR3 is a weak grounding check, SR3 is the stronger one).",
+      "requirement": "FR3 (rationale grounded in RTL)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden confidence >=0.6 for infected=false; baseline confidence=0.7 for infected=true satisfies >=0.5 threshold, so FR4 passes for baseline too \u2014 correctly, since FR4 is about internal consistency, not correctness of verdict.",
+      "requirement": "FR4 (confidence consistency)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable/baseline run shows '[TEST] FAIL: SR1: ground truth is a clean design; infected must be false', golden run shows PASS: SR1.",
+      "requirement": "SR1 (correct clean classification)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run shows FAIL: SR2 listing trigger[0] debug_enable, trigger[1] watchdog, payload[0] debug_out, payload[1] counter; golden run shows PASS: SR2 (empty arrays).",
+      "requirement": "SR2 (no spurious findings on legitimate debug/watchdog logic)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable run shows FAIL: SR3 with reason citing lack of gating-completeness reasoning; golden run shows PASS: SR3, and design note in evaluate.py confirms simulation never overrides a textually-passing rationale.",
+      "requirement": "SR3 (rationale demonstrates gating-completeness verification)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential harness confirms golden_run exit_code=0/status=pass matching expected 'pass', and vulnerable_run (baseline) exit_code=1/status=fail matching expected 'fail'; mutation_score=1.0 and coverage_score=1.0 with no dead_checks or uncovered_requirements.",
+      "requirement": "Overall grader accept/reject behavior per submission contract",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, inputs/pcu_core.v, and inputs/design_brief.md contain no CWE ids, SR/FR labels, or explicit statements that the baseline is intentionally vulnerable; design_brief.md is written in plain engineering language without security terminology, consistent with public_spec constraint 'without referencing security analysis terminology'.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four distinct, concretely machine-checkable requirements (schema/key-set validity, infected/array consistency, rationale keyword grounding, confidence threshold consistency), each independently verifiable via the pinned JSON interface, not a single restatement of the objective.",
+      "requirement": "Functional requirements are concrete and machine-checkable (2-4 distinct checks)",
+      "status": "pass"
+    }
+  ]
+}

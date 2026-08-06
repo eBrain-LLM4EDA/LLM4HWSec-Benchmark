@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected by the evaluator (golden_rejected), making the mutation score meaningless. The testbench fails to produce [TEST] markers for FR1, FR2, FR3 when simulating the correct golden solution, causing evaluate.py to report 'no marker found'. This is a bug in the evaluation harness, not a specification or artifact issue. The evaluator must be fixed to behaviorally grade the submission through simulation, not through source-text matching or hardcoded expected values that may not align with the testbench's marker output logic.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

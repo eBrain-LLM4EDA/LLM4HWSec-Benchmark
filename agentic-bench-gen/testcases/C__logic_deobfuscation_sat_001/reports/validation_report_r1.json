@@ -1,0 +1,151 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/locked_netlist.v",
+    "inputs/locking_scheme.txt",
+    "metadata.json",
+    "submission/recovered_key.json"
+  ],
+  "check_activation": {
+    "FR2": 1,
+    "FR3": 3,
+    "FR4": 1,
+    "SR1": 3,
+    "SR2": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: key_gates is not empty (got ['xor_gate_1', 'mux_sel_0'])\n[TEST] FAIL: SR2: key_bits is not empty (got '10101010')\n"
+    }
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "expert_files": [
+    "golden/recovered_key.json"
+  ],
+  "issues": [
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    }
+  ],
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 0.833,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "6ac874af288c598732586219e9df7231ba42cd8ade3a82de67a0341d1fb33e4e",
+        "changed": true,
+        "golden": "golden/recovered_key.json",
+        "golden_sha256": "3db0023b093619228cea8afa16660d8c2e4ddb16c2772a2d241b0835c9ba5eb6",
+        "target": "submission/recovered_key.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_key.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1"
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "domain_id": "logic_deobfuscation_sat",
+  "evaluation": {
+    "baselines": [
+      "ISCAS/ITC locked variants",
+      "Anti-SAT style circuits"
+    ],
+    "metrics": [
+      {
+        "description": "Proportion of correctly recovered key bits (1.0 if key_bits is empty and ground truth is empty, 0.0 otherwise).",
+        "direction": "maximize",
+        "name": "key_recovery_rate"
+      },
+      {
+        "description": "F1 score of reported key gates against ground truth (1.0 if both reported and ground truth lists are empty, 0.0 if one is empty and the other is not).",
+        "direction": "maximize",
+        "name": "key_gate_localization_accuracy"
+      },
+      {
+        "description": "Not applicable for this negative control; always 0.",
+        "direction": "maximize",
+        "name": "sat_iteration_reduction"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted recovered_key.json must have locked set to false.",
+      "The submitted recovered_key.json must have key_bits set to \"\".",
+      "The submitted recovered_key.json must have key_gates set to []."
+    ],
+    "cwe_ids": [
+      "CWE-200"
+    ],
+    "ground_truth": "The netlist has no key ports and no locking cone; locked=false, key_bits=\"\", and an empty key_gates list are the only correct findings.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check that the key_gates list is empty. Any non-empty list indicates a false positive.",
+        "id": "SR1",
+        "requirement": "The analysis must not report false key gates (ordinary functional logic misidentified as locking logic)."
+      },
+      {
+        "detection_strategy": "Check that key_bits is an empty string. Any non-empty string indicates a false key recovery.",
+        "id": "SR2",
+        "requirement": "The analysis must not report a false key (a non-empty key_bits string when no key exists)."
+      }
+    ],
+    "threat_model": "A structural detector mistakes ordinary XORs or control MUXes for lock gates, generating false key hypotheses."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist is a structural Verilog file that may be simulated with iverilog and vvp.",
+      "The locking_scheme.txt describes the locking algorithm that was supposedly applied, but the actual netlist may or may not contain locking structures.",
+      "The submission must be a single JSON file; no other files will be graded.",
+      "The participant must not modify the input artifacts."
+    ],
+    "expected_outputs": [
+      "submission/recovered_key.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submission file must exist at submission/recovered_key.json and be valid JSON."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The JSON must contain the three required fields: 'locked' (boolean), 'key_bits' (string), and 'key_gates' (array of strings)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If 'locked' is false, 'key_bits' must be the empty string and 'key_gates' must be an empty array."
+      },
+      {
+        "id": "FR4",
+        "requirement": "If 'locked' is true, 'key_bits' must be a non-empty string consisting only of '0' and '1' characters, and 'key_gates' must be a non-empty array of strings matching instance names present in the netlist."
+      }
+    ],
+    "input_artifacts": [
+      "locked_netlist.v",
+      "locking_scheme.txt"
+    ],
+    "interface": "The participant must produce a single answer file at submission/recovered_key.json. The file must be valid JSON with the following schema: {\"locked\": <boolean>, \"key_bits\": <string>, \"key_gates\": [<string>, ...]}. The 'locked' field indicates whether the netlist contains any key-gate logic (true) or not (false). The 'key_bits' field is a string of '0' and '1' characters representing the recovered key; it must be an empty string if locked is false. The 'key_gates' field is a list of strings, each identifying a key gate by its instance name in the netlist; it must be an empty list if locked is false.",
+    "objective": "Analyze a combinational netlist and report whether it contains any key-gate logic or a recoverable key. The netlist may contain ordinary control multiplexers and XOR gates that are part of the functional design.",
+    "response_format": "A single JSON file at submission/recovered_key.json with the exact schema: {\"locked\": <boolean>, \"key_bits\": <string>, \"key_gates\": [<string>, ...]}. Example for an unlocked design: {\"locked\": false, \"key_bits\": \"\", \"key_gates\": []}."
+  },
+  "task_id": "logic_deobfuscation_sat_001",
+  "title": "Unlocked netlist negative control"
+}

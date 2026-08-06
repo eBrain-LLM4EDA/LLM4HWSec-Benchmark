@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected because the simulation-based checks (SR1, SR2) fail to observe the trigger and payload persistence. The testbench (tb_trigger.v) does not correctly exercise the two-cycle gap reset sequence, causing the evaluator to produce false negatives. Additionally, no mutants target any requirement, so mutation score is 0.0 and harness discrimination is unproven. The evaluator must be fixed to correctly simulate the trigger condition and grade the submitted report against the hidden ground truth, and mutants must be added to validate each requirement.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

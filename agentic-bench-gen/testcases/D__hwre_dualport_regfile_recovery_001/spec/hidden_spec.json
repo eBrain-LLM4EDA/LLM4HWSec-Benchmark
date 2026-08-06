@@ -1,0 +1,31 @@
+{
+  "acceptance_criteria": [
+    "A reference design (authored independently from public_spec.interface only) and the submission produce bit-identical rdata0/rdata1 waveforms cycle-by-cycle under randomized write/read/collision/reset sequences for at least 500 simulated clock cycles across multiple random seeds.",
+    "The submission compiles cleanly with iverilog against the generated testbench with zero errors and zero unresolved references.",
+    "The empty/naive baseline submission (a stub module that ties rdata0/rdata1 to constant 0 or passes through raw inputs) must fail the cycle-accurate comparison.",
+    "No submission that adds a one-cycle read latency, a combinational-bypass-only collision fix that glitches, or an asynchronous reset passes the behavioral simulation."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-203"
+  ],
+  "ground_truth": "The gate-level netlist and obfuscated wrapper implement a 4x8 register file: an internal reg [7:0] mem[0:3] array updated synchronously (synchronous active-high reset clears all entries to 0, else on we=1 mem[waddr] <= wdata), with two fully combinational read ports assign rdata0 = mem[raddr0]; assign rdata1 = mem[raddr1]; so that same-address reads observe the newly written value starting the cycle after the write edge (standard synchronous-write, combinational-read register file with natural write-forwarding via the registered array read after the clock edge, i.e. no explicit bypass mux is needed or should be added).",
+  "security_requirements": [
+    {
+      "detection_strategy": "Testbench toggles raddr0/raddr1 mid-cycle (without a clock edge) after a write has committed and checks that rdata updates within the same simulation time step, with no dependency on an additional posedge clk.",
+      "id": "SR1",
+      "requirement": "The recovered design must not introduce any extra pipeline latency on the read ports (they must remain purely combinational with zero cycles from address change to data observation), since a hidden extra register stage would desynchronize any downstream logic depending on immediate read-after-write visibility."
+    },
+    {
+      "detection_strategy": "Testbench applies back-to-back same-address write-then-read collisions across many random seeds and checks the read value transitions cleanly to the new data with no intermediate glitch value observed via zero-delay sampling immediately after the clock edge.",
+      "id": "SR2",
+      "requirement": "The recovered design must not implement the write-forwarding/collision case using a combinational bypass multiplexer that could race with the clocked update and produce nondeterministic or glitchy output; the correct fix is that the read simply observes the already-updated synchronous register on the next delta cycle after the edge."
+    },
+    {
+      "detection_strategy": "Testbench writes distinct nonzero patterns to all 4 addresses, asserts rst for one cycle, then immediately samples all reads (without any intervening write) and requires 0x00 on every address for both read ports.",
+      "id": "SR3",
+      "requirement": "Reset must clear all four entries synchronously and must not leave stale data observable on any read port even transiently after reset is asserted and before the first post-reset write, avoiding disclosure of previously stored bytes."
+    }
+  ],
+  "threat_model": "An undocumented register-file block cannot be safely reused or replaced in a larger design when its exact port timing (write latency, reset semantics, and read/write collision policy) is concealed by gate-level flattening. A reverse engineer who infers the wrong collision policy (e.g. assuming the read returns the OLD value on a same-cycle collision, or adding an unnecessary one-cycle read latency) will produce a drop-in replacement that silently corrupts data paths relying on immediate write-visibility, and could also introduce inconsistent reads (e.g. combinational races) that leak stale bytes to a read port under adversarial address toggling."
+}

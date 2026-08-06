@@ -1,0 +1,43 @@
+{
+  "acceptance_criteria": [
+    "PASS requires classification=='infected' (SR1).",
+    "PASS requires payload_xor_p7 correctly identified with role payload (SR2).",
+    "PASS requires trig_and_final correctly identified with role trigger (SR3); bonus scoring if all trig_and1..6 also listed.",
+    "PASS requires trigger_condition textually and functionally consistent with a=10110100b, b=01101011b, confirmed via toolchain simulation showing p[7] mismatch only at that input (SR4).",
+    "Baseline empty/naive submission must FAIL (SR5)."
+  ],
+  "cwe_ids": [
+    "CWE-1039",
+    "CWE-1231",
+    "CWE-1244"
+  ],
+  "ground_truth": "The netlist mult8_top implements an 8x8 array multiplier in structural gates. Hidden inside it is a combinational trojan: a wide AND-tree (gates trig_and1 through trig_and6, feeding a final trig_and_final) taps six specific internal partial-product nets (pp_2_3, pp_4_1, pp_5_6, pp_1_7, pp_6_2, pp_3_5) that are simultaneously 1 only for one specific rare 8-bit x 8-bit input combination (a=8'b10110100, b=8'b01101011, verified by exhaustive-equivalent simulation to be the unique satisfying input pair among the sampled corpus used to build this netlist). The trigger output feeds payload gate 'payload_xor_p7', an XOR gate that flips output bit p[7] only when trig_and_final=1, otherwise passing the correct product bit through (via a preceding mux realized as payload_mux_sel/payload_mux_and1/payload_mux_and2/payload_mux_or). The correct classification is 'infected'; the required suspect_nodes must include trig_and1, trig_and2, trig_and3, trig_and4, trig_and5, trig_and6, trig_and_final (role=trigger) and payload_xor_p7 (role=payload), at minimum the final trigger gate and the payload gate must be named correctly for partial credit tiers described in acceptance_criteria.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String equality check on 'classification' field against hidden ground truth label.",
+      "id": "SR1",
+      "requirement": "The report must correctly classify the netlist as 'infected' (not 'clean')."
+    },
+    {
+      "detection_strategy": "Check suspect_nodes array for an entry with instance_name=='payload_xor_p7' and role=='payload'; award pass only if present.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify the payload gate instance name (payload_xor_p7) with role 'payload'."
+    },
+    {
+      "detection_strategy": "Check suspect_nodes array for instance_name=='trig_and_final' with role=='trigger'; partial credit if trig_and1..trig_and6 also present.",
+      "id": "SR3",
+      "requirement": "The report must correctly identify at least the final trigger AND gate (trig_and_final) among suspect_nodes with role 'trigger', demonstrating localization of the rare-condition logic rather than a blanket guess."
+    },
+    {
+      "detection_strategy": "Parse trigger_condition for a,b bit assignments; run iverilog/vvp testbench with the given inputs against inputs/mult8_netlist.v and confirm output p differs from arithmetic-correct a*b at bit 7 only for that input, and matches for all other sampled inputs (false positive rate check).",
+      "id": "SR4",
+      "requirement": "The reported trigger_condition must correctly identify the rare 8-bit input pair (a=8'b10110100, b=8'b01101011) that activates the trojan, verifiable by simulating the netlist with the toolchain and observing p[7] flip relative to a golden non-trojan multiplication."
+    },
+    {
+      "detection_strategy": "Baseline submission shipped with classification='clean' and empty suspect_nodes is graded and must receive FAIL on SR1-SR4.",
+      "id": "SR5",
+      "requirement": "A naive/empty baseline submission (classification='clean' or missing required fields) must fail all SR checks, establishing a non-trivial pass bar."
+    }
+  ],
+  "threat_model": "Third-party IP integrator receives a synthesized gate-level netlist for an arithmetic core from an untrusted foundry/vendor and must determine, without access to RTL or vendor cooperation, whether a hardware trojan (rare-trigger combinational logic driving a payload that corrupts functional output) has been inserted, before tape-out or deployment."
+}

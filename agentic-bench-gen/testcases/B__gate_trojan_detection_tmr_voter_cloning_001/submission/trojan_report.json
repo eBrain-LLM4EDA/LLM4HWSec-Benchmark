@@ -1,0 +1,8 @@
+{
+  "trojan_present": false,
+  "suspect_instances": [],
+  "suspect_nets": [],
+  "affected_output": "",
+  "root_cause": "No anomalies detected; TMR wiring appears nominal.",
+  "confidence": 0.1
+}

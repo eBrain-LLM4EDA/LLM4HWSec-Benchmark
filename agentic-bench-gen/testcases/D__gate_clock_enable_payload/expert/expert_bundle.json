@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"trigger_nand4_out\",\n    \"payload_gate_update_en\"\n  ]\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The golden submission answer file for the gate_clock_enable_payload task. Contains trojan_detected set to true and suspect_nodes listing exactly two hierarchical node names: the output net of the 4-input NAND trigger cone and the gate instance that drives update_en low when the trigger activates. Must satisfy FR1 (valid JSON), FR2 (boolean trojan_detected), FR3 (list of strings matching netlist node names), SR1 (identifies the rare trigger cone output net), and SR2 (identifies the payload gate suppressing the clock enable). The exact node names must match the hierarchical paths present in the provided design.v netlist."
+    }
+  ]
+}

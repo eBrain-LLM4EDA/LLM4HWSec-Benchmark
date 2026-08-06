@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation status is fail because FR1 is untested (no targeting mutant, discrimination unproven). The mutation bundle shows a generation failure for FR1: the mutator returned a mutant with no files, so FR1 was never exercised. This is an evaluation framework defect \u2014 the harness must be strengthened so FR1 can be targeted by a valid mutant, or the requirement must be removed if it cannot be meaningfully mutated. All other metrics are strong (mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=0.833), but the untested requirement prevents retention.",
+  "retain_case": false,
+  "revision_instructions": "FR1 (submission file exists and is valid JSON) is currently untested because the mutator could not produce a valid mutant for it. To fix this, either: (1) add a mutation test for FR1 that corrupts the submission file (e.g., delete it, make it invalid JSON, or rename it) and ensure evaluate.py detects this with a FAIL; or (2) if FR1 cannot be meaningfully mutated in isolation, merge it into FR2 (which checks field presence and types) and remove FR1 as a separate requirement. The evaluator must emit a distinct [TEST] PASS/FAIL marker for every requirement that remains in the requirement map. Ensure the mutant for FR1 actually changes the submission artifact in a way that violates the requirement (missing file, malformed JSON, wrong filename) and that evaluate.py catches it.",
+  "root_cause": "evaluation_issue",
+  "source_round": 0
+}

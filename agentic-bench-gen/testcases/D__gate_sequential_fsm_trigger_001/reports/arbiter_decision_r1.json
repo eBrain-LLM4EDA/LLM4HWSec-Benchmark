@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected because evaluate.py expects role 'trigger_logic' for the trigger DFFs, while the golden correctly labels them 'state_register' per the hidden spec. This is a false rejection. Additionally, no mutants were provided, so mutation_score is 0.0 and all six requirements are untested. The evaluator also fails to compute the specified metrics (detection_rate, false_positive_rate, inference_latency). The primary fix is to align the evaluator's role expectations with the ground truth and add metric computation; mutants must be supplied separately to achieve meaningful mutation coverage.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

@@ -1,0 +1,84 @@
+{
+  "domain_id": "logic_deobfuscation_sat",
+  "evaluation": {
+    "baselines": [
+      "ISCAS/ITC locked variants",
+      "Anti-SAT style circuits"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of key bits correctly recovered (1.0 if the submitted key exactly matches the ground truth).",
+        "direction": "maximize",
+        "name": "key_recovery_rate"
+      },
+      {
+        "description": "Fraction of true key-controlled feedback gates correctly identified in the optional feedback_gates field.",
+        "direction": "maximize",
+        "name": "key_gate_localization_accuracy"
+      },
+      {
+        "description": "Reduction in SAT solver iterations compared to a naive baseline when using the recovered key to simplify the netlist.",
+        "direction": "maximize",
+        "name": "sat_iteration_reduction"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted key string exactly matches the ground truth key '10'.",
+      "The submitted key, when applied to the locked netlist, produces a circuit that is cycle-free and functionally matches the oracle on all 2^N input patterns (N = number of primary inputs).",
+      "A naive/empty submission (e.g., key of all zeros or empty string) must fail."
+    ],
+    "cwe_ids": [
+      "CWE-1274"
+    ],
+    "ground_truth": "Two labeled key MUXes close feedback edges when their bits are wrong; key 10 selects both forward functional paths and removes all combinational cycles.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Compare the submitted key against the ground truth key; partial matches may be scored via key_recovery_rate.",
+        "id": "SR1",
+        "requirement": "The key recovery method must correctly identify the key bits that control the feedback MUXes and distinguish them from non-security-critical gates."
+      },
+      {
+        "detection_strategy": "Check whether the submission includes a feedback_gates list that matches the hidden ground truth gates; this is a secondary metric (key_gate_localization_accuracy).",
+        "id": "SR2",
+        "requirement": "The method must not rely on structural hints that trivially label the feedback gates; it must work from the netlist and oracle alone."
+      }
+    ],
+    "threat_model": "Cyclic locking causes naive SAT unrolling to loop or admit spurious fixed points, obstructing key recovery."
+  },
+  "public_spec": {
+    "constraints": [
+      "Use a compact gate netlist with two key-controlled feedback edges and a supplied combinational oracle.",
+      "Public hints state key width and that cyclic locking is present; hidden ground truth lists feedback gates and the correct key.",
+      "Reports must distinguish lock-induced cycles from ordinary reconvergent paths."
+    ],
+    "expected_outputs": [
+      "recovered_key.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted recovered_key.json file must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The \"key\" field must be present and its value must be a string consisting only of '0' and '1' characters, with length exactly equal to the key width specified in hints.txt."
+      },
+      {
+        "id": "FR3",
+        "requirement": "When the submitted key is applied to the locked netlist (by setting the key inputs accordingly), the resulting circuit must be combinational (no cycles) and functionally equivalent to the oracle circuit for all possible input combinations, as verified by simulation with iverilog/vvp."
+      }
+    ],
+    "input_artifacts": [
+      "locked_netlist.v",
+      "oracle.v",
+      "hints.txt"
+    ],
+    "interface": "The participant must produce a single answer file at submission/recovered_key.json. The file must be valid JSON with the following schema: an object with a required field \"key\" whose value is a string of '0' and '1' characters representing the recovered key bits, and an optional field \"feedback_gates\" whose value is an array of strings naming the netlist gates that implement key-controlled feedback edges. The key string length must match the key width stated in hints.txt. The evaluator will parse this file and compare the key value against the hidden ground truth key; the feedback_gates field is for informational cross-check only and does not affect the primary PASS/FAIL verdict.",
+    "objective": "Identify key-controlled feedback edges in a cyclically locked combinational netlist and recover a key that restores acyclic functional behavior.",
+    "response_format": "A JSON file named recovered_key.json placed in the submission/ directory. The file must contain a JSON object with a required string field \"key\" (e.g., \"1010\") and an optional array field \"feedback_gates\" (e.g., [\"mux_fb1\", \"mux_fb2\"])."
+  },
+  "task_id": "locked_cyclic_feedback",
+  "title": "Cyclic logic-locking cone localization"
+}

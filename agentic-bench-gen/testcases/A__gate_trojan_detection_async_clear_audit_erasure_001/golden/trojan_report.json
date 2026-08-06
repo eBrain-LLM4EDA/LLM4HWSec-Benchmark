@@ -1,0 +1,17 @@
+{
+  "trojan_present": true,
+  "suspect_gates": ["u_maint_alarm_and", "u_audit_clr_or"],
+  "altered_net": "audit_clr",
+  "affected_registers": [
+    "tamper_count_q_0",
+    "tamper_count_q_1",
+    "tamper_count_q_2",
+    "tamper_count_q_3",
+    "tamper_count_q_4",
+    "tamper_count_q_5",
+    "tamper_count_q_6",
+    "tamper_count_q_7"
+  ],
+  "trigger_condition": "maintenance_req & alarm",
+  "justification": "The counter's asynchronous clear network is not driven solely by the synchronized reset as documented in design_brief.md. Instance u_maint_alarm_and (AND2) combines the two operational, reset-unrelated inputs maintenance_req and alarm into net maint_alarm_hit. This net is then merged by instance u_audit_clr_or (OR2) with the legitimate synchronized reset net rst_sync to produce net audit_clr. audit_clr, rather than rst_sync alone, is wired to the CLR pin of every one of the eight DFF_ASYNC_CLR register instances (tamper_count_q_0 through tamper_count_q_7) that hold tamper_count. Because OR2 asserts its output whenever either input is high, asserting maintenance_req and alarm simultaneously drives audit_clr high and asynchronously clears the entire tamper_count register bank even while rst_n remains deasserted-high (i.e., no genuine reset event occurs). This directly violates the documented contract that 'maintenance_req and alarm, individually or in any combination, have no effect on the value or clearing of tamper_count' and that 'the only signal that should participate in clearing the counter is the synchronized form of rst_n.' The correct, non-trojan implementation would connect rst_sync directly to the CLR pins of tamper_count_q_0..7 with no intervening OR2 gate, eliminating any path by which maintenance_req and alarm could erase accumulated tamper-event evidence."
+}

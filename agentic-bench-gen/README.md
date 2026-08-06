@@ -73,7 +73,24 @@ reports/validation_report.json
 reports/analyzer_report.json
 reports/arbiter_decision_r*.json
 reports/quality_report.json
+reports/selection.json
+case_manifest.json
 ```
+
+Cases are built in hidden staging directories and atomically published only
+after all canonical reports and `case_manifest.json` are complete. Each output
+run also maintains an atomically updated `run_manifest.json` with `published`,
+`published_quality_failed`, `failed`, or `interrupted` case states. A completed
+author bundle is therefore not mistaken for a benchmark that passed quality gates.
+
+Validation reports distinguish `requirement_mapping_coverage_score` (every
+declared requirement has a harness mapping) from
+`requirement_discrimination_coverage_score` (the requirement's own check kills
+its targeting mutant). `coverage_score` remains a compatibility alias for the
+mapping score.
+When the differential gate fails before mutation, validation records
+`mutation_status: blocked_by_differential` instead of reporting every requirement
+as an independent untested-mutant defect.
 
 ## Install
 

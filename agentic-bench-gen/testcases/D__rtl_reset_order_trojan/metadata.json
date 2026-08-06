@@ -1,0 +1,16 @@
+{
+  "task_id": "rtl_reset_order_trojan",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Reset-order-triggered privilege Trojan",
+  "description": "Analyze a SystemVerilog RTL design with two reset inputs and identify any logic that could cause the protected_mode output to assert under non-standard reset sequencing.",
+  "input_artifacts": [
+    "core_wrapper.sv",
+    "cells.lib"
+  ],
+  "expected_output_artifact": "trojan_report.json",
+  "evaluation_metrics": [
+    "detection_rate",
+    "false_positive_rate",
+    "trigger_payload_localization"
+  ]
+}

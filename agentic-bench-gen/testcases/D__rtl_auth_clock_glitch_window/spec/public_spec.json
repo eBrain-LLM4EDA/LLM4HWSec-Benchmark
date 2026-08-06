@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The analysis must be based solely on the provided input artifacts.",
+    "The fault model describes a single clock cycle where one register update is skipped while combinational logic continues to evaluate.",
+    "The normal trace represents the expected cycle-by-cycle behavior without faults."
+  ],
+  "expected_outputs": [
+    "A vulnerability_report.json file identifying the vulnerable cycle and the critical state/result signals."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must identify exactly one vulnerable_cycle as an integer."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must name a state_register and a result_register that exist as signal names in the provided auth_fsm.v file."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The explanation field must be a non-empty string describing the vulnerability mechanism."
+    }
+  ],
+  "input_artifacts": [
+    "auth_fsm.v",
+    "fault_model.json",
+    "normal_trace.txt"
+  ],
+  "interface": "The participant submits a single JSON file at submission/vulnerability_report.json. The file must contain an object with the following keys: \"vulnerable_cycle\" (integer, the clock cycle index where the fault is injected), \"state_register\" (string, the exact signal name of the state register in the RTL), \"result_register\" (string, the exact signal name of the result register in the RTL), and \"explanation\" (string, a brief description of the vulnerability mechanism).",
+  "objective": "Analyze the provided RTL design and fault model to locate the state and result registers where one skipped update can move an authentication controller from compare directly to grant.",
+  "response_format": "A JSON object with keys: vulnerable_cycle (integer), state_register (string), result_register (string), explanation (string)."
+}

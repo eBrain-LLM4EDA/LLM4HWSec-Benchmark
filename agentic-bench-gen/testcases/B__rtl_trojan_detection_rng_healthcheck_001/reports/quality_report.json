@@ -1,0 +1,14 @@
+{
+  "analyzer_status": "warning",
+  "coverage_score": 1.0,
+  "final_attempted_round": 2,
+  "issue_count": 6,
+  "min_coverage_score": 0.8,
+  "min_mutation_score": 0.5,
+  "mutation_score": 0.75,
+  "overall_status": "fail",
+  "requirement_discrimination_coverage_score": 0.75,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "validation_status": "fail"
+}

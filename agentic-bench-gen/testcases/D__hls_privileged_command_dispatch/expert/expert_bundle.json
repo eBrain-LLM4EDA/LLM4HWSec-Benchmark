@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "content": "#include \"dispatcher.h\"\n\nint dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status) {\n    // Handle privileged write commands\n    if (command == 0x10 || command == 0x11) {\n        if (privilege != 1) {\n            *status = 0xFE; // UNAUTHORIZED\n            return -1;\n        }\n        if (command == 0x10) {\n            // WRITE_CONFIG_LO: update lower 16 bits\n            *state = (*state & 0xFFFF0000) | (argument & 0x0000FFFF);\n        } else {\n            // WRITE_CONFIG_HI: update upper 16 bits\n            *state = (*state & 0x0000FFFF) | ((argument & 0x0000FFFF) << 16);\n        }\n        *status = 0x00; // OK\n        return 0;\n    }\n\n    // Handle non-privileged commands\n    switch (command) {\n        case 0x01: // READ_STATUS\n            *status = (uint8_t)(*state & 0xFF); // current status from lower 8 bits of state\n            return 0;\n        case 0x02: // NOOP\n            *status = 0x00;\n            return 0;\n        default: // Unknown command\n            *status = 0xFF; // UNKNOWN_COMMAND\n            return -1;\n    }\n}",
+      "path": "golden/dispatcher.cpp"
+    },
+    {
+      "content": "#ifndef DISPATCHER_H\n#define DISPATCHER_H\n\n#include <cstdint>\n\nint dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status);\n\n#endif // DISPATCHER_H",
+      "path": "golden/dispatcher.h"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/dispatcher.cpp",
+      "purpose": "Hardened implementation of int dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status). Enforces privilege check: commands 0x10 and 0x11 require privilege==1; if privilege==0, return -1, set *status=0xFE, leave *state unchanged. Commands 0x01 and 0x02 work regardless of privilege. Unknown commands return -1, *status=0xFF, *state unchanged. WRITE_CONFIG_LO (0x10) updates lower 16 bits of *state with lower 16 bits of argument. WRITE_CONFIG_HI (0x11) updates upper 16 bits of *state with lower 16 bits of argument. No dynamic allocation, stateless except *state. Compiles with g++ -Wall -Wextra."
+    },
+    {
+      "path": "golden/dispatcher.h",
+      "purpose": "Header declaring the dispatch function signature: int dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status). Includes <cstdint> for fixed-width types. Unchanged from baseline but required for compilation."
+    }
+  ]
+}

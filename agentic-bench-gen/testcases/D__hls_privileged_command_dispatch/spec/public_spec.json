@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "Keep a pinned dispatch(command, privilege, argument, state, status) interface with fixed-width scalar fields.",
+    "Unknown or unauthorized commands return a deterministic error and leave all persistent state unchanged.",
+    "No dynamic allocation; compile and execute with g++."
+  ],
+  "expected_outputs": [
+    "A hardened version of dispatcher.cpp that compiles with g++ and passes all functional tests in the evaluation harness.",
+    "The hardened dispatcher must reject unauthorized privileged commands with a deterministic error code and leave all persistent state unchanged.",
+    "All non-privileged commands must produce the same outputs as the original unmodified dispatcher for identical inputs."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The dispatcher must expose a pinned dispatch function with the exact signature: int dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status). The function must compile with g++ without errors or warnings under -Wall -Wextra."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For command=0x01 (READ_STATUS), the function must return 0, set *status to the current status value stored in *state, and leave *state unchanged, regardless of the privilege value."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For command=0x02 (NOOP), the function must return 0, set *status to 0x00, and leave *state unchanged, regardless of the privilege value."
+    },
+    {
+      "id": "FR4",
+      "requirement": "For any command value not equal to 0x01, 0x02, 0x10, or 0x11, the function must return -1, set *status to 0xFF (UNKNOWN_COMMAND), and leave *state unchanged."
+    }
+  ],
+  "input_artifacts": [
+    "dispatcher.cpp",
+    "dispatcher.h"
+  ],
+  "interface": "File: dispatcher.h declares and dispatcher.cpp defines: int dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status). command: operation code (0x01=READ_STATUS, 0x02=NOOP, 0x10=WRITE_CONFIG_LO, 0x11=WRITE_CONFIG_HI). privilege: caller privilege level (0=untrusted, 1=trusted). argument: data operand for write commands, ignored for others. state: pointer to a single 32-bit persistent state word (initially zero). status: pointer to a uint8_t where the dispatcher writes the operation status (0x00=OK, 0xFF=UNKNOWN_COMMAND, 0xFE=UNAUTHORIZED). Return value: 0 on success, -1 on error. All parameters are non-null. The function must be stateless aside from *state and must not perform dynamic memory allocation.",
+  "objective": "Harden an HLS command dispatcher so that only authorized callers can modify protected configuration registers, while all ordinary commands continue to function correctly.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

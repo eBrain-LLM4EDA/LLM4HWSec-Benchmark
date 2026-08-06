@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected by evaluate.py on SR1-SR4, meaning the evaluator cannot correctly grade a valid answer. Additionally, no mutants were provided, so mutation_score is 0.0 and all 8 requirements are untested. The preflight failure is deterministic (golden_rejected with repeated signature). The primary issue is the evaluator's inability to accept the correct golden submission, which must be fixed before any other improvements.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

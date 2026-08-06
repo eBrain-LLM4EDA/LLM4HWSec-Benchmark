@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The netlist must be built only from explicit standard-cell-style primitives: DFF cells with an asynchronous active-high clear pin (e.g. DFF_ASYNC_CLR), 2-input AND gates (AND2), 2-input OR gates (OR2), inverters (INV), and buffers (BUF), all instantiated explicitly by name (no always-blocks or behavioral RTL).",
+    "The documented global reset tree (rst_n gated through the standard reset synchronizer/inverter chain) must remain fully intact and functionally correct on its own, independent of any other added logic.",
+    "The tamper_count register bank must be implemented as an explicit array of DFF_ASYNC_CLR instances with clearly readable instance names (e.g. tamper_count_q[0] .. tamper_count_q[7]).",
+    "All gate instance names and net names in the netlist must be human-readable identifiers (no hashed or obfuscated names), so structural analysis is feasible without a netlist-to-schematic tool.",
+    "The netlist file must be fully self-contained and synthesizable/simulatable standalone with iverilog given only the single file."
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON parsable by a standard JSON parser and contain all six required top-level fields with the exact types specified in the interface (trojan_present: boolean, suspect_gates: array of strings, altered_net: string, affected_registers: array of strings, trigger_condition: string, justification: string)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Every instance name listed in suspect_gates and affected_registers, and the net name given in altered_net, must correspond to an actual gate instance or net declared in inputs/audit_module_netlist.v (verifiable by textual/structural lookup in the netlist)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "If trojan_present is reported as true, trigger_condition must be a syntactically valid boolean expression referencing only the primary input ports declared on module audit_top (clk, rst_n, maintenance_req, alarm, tamper_event)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The justification field must be non-empty and must not exceed 2000 characters."
+    }
+  ],
+  "input_artifacts": [
+    "audit_module_netlist.v",
+    "design_brief.md",
+    "port_map.txt"
+  ],
+  "interface": "The netlist file inputs/audit_module_netlist.v defines module `audit_top` with ports: input clk, input rst_n (active-low global reset), input maintenance_req, input alarm, input tamper_event, output [7:0] tamper_count. All internal nets and cell instances use plain, non-obfuscated names. The participant's answer file MUST be submitted at submission/trojan_report.json and MUST be a single JSON object with exactly these top-level fields: {\"trojan_present\": <boolean>, \"suspect_gates\": [<string>, ...] (instance names of gate(s) implementing the malicious clear condition), \"altered_net\": <string> (name of the net that carries the unauthorized clear signal into the counter's asynchronous clear pin), \"affected_registers\": [<string>, ...] (instance names of the flip-flop bank(s) whose async clear pin is driven by altered_net), \"trigger_condition\": <string> (a boolean expression in terms of primary input port names describing when the unauthorized clear activates), \"justification\": <string> (free-text explanation, max 2000 characters)}. evaluate.py reads inputs/audit_module_netlist.v for reference and optionally cross-checks the reported trigger_condition by simulating the netlist with iverilog/vvp, but grading is performed against submission/trojan_report.json.",
+  "objective": "You are given a synthesized gate-level Verilog netlist of a tamper-monitoring audit subsystem that maintains a persistent tamper-event counter across a maintenance/alarm interface. Analyze the netlist structurally (and optionally simulate it with the provided toolchain) to determine whether any gate-level logic allows the tamper-event counter to be cleared through a path other than the documented synchronous/global reset, and report your findings as a structured JSON analysis. You must not modify any files under inputs/; submit your findings as a separate answer file.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface. No other submission files are graded."
+}

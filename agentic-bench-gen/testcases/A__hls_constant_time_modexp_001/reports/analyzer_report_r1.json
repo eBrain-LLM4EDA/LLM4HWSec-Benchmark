@@ -1,0 +1,59 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/security_checks.py",
+      "description": "SR3 check is a dead check: no mutant caused it to fail, and it only tests presence of banned tokens that are absent in both baseline and any plausible correct submission's typical code paths, giving no discriminative power. Validation report explicitly flags SR3 as uncovered/dead.",
+      "evidence": "per_requirement_coverage.SR3.covered=false, dead_checks=['SR3'], mutation_score=0.857 with SR3 undetected",
+      "severity": "medium"
+    },
+    {
+      "artifact": "overall benchmark",
+      "description": "Mutation score is high (0.857) and differential run confirms baseline fails (SR1, SR2) while golden passes all, but the one unverifiable requirement (SR3) reduces confidence that a hardened submission could bypass I/O-leak or global-state requirements undetected.",
+      "evidence": "differential.vulnerable_run shows SR3 PASS despite being the insecure baseline, but SR3 was never designed to catch the square-and-multiply flaw, so this is expected but weakens overall assurance for that specific security requirement.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant/test case that actually violates SR3 (e.g., inject a printf of the exponent, or a global variable named 'g_exponent_cache' at file scope before modexp) to confirm the static scan can fail on a real hardened-vs-insecure difference.",
+    "Consider tightening SR3's detection to also flag less obvious leakage patterns (e.g., timing side-channel via sleep(), or a global array indexed by exponent) so it has genuine discriminative value beyond a check that both baseline and correct submissions trivially pass.",
+    "Document in the README or evaluation harness why SR3 is included even though it's not exercised by the given baseline, to avoid confusion about its purpose in the benchmark."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline passes FR1; mutant coverage shows FR1 detected by 1/1 targeting mutant.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Covered, 1/1 mutants detected.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Covered, 1/1 mutants detected; static scan complements compile check.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Covered, 1/1 mutants detected via gcov loop-count invariance check.",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential run shows vulnerable baseline FAILs SR1 (line 22 hit-count differs 0 vs 32), golden PASSes.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential run shows vulnerable baseline FAILs SR2 (branch annotation differs), golden PASSes.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR3.covered=false; no mutant detected by this check, meaning it does not actively discriminate any tested vulnerability; overall status remains 'fail' per validation report.",
+      "requirement": "SR3",
+      "status": "fail"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for RTL Second-Order Share Leakage\n\n## Grading Contract\n\nThis evaluation follows the **report_grading** contract. The participant submits an analysis report (`submission/vulnerability_report.json`) that is graded against hidden ground truth. The input artifacts (`inputs/masked_datapath.v` and `inputs/leakage_models.json`) are provided for reference and optional cross-checks, but the PASS/FAIL verdicts are based solely on the content of the submitted answer file.\n\n## Input Artifacts\n\n- `inputs/masked_datapath.v` \u2014 Two-share masked datapath RTL with pipeline stages.\n- `inputs/leakage_models.json` \u2014 Defines first-order and pairwise Hamming-distance leakage models.\n\n## Submission File\n\nThe participant must place their answer at `submission/vulnerability_report.json`. The file must be valid JSON and conform to the schema described in the task specification.\n\n## Requirements Checked\n\nThe harness (`evaluation/evaluate.py`) checks the following requirements:\n\n### Functional Requirements (FR)\n- **FR1** \u2014 The submission file is valid JSON and parses without errors.\n- **FR2** \u2014 The `leaking_register_pair` field contains exactly two strings matching signal names present in the RTL.\n- **FR3** \u2014 The `first_order_analysis` array contains entries for at least the two registers in the leaking pair, each with a boolean `safe` field.\n- **FR4** \u2014 The `second_order_analysis` object contains a boolean `leaking` field and a non-empty `explanation` string.\n\n### Security Requirements (SR)\n- **SR1** \u2014 The report correctly identifies the leaking register pair (`share0_stage2_q`, `share1_stage2_q`).\n- **SR2** \u2014 The report states that both registers appear safe under individual first-order Hamming-distance analysis.\n- **SR3** \u2014 The report correctly identifies the alignment condition under which the joint transition leaks (both registers update in the same clock cycle).\n\n## Toolchain Availability\n\nThe following tools are installed and available for optional cross-checks on the input artifacts:\n- `iverilog` \u2014 Verilog compiler\n- `vvp` \u2014 Verilog simulation runtime\n- `yosys` \u2014 RTL synthesis framework\n\nThese tools are **not required** for grading the answer file; `evaluate.py` uses only Python standard library to parse and validate the submission.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport os\nimport sys\n\n# Hidden ground truth (must not be revealed to participants)\nGROUND_TRUTH_PAIR = {\"share0_stage2_q\", \"share1_stage2_q\"}\nGROUND_TRUTH_ALIGNMENT_KEYWORDS = [\"same clock cycle\", \"same cycle\", \"simultaneously\", \"joint transition\", \"both registers update\"]\nGROUND_TRUTH_SECOND_ORDER_LEAKING = True\n\ndef emit(requirement_id, passed, reason=None):\n    if passed:\n        print(f\"[TEST] PASS: {requirement_id}\")\n    else:\n        msg = f\"[TEST] FAIL: {requirement_id}\"\n        if reason:\n            msg += f\": {reason}\"\n        print(msg)\n\ndef main():\n    all_passed = True\n\n    # Check submission file existence\n    submission_path = os.path.join(\"submission\", \"vulnerability_report.json\")\n    if not os.path.isfile(submission_path):\n        emit(\"FR1\", False, \"submission/vulnerability_report.json not found\")\n        emit(\"FR2\", False, \"submission/vulnerability_report.json not found\")\n        emit(\"FR3\", False, \"submission/vulnerability_report.json not found\")\n        emit(\"FR4\", False, \"submission/vulnerability_report.json not found\")\n        emit(\"SR1\", False, \"submission/vulnerability_report.json not found\")\n        emit(\"SR2\", False, \"submission/vulnerability_report.json not found\")\n        emit(\"SR3\", False, \"submission/vulnerability_report.json not found\")\n        sys.exit(1)\n\n    # FR1: Valid JSON\n    try:\n        with open(submission_path, \"r\") as f:\n            report = json.load(f)\n        emit(\"FR1\", True)\n    except (json.JSONDecodeError, FileNotFoundError) as e:\n        emit(\"FR1\", False, f\"JSON parse error: {e}\")\n        # Cannot proceed with further checks if JSON is invalid\n        emit(\"FR2\", False, \"cannot check due to FR1 failure\")\n        emit(\"FR3\", False, \"cannot check due to FR1 failure\")\n        emit(\"FR4\", False, \"cannot check due to FR1 failure\")\n        emit(\"SR1\", False, \"cannot check due to FR1 failure\")\n        emit(\"SR2\", False, \"cannot check due to FR1 failure\")\n        emit(\"SR3\", False, \"cannot check due to FR1 failure\")\n        sys.exit(1)\n\n    # FR2: leaking_register_pair field\n    pair = report.get(\"leaking_register_pair\")\n    if not isinstance(pair, list) or len(pair) != 2 or not all(isinstance(r, str) for r in pair):\n        emit(\"FR2\", False, \"leaking_register_pair must be an array of exactly two strings\")\n        all_passed = False\n    else:\n        # Optional: validate that the register names exist in the RTL (cross-check with inputs/masked_datapath.v)\n        rtl_path = os.path.join(\"inputs\", \"masked_datapath.v\")\n        if os.path.isfile(rtl_path):\n            with open(rtl_path, \"r\") as f:\n                rtl_content = f.read()\n            missing = [r for r in pair if r not in rtl_content]\n            if missing:\n                emit(\"FR2\", False, f\"register names not found in RTL: {missing}\")\n                all_passed = False\n            else:\n                emit(\"FR2\", True)\n        else:\n            # If RTL file is missing (should not happen in normal operation), skip the cross-check\n            emit(\"FR2\", True)\n\n    # FR3: first_order_analysis array\n    first_order = report.get(\"first_order_analysis\")\n    if not isinstance(first_order, list):\n        emit(\"FR3\", False, \"first_order_analysis must be an array\")\n        all_passed = False\n    else:\n        # Check that at least the two registers from the leaking pair are present with boolean safe fields\n        if isinstance(pair, list) and len(pair) == 2:\n            reg_names = set(pair)\n            found = set()\n            for entry in first_order:\n                if isinstance(entry, dict) and \"register\" in entry and \"safe\" in entry:\n                    if entry[\"register\"] in reg_names and isinstance(entry[\"safe\"], bool):\n                        found.add(entry[\"register\"])\n            if reg_names.issubset(found):\n                emit(\"FR3\", True)\n            else:\n                missing_regs = reg_names - found\n                emit(\"FR3\", False, f\"first_order_analysis missing required entries for registers: {missing_regs}\")\n                all_passed = False\n        else:\n            # If FR2 failed, we still check structure minimally\n            if all(isinstance(e, dict) and \"register\" in e and \"safe\" in e and isinstance(e[\"safe\"], bool) for e in first_order):\n                emit(\"FR3\", True)\n            else:\n                emit(\"FR3\", False, \"first_order_analysis entries must have register (string) and safe (boolean) fields\")\n                all_passed = False\n\n    # FR4: second_order_analysis object\n    second_order = report.get(\"second_order_analysis\")\n    if not isinstance(second_order, dict):\n        emit(\"FR4\", False, \"second_order_analysis must be an object\")\n        all_passed = False\n    else:\n        leaking = second_order.get(\"leaking\")\n        explanation = second_order.get(\"explanation\")\n        if not isinstance(leaking, bool):\n            emit(\"FR4\", False, \"second_order_analysis.leaking must be a boolean\")\n            all_passed = False\n        elif not isinstance(explanation, str) or len(explanation.strip()) == 0:\n            emit(\"FR4\", False, \"second_order_analysis.explanation must be a non-empty string\")\n            all_passed = False\n        else:\n            emit(\"FR4\", True)\n\n    # SR1: Correct leaking register pair\n    if isinstance(pair, list) and len(pair) == 2:\n        if set(pair) == GROUND_TRUTH_PAIR:\n            emit(\"SR1\", True)\n        else:\n            emit(\"SR1\", False, f\"expected {GROUND_TRUTH_PAIR}, got {set(pair)}\")\n            all_passed = False\n    else:\n        emit(\"SR1\", False, \"leaking_register_pair not valid (FR2 must pass first)\")\n        all_passed = False\n\n    # SR2: Both registers appear safe under first-order analysis\n    if isinstance(first_order, list):\n        safe_regs = set()\n        for entry in first_order:\n            if isinstance(entry, dict) and entry.get(\"safe\") is True:\n                safe_regs.add(entry.get(\"register\"))\n        if GROUND_TRUTH_PAIR.issubset(safe_regs):\n            emit(\"SR2\", True)\n        else:\n            missing_safe = GROUND_TRUTH_PAIR - safe_regs\n            emit(\"SR2\", False, f\"registers not marked safe: {missing_safe}\")\n            all_passed = False\n    else:\n        emit(\"SR2\", False, \"first_order_analysis not valid (FR3 must pass first)\")\n        all_passed = False\n\n    # SR3: Alignment condition and second-order leakage\n    alignment = report.get(\"alignment_condition\")\n    if not isinstance(alignment, str) or len(alignment.strip()) == 0:\n        emit(\"SR3\", False, \"alignment_condition must be a non-empty string\")\n        all_passed = False\n    else:\n        # Check that alignment description contains keywords indicating temporal alignment\n        alignment_lower = alignment.lower()\n        if any(kw in alignment_lower for kw in GROUND_TRUTH_ALIGNMENT_KEYWORDS):\n            # Also check second_order_analysis.leaking is true\n            if isinstance(second_order, dict) and second_order.get(\"leaking\") is True:\n                emit(\"SR3\", True)\n            else:\n                emit(\"SR3\", False, \"second_order_analysis.leaking must be true\")\n                all_passed = False\n        else:\n            emit(\"SR3\", False, \"alignment_condition does not describe the required temporal alignment\")\n            all_passed = False\n\n    if all_passed:\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the grading contract (report_grading), list the input artifacts (masked_datapath.v, leakage_models.json), the submission file (submission/vulnerability_report.json), and the requirement IDs checked. Explain that evaluate.py grades the submitted answer against hidden ground truth and that the toolchain (iverilog, vvp, yosys) is available for optional cross-checks."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Opens submission/vulnerability_report.json and inputs/ artifacts. Checks FR1-FR4 (format/structure) and SR1-SR3 (substantive correctness) against the hidden ground truth. Emits [TEST] PASS/FAIL markers per requirement. Exits 0 when all pass, non-zero otherwise. Uses Python stdlib only; no subprocess calls needed for grading the answer file. Deterministic, no network access."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Baseline (empty JSON or missing file) fails FR1 because the file is not valid JSON or cannot be parsed. A correct submission passes because it is valid JSON.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Baseline (empty JSON or missing leaking_register_pair field) fails FR2 because the field is missing or does not contain exactly two strings matching RTL signal names. A correct submission passes because it provides exactly two valid register names.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Baseline (empty JSON or missing first_order_analysis array) fails FR3 because the array is missing or does not contain entries for the leaking pair registers with boolean safe fields. A correct submission passes because it includes the required entries.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Baseline (empty JSON or missing second_order_analysis object) fails FR4 because the object is missing or lacks the boolean leaking field and non-empty explanation string. A correct submission passes because it provides both.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Baseline (empty JSON or wrong register pair) fails SR1 because the leaking_register_pair does not exactly match the ground truth pair (share0_stage2_q, share1_stage2_q). A correct submission passes because it identifies the correct pair.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Baseline (empty JSON or missing first_order_analysis entries) fails SR2 because the first_order_analysis array does not contain entries for both registers with safe: true. A correct submission passes because it correctly states both registers appear safe under first-order analysis.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Baseline (empty JSON or wrong alignment_condition / second_order_analysis) fails SR3 because the alignment_condition does not describe the temporal alignment or second_order_analysis.leaking is not true. A correct submission passes because it correctly identifies the joint transition leakage condition.",
+      "requirement_id": "SR3",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (FR2/FR3)",
+      "description": "FR2 and FR3 are documented as grading the documented policy, but are implemented as structural well-formedness checks (16 vectors observed, one-hot/zero) rather than actual comparison against the expected priority truth table computed independently in Python. This means FR2/FR3 will PASS even on the Trojan-infected RTL (as confirmed by the vulnerable_run showing FR2/FR3 both PASS despite the Trojan flipping grant on nmi=1,irq=111), making these functional requirements dead/non-discriminating as confirmed by the mutation testing (0/1 mutants detected for FR1, FR2, FR3).",
+      "evidence": "Validation report: per_requirement_coverage shows FR1, FR2, FR3 each 'covered': false with 0 mutants_detected out of 1 targeting; dead_checks list includes FR1, FR2, FR3; mutation_score 0.429.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR2)",
+      "description": "SR2 is not independently exercised by any distinguishing mutant \u2014 per_requirement_coverage shows SR2 covered:false with 0/1 mutants detected, meaning the affected_signal localization check is not actively verified to catch a plausible mutant (e.g. a report that matches SR1 trigger condition but points to the wrong signal). This weakens confidence that SR2 meaningfully discriminates correct vs incorrect submissions beyond the two shipped baselines.",
+      "evidence": "per_requirement_coverage.SR2: {\"covered\": false, \"mutants_detected\": 0, \"mutants_targeting\": 1}; uncovered_requirements includes SR2.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (FR1)",
+      "description": "FR1 only checks that iverilog compiles two arbitrary vectors and prints PROBE_OK; it does not actually verify port list/width mismatches would cause a hard failure distinguishable from other errors, and mutation testing found no mutant that FR1 could catch, suggesting the check is effectively a smoke test rather than a real interface-pinning verification.",
+      "evidence": "dead_checks: ['FR1', 'FR2', 'FR3']; per_requirement_coverage.FR1 mutants_detected=0/1.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "overall benchmark",
+      "description": "Mutation score of 0.429 (3 of 7 requirements uncovered/non-discriminating) indicates the majority of functional requirements provide no real verification signal, even though the core security requirements (SR1, SR3, FR4) are validated and the golden/vulnerable differential passes correctly.",
+      "evidence": "mutation_score: 0.429; requirement_discrimination_coverage_score: 0.429; per_requirement_discrimination matches per_requirement_coverage.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Rewrite FR2 and FR3 to perform actual per-vector comparison against the independently-computed expected policy (grant[3]=1,grant[2:0]=0 whenever nmi=1; fixed priority irq[0]>irq[1]>irq[2] whenever nmi=0) rather than only checking one-hot/zero well-formedness and full 16-vector coverage, so that they correctly FAIL when run against the Trojan-infected RTL, matching the domain's dual-use of FR2 as both harness validation and (per requirement_map's own expected_detection text) a real behavioral check.",
+    "Add or strengthen a mutant/test case that exercises SR2 in isolation (e.g. a submission whose trigger_condition matches nmi=1/irq=111 at confidence>=0.5 but whose affected_signal references an unrelated or incorrect bit) to confirm SR2 actually rejects incorrect localization, since current mutation coverage shows 0/1 detected.",
+    "Reconcile the requirement_map's claim that FR2 'PASSes only if the analyzed RTL fully obeys the documented policy' with the actual implementation, which instead grades harness well-formedness; either update the code to match the stated semantics or update the documentation/requirement_map to avoid overstating FR1-FR3's discriminative power.",
+    "Consider tightening FR1 to check for specific compile-error patterns tied to port/width mismatches so a mutant with an altered interface would be caught and detected by mutation testing."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and vulnerable runs both PASS FR1; mutation testing shows 0/1 targeting mutants detected, so FR1's actual discriminative power is unverified/dead.",
+      "requirement": "FR1 - RTL compiles cleanly with pinned interface",
+      "status": "unknown"
+    },
+    {
+      "evidence": "FR2 PASSES even on the Trojan-infected RTL (vulnerable_run stdout shows FR2 PASS despite the known Trojan flipping grant[3]->0/grant[1]->1 for nmi=1,irq=111), confirming FR2 does not actually check the documented per-vector policy against the RTL's simulated output.",
+      "requirement": "FR2 - nmi=1 branch grants NMI uniformly",
+      "status": "fail"
+    },
+    {
+      "evidence": "0/1 targeting mutants detected per mutation report; not proven to catch real regressions of this requirement.",
+      "requirement": "FR3 - nmi=0 branch fixed priority",
+      "status": "unknown"
+    },
+    {
+      "evidence": "per_requirement_coverage.FR4 covered:true, 1/1 mutants detected; baseline and vulnerable runs both correctly validate structure.",
+      "requirement": "FR4 - submission JSON schema validation",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential shows golden PASS, vulnerable (empty findings) FAILs SR1 as required; mutation coverage 1/1.",
+      "requirement": "SR1 - correct trigger_condition identification with confidence>=0.5",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR2 covered:false, 0/1 mutants detected \u2014 no test confirms SR2 rejects a submission with correct trigger but wrong signal localization.",
+      "requirement": "SR2 - correct affected_signal localization",
+      "status": "fail"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR3 covered:true 1/1; vulnerable_run correctly FAILs SR3 for empty findings baseline.",
+      "requirement": "SR3 - confidence and false-positive-rate thresholds",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.status: pass; golden_run exit 0 all PASS; vulnerable_run exit 1 with SR1/SR2/SR3 FAIL as expected.",
+      "requirement": "Baseline rejection (empty findings) and golden acceptance",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and nmi_arbiter.v (as described in manifest) frame the task as a plain code-review assignment with an obfuscated 'cal_adjust' signal and no mention of CWE ids, SR ids, or 'trojan'/'backdoor' terminology in participant-facing text.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,73 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The differential test shows the golden/expert submission is REJECTED by the evaluator (golden_rejected). SR1's structural parser derives the true missing tap incorrectly: the regex used to extract the feedback expression's XOR terms appears to mis-parse the always block (picking up an unrelated assignment or mis-tokenizing), yielding 'true omitted tap is state[3] (x^4)' instead of the intended ground truth state[6] (x^6). This causes a correct golden submission naming the actual documented defect (state[6]) to fail SR1 with a spurious mismatch complaint about claimed bit indices [-1,4,5,6] vs state[3]. This is a critical grader bug that makes the benchmark unusable as specified.",
+      "evidence": "differential.golden_run.stdout: '[TEST] FAIL: SR1: submission claims the omitted tap is bit index(es) [-1, 4, 5, 6] (0-indexed / normalized), but the true omitted tap is state[3] (x^4 in the documented polynomial)' while hidden_spec ground_truth and design_brief.md both pin the omitted tap as x^6/state[6].",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The derive_true_missing_tap_0indexed() regex for extracting the feedback XOR expression is fragile: it searches for 'always @(posedge clk)' greedily across the whole file up to the first 'endmodule', then looks for the first line matching a generic assignment pattern with >=2 state[...] XOR terms. Given three always blocks all matching 'always @(posedge clk)', and multiple state[...] occurrences (e.g. in health_monitor's 'state <= state' fallback, valid_logic block does not have state refs, but multiple XOR-like lines could confuse the parser), the derivation is provably wrong per the golden-run evidence, and not just for this one artifact edit but as a structural fragility risk for any future artifact regeneration.",
+      "evidence": "The fallback constant true_missing_bit_0idx=6 exists in code as a safety net 'Fall back to the known ground truth if structural parse unexpectedly fails' but the parse did NOT fail (it returned a wrong non-None value of 3), so the fallback never activates and the buggy derived value propagates into grading.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "golden/trojan_report.json (not shown in bundle)",
+      "description": "The expert/golden file referenced in submission_invariants.mappings (golden/trojan_report.json) was not included in the provided artifact bundles, so its exact content claiming the missing tap could not be independently verified against the SR1 regex logic, though the differential harness confirms it is being incorrectly rejected.",
+      "evidence": "submission_invariants.mappings lists golden/trojan_report.json with a sha256 but the file content is absent from the provided bundle.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix derive_true_missing_tap_0indexed() in evaluate.py: the regex block_match = re.search(r'always\\\\s*@\\\\s*\\\\(\\\\s*posedge\\\\s+clk\\\\s*\\\\)(.*?)endmodule', ...) matches from the FIRST always block to endmodule (greedy across all three always blocks), and the subsequent XOR-line regex may match an unintended line (e.g. inside health_monitor or valid_logic) instead of the actual feedback_bit assignment inside the feedback_logic block specifically. Anchor the search explicitly to the named 'feedback_logic' block (regex for ': feedback_logic' label) and to the specific 'feedback_bit = ...' assignment line to reliably extract exactly {7,5,4} as implemented taps and compute the missing bit as 6.",
+    "Add a unit test / self-check in the harness that runs evaluate.py against golden/trojan_report.json as part of CI to catch golden-rejection regressions like this one before shipping (the differential test already exists and caught it \u2014 wire it into a blocking pre-merge gate).",
+    "Verify the fallback path (true_missing_bit_0idx = 6) is only used defensively for genuine parse failures; consider adding a sanity assertion that the derived implemented_taps_0idx set equals the known-correct {7,5,4} for this specific lfsr_rng.v, failing loudly (SETUP error) rather than silently grading against a wrong derived value of 3.",
+    "Once the SR1 structural parser is fixed, re-run the full differential (golden pass / baseline fail) to confirm both directions before certifying the benchmark as usable.",
+    "Consider adding explicit numeric scoring/reporting for false_positive_rate and trigger_payload_localization metrics in evaluate.py output (or a companion scoring script) so the four declared evaluation.metrics are all directly computable from a run, not just inferred from pass/fail requirement outcomes."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.golden_run: expected pass, got fail with SR1 mismatch; exit_code=1, ok=false",
+      "requirement": "evaluate.py ACCEPTs a correct/golden submission (exit 0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.vulnerable_run: expected fail, got fail (ok=true); baseline fails FR2,FR3,FR4,SR1,SR2,SR3,SR4 as intended, matching acceptance_criteria requirement that baseline fails all SR checks and FR2-FR4",
+      "requirement": "evaluate.py REJECTs the shipped naive/empty baseline submission (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 checks JSON schema/types; FR2/FR3 check topical vocabulary tied to real always-block names (feedback_logic, health_monitor); FR4 checks presence of a numeric period plus coarse simulation cross-check via tb_period_health.v; all are grounded in the pinned interface signals and RTL structure",
+      "requirement": "Functional requirements (FR1-FR4) are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1's structural parsing is demonstrably broken per the differential test (derives state[3] instead of state[6]), making SR1 non-functional for its intended purpose despite an otherwise sound design (SR2/SR3/SR4 pass on the golden run and appear correctly implemented and actively triggered via iverilog/vvp simulation and zero-crossing regex checks)",
+      "requirement": "Security requirements (SR1-SR4) are distinct from functional requirements and actively triggered via simulation/structural parsing",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, lfsr_rng.v, testbench_stub.v all read as plain engineering review task; no CWE/SR ids, no threat-model language, no comments flagging intentional defects; design_brief.md documents intended polynomial but omits actual Verilog expressions as required",
+      "requirement": "Public artifacts do not leak hidden security intent (CWE ids, SR ids, threat model, 'intentionally vulnerable' framing)",
+      "status": "pass"
+    },
+    {
+      "evidence": "design_brief.md documents x^8+x^6+x^5+x^4+1 taps {8,6,5,4} 1-indexed matching hidden_spec ground_truth; lfsr_rng.v implements state[7]^state[5]^state[4] omitting state[6], matching ground_truth's described defect; health_monitor's rand_out==0 reset of rep_count matches ground_truth's described suppression mechanism",
+      "requirement": "Public inputs, hidden ground truth, and expected outputs are coherent",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements pass/fail requirement checks (FR1-4, SR1-4) which map conceptually to the metrics, but no explicit numeric computation of false_positive_rate or trigger_payload_localization is visible in evaluate.py; these appear to be derived qualitatively rather than quantitatively scored, and cannot be fully confirmed as implemented from the provided evaluate.py alone",
+      "requirement": "Evaluator measures the requested metrics (detection_rate, false_positive_rate, trigger_payload_localization, period_estimate_error)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "All referenced files (lfsr_rng.v, design_brief.md, testbench_stub.v, tb_period_health.v) are provided and self-contained Verilog/Markdown; no external dependencies beyond iverilog/vvp toolchain",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

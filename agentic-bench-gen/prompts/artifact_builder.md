@@ -41,6 +41,6 @@ Domain-specific guidance:
 - Hardware reverse engineering: include gate/obfuscated input and private word-level RTL or intent.
 - Side-channel/fault: include RTL plus leakage/fault model and private vulnerability labels.
 - Logic deobfuscation/SAT: include locked netlist, public locking hints, and private key/key-gate labels.
-- Any RTL/netlist shipped under `inputs/` must elaborate cleanly with `iverilog -g2012` — evaluators compile and simulate the artifacts, so a syntactically broken design breaks grading for the whole case.
+- Any RTL/netlist shipped under `inputs/` must elaborate cleanly with `iverilog -g2012` — evaluators compile and simulate the artifacts, so a syntactically broken design breaks grading for the whole case. Verilog instance identifiers must be legal source identifiers: express hierarchy with nested module instances, never by putting `/` or unescaped `[...]` into an instance name. If the netlist instantiates cells from another declared input such as `cells.lib`, both files must compile together.
 
 Return JSON only.

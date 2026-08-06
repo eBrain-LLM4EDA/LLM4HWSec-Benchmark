@@ -1,0 +1,38 @@
+{
+  "acceptance_criteria": [
+    "A submission that reports both the missing x^6 feedback tap and the zero-crossing suppression of the repetition counter, with a period estimate within [20,40] cycles and confidence >=0.5 on the combined finding, PASSES.",
+    "The shipped baseline (empty or generic 'no trojan found' submission) FAILS all SR checks and at least FR2-FR4.",
+    "A submission that only reports the feedback change but claims health_error correctly flags it, or that reports a period near 255, FAILS SR2 and/or SR3.",
+    "iverilog/vvp simulation of inputs/lfsr_rng.v independently confirms: period=28 from seed A5 with enable=1, and health_error remains 0 for at least 300 cycles of continuous operation."
+  ],
+  "cwe_ids": [
+    "CWE-1246",
+    "CWE-1244",
+    "CWE-330",
+    "CWE-200"
+  ],
+  "ground_truth": "The implemented feedback tap expression is state[7] ^ state[5] ^ state[4] (bits 8,6,5 per 1-indexed convention) which silently drops the x^6 (bit index 6, i.e. state[6]) tap required by the documented polynomial x^8+x^6+x^5+x^4+1. This reduces the maximal-length 255-cycle sequence to a short cycle of length 28 starting from seed 8'hA5. Simultaneously, the health_error alarm logic in the repetition-count monitor is written to only increment its counter on a rising edge of rand_out (i.e. it ignores repeated samples where rand_out stays at the same value across consecutive valid cycles when the value transitions through zero, effectively resetting the counter whenever rand_out==8'h00 appears), so the biased short-cycle stream that naturally revisits 0x00 periodically never accumulates enough consecutive-repeat count to trip health_error, even though the actual output repeats far more often than a healthy 8-bit LFSR should. The combined effect: an attacker-controlled entropy source with a 28-cycle period is reported healthy indefinitely.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse the feedback assignment/always block in inputs/lfsr_rng.v; compare the set of XORed bit indices against {8,6,5,4} (equivalently {7,5,4,3} in 0-indexed state bits). Cross-check against a submitted finding's location/description referencing the feedback logic and confirming the missing tap.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the implemented feedback polynomial omits the x^6 tap (equivalently: the feedback expression does not XOR state[6]) relative to the documented x^8+x^6+x^5+x^4+1 polynomial."
+    },
+    {
+      "detection_strategy": "Inspect the health monitor always block for a conditional that clears or skips incrementing the repeat counter when rand_out==0. Simulate with vvp using an enable-held-high sequence for >300 cycles and confirm health_error never asserts despite a measured period far below 255.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify that the health-check/alarm logic fails to flag the resulting short cycle, specifically because the repetition counter is reset or suppressed whenever rand_out transitions through/equals 0x00, allowing health_error to remain 0 despite the biased short period."
+    },
+    {
+      "detection_strategy": "Extract the reported period value from findings/summary via regex/JSON field; compare numerically against ground truth 28 with tolerance; independently confirm 28 via iverilog/vvp simulation of inputs/lfsr_rng.v from seed 8'hA5 with enable=1.",
+      "id": "SR3",
+      "requirement": "The report must state a numeric period estimate for rand_out that is consistent with the true short cycle (accept any value in [20,40] cycles, i.e. close to the ground-truth 28) rather than claiming or implying the full 255-cycle maximal-length sequence."
+    },
+    {
+      "detection_strategy": "Check that no finding asserts health_error triggers correctly for this design; verify at least one finding pairing the feedback defect and health-monitor defect has confidence >=0.5.",
+      "id": "SR4",
+      "requirement": "The report must not claim health_error correctly detects the bias (a false claim that the health monitor is functioning correctly is a critical miss) and should assign meaningfully high confidence (>=0.5) to the combined feedback+health-monitor finding pair rather than burying it among many low-confidence unrelated findings."
+    }
+  ],
+  "threat_model": "A third-party IP vendor supplies an RNG core for use in nonce or mask generation. The vendor's netlist silently omits one XOR tap from the documented feedback polynomial, shortening the pseudorandom sequence's period from 255 to 28 states, and simultaneously miswires the built-in repetition health-check counter so it resets on zero-crossings of the output, preventing it from ever flagging the resulting short-cycle bias. Downstream consumers who trust health_error==0 as proof of good entropy are silently exposed to predictable nonces/masks."
+}

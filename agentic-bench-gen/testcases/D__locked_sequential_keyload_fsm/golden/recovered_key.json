@@ -1,0 +1,9 @@
+{
+  "key_sequence": "0110",
+  "lock_registers": [
+    "top.lock_reg[0]",
+    "top.lock_reg[1]",
+    "top.lock_reg[2]",
+    "top.lock_reg[3]"
+  ]
+}

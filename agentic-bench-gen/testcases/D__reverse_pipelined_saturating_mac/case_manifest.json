@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "658629bfefa6342f2f7bb8ad6766816a7f00a232aae412bce4126a85e1a9dd2e",
+    "expert/expert_bundle.json": "bd4545c2e18a51366bd487bf23724b5aa5dfa9f3e8cd0d244ecfce8b9ab0f75e",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "960af6c1fc0620bb950406afb186220ae8387fa092846806066cf5620efc95af",
+    "reports/quality_report.json": "221c6288964d4c3dc9314fc724ad0645c8871ce3b02edd9be4a974a4050db6b4",
+    "reports/validation_report.json": "b5292c2e36cbff028b07993afa79915222714bdbe74d44f098147d440b399230",
+    "spec/task_spec.json": "b5d01582c1153d6dc7f0252b3a6db187d52ffce40151b2ffeff6849369450a9f",
+    "tests/tester_bundle.json": "1a69b85bd9168a099264a8ffddc6d6d807a44b96263b5ad28a2e1f8eae772252"
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "reverse_pipelined_saturating_mac"
+}

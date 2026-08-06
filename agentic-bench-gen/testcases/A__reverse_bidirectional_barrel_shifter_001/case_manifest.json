@@ -1,0 +1,21 @@
+{
+  "best_round": 1,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "3cc87a4672bcece652bbd456779e8402e5fbaecead3c9152656560f6f2d5ac01",
+    "expert/expert_bundle.json": "84259669f4d71d5b3e98c4af0fed8098ea8cc242c2d3b55d019b16026e405ed5",
+    "mutants/mutation_bundle.json": "7e3c5f7df42c5758de3de433d1d7c55cdda1d316f02505d1b0bd169881519557",
+    "reports/analyzer_report.json": "eac91cc37a0ceaa9f0fc5868ff3becb151618083f8a568eaacb7503f9d46911f",
+    "reports/quality_report.json": "f7a700a2bb42b48e48f9970a6ae8b4aa235df80b65bf61549a1b44013811d80c",
+    "reports/validation_report.json": "c2f52fa18b488a4482f78708018ffc1e1317d9bbd0048006f011b2d85ee05970",
+    "spec/task_spec.json": "67dc8b85aa8ad5c2985e12f9e0bb5187155e264a43e6622f0f2b999e3c5fb75e",
+    "tests/tester_bundle.json": "4f865acdfa5c0437c677f26ab955add5253fb78b32712f2e627b5e443d1c9a2c"
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "final_attempted_round": 1,
+  "quality_status": "pass",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 1,
+  "status": "quality_passed",
+  "task_id": "reverse_bidirectional_barrel_shifter_001"
+}

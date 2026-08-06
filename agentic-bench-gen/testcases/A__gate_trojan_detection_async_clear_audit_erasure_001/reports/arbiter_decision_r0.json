@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, and validation_status=pass. Baseline correctly fails (differential.vulnerable_run status=fail with SR1-SR4 and FR2 failures), golden correctly passes (mutation_baseline_run exit_code=0, all FR/SR pass), and all 8 mutants were detected. Analyzer status is pass with only 2 low-severity issues: (1) port_map.txt names the trojan-relevant nets/instances somewhat specifically, which slightly reduces analytical difficulty but does not leak CWE/SR ids or explicit trojan statements, and (2) SR3's truth-table check does not vary clk/tamper_event, a minor robustness gap that does not affect current correctness since it discriminates all mutants and accepts the golden. Neither issue rises to a blocking correctness or leakage problem per the retention rules; both are explicitly flagged as low severity, non-blocking, and stylistic/robustness suggestions rather than defects. All acceptance thresholds are met.",
+  "retain_case": true,
+  "revision_instructions": "No revision required. Optional future hardening (non-blocking): consider generalizing port_map.txt descriptions to be less specific about which nets/instances sit ahead of the counter's clear inputs, to preserve more analytical challenge for participants; and consider extending the trigger_condition equivalence check to also vary clk and tamper_event inputs for additional robustness against spurious references, though current coverage and discrimination are already complete.",
+  "root_cause": "none",
+  "source_round": 0
+}

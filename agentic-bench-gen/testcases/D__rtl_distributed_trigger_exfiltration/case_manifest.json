@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "35f5fee13f7f7e3d53d744b148070aeb82d86b082ef01f8a7f24821014641eb8",
+    "expert/expert_bundle.json": "3608446a69e257b982e95ac9eca0ffb433f34e712a47bd949456156ed60bf554",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "f3e019730f5acc39cd8fa74f49f3999bd3ef96609cff8cf7dd903c556d22f443",
+    "reports/quality_report.json": "af3e1b66925184063dd9b4da1ba8d850c97403b7890e3f22d12567e8059197fc",
+    "reports/validation_report.json": "2897b170a5d1f9ce683f9f1ad5ff2a07b83bf6abe118e9433dfbe52f109b0894",
+    "spec/task_spec.json": "10932b10741425545a7a0817108b20616b631f597d747f17301d809064d1fcf4",
+    "tests/tester_bundle.json": "966a8eaabc2dafa7f59724d437fc20bfa4cd59c3131760911926a43e628208bd"
+  },
+  "domain_id": "rtl_trojan_detection",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "rtl_distributed_trigger_exfiltration"
+}

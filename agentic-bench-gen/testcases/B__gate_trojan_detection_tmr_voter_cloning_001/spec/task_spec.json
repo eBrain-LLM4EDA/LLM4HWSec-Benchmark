@@ -1,0 +1,108 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS",
+      "naive-empty-submission (trojan_present=false, empty suspect lists) -- must FAIL"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required ground-truth elements (cloning instance, aliased voter net, dangling replica_b net, affected_output=voted_out, trojan_present=true) correctly identified in the submitted report across the SR checklist.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of submitted suspect_instances/suspect_nets that do not correspond to any real anomaly-related node in the ground truth (i.e., spurious accusations against unrelated, correctly-wired instances or nets).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time in seconds taken by evaluate.py to parse the netlist, optionally run yosys/iverilog/vvp cross-checks, and grade the submitted trojan_report.json.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      },
+      {
+        "description": "Binary indicator of whether submission/trojan_report.json parses as valid JSON and satisfies all required field types per FR1-FR4.",
+        "direction": "maximize",
+        "name": "schema_validity"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission is graded PASS only if trojan_present=true, affected_output=='voted_out', suspect_instances includes a name matching the ground-truth cloning instance (exact or fuzzy match validated against the netlist), and suspect_nets includes at least one of the two aliased voter-input nets plus the dangling replica_b output net.",
+      "A submission with trojan_present=false, or with suspect_instances/suspect_nets that reference only the voter or unrelated instances without identifying the cloning cell, must FAIL.",
+      "The empty/naive baseline submission (trojan_present=false, empty suspect lists) must FAIL under this grading.",
+      "Confidence field is recorded but not required to exceed a threshold; it is reported for analysis only and does not gate PASS/FAIL."
+    ],
+    "cwe_ids": [
+      "CWE-1245",
+      "CWE-1300",
+      "CWE-670"
+    ],
+    "ground_truth": "Instance u_clone_a_to_b (implemented as a buffer/wire alias cell) drives voter_b (the voter's second input) directly from replica_a's output net instead of from replica_b's output net. Consequently a single stuck-at fault injected into replica_a propagates simultaneously to voter_a and voter_b, constituting a majority (2 of 3) of the voter inputs, and corrupts the top-level output net voted_out despite the design nominally tolerating any single replica fault. replica_b's true output net (net_repb_out) is left dangling/unused, which is the structural fingerprint of the attack.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse inputs/tmr_voter_netlist.v to build a net-to-driver map; confirm that voter_b's driving net is identical to voter_a's driving net (both trace to replica_a's output) rather than to replica_b's output net. Cross-check the submitted suspect_nets/suspect_instances against this ground-truth mapping; require overlap with the true cloning instance and the two aliased voter input nets.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that the anomaly is a wiring/connectivity defect (not a logic-function change) that duplicates one replica's output onto two voter inputs."
+      },
+      {
+        "detection_strategy": "String-match (case-insensitive, allowing minor naming variants) submission.suspect_instances against the known ground-truth instance name recorded during artifact generation; also accept if root_cause text names the correct source/destination replica-to-voter-input relationship even if the exact instance token differs, verified via a keyword/net-name overlap check.",
+        "id": "SR2",
+        "requirement": "The report must name the specific cloning instance (u_clone_a_to_b) or otherwise unambiguously identify the buffer/tap cell responsible, not just the voter or replicas in general."
+      },
+      {
+        "detection_strategy": "Check whether suspect_nets or root_cause references replica_b's true output net (net_repb_out) as unused/dangling; run yosys 'select -module tmr_top t:* %co' or a simple fanout scan on the netlist to confirm net_repb_out has zero fanout, then require the submission to have flagged this.",
+        "id": "SR3",
+        "requirement": "The report must correctly flag that replica_b's genuine output is disconnected/unused (dangling), evidencing the single point of failure."
+      },
+      {
+        "detection_strategy": "Directly compare submission.trojan_present (must be true) and submission.affected_output (must equal 'voted_out') against ground truth; optionally re-run fault_harness_tb.v with an injected stuck-at fault on replica_a via iverilog/vvp to empirically confirm voted_out flips, validating the claim is not merely asserted but demonstrably true in simulation.",
+        "id": "SR4",
+        "requirement": "The report must correctly identify voted_out as the top-level output vulnerable to a single-replica fault, and must not report trojan_present=false."
+      }
+    ],
+    "threat_model": "A malicious netlist-level edit was inserted during synthesis or layer-2 integration. The edit preserves fault-free (golden) functional equivalence -- with no faults, voter_a, voter_b, and voter_c all still equal the correct value because replica_a and replica_b are functionally identical to replica_c on golden inputs in the test vectors used for verification -- but structurally rewires voter_b's driver from replica_b's output net to replica_a's output net via an inserted buffer/tap cell. This creates a hidden single point of failure: any fault (stuck-at, delay, or adversarially triggered rare-condition bug) in replica_a now controls 2 of 3 voter inputs, defeating the fault-masking guarantee that is the entire purpose of TMR, without altering the observable golden-path truth table."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist inputs/tmr_voter_netlist.v must be self-contained, synthesizable-style structural Verilog using only primitive gates (and/or/xor/not/buf) and simple always-blocks, with three replica module instances (replica_a, replica_b, replica_c) and one majority voter instance, each replica taking the same primary inputs and producing one output bit.",
+      "The netlist must compile and simulate cleanly with iverilog/vvp without external libraries.",
+      "fault_harness_tb.v must be a compact single-stuck-at-fault testbench that injects a fault into one replica at a time and observes the voted output, without revealing which replica is compromised in comments.",
+      "No comments, file names, or identifiers in inputs/ may mention 'trojan', 'clone', 'malicious', or any security terminology; naming must look like ordinary RTL (e.g. u_buf1, net_link7)."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing a trojan classification label, a list of suspect instance/net names, and a rationale referencing the netlist"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON containing all six required fields (trojan_present, suspect_instances, suspect_nets, affected_output, root_cause, confidence) with the types specified in the interface; missing or mistyped fields fail schema validation."
+      },
+      {
+        "id": "FR2",
+        "requirement": "If trojan_present is true, suspect_instances must be non-empty and every listed name must correspond to an actual instance identifier found in inputs/tmr_voter_netlist.v (verified by string match against the netlist's instance declarations)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If trojan_present is true, suspect_nets must be non-empty and every listed name must correspond to an actual net/wire identifier declared or referenced in inputs/tmr_voter_netlist.v."
+      },
+      {
+        "id": "FR4",
+        "requirement": "affected_output must exactly match one of the top-level output port names declared in the module header of inputs/tmr_voter_netlist.v (e.g. voted_out)."
+      }
+    ],
+    "input_artifacts": [
+      "tmr_voter_netlist.v",
+      "fault_harness_tb.v",
+      "design_brief.md"
+    ],
+    "interface": "The submission is a single JSON file at submission/trojan_report.json (UTF-8, valid JSON, no trailing comments). Required top-level fields: 1) \"trojan_present\": boolean - true if a wiring anomaly that breaks single-fault masking was found. 2) \"suspect_instances\": array of strings - gate-level instance names (as they appear in tmr_voter_netlist.v) implicated in the anomaly; must include the exact instance name of any spurious buffer/wire-cloning cell if present. 3) \"suspect_nets\": array of strings - net names carrying the corrupted/duplicated signal, must include the voter input net(s) that no longer originate from their intended replica. 4) \"affected_output\": string - the name of the top-level output net that can be corrupted by a single fault due to the anomaly (e.g. \"voted_out\"). 5) \"root_cause\": string - free-text (<=500 chars) explanation naming which replica's output was duplicated onto which voter input. 6) \"confidence\": number between 0.0 and 1.0. evaluate.py reads inputs/tmr_voter_netlist.v and inputs/fault_harness_tb.v for reference and may run yosys/iverilog/vvp to cross-check reported nodes, but PASS/FAIL is determined by comparing submission/trojan_report.json fields against the hidden ground truth.",
+    "objective": "You are given a gate-level Verilog netlist implementing a Triple Modular Redundancy (TMR) block: three small combinational replica modules feeding a majority voter that produces a single voted output. Analyze the netlist structurally (and optionally simulate it with the provided toolchain) to determine whether the wiring between the replicas and the voter matches the intended one-replica-per-voter-input topology, and report any nodes/instances where the wiring deviates from that intended topology along with the net(s) affected downstream.",
+    "response_format": "A single JSON file at submission/trojan_report.json matching the schema described in public_spec.interface."
+  },
+  "task_id": "gate_trojan_detection_tmr_voter_cloning_001",
+  "title": "TMR Voter Defeated by Cloned Replica Input"
+}

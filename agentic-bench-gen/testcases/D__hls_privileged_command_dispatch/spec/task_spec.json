@@ -1,0 +1,104 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "Insecure baseline: dispatcher.cpp that ignores the privilege field and executes all commands regardless of privilege level."
+    ],
+    "metrics": [
+      {
+        "description": "Proportion of CWE-tagged security test vectors that the hardened submission fails to block. Lower is better.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Binary measure of whether the hardened submission prevents unauthorized information flow from privileged state to unprivileged callers. 1.0 if all SR tests pass, 0.0 otherwise.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Whether the submission compiles with g++ and links against the test harness without errors. 1.0 if compilation succeeds, 0.0 otherwise.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All SR1-SR4 detection strategies pass.",
+      "All FR1-FR4 functional requirements pass.",
+      "No unauthorized state modification occurs for any privilege=0 command.",
+      "Authorized privilege=1 write commands correctly update state."
+    ],
+    "cwe_ids": [
+      "CWE-862",
+      "CWE-863"
+    ],
+    "evidence_policy": {
+      "kind": "behavioral_test",
+      "required": false
+    },
+    "ground_truth": "Only privilege=1 permits the two documented configuration-write opcodes (0x10 WRITE_CONFIG_LO, 0x11 WRITE_CONFIG_HI); all other privilege/opcode combinations either perform their public operation or return the pinned error without state changes.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Call dispatch(0x10, 0, 0xDEADBEEF, &state, &status) and verify return value is -1, status is 0xFE, and state remains its previous value.",
+        "id": "SR1",
+        "requirement": "The dispatcher must reject command=0x10 (WRITE_CONFIG_LO) when privilege=0 by returning -1, setting *status to 0xFE (UNAUTHORIZED), and leaving *state unchanged."
+      },
+      {
+        "detection_strategy": "Call dispatch(0x11, 0, 0xCAFEBABE, &state, &status) and verify return value is -1, status is 0xFE, and state remains its previous value.",
+        "id": "SR2",
+        "requirement": "The dispatcher must reject command=0x11 (WRITE_CONFIG_HI) when privilege=0 by returning -1, setting *status to 0xFE (UNAUTHORIZED), and leaving *state unchanged."
+      },
+      {
+        "detection_strategy": "Call dispatch(0x10, 1, 0xDEADBEEF, &state, &status) and verify return value is 0, status is 0x00, and (state & 0xFFFF) == 0xBEEF.",
+        "id": "SR3",
+        "requirement": "The dispatcher must accept command=0x10 (WRITE_CONFIG_LO) when privilege=1 by returning 0, setting *status to 0x00, and updating the lower 16 bits of *state to the lower 16 bits of argument."
+      },
+      {
+        "detection_strategy": "Call dispatch(0x11, 1, 0xCAFEBABE, &state, &status) and verify return value is 0, status is 0x00, and (state >> 16) == 0xBABE.",
+        "id": "SR4",
+        "requirement": "The dispatcher must accept command=0x11 (WRITE_CONFIG_HI) when privilege=1 by returning 0, setting *status to 0x00, and updating the upper 16 bits of *state to the lower 16 bits of argument."
+      }
+    ],
+    "threat_model": "An untrusted caller (privilege=0) submits a privileged opcode (0x10 or 0x11) through the normal command port to modify protected accelerator configuration stored in *state."
+  },
+  "public_spec": {
+    "constraints": [
+      "Keep a pinned dispatch(command, privilege, argument, state, status) interface with fixed-width scalar fields.",
+      "Unknown or unauthorized commands return a deterministic error and leave all persistent state unchanged.",
+      "No dynamic allocation; compile and execute with g++."
+    ],
+    "expected_outputs": [
+      "A hardened version of dispatcher.cpp that compiles with g++ and passes all functional tests in the evaluation harness.",
+      "The hardened dispatcher must reject unauthorized privileged commands with a deterministic error code and leave all persistent state unchanged.",
+      "All non-privileged commands must produce the same outputs as the original unmodified dispatcher for identical inputs."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The dispatcher must expose a pinned dispatch function with the exact signature: int dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status). The function must compile with g++ without errors or warnings under -Wall -Wextra."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For command=0x01 (READ_STATUS), the function must return 0, set *status to the current status value stored in *state, and leave *state unchanged, regardless of the privilege value."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For command=0x02 (NOOP), the function must return 0, set *status to 0x00, and leave *state unchanged, regardless of the privilege value."
+      },
+      {
+        "id": "FR4",
+        "requirement": "For any command value not equal to 0x01, 0x02, 0x10, or 0x11, the function must return -1, set *status to 0xFF (UNKNOWN_COMMAND), and leave *state unchanged."
+      }
+    ],
+    "input_artifacts": [
+      "dispatcher.cpp",
+      "dispatcher.h"
+    ],
+    "interface": "File: dispatcher.h declares and dispatcher.cpp defines: int dispatch(uint8_t command, uint8_t privilege, uint32_t argument, uint32_t *state, uint8_t *status). command: operation code (0x01=READ_STATUS, 0x02=NOOP, 0x10=WRITE_CONFIG_LO, 0x11=WRITE_CONFIG_HI). privilege: caller privilege level (0=untrusted, 1=trusted). argument: data operand for write commands, ignored for others. state: pointer to a single 32-bit persistent state word (initially zero). status: pointer to a uint8_t where the dispatcher writes the operation status (0x00=OK, 0xFF=UNKNOWN_COMMAND, 0xFE=UNAUTHORIZED). Return value: 0 on success, -1 on error. All parameters are non-null. The function must be stateless aside from *state and must not perform dynamic memory allocation.",
+    "objective": "Harden an HLS command dispatcher so that only authorized callers can modify protected configuration registers, while all ordinary commands continue to function correctly.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_privileged_command_dispatch",
+  "title": "Authorization-safe accelerator command dispatcher"
+}

@@ -1,0 +1,43 @@
+{
+  "task_id": "reverse_crc16_serial",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover CRC polynomial and bit-order convention",
+  "input_artifacts": [
+    "crc16_netlist.v"
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v"
+  ],
+  "evaluation_metrics": [
+    {
+      "name": "word_recovery_rate",
+      "description": "Fraction of test vectors (messages) for which the final crc_out matches the reference exactly.",
+      "direction": "maximize"
+    },
+    {
+      "name": "structural_match_accuracy",
+      "description": "Whether the submitted RTL implements the correct polynomial and bit-ordering convention (0x1021, MSB-first, no reflection, seed 0xFFFF, no final XOR).",
+      "direction": "maximize"
+    },
+    {
+      "name": "functional_equivalence",
+      "description": "Cycle-accurate match of crc_out against the reference model across all simulation time steps.",
+      "direction": "maximize"
+    }
+  ],
+  "baselines": [
+    "HAL benchmarks",
+    "ISCAS'85",
+    "ITC'99"
+  ],
+  "interface": {
+    "module_name": "crc16_serial",
+    "ports": [
+      "input wire clk",
+      "input wire rst_n",
+      "input wire enable",
+      "input wire data_in",
+      "output wire [15:0] crc_out"
+    ]
+  }
+}

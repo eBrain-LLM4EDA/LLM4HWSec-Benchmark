@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "// ---------------------------------------------------------------------------\n// recovered_rtl.v\n//\n// Word-level recovery of the flattened 4-entry x 8-bit dual-read register\n// file described in design_brief.md / gate_netlist.v / obfuscated_wrapper.v.\n//\n// - Single synchronous write port: on posedge clk, if rst is asserted the\n//   entire array clears to 0 (synchronous, active-high, takes priority over\n//   we); else if we is asserted, mem[waddr] is loaded with wdata. Exactly\n//   one entry updates per qualifying edge; the other three hold.\n// - Two fully independent, purely combinational read ports: rdata0/rdata1\n//   are direct, zero-latency reflections of mem[raddr0]/mem[raddr1]. No\n//   extra pipeline register and no explicit bypass mux are needed: because\n//   the read is combinational on the same register array that the clocked\n//   write updates, the read output naturally shows the old value up to the\n//   edge and the new value from that same edge onward (write-forwarding is\n//   inherent, not synthesized separately).\n// ---------------------------------------------------------------------------\n\n`timescale 1ns/1ps\n\nmodule reg_file_recovered (\n    input        clk,\n    input        rst,\n    input        we,\n    input  [1:0] waddr,\n    input  [7:0] wdata,\n    input  [1:0] raddr0,\n    input  [1:0] raddr1,\n    output [7:0] rdata0,\n    output [7:0] rdata1\n);\n\n    reg [7:0] mem [0:3];\n\n    integer i;\n\n    always @(posedge clk) begin\n        if (rst) begin\n            for (i = 0; i < 4; i = i + 1) begin\n                mem[i] <= 8'h00;\n            end\n        end\n        else if (we) begin\n            mem[waddr] <= wdata;\n        end\n    end\n\n    assign rdata0 = mem[raddr0];\n    assign rdata1 = mem[raddr1];\n\nendmodule",
+      "path": "golden/recovered_rtl.v"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_rtl.v",
+      "purpose": "Golden answer mirroring submission/recovered_rtl.v. Defines exactly one module reg_file_recovered with pinned ports: input clk, rst, we, [1:0] waddr, [7:0] wdata, [1:0] raddr0, [1:0] raddr1; output [7:0] rdata0, rdata1. Internal storage: reg [7:0] mem[0:3] (4 entries), updated in a single always @(posedge clk) block: if (rst) clear all 4 entries to 8'h00 synchronously (rst has priority over we, we ignored while rst=1); else if (we) mem[waddr] <= wdata (exactly one entry updates, others hold). Read ports are purely combinational: assign rdata0 = mem[raddr0]; assign rdata1 = mem[raddr1]; -- zero-latency Mealy reads, no bypass mux, no extra pipeline register, satisfying write-forwarding naturally (post-edge registered value visible immediately via delta-cycle combinational read), reset visibility on next edge, and independent dual-port reads. No latches, no combinational feedback, no non-synthesizable constructs, self-contained single module."
+    }
+  ]
+}

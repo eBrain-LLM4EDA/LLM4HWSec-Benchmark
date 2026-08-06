@@ -1,0 +1,47 @@
+{
+  "task_id": "gate_trojan_detection_power_isolation_bypass_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Detection: Secure-Domain Isolation Cell",
+  "top_module": "isolation_wrapper",
+  "input_artifacts": [
+    "inputs/isolation_wrapper_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/primitive_library.v"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs": {
+    "summary": "A structured JSON report containing a trojan classification label, a list of suspect node names, and a list of affected output ports.",
+    "schema": {
+      "trojan_present": "boolean",
+      "confidence": "float (0.0-1.0)",
+      "suspect_nodes": "array of strings",
+      "affected_outputs": "array of strings",
+      "violating_condition": "string",
+      "analysis_summary": "string"
+    }
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of required ground-truth findings (trojan presence, correct suspect node, correct affected output bit, correct violating condition) that the submitted report correctly captures across the SR checklist."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported suspect_nodes or affected_outputs that do not correspond to the true bypass path or truly-compromised bit (e.g. flagging public_out[1..3] or unrelated gates as compromised)."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time taken by evaluate.py to parse, optionally re-simulate via iverilog/vvp, and grade the submitted trojan_report.json against the reference netlist."
+    }
+  ],
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ]
+}

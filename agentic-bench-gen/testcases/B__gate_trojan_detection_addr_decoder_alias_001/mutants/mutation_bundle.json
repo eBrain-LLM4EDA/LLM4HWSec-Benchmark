@@ -1,0 +1,112 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Evaluator directly compares submitted trojan_present boolean against ground truth (true) and fails the submission since it is falsely reported as false despite suspect_nets, trigger_condition, and affected_outputs all still describing the real Trojan.",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist.v\",\n  \"trojan_present\": false,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3_tap_and\",\n      \"gate_instance\": \"g_alias_tap_and\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"bank2_we_alias_tap\",\n      \"gate_instance\": \"g_alias_or2\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel2_we\",\n      \"gate_instance\": \"u_sel2_we\",\n      \"role\": \"benign\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"011\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank0_we\",\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v identifies g_alias_tap_and and g_alias_or2 as an extraneous aliasing tap that causes bank2_we to assert whenever addr=011 and write_en=1, aliasing with bank0_we's legitimate assertion at that same address. However, after further review this deviation is assessed as within acceptable design tolerance and not classified as a Trojan; trojan_present is therefore reported as false despite the observed dual write-enable assertion at addr=011/write_en=1 confirmed via exhaustive simulation of testbench_harness.v.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_SR1_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Evaluator compares trigger_condition.address against ground truth '011' (and cross-validates via iverilog/vvp replay against decoder_netlist.v). This mutant reports address '010' instead, which does not trigger the dual bank0_we/bank2_we assertion when replayed, so SR2 (and consequently SR3) fails.",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist.v\",\n  \"trojan_present\": true,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3_tap_and\",\n      \"gate_instance\": \"g_alias_tap_and\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"bank2_we_alias_tap\",\n      \"gate_instance\": \"g_alias_or2\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel2_we\",\n      \"gate_instance\": \"u_sel2_we\",\n      \"role\": \"benign\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"010\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank0_we\",\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v: the legitimate one-hot decode chain decodes minterm0..minterm3 (GATE_AND3 instances u_minterm0..u_minterm3 over addr2_n/addr1_n/addr0_n and their complements), each gated with write_en via GATE_AND2 instances u_sel0_we..u_sel3_we to form sel0_we..sel3_we. bank1_we_comb is driven directly and solely by sel1_we (legitimate, single-source). bank0_we_comb, however, is not driven solely by sel0_we: it is the output of GATE_OR2 instance u_bank0_or, whose inputs are sel0_we and sel3_we -- i.e. bank0_we's own documented decode tree already legitimately double-triggers on both addr=000 and addr=011 via write_en, per the sum-of-minterms structure actually present in the netlist. Independently, bank2_we_comb is driven by bank2_we_alias_tap, the output of an extraneous GATE_OR2 instance g_alias_or2, whose inputs are sel2_we (the legitimate addr=010 decode) and minterm3_tap_and. minterm3_tap_and is produced by a second, redundant GATE_AND2 instance g_alias_tap_and that re-derives the addr==3'b011 condition from minterm3 ANDed again with write_en -- a duplicate re-decode of the same minterm3 signal that exists solely to inject an addr=011-triggered term into the bank2 enable tree. Exhaustive simulation via testbench_harness.v confirms the anomalous dual-assertion occurs at this reported address with write_en=1, where bank0_we and bank2_we both register high simultaneously on the next clk edge, while bank1_we and bank3_we remain low.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_SR2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Evaluator performs set-equality check between submitted affected_outputs and ground-truth {bank0_we, bank2_we}, and/or cross-validates via simulation replay at addr=011/write_en=1 against decoder_netlist.v; this mutant reports affected_outputs as [bank1_we, bank2_we], which fails both the set-equality check (missing true positive bank0_we, spurious inclusion of bank1_we) and simulation replay (bank1_we never asserts at addr=011).",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist.v\",\n  \"trojan_present\": true,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3_tap_and\",\n      \"gate_instance\": \"g_alias_tap_and\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"bank2_we_alias_tap\",\n      \"gate_instance\": \"g_alias_or2\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel2_we\",\n      \"gate_instance\": \"u_sel2_we\",\n      \"role\": \"benign\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"011\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank1_we\",\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v: the legitimate one-hot decode chain decodes minterm0..minterm3 (GATE_AND3 instances u_minterm0..u_minterm3 over addr2_n/addr1_n/addr0_n and their complements), each gated with write_en via GATE_AND2 instances u_sel0_we..u_sel3_we to form sel0_we..sel3_we. bank2_we_comb is driven by bank2_we_alias_tap, the output of an extraneous GATE_OR2 instance g_alias_or2, whose inputs are sel2_we (the legitimate addr=010 decode) and minterm3_tap_and. minterm3_tap_and is produced by a second, redundant GATE_AND2 instance g_alias_tap_and that re-derives the addr==3'b011 condition from minterm3 ANDed again with write_en. Exhaustive simulation via testbench_harness.v confirms that at addr=011, write_en=1, bank1_we and bank2_we register high simultaneously on the next clk edge, while bank0_we and bank3_we remain low. For all other 7 addresses crossed with write_en=0 and write_en=1, at most one of bank0_we..bank3_we asserts per cycle, consistent with correct one-hot behavior except at address 011/write_en=1 where the write-enable bridging Trojan causes bank1_we and bank2_we to both assert.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_SR3_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Evaluator cross-checks suspect_nets entries against the structural netlist to confirm the reported gate_instance/net actually drives bank2_we via the minterm3 tap. Here the suspect_nets list only names benign, unrelated decoder gates (u_minterm3, u_sel2_we) with role 'trigger'/'payload' and omits the true alias gates g_alias_tap_and/g_alias_or2 and their nets minterm3_tap_and/bank2_we_alias_tap entirely, so structural/behavioral matching against decoder_netlist.v fails to find the actual bridging instance, violating SR4 even though SR1-SR3 fields remain nominally correct.",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist.v\",\n  \"trojan_present\": true,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3\",\n      \"gate_instance\": \"u_minterm3\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"sel2_we\",\n      \"gate_instance\": \"u_sel2_we\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel0_we\",\n      \"gate_instance\": \"u_sel0_we\",\n      \"role\": \"benign\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"011\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank0_we\",\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v: the legitimate one-hot decode chain decodes minterm0..minterm3 via GATE_AND3 instances u_minterm0..u_minterm3, each gated with write_en via GATE_AND2 instances u_sel0_we..u_sel3_we to form sel0_we..sel3_we. We identify u_minterm3 (producing minterm3, the addr==3'b011 decode) as the trigger source and u_sel2_we (producing sel2_we, the addr==010 decode gated with write_en) as the payload path feeding bank2_we, alongside u_sel0_we as a benign reference gate for bank0's decode. Exhaustive simulation via testbench_harness.v confirms that at addr=011, write_en=1, both bank0_we and bank2_we register high simultaneously on the next clk edge, while bank1_we and bank3_we remain low. For all other 7 addresses crossed with both write_en values, at most one write-enable asserts per cycle, consistent with one-hot behavior and confirming no additional false positives beyond address 011/write_en=1.\"\n}\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_SR4_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "Exhaustive simulation replay via testbench_harness.v against decoder_netlist.v shows that at address 001 (write_en=1) only bank1_we asserts (one-hot, no anomaly), contradicting the submission's false claim that bank1_we and bank3_we both assert at addr=001, so cross-checking suspect_nets/affected_outputs/evidence against exhaustive ground truth for the 7 non-Trojan addresses (SR5) flags this as a false positive.",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist.v\",\n  \"trojan_present\": true,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3_tap_and\",\n      \"gate_instance\": \"g_alias_tap_and\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"bank2_we_alias_tap\",\n      \"gate_instance\": \"g_alias_or2\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel1_we\",\n      \"gate_instance\": \"u_sel1_we\",\n      \"role\": \"trigger\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"011\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank0_we\",\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v confirms the primary bridging Trojan formed by g_alias_tap_and and g_alias_or2 causes bank0_we and bank2_we to assert simultaneously at addr=011, write_en=1, as previously documented. However, additional exhaustive simulation traces via testbench_harness.v also reveal a second anomaly at addr=001, write_en=1: contrary to the documented one-hot decode table, both bank1_we and bank3_we were observed asserting simultaneously during our simulation run, indicating u_sel1_we's output net sel1_we exhibits unexpected cross-coupling into the bank3 registered output path. We attribute this to a suspected secondary aliasing effect possibly introduced during synthesis re-mapping of the sel1_we fanout, though we were unable to fully isolate a distinct gate instance responsible for the bank3_we assertion at addr=001; regardless, this represents a second Trojan-triggering address beyond 011 that operators should be aware of when validating bank3's security-relevant contents, in addition to the primary bank0/bank2 aliasing bridge already reported above.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_SR5_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR5"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Evaluator schema/field validation should detect that trigger_condition.address is '11' (a 2-character string) instead of the required 3-character binary string '011', and/or that design_under_test does not equal the exact required literal 'decoder_netlist.v', causing FR2 structural validation to fail.",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist\",\n  \"trojan_present\": true,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3_tap_and\",\n      \"gate_instance\": \"g_alias_tap_and\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"bank2_we_alias_tap\",\n      \"gate_instance\": \"g_alias_or2\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel2_we\",\n      \"gate_instance\": \"u_sel2_we\",\n      \"role\": \"benign\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"11\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank0_we\",\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v: the legitimate one-hot decode chain decodes minterm0..minterm3 (GATE_AND3 instances u_minterm0..u_minterm3 over addr2_n/addr1_n/addr0_n and their complements), each gated with write_en via GATE_AND2 instances u_sel0_we..u_sel3_we to form sel0_we..sel3_we. bank1_we_comb is driven directly and solely by sel1_we (legitimate, single-source). bank0_we_comb, however, is not driven solely by sel0_we: it is the output of GATE_OR2 instance u_bank0_or, whose inputs are sel0_we and sel3_we -- i.e. bank0_we's own documented decode tree already legitimately double-triggers on both addr=000 and addr=011 via write_en, per the sum-of-minterms structure actually present in the netlist. Independently, bank2_we_comb is driven by bank2_we_alias_tap, the output of an extraneous GATE_OR2 instance g_alias_or2, whose inputs are sel2_we (the legitimate addr=010 decode) and minterm3_tap_and. minterm3_tap_and is produced by a second, redundant GATE_AND2 instance g_alias_tap_and that re-derives the addr==3'b011 condition from minterm3 ANDed again with write_en -- a duplicate re-decode of the same minterm3 signal that exists solely to inject an addr=011-triggered term into the bank2 enable tree. Exhaustive simulation via testbench_harness.v confirms that at addr=011, write_en=1, both bank0_we and bank2_we register high simultaneously on the next clk edge, while bank1_we and bank3_we remain low. For all other 7 addresses crossed with both write_en values, the exhaustive trace shows at most one of bank0_we..bank3_we asserts per cycle, consistent with correct one-hot behavior and confirming no additional false-positive anomalies exist beyond address 011/write_en=1.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_FR2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Schema/content validator for FR3 should reject this submission because affected_outputs contains only a single entry ('bank2_we') despite trojan_present being true, violating the FR3 requirement that affected_outputs must contain at least two distinct entries when trojan_present is true. This also causes SR3 set-equality checks to fail since bank0_we is missing from the set.",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist.v\",\n  \"trojan_present\": true,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3_tap_and\",\n      \"gate_instance\": \"g_alias_tap_and\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"bank2_we_alias_tap\",\n      \"gate_instance\": \"g_alias_or2\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel2_we\",\n      \"gate_instance\": \"u_sel2_we\",\n      \"role\": \"benign\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"011\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v: the legitimate one-hot decode chain decodes minterm0..minterm3 (GATE_AND3 instances u_minterm0..u_minterm3 over addr2_n/addr1_n/addr0_n and their complements), each gated with write_en via GATE_AND2 instances u_sel0_we..u_sel3_we to form sel0_we..sel3_we. bank1_we_comb is driven directly and solely by sel1_we (legitimate, single-source). bank2_we_comb is driven by bank2_we_alias_tap, the output of an extraneous GATE_OR2 instance g_alias_or2, whose inputs are sel2_we (the legitimate addr=010 decode) and minterm3_tap_and. minterm3_tap_and is produced by a second, redundant GATE_AND2 instance g_alias_tap_and that re-derives the addr==3'b011 condition from minterm3 ANDed again with write_en -- a duplicate re-decode of the same minterm3 signal that exists solely to inject an addr=011-triggered term into the bank2 enable tree. Exhaustive simulation via testbench_harness.v (all 8 addr values crossed with both write_en values, 16 vectors, registered outputs sampled one cycle after stimulus) confirms: at addr=011, write_en=1, bank2_we registers high on the next clk edge via minterm3 -> g_alias_tap_and -> minterm3_tap_and -> g_alias_or2 -> bank2_we_alias_tap -> u_dff_bank2, while bank1_we and bank3_we remain low. For all other 7 addresses crossed with write_en=0 and write_en=1, the exhaustive trace shows at most one of bank0_we..bank3_we asserts per cycle, consistent with correct one-hot behavior and confirming no additional false-positive anomalies exist beyond address 011/write_en=1.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_FR3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Evaluator should detect that the submission's suspect_nets/evidence now make a blanket claim of anomalous behavior across all addresses (not scoped to address 011), violating FR4's requirement that the reported anomaly be scoped to a single specific address. Cross-checking suspect_nets roles against trigger_condition.address and the exhaustive simulation ground truth should reveal that the submission asserts the alias gates affect every address rather than only 011, and/or lists benign per-address decode gates (u_minterm0..u_minterm2, u_sel0_we..u_sel2_we) as trigger/payload, implying multi-address impact inconsistent with the single-address scoping FR4 mandates.",
+      "files": [
+        {
+          "content": "{\n  \"design_under_test\": \"decoder_netlist.v\",\n  \"trojan_present\": true,\n  \"suspect_nets\": [\n    {\n      \"net_name\": \"minterm3_tap_and\",\n      \"gate_instance\": \"g_alias_tap_and\",\n      \"role\": \"trigger\"\n    },\n    {\n      \"net_name\": \"bank2_we_alias_tap\",\n      \"gate_instance\": \"g_alias_or2\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel0_we\",\n      \"gate_instance\": \"u_sel0_we\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel1_we\",\n      \"gate_instance\": \"u_sel1_we\",\n      \"role\": \"payload\"\n    },\n    {\n      \"net_name\": \"sel2_we\",\n      \"gate_instance\": \"u_sel2_we\",\n      \"role\": \"payload\"\n    }\n  ],\n  \"trigger_condition\": {\n    \"address\": \"011\",\n    \"control_inputs\": {\n      \"write_en\": \"1\"\n    }\n  },\n  \"affected_outputs\": [\n    \"bank0_we\",\n    \"bank2_we\"\n  ],\n  \"evidence\": \"Structural analysis of decoder_netlist.v reveals the aliasing gates g_alias_tap_and and g_alias_or2 corrupting the bank2 enable tree. However, further review of the per-bank select gates (u_sel0_we, u_sel1_we, u_sel2_we) shows these minterm-gating AND gates are also implicated as payload-carrying nodes because they participate generically in every address's write-enable derivation; therefore the Trojan's aliasing behavior should be considered to potentially manifest at every legal address (000, 001, 010, and 011), not solely at addr=011. Exhaustive simulation was only spot-checked at addr=011/write_en=1 (confirming bank0_we and bank2_we assert together), but the structural presence of u_sel0_we, u_sel1_we, and u_sel2_we in the same alias-affected fan-in region means the anomaly should be treated as a blanket condition potentially covering all four legal addresses rather than being scoped strictly to address 011, pending further per-address confirmation.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_addr_decoder_alias_001_FR4_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+AUDIT_TOP PORT MAP AND SIGNAL REFERENCE
+==========================================
+
+This reference table lists the top-level ports of module `audit_top`, along
+with a selection of internal net and instance names that may be encountered
+while reading `audit_module_netlist.v`. It is provided as a navigational aid
+only; consult the netlist itself for authoritative connectivity.
+
+TOP-LEVEL PORTS
+---------------
+
+Name              Direction   Width   Description
+----              ---------   -----   -----------
+clk               input       1       System clock; all sequential elements are clocked from this signal.
+rst_n             input       1       Active-low global system reset, external to the module.
+maintenance_req   input       1       Maintenance interface request signal, driven by an external controller.
+alarm             input       1       System alarm condition signal, driven by external alarm monitoring logic.
+tamper_event      input       1       Pulsed input indicating a detected tamper event upstream of this module.
+tamper_count      output      8       Running tamper-event count exposed to the rest of the system.
+
+INTERNAL NET / INSTANCE NAMES OF INTEREST
+------------------------------------------
+
+The following internal names appear in the netlist and may be useful when
+tracing signal paths. Descriptions below are structural/neutral and do not
+indicate whether a given net or instance is part of the documented design
+intent.
+
+Name                  Kind          Description
+----                  ----          -----------
+rst_n_inv             net           Internal node, output of an inverter stage fed from rst_n.
+rst_sync              net           Internal reset-synchronized signal derived from rst_n.
+maint_alarm_hit       net           Internal combinational node derived from maintenance_req and alarm.
+audit_clr             net           Internal combinational node feeding the counter register bank's clear inputs.
+tamper_count_d[7:0]   net (bus)     Internal combinational next-state bus feeding the counter register bank's data inputs.
+tamper_count_q_int    net (bus)     Internal bus carrying the current registered value of the counter, also driven out as tamper_count.
+
+u_rst_inv             instance      Gate instance in the reset path.
+u_rst_buf             instance      Gate instance in the reset path.
+u_maint_alarm_and     instance      Gate instance combining two operational input signals.
+u_audit_clr_or        instance      Gate instance combining two internal signals ahead of the counter's clear inputs.
+tamper_count_q_0 .. tamper_count_q_7   instance (x8)   Register bank instances holding the eight bits of tamper_count.
+
+NOTES
+-----
+
+- This table is descriptive only; it does not assert which signals are part
+  of the intended reset architecture versus incidental internal wiring.
+- Refer to `design_brief.md` for the documented functional and reset
+  behavior of the subsystem.
+- Refer to `audit_module_netlist.v` for the authoritative structural
+  connectivity between all of the above nets and instances.

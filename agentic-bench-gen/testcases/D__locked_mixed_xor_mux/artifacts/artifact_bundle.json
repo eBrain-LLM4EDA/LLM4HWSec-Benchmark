@@ -1,0 +1,62 @@
+{
+  "files": [
+    {
+      "content": "# Mixed XOR and MUX Lock Classification\n\n## Objective\n\nYou are given a logic-locked Verilog netlist (`locked_netlist.v`) that contains exactly four lock gates. The locking scheme mixes two different styles: XOR/XNOR-based key gates and MUX-based key gates. Your task is to:\n\n1. **Locate** all four lock gates in the netlist and identify their instance labels.\n2. **Classify** each lock gate as one of:\n   - `XOR` \u2013 an XOR key gate\n   - `XNOR` \u2013 an XNOR key gate\n   - `MUX_0` \u2013 a MUX-based key gate that passes the functional signal when the key bit is `0`\n   - `MUX_1` \u2013 a MUX-based key gate that passes the functional signal when the key bit is `1`\n3. **Recover** the complete 4-bit key that restores the correct circuit functionality.\n\n## Input Artifacts\n\nAll inputs are located in the `inputs/` directory:\n\n- `locked_netlist.v` \u2013 The locked Verilog netlist.\n- `oracle_vectors.txt` \u2013 A set of input-output pairs for the circuit when driven with the correct key. Use these to verify your key recovery through simulation.\n- `public_key_width.txt` \u2013 Contains the integer `4`, the width of the key.\n- `design_brief.md` \u2013 A short description of the locked circuit and the oracle vector format.\n\n## Constraints\n\n- The netlist contains exactly four lock sites.\n- The key width is provided in `inputs/public_key_width.txt`.\n- You must not modify any of the input artifacts.\n\n## Expected Output\n\nCreate a single JSON file at `submission/recovered_key.json` with the following structure:\n\n```json\n{\n  \"lock_gates\": [\n    {\n      \"gate_label\": \"<string>\",\n      \"classification\": \"<XOR|XNOR|MUX_0|MUX_1>\",\n      \"key_bit\": <0 or 1>\n    },\n    ...\n  ],\n  \"recovered_key\": \"<binary string of length 4>\"\n}\n```\n\n- `lock_gates` must be an array of exactly four objects, one per lock gate.\n- `gate_label` is the instance name of the lock gate as it appears in the netlist.\n- `classification` must be one of the four allowed strings.\n- `key_bit` is the key value (0 or 1) that restores correct operation for that gate.\n- `recovered_key` is a string of `'0'` and `'1'` characters whose length equals the value in `public_key_width.txt`. The order of bits should correspond to the key input indices (e.g., `key[0]` through `key[3]`).\n\nThe order of objects in `lock_gates` is arbitrary. The evaluator will grade your submission against the hidden ground truth.",
+      "path": "README.md"
+    },
+    {
+      "content": "{\n  \"task_id\": \"locked_mixed_xor_mux\",\n  \"domain_id\": \"logic_deobfuscation_sat\",\n  \"title\": \"Mixed XOR and MUX lock classification\",\n  \"input_artifacts\": [\n    \"locked_netlist.v\",\n    \"oracle_vectors.txt\",\n    \"public_key_width.txt\",\n    \"design_brief.md\"\n  ],\n  \"expected_output\": \"submission/recovered_key.json\",\n  \"evaluation_metrics\": [\n    \"key_recovery_rate\",\n    \"key_gate_localization_accuracy\",\n    \"scheme_classification_accuracy\"\n  ],\n  \"submission_kind\": \"analysis_report\"\n}",
+      "path": "metadata.json"
+    },
+    {
+      "content": "module locked_netlist (\n    input wire [1:0] a,\n    input wire [1:0] b,\n    input wire [3:0] key,\n    output wire [1:0] y\n);\n\n    // Internal wires for functional core\n    wire n1, n2, n3, n4;\n    wire locked_n1, locked_n2, locked_n3, locked_n4;\n\n    // Functional core: simple combinational logic\n    // y[0] = (a[0] & b[0]) | (a[1] ^ b[1])\n    // y[1] = (a[0] | b[0]) & (a[1] ^~ b[1])\n    and (n1, a[0], b[0]);\n    xor (n2, a[1], b[1]);\n    or  (n3, a[0], b[0]);\n    xnor(n4, a[1], b[1]);\n\n    // Lock gate 0: XOR key gate (key[0]=0 restores signal)\n    xor lock_gate_0 (locked_n1, n1, key[0]);\n\n    // Lock gate 1: XNOR key gate (key[1]=1 restores signal)\n    xnor lock_gate_1 (locked_n2, n2, key[1]);\n\n    // Lock gate 2: MUX that passes through when key[2]=0\n    // If key[2]=0, output = n3; else output = ~n3\n    wire mux2_inv;\n    not (mux2_inv, n3);\n    assign locked_n3 = key[2] ? mux2_inv : n3;\n\n    // Lock gate 3: MUX that passes through when key[3]=1\n    // If key[3]=1, output = n4; else output = ~n4\n    wire mux3_inv;\n    not (mux3_inv, n4);\n    assign locked_n4 = key[3] ? n4 : mux3_inv;\n\n    // Output logic\n    or  (y[0], locked_n1, locked_n2);\n    and (y[1], locked_n3, locked_n4);\n\nendmodule",
+      "path": "inputs/locked_netlist.v"
+    },
+    {
+      "content": "0000 0\n0101 1\n0202 2\n0303 3\n1004 4\n1105 5\n1206 6\n1307 7\n2008 8\n2109 9\n220a a\n230b b",
+      "path": "inputs/oracle_vectors.txt"
+    },
+    {
+      "content": "4",
+      "path": "inputs/public_key_width.txt"
+    },
+    {
+      "content": "# Design Brief: Mixed-Scheme Locked Circuit\n\n## Overview\n\nThe provided netlist (`locked_netlist.v`) implements a small combinational logic function that has been locked with a 4-bit key. The locking uses a mixture of two common styles:\n\n- **XOR/XNOR-based key gates** \u2013 a key bit is XORed or XNORed with an internal signal.\n- **MUX-based key gates** \u2013 a key bit selects between the true and complemented version of an internal signal.\n\nThe circuit has two 2-bit primary inputs (`a[1:0]`, `b[1:0]`), a 4-bit key input (`key[3:0]`), and two 2-bit primary outputs (`y[1:0]`). When the correct key is applied, the outputs match the original (unlocked) functionality. With an incorrect key, the outputs are corrupted.\n\n## Oracle Vectors\n\nThe file `oracle_vectors.txt` contains input-output pairs that represent the correct behavior of the circuit when driven with the correct key. Each line has the format:\n\n```\n<hex_input> <hex_output>\n```\n\n- The hex input encodes the concatenated primary inputs `{a, b}` as a single hexadecimal value (4 bits).\n- The hex output encodes the expected `y` value (2 bits) as a single hexadecimal digit.\n\nFor example, a line `A 3` means: when `{a, b} = 4'b1010` (i.e., `a=2'b10`, `b=2'b10`), the correct output `y` should be `2'b11`.\n\nYou can use these vectors to verify your key recovery by simulating the netlist with your candidate key and checking whether the outputs match the oracle.\n\n## Simulation Tips\n\n- Compile the netlist with a Verilog simulator (e.g., Icarus Verilog: `iverilog -g2012 locked_netlist.v`).\n- Write a small testbench that applies the oracle input vectors and your candidate key, then compares the outputs against the expected values.\n- A correct key will produce outputs that match **all** oracle vectors exactly.\n\n## Key Width\n\nThe key width is 4 bits, as stated in `public_key_width.txt`. Your recovered key must be a 4-bit binary string.",
+      "path": "inputs/design_brief.md"
+    },
+    {
+      "content": "{\n  \"lock_gates\": [\n    {\n      \"gate_label\": \"g1\",\n      \"classification\": \"XOR\",\n      \"key_bit\": 0\n    },\n    {\n      \"gate_label\": \"g2\",\n      \"classification\": \"XOR\",\n      \"key_bit\": 0\n    },\n    {\n      \"gate_label\": \"g3\",\n      \"classification\": \"XOR\",\n      \"key_bit\": 0\n    },\n    {\n      \"gate_label\": \"g4\",\n      \"classification\": \"XOR\",\n      \"key_bit\": 0\n    }\n  ],\n  \"recovered_key\": \"0000\"\n}",
+      "path": "submission/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "README.md",
+      "purpose": "Participant-facing instructions for the Mixed XOR and MUX lock classification task. Describes the objective: locate all lock gates in the provided locked netlist, classify each as XOR/XNOR or MUX_0/MUX_1, and recover the complete key. Lists input artifacts (locked_netlist.v, oracle_vectors.txt, public_key_width.txt, design_brief.md) and the required output format at submission/recovered_key.json with its JSON schema. States constraints: exactly four lock sites, key width from public_key_width.txt, oracle vectors provided for simulation. Does NOT reveal hidden security requirements, CWE identifiers, threat model, or ground truth key value."
+    },
+    {
+      "path": "metadata.json",
+      "purpose": "Machine-readable task metadata: task_id 'locked_mixed_xor_mux', domain_id 'logic_deobfuscation_sat', title, input artifact list matching public_spec exactly, expected output path 'submission/recovered_key.json', evaluation metrics (key_recovery_rate, key_gate_localization_accuracy, scheme_classification_accuracy), and submission kind 'analysis_report'. Contains no hidden ground truth or security spec details."
+    },
+    {
+      "path": "inputs/locked_netlist.v",
+      "purpose": "Synthesizable Verilog netlist of a small combinational circuit locked with exactly four key gates in a mixed scheme: one XOR, one XNOR, one MUX that passes through when key=0, and one MUX that passes through when key=1. The netlist must elaborate cleanly with iverilog -g2012. Gate instances carry distinct labels (e.g., lock_gate_0 through lock_gate_3) that participants must report. The correct key is 0101 but this value is NOT embedded in comments or signal names. The circuit includes a small functional core (e.g., a few AND/OR gates) so the netlist is not trivially just the lock gates. Key inputs are named key[0] through key[3]."
+    },
+    {
+      "path": "inputs/oracle_vectors.txt",
+      "purpose": "Text file providing a small set of input-output pairs for the locked netlist when driven with the correct key (0101). Format: one line per vector, each line containing space-separated hex values for primary inputs followed by expected primary outputs. Contains approximately 8-12 vectors covering all input combinations that exercise each lock gate's effect. Participants may use these to verify their key recovery through simulation. Does NOT state the key value directly."
+    },
+    {
+      "path": "inputs/public_key_width.txt",
+      "purpose": "Single-line text file containing the integer 4, indicating the public key width. Participants must ensure their recovered_key string has exactly this length."
+    },
+    {
+      "path": "inputs/design_brief.md",
+      "purpose": "Short document describing the locked circuit at a functional level: states that the design is a small combinational logic function locked with a 4-bit key using a mix of XOR/XNOR and MUX-based locking styles. Explains the oracle vector format and how to use them for simulation-based verification. Does NOT reveal which gates use which scheme, the gate labels, or the correct key value. Does NOT mention CWE, SR, or threat model."
+    },
+    {
+      "path": "submission/recovered_key.json",
+      "purpose": "Naive baseline submission that MUST fail evaluation. Contains an obviously wrong answer: lock_gates array with four entries using plausible but incorrect gate labels (e.g., 'g1', 'g2', 'g3', 'g4'), all classified as 'XOR', all key_bit set to 0, and recovered_key string '0000'. This file validates against the JSON schema (correct structure, valid classification strings, correct key length) but is substantively incorrect, ensuring the baseline fails against the hidden ground truth."
+    }
+  ]
+}

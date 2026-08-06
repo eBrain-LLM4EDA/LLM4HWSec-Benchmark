@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Harness calls validate_dma(0xFFFFFFF0, 0x20, 0x00000000, 0xFFFFFFFF) and asserts return 0; this mutant computes end = base + length in native uint32_t (wrapping to 0x10) before widening to uint64_t for the comparison, so the wrapped small value passes against region_end, incorrectly returning 1 for a transfer whose true unbounded end (0x100000010) exceeds the 32-bit address space and the region bound.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // Zero-length transfers are never valid, regardless of alignment.\n    if (length == 0) {\n        return 0;\n    }\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // BUG: computes base + length using native 32-bit arithmetic first,\n    // which can wrap modulo 2^32, and only widens the (already wrapped)\n    // result afterward. This reintroduces the classic overflow bounds\n    // check bypass that the 64-bit widening was supposed to eliminate.\n    const uint32_t end32 = base + length;\n    const uint64_t end = static_cast<uint64_t>(end32);\n    const uint64_t region_end = region_start64 + region_size64;\n\n    // Fully contained iff the start is at or after region_start and the\n    // (possibly wrapped) end address does not exceed region_end.\n    if (base64 >= region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_SR1_domain_specific_1",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Harness constructs region_start/region_size near the top of the 32-bit range and picks base/length so that base+length overflows 32 bits and wraps below region_start+region_size; the mutant computes end/region_end using native uint32_t addition (re-truncating after widening), so the wrapped 32-bit sum is compared instead of the true 64-bit sum, causing validate_dma to incorrectly return 1 for an out-of-region overflow request.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // Zero-length transfers are never valid, regardless of alignment.\n    if (length == 0) {\n        return 0;\n    }\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // BUG: intermediate sums are truncated back down to uint32_t before\n    // being widened again, re-introducing 32-bit wraparound in the very\n    // arithmetic this widening was supposed to prevent.\n    const uint64_t end = static_cast<uint64_t>(static_cast<uint32_t>(base64 + length64));\n    const uint64_t region_end = static_cast<uint64_t>(static_cast<uint32_t>(region_start64 + region_size64));\n\n    // Fully contained iff the start is at or after region_start and the\n    // (spuriously truncated) end address does not exceed region_end.\n    if (base64 >= region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_SR2_operator_swap_1",
+      "operator": "operator_swap",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Harness calls validate_dma with length = 0 for multiple base/region combinations, including base == region_start; the mutant removes the zero-length rejection check so it will incorrectly return 1 whenever base >= region_start and base <= region_start+region_size (e.g. base == region_start, length == 0), violating SR3.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\n//\n// All boundary arithmetic is widened to uint64_t so that no 32-bit\n// wraparound can occur: the maximum possible sum of two uint32_t values\n// is 2*UINT32_MAX (~8.6e9), which fits comfortably within the uint64_t\n// range (~1.8e19). This eliminates the classic integer-overflow bounds\n// check bypass (CWE-190/CWE-191) where base+length or\n// region_start+region_size wraps modulo 2^32 and spuriously satisfies a\n// naive 32-bit comparison.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // NOTE: zero-length rejection check was removed here.\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // Widened, non-wrapping end addresses.\n    const uint64_t end = base64 + length64;\n    const uint64_t region_end = region_start64 + region_size64;\n\n    // Fully contained iff the start is at or after region_start and the\n    // exact (non-wrapped) end address does not exceed region_end.\n    if (base64 >= region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_SR3_assignment_removal_1",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Harness vectors for SR4 (e.g. base < region_start with base+length landing inside the region, or region_start+region_size overflowing 32 bits) will incorrectly return 1 because the base-lower-bound check has been dropped/negated, allowing partially-contained or out-of-region-start transfers to pass. E.g. base=0x0FF0 < region_start=0x1000 with length spanning into the region would now return 1 instead of the required 0.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\n//\n// All boundary arithmetic is widened to uint64_t so that no 32-bit\n// wraparound can occur: the maximum possible sum of two uint32_t values\n// is 2*UINT32_MAX (~8.6e9), which fits comfortably within the uint64_t\n// range (~1.8e19). This eliminates the classic integer-overflow bounds\n// check bypass (CWE-190/CWE-191) where base+length or\n// region_start+region_size wraps modulo 2^32 and spuriously satisfies a\n// naive 32-bit comparison.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // Zero-length transfers are never valid, regardless of alignment.\n    if (length == 0) {\n        return 0;\n    }\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // Widened, non-wrapping end addresses.\n    const uint64_t end = base64 + length64;\n    const uint64_t region_end = region_start64 + region_size64;\n\n    // BUG: the lower-bound containment check (base64 >= region_start64) has\n    // been dropped, so any transfer whose end address happens to fall\n    // within the region is accepted even if it starts before region_start,\n    // violating full-containment semantics (partial-containment bypass).\n    if (end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_SR4_condition_negation_1",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "FR1 functional vector validate_dma(0x1000, 0x100, 0x1000, 0x200) expects return 1 (fully contained, base equals region_start), but the off-by-one comparison (base64 > region_start64 instead of >=) rejects this case, returning 0 and failing the known-answer test.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\n//\n// All boundary arithmetic is widened to uint64_t so that no 32-bit\n// wraparound can occur: the maximum possible sum of two uint32_t values\n// is 2*UINT32_MAX (~8.6e9), which fits comfortably within the uint64_t\n// range (~1.8e19). This eliminates the classic integer-overflow bounds\n// check bypass (CWE-190/CWE-191) where base+length or\n// region_start+region_size wraps modulo 2^32 and spuriously satisfies a\n// naive 32-bit comparison.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // Zero-length transfers are never valid, regardless of alignment.\n    if (length == 0) {\n        return 0;\n    }\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // Widened, non-wrapping end addresses.\n    const uint64_t end = base64 + length64;\n    const uint64_t region_end = region_start64 + region_size64;\n\n    // BUG: uses strict '>' instead of '>=' for the start comparison, so a\n    // transfer that starts exactly at region_start (a valid, fully\n    // contained case per FR1) is incorrectly rejected.\n    if (base64 > region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_FR1_constant_change_1",
+      "operator": "constant_change",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Harness invokes validate_dma(0x1000, 0x300, 0x1000, 0x200) expecting 0 (FR2: requested length exceeds region size). The mutant widens the effective region bound by adding an extra 0x100 slack constant to region_end, causing base+length=0x1300 to be spuriously accepted as <= region_end=0x1300+... actually returns 1 instead of the required 0, failing the FR2 functional vector.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\n//\n// All boundary arithmetic is widened to uint64_t so that no 32-bit\n// wraparound can occur: the maximum possible sum of two uint32_t values\n// is 2*UINT32_MAX (~8.6e9), which fits comfortably within the uint64_t\n// range (~1.8e19). This eliminates the classic integer-overflow bounds\n// check bypass (CWE-190/CWE-191) where base+length or\n// region_start+region_size wraps modulo 2^32 and spuriously satisfies a\n// naive 32-bit comparison.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // Zero-length transfers are never valid, regardless of alignment.\n    if (length == 0) {\n        return 0;\n    }\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // Widened, non-wrapping end addresses.\n    const uint64_t end = base64 + length64;\n    // BUG: introduces an off-by-a-constant slack into the region end,\n    // allowing transfers that exceed the true region size to pass.\n    const uint64_t region_end = region_start64 + region_size64 + 0x100ULL;\n\n    // Fully contained iff the start is at or after region_start and the\n    // exact (non-wrapped) end address does not exceed region_end.\n    if (base64 >= region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_FR2_constant_change_1",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "FR3 functional vector validate_dma(0x0FF0, 0x20, 0x1000, 0x200) expects 0 (base starts before region_start), but this mutant swaps the base lower-bound comparison from >= to <=, causing base < region_start cases (like FR3) to incorrectly pass as valid when end <= region_end, returning 1 instead of the required 0.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\n//\n// All boundary arithmetic is widened to uint64_t so that no 32-bit\n// wraparound can occur: the maximum possible sum of two uint32_t values\n// is 2*UINT32_MAX (~8.6e9), which fits comfortably within the uint64_t\n// range (~1.8e19). This eliminates the classic integer-overflow bounds\n// check bypass (CWE-190/CWE-191) where base+length or\n// region_start+region_size wraps modulo 2^32 and spuriously satisfies a\n// naive 32-bit comparison.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // Zero-length transfers are never valid, regardless of alignment.\n    if (length == 0) {\n        return 0;\n    }\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // Widened, non-wrapping end addresses.\n    const uint64_t end = base64 + length64;\n    const uint64_t region_end = region_start64 + region_size64;\n\n    // BUG: comparison operator swapped from >= to <=, which allows\n    // base values below region_start to incorrectly pass the check\n    // whenever base happens to be <= region_start (e.g. base < region_start).\n    if (base64 <= region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_FR3_operator_swap_1",
+      "operator": "operator_swap",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Harness calls validate_dma(0x1100, 0x0, 0x1000, 0x200) (FR4) and asserts return value is 0; with the zero-length rejection removed, base=0x1100 >= region_start=0x1000 and end=0x1100 <= region_end=0x1200, so the mutant incorrectly returns 1, causing FR4 (and SR3 zero-length vectors) to fail.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\n//\n// All boundary arithmetic is widened to uint64_t so that no 32-bit\n// wraparound can occur: the maximum possible sum of two uint32_t values\n// is 2*UINT32_MAX (~8.6e9), which fits comfortably within the uint64_t\n// range (~1.8e19). This eliminates the classic integer-overflow bounds\n// check bypass (CWE-190/CWE-191) where base+length or\n// region_start+region_size wraps modulo 2^32 and spuriously satisfies a\n// naive 32-bit comparison.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // NOTE: zero-length rejection check was removed here.\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // Widened, non-wrapping end addresses.\n    const uint64_t end = base64 + length64;\n    const uint64_t region_end = region_start64 + region_size64;\n\n    // Fully contained iff the start is at or after region_start and the\n    // exact (non-wrapped) end address does not exceed region_end.\n    if (base64 >= region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+          "path": "inputs/dma_validate.cpp"
+        }
+      ],
+      "mutant_id": "hls_dma_range_overflow_001_FR4_assignment_removal_1",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

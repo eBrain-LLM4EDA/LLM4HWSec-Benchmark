@@ -1,0 +1,34 @@
+{
+  "constraints": [
+    "The netlist contains exactly four lock sites.",
+    "The public key width is provided in inputs/public_key_width.txt.",
+    "Oracle vectors are provided in inputs/oracle_vectors.txt in a format suitable for simulation.",
+    "The participant must not modify the input artifacts."
+  ],
+  "expected_outputs": [
+    "submission/recovered_key.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submission/recovered_key.json file must exist and be valid JSON conforming to the specified schema."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The recovered_key string must have a length equal to the integer value in inputs/public_key_width.txt and consist only of '0' and '1' characters."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The lock_gates array must contain exactly four objects, each with a non-empty gate_label string, a classification from the allowed set, and a key_bit of 0 or 1."
+    }
+  ],
+  "input_artifacts": [
+    "locked_netlist.v",
+    "oracle_vectors.txt",
+    "public_key_width.txt",
+    "design_brief.md"
+  ],
+  "interface": "The participant must produce a single answer file at submission/recovered_key.json. The file must be valid JSON with the following schema: an object containing a key \"lock_gates\" (array of objects, each with keys \"gate_label\" (string), \"classification\" (string, one of \"XOR\", \"XNOR\", \"MUX_0\", \"MUX_1\"), and \"key_bit\" (integer, 0 or 1)), and a key \"recovered_key\" (string of '0' and '1' characters). The length of the recovered_key string must equal the public key width provided in inputs/public_key_width.txt. The order of lock_gates is arbitrary. The evaluator will read this file and grade its contents against the hidden ground truth.",
+  "objective": "Locate all lock gates, classify each as XOR/XNOR or MUX locking, and recover the complete key from a compact mixed-scheme netlist.",
+  "response_format": "A JSON file at submission/recovered_key.json with the structure: {\"lock_gates\": [{\"gate_label\": \"<string>\", \"classification\": \"<XOR|XNOR|MUX_0|MUX_1>\", \"key_bit\": <0|1>}, ...], \"recovered_key\": \"<binary_string>\"}"
+}

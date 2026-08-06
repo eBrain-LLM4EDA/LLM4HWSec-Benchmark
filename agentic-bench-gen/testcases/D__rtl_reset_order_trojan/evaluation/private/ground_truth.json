@@ -1,0 +1,7 @@
+{
+  "trojan_present": true,
+  "signal_name": "trigger_set",
+  "trigger_condition": "Releasing peri_rst_n exactly two clock cycles before core_rst_n sets a sticky trigger bit.",
+  "payload_effect": "The trigger forces protected_mode high and holds it high until both resets are asserted simultaneously again.",
+  "rationale": "The design contains a reset-order-dependent sticky trigger logic. When peri_rst_n is released two cycles before core_rst_n, a counter detects the gap and sets trigger_set, which drives protected_mode high. This mode persists through normal operation and only clears when both resets are asserted simultaneously."
+}

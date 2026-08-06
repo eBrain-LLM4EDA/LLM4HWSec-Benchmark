@@ -1,0 +1,32 @@
+{
+  "design_under_test": "decoder_netlist.v",
+  "trojan_present": true,
+  "suspect_nets": [
+    {
+      "net_name": "minterm3_tap_and",
+      "gate_instance": "g_alias_tap_and",
+      "role": "trigger"
+    },
+    {
+      "net_name": "bank2_we_alias_tap",
+      "gate_instance": "g_alias_or2",
+      "role": "payload"
+    },
+    {
+      "net_name": "sel2_we",
+      "gate_instance": "u_sel2_we",
+      "role": "benign"
+    }
+  ],
+  "trigger_condition": {
+    "address": "011",
+    "control_inputs": {
+      "write_en": "1"
+    }
+  },
+  "affected_outputs": [
+    "bank0_we",
+    "bank2_we"
+  ],
+  "evidence": "Structural analysis of decoder_netlist.v: the legitimate one-hot decode chain decodes minterm0..minterm3 (GATE_AND3 instances u_minterm0..u_minterm3 over addr2_n/addr1_n/addr0_n and their complements), each gated with write_en via GATE_AND2 instances u_sel0_we..u_sel3_we to form sel0_we..sel3_we. bank1_we_comb is driven directly and solely by sel1_we (legitimate, single-source). bank0_we_comb, however, is not driven solely by sel0_we: it is the output of GATE_OR2 instance u_bank0_or, whose inputs are sel0_we and sel3_we -- i.e. bank0_we's own documented decode tree already legitimately double-triggers on both addr=000 and addr=011 via write_en, per the sum-of-minterms structure actually present in the netlist. Independently, bank2_we_comb is driven by bank2_we_alias_tap, the output of an extraneous GATE_OR2 instance g_alias_or2, whose inputs are sel2_we (the legitimate addr=010 decode) and minterm3_tap_and. minterm3_tap_and is produced by a second, redundant GATE_AND2 instance g_alias_tap_and that re-derives the addr==3'b011 condition from minterm3 ANDed again with write_en -- a duplicate re-decode of the same minterm3 signal that exists solely to inject an addr=011-triggered term into the bank2 enable tree. Neither g_alias_tap_and, g_alias_or2, nor the nets minterm3_tap_and/bank2_we_alias_tap belong to the documented per-bank decode path in design_brief.md, which specifies that bank2_we should assert only when addr=010 (via sel2_we alone) and that bank0_we's own decode should not extend to addr=011. Exhaustive simulation via testbench_harness.v (all 8 addr values crossed with both write_en values, 16 vectors, registered outputs sampled one cycle after stimulus) confirms: at addr=011, write_en=1, both bank0_we and bank2_we register high simultaneously on the next clk edge -- bank0_we via minterm3 -> u_sel3_we -> sel3_we -> u_bank0_or -> bank0_we_comb -> u_dff_bank0, and bank2_we via the same minterm3 -> g_alias_tap_and -> minterm3_tap_and -> g_alias_or2 -> bank2_we_alias_tap -> u_dff_bank2 path, while bank1_we and bank3_we remain low (bank3_we_comb is hard-tied to 0 in this netlist and never asserts for any address). For all other 7 addresses (000, 001, 010, 100, 101, 110, 111) crossed with write_en=0 and write_en=1, the exhaustive trace shows at most one of bank0_we..bank3_we asserts per cycle (or none when write_en=0, or none for the unused 100-111 address range where no minterm decode exists), consistent with correct one-hot behavior and confirming no additional false-positive anomalies exist beyond address 011/write_en=1, where the write-enable bridging Trojan formed by g_alias_tap_and and g_alias_or2 causes a nominal bank0-targeted write to also silently assert bank2_we."
+}

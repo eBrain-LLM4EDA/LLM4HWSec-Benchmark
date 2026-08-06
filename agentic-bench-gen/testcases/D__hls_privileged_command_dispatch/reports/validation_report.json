@@ -1,0 +1,140 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/dispatcher.cpp",
+    "inputs/dispatcher.h",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "evidence": {
+      "golden_passed": true,
+      "kind": "behavioral_test",
+      "required": false,
+      "vulnerable_passed": true
+    },
+    "failure_class": "golden_rejected",
+    "failure_signature": "f827376393b40f0e78fe5506b6f0502a9be540af953e07fafa3fa548407fba46",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: FR2: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: FR3: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: FR4: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR1: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR2: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR3: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR4: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: FR2: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: FR3: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: FR4: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR1: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR2: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR3: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n[TEST] FAIL: SR4: compile failed: evaluation/harness_main.cpp:1:10: fatal error: dispatcher.h: No such file or directory\n    1 | #include \"dispatcher.h\"\n      |          ^~~~~~~~~~~~~~\ncompilation terminated.\nevaluation/private/securi\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/dispatcher.cpp",
+    "golden/dispatcher.h"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "f827376393b40f0e78fe5506b6f0502a9be540af953e07fafa3fa548407fba46",
+    "repeated_signature": true
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "32476fd0f33ab8b74d8369992590a71c765ae4669137dd8531cbcd5554c44a2a",
+        "changed": true,
+        "golden": "golden/dispatcher.cpp",
+        "golden_sha256": "74c69bbdb4a9a64f0eae87c208ed927ff7c285dcc640abb365201089cd8b8baf",
+        "target": "inputs/dispatcher.cpp"
+      },
+      {
+        "baseline_sha256": "4f58fc5e960a796cb587ce60ef6ca6473c5d854cec5a6537049e4c9cd118e3a1",
+        "changed": true,
+        "golden": "golden/dispatcher.h",
+        "golden_sha256": "7e6a6750879454789680e09fdbc7322ec53a0683b22b297f28c38802687fd054",
+        "target": "inputs/dispatcher.h"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/dispatcher.cpp",
+      "inputs/dispatcher.h"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp",
+    "evaluation/private/security_checks.cpp"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ]
+}

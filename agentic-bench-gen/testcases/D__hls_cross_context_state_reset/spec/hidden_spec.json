@@ -1,0 +1,29 @@
+{
+  "acceptance_criteria": [
+    "No cross-context state leakage: output for a new context_id depends only on that context's inputs.",
+    "Reset clears all state: output after reset depends only on the current input.",
+    "Same-context accumulation is preserved across calls without reset or context change."
+  ],
+  "cwe_ids": [
+    "CWE-226",
+    "CWE-1272"
+  ],
+  "evidence_policy": {
+    "kind": "behavioral_test",
+    "required": false
+  },
+  "ground_truth": "Output after reset or a context-ID change depends only on the current input and initial state; same-context sequences preserve the specified running accumulation.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Call process_sample(0, 42, 0) then process_sample(1, 7, 0). If the second call returns 49, state leaked across contexts. A correct hardened implementation returns 7.",
+      "id": "SR1",
+      "requirement": "The implementation must clear all per-context accumulator state when the context_id changes, before incorporating the new input."
+    },
+    {
+      "detection_strategy": "Call process_sample(0, 99, 0) then process_sample(0, 1, 1). If the second call returns 100, reset failed to clear state. A correct hardened implementation returns 1.",
+      "id": "SR2",
+      "requirement": "The implementation must clear all state on reset, preventing inference of prior tenant data."
+    }
+  ],
+  "threat_model": "Two tenants time-share an accelerator and the second tenant infers the first tenant's data from retained state after a context switch."
+}

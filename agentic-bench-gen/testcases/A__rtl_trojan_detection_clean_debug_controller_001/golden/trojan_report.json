@@ -1,0 +1,7 @@
+{
+  "infected": false,
+  "triggers": [],
+  "payloads": [],
+  "confidence": 0.9,
+  "rationale": "After exhaustive review of pcu_core.v, no hardware Trojan trigger or payload structure was found. The debug_enable gating is exhaustive across all paths: every read of debug_sel and every write to debug_out passes through the debug_enable-controlled mux, and debug_out is registered to 8'h00 whenever debug_enable is deasserted, with no bypass path allowing debug_sel or debug_out to influence behavior while debug_enable is low. The watchdog/idle counter increments only during idle cycles and its rollover only sets the documented status[15] flag; it has no effect on ack, req arbitration, or debug_out, and is not gated by any hidden or rare undocumented input combination. There is no rare-value comparator against a hidden magic constant and no counter-driven mode change that alters primary output behavior reachable only through an undocumented sequence of inputs. The design is clean."
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The validation report shows mutation_score=0.0 with no mutants generated, and the golden run is rejected by evaluate.py. The analyzer confirms the evaluator has multiple bugs: it rejects the correct golden submission (SR1/SR2 false failures), does not check trojan_detected, does not check for false positives, and does not compute the required metrics. Additionally, no mutants exist to test any requirement, so discrimination coverage is 0.0. The root cause is the evaluation framework \u2014 evaluate.py must be fixed to correctly grade the golden, implement all required checks, and compute metrics. The case artifacts (design.v, cells.lib) and specification are consistent and correct.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

@@ -1,0 +1,87 @@
+{
+  "domain_id": "logic_deobfuscation_sat",
+  "evaluation": {
+    "baselines": [
+      "ISCAS/ITC locked variants",
+      "Anti-SAT style circuits"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of key bits correctly recovered (1.0 = perfect recovery).",
+        "direction": "maximize",
+        "name": "key_recovery_rate"
+      },
+      {
+        "description": "Fraction of lock gates correctly identified by label (1.0 = all four found).",
+        "direction": "maximize",
+        "name": "key_gate_localization_accuracy"
+      },
+      {
+        "description": "Fraction of lock gates correctly classified as XOR/XNOR or MUX_0/MUX_1.",
+        "direction": "maximize",
+        "name": "scheme_classification_accuracy"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All four lock gates are correctly identified by their original netlist labels.",
+      "Each lock gate is classified correctly as XOR, XNOR, MUX_0, or MUX_1.",
+      "The recovered_key string exactly matches the hidden correct key '0101'.",
+      "The submission file is valid JSON and passes schema validation."
+    ],
+    "cwe_ids": [
+      "CWE-1278"
+    ],
+    "ground_truth": "The four labeled lock sites comprise XOR, XNOR, MUX-functional-on-0, and MUX-functional-on-1 gates in that order; the restoring key is 0101.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Compare the submitted classification for each gate label against the ground truth classification. Any mismatch indicates failure to distinguish the locking schemes.",
+        "id": "SR1",
+        "requirement": "The participant must correctly distinguish XOR/XNOR key gates from MUX-based key gates despite their structural similarity in the netlist."
+      },
+      {
+        "detection_strategy": "Compare the submitted recovered_key string against the ground truth key '0101'. Any bit mismatch indicates incomplete key recovery.",
+        "id": "SR2",
+        "requirement": "The participant must recover the exact correct key bits for all lock gates, demonstrating the ability to resolve key values for mixed locking styles."
+      }
+    ],
+    "threat_model": "Combining lock styles defeats detectors that assume one structural key-gate pattern throughout the design."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist contains exactly four lock sites.",
+      "The public key width is provided in inputs/public_key_width.txt.",
+      "Oracle vectors are provided in inputs/oracle_vectors.txt in a format suitable for simulation.",
+      "The participant must not modify the input artifacts."
+    ],
+    "expected_outputs": [
+      "submission/recovered_key.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submission/recovered_key.json file must exist and be valid JSON conforming to the specified schema."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The recovered_key string must have a length equal to the integer value in inputs/public_key_width.txt and consist only of '0' and '1' characters."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The lock_gates array must contain exactly four objects, each with a non-empty gate_label string, a classification from the allowed set, and a key_bit of 0 or 1."
+      }
+    ],
+    "input_artifacts": [
+      "locked_netlist.v",
+      "oracle_vectors.txt",
+      "public_key_width.txt",
+      "design_brief.md"
+    ],
+    "interface": "The participant must produce a single answer file at submission/recovered_key.json. The file must be valid JSON with the following schema: an object containing a key \"lock_gates\" (array of objects, each with keys \"gate_label\" (string), \"classification\" (string, one of \"XOR\", \"XNOR\", \"MUX_0\", \"MUX_1\"), and \"key_bit\" (integer, 0 or 1)), and a key \"recovered_key\" (string of '0' and '1' characters). The length of the recovered_key string must equal the public key width provided in inputs/public_key_width.txt. The order of lock_gates is arbitrary. The evaluator will read this file and grade its contents against the hidden ground truth.",
+    "objective": "Locate all lock gates, classify each as XOR/XNOR or MUX locking, and recover the complete key from a compact mixed-scheme netlist.",
+    "response_format": "A JSON file at submission/recovered_key.json with the structure: {\"lock_gates\": [{\"gate_label\": \"<string>\", \"classification\": \"<XOR|XNOR|MUX_0|MUX_1>\", \"key_bit\": <0|1>}, ...], \"recovered_key\": \"<binary_string>\"}"
+  },
+  "task_id": "locked_mixed_xor_mux",
+  "title": "Mixed XOR and MUX lock classification"
+}

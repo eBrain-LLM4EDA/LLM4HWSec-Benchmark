@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .logio import console
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -162,6 +163,7 @@ class EvaluationRunner:
             proc = subprocess.run(
                 ["python3", str(eval_script.absolute())],
                 cwd=str(tmp),
+                env={**os.environ, "PYTHONPATH": str(tmp)},
                 text=True,
                 capture_output=True,
                 timeout=self.timeout_seconds,
@@ -183,6 +185,7 @@ class EvaluationRunner:
             "--cap-drop", "ALL",
             "-v", f"{tmp}:{self.docker.workdir}",
             "-w", self.docker.workdir,
+            "-e", f"PYTHONPATH={self.docker.workdir}",
             *self.docker.extra_args,
             self.docker.image,
             "python3", "evaluation/evaluate.py",

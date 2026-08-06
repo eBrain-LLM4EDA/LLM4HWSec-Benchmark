@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"leaking_register_pair\": [\"share0_stage2_q\", \"share1_stage2_q\"],\n  \"alignment_condition\": \"Both registers update on the same clock cycle, causing their joint Hamming-distance transition to correlate with the unmasked value.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\",\n      \"safe\": true\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"When share0_stage2_q and share1_stage2_q update simultaneously, the sum of their Hamming distances leaks the unmasked value because the masking randomness cancels out in the combined transition. Individually, each register appears safe under first-order analysis.\"\n  }\n}",
+      "path": "golden/vulnerability_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/vulnerability_report.json",
+      "purpose": "The golden answer file for the analysis_report submission. It must be valid JSON, identify the leaking register pair as [\"share0_stage2_q\", \"share1_stage2_q\"], state that both registers are safe under first-order analysis, and explain that the joint transition leaks when both update in the same clock cycle. The file must satisfy all functional requirements (FR1-FR4) and security requirements (SR1-SR3)."
+    }
+  ]
+}

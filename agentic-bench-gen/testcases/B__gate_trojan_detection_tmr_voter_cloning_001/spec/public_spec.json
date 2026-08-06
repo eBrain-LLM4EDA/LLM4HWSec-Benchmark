@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The netlist inputs/tmr_voter_netlist.v must be self-contained, synthesizable-style structural Verilog using only primitive gates (and/or/xor/not/buf) and simple always-blocks, with three replica module instances (replica_a, replica_b, replica_c) and one majority voter instance, each replica taking the same primary inputs and producing one output bit.",
+    "The netlist must compile and simulate cleanly with iverilog/vvp without external libraries.",
+    "fault_harness_tb.v must be a compact single-stuck-at-fault testbench that injects a fault into one replica at a time and observes the voted output, without revealing which replica is compromised in comments.",
+    "No comments, file names, or identifiers in inputs/ may mention 'trojan', 'clone', 'malicious', or any security terminology; naming must look like ordinary RTL (e.g. u_buf1, net_link7)."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a trojan classification label, a list of suspect instance/net names, and a rationale referencing the netlist"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON containing all six required fields (trojan_present, suspect_instances, suspect_nets, affected_output, root_cause, confidence) with the types specified in the interface; missing or mistyped fields fail schema validation."
+    },
+    {
+      "id": "FR2",
+      "requirement": "If trojan_present is true, suspect_instances must be non-empty and every listed name must correspond to an actual instance identifier found in inputs/tmr_voter_netlist.v (verified by string match against the netlist's instance declarations)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "If trojan_present is true, suspect_nets must be non-empty and every listed name must correspond to an actual net/wire identifier declared or referenced in inputs/tmr_voter_netlist.v."
+    },
+    {
+      "id": "FR4",
+      "requirement": "affected_output must exactly match one of the top-level output port names declared in the module header of inputs/tmr_voter_netlist.v (e.g. voted_out)."
+    }
+  ],
+  "input_artifacts": [
+    "tmr_voter_netlist.v",
+    "fault_harness_tb.v",
+    "design_brief.md"
+  ],
+  "interface": "The submission is a single JSON file at submission/trojan_report.json (UTF-8, valid JSON, no trailing comments). Required top-level fields: 1) \"trojan_present\": boolean - true if a wiring anomaly that breaks single-fault masking was found. 2) \"suspect_instances\": array of strings - gate-level instance names (as they appear in tmr_voter_netlist.v) implicated in the anomaly; must include the exact instance name of any spurious buffer/wire-cloning cell if present. 3) \"suspect_nets\": array of strings - net names carrying the corrupted/duplicated signal, must include the voter input net(s) that no longer originate from their intended replica. 4) \"affected_output\": string - the name of the top-level output net that can be corrupted by a single fault due to the anomaly (e.g. \"voted_out\"). 5) \"root_cause\": string - free-text (<=500 chars) explanation naming which replica's output was duplicated onto which voter input. 6) \"confidence\": number between 0.0 and 1.0. evaluate.py reads inputs/tmr_voter_netlist.v and inputs/fault_harness_tb.v for reference and may run yosys/iverilog/vvp to cross-check reported nodes, but PASS/FAIL is determined by comparing submission/trojan_report.json fields against the hidden ground truth.",
+  "objective": "You are given a gate-level Verilog netlist implementing a Triple Modular Redundancy (TMR) block: three small combinational replica modules feeding a majority voter that produces a single voted output. Analyze the netlist structurally (and optionally simulate it with the provided toolchain) to determine whether the wiring between the replicas and the voter matches the intended one-replica-per-voter-input topology, and report any nodes/instances where the wiring deviates from that intended topology along with the net(s) affected downstream.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema described in public_spec.interface."
+}

@@ -1,0 +1,64 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "The mutant report omits the payload gate (u_payload_and) from suspect_nodes, violating SR1 which requires identifying the gate that masks the parity error signal. The evaluator should detect this because the suspect_nodes list will not contain the hierarchical name of the final AND gate that drives parity_error.",
+      "files": [
+        {
+          "content": "{\n  \"label\": \"Trojan\",\n  \"suspect_nodes\": [\n    \"u_xnor0\"\n  ]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_SR1_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The suspect_nodes list does not contain any gate from the trigger comparator cone. It only includes the payload gate u_payload_and, violating SR2 which requires at least one gate from the trigger logic.",
+      "files": [
+        {
+          "content": "{\n  \"label\": \"Trojan\",\n  \"suspect_nodes\": [\n    \"u_payload_and\"\n  ]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_SR2_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The evaluator will fail to parse the JSON because the required top-level key 'suspect_nodes' is missing, violating FR1 which requires exactly the two top-level keys 'label' and 'suspect_nodes'.",
+      "files": [
+        {
+          "content": "{\n  \"label\": \"Trojan\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR1_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "The mutant changes the label field to an invalid value 'Trojan_Found' which is not one of the allowed strings 'Trojan' or 'Trojan-Free'. The evaluator's FR2 check should reject this submission because the label does not match the required enum.",
+      "files": [
+        {
+          "content": "{\n  \"label\": \"Trojan_Found\",\n  \"suspect_nodes\": [\n    \"u_payload_and\",\n    \"u_xnor0\"\n  ]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR2_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The suspect_nodes list contains a string that is not a valid identifier present in design.v, violating FR3.",
+      "files": [
+        {
+          "content": "{\n  \"label\": \"Trojan\",\n  \"suspect_nodes\": [\n    \"u_payload_and\",\n    \"u_xnor0\",\n    \"nonexistent_gate\"\n  ]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR3_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    }
+  ]
+}

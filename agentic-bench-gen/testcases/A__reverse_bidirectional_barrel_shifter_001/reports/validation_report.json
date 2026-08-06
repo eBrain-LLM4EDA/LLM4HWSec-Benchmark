@@ -1,0 +1,152 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/net_shifter_flat.v",
+    "metadata.json",
+    "submission/recovered_rtl.v"
+  ],
+  "check_activation": {
+    "FR1": 6,
+    "FR2": 6,
+    "FR3": 6,
+    "FR4": 6,
+    "SR1": 2,
+    "SR2": 2
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: exhaustive comparison found 14223/16384 mismatching vector(s); first mismatch (data_in,amount,direction,mode)=1,1,0,0\n[TEST] FAIL: FR2: exhaustive comparison found 14223/16384 mismatching vector(s); first mismatch (data_in,amount,direction,mode)=1,1,0,0\n[TEST] FAIL: FR3: exhaustive comparison found 14223/16384 mismatching vector(s); first mismatch (data_in,amount,direction,mode)=1,1,0,0\n[TEST] FAIL: FR4: exhaustive comparison found 14223/16384 mismatching vector(s); first mismatch (data_in,amount,direction,mode)=1,1,0,0\n[TEST] FAIL: SR1: 3570/4096 mode=11 vectors diverge from reference netlist's resolved behavior\n[TEST] FAIL: SR2: 896/1024 mode=01,direction=0(left),data_in[7]=1 vectors diverge from reference (likely sign-extension instead of zero-fill on left shift), per dedicated independent SR2 subset counter\n"
+    }
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "expert_files": [
+    "golden/recovered_rtl.v"
+  ],
+  "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "3113c4dbb037351f1780c0a11d1edf7a1f619e87fe7598872e5725d7d7aa51fa",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "bff59cadeec65396e7429946b863d484163b789bf4fd770d86a3ff31c3a7bcff",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_top.v"
+  ],
+  "uncovered_requirements": []
+}

@@ -1,0 +1,108 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden_rejected). The golden run produces [TEST] FAIL for FR1, FR2, FR3 with 'no marker found in simulation output', indicating the testbench markers are not being captured or the golden solution does not produce the expected markers. This means the evaluator is buggy and cannot correctly grade a valid submission.",
+      "evidence": "Validation report shows golden_run stdout: [TEST] PASS: FR4, [TEST] FAIL: FR1: no marker found in simulation output, [TEST] FAIL: FR2: no marker found in simulation output, [TEST] FAIL: FR3: no marker found in simulation output, [TEST] PASS: SR1. Expected: pass, got: fail.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench fails to produce [TEST] markers for FR1, FR2, FR3 when the golden solution is used. This suggests a timing or marker-printing issue in the testbench that prevents evaluate.py from detecting the markers, even though the DUT behavior may be correct.",
+      "evidence": "Golden run stdout shows missing markers for FR1, FR2, FR3. The vulnerable run also shows missing markers for SR1, indicating inconsistent marker production.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure the specified metrics (word_recovery_rate, structural_match_accuracy, functional_equivalence). It only checks pass/fail markers for individual requirements. The task specification defines three metrics with descriptions, but the evaluator does not compute or report them.",
+      "evidence": "evaluate.py only parses [TEST] PASS/FAIL markers and exits with 0 or 1. No metric computation (e.g., fraction of test vectors correct, structural match check, cycle-accurate match percentage) is performed.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench includes the reference model (CRC-16/CCITT-FALSE) directly in the testbench code. This leaks the ground truth polynomial, seed, and bit-ordering convention to anyone who can read the testbench. While the testbench is not provided to participants, it is part of the evaluation harness and could be exposed in some deployment scenarios.",
+      "evidence": "tb_crc16.v contains: '// Reference model: CRC-16/CCITT-FALSE', 'ref_state <= 16'hFFFF;', 'feedback = data_in ^ ref_state[15];', and the polynomial tap logic.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/private/tb_sr1_vectors.v",
+      "description": "The private test vectors file contains precomputed CRC-16/CCITT-FALSE expected outputs. If this file is ever exposed, it reveals the correct CRC values for various messages, which could be used to reverse-engineer the polynomial.",
+      "evidence": "tb_sr1_vectors.v contains sr1_expected array with values like 16'hFFFF, 16'h1D0F, 16'hFCC0, etc.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not check for structural_match_accuracy as a separate metric. It only checks behavioral pass/fail. The task specification defines structural_match_accuracy as 'Whether the submitted RTL implements the correct polynomial and bit-ordering convention', but no static analysis or structural check is performed.",
+      "evidence": "evaluate.py only compiles and runs simulation. No RTL analysis, pattern matching, or structural comparison is done.",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not compute word_recovery_rate (fraction of test vectors with correct final crc_out). It only checks if all vectors pass (SR1) or fail, without reporting the fraction.",
+      "evidence": "evaluate.py only checks for [TEST] PASS: SR1 or [TEST] FAIL: SR1. No fraction or rate is computed.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the testbench (tb_crc16.v) to ensure [TEST] markers for FR1, FR2, FR3 are printed correctly and captured by evaluate.py. The issue may be related to timing of $display statements or the order of operations in the initial block.",
+    "Add a small delay or use a different mechanism to ensure markers are printed after simulation has stabilized and before $finish.",
+    "Implement metric computation in evaluate.py: word_recovery_rate (fraction of SR1 vectors passing), structural_match_accuracy (could be checked by comparing against a known-good reference or by static analysis), functional_equivalence (cycle-accurate match percentage).",
+    "Consider moving the reference model out of the testbench into a separate file that is not part of the evaluation harness, or encrypt/obfuscate it to prevent leakage of ground truth.",
+    "Add targeted mutants for each requirement (FR1-FR4, SR1) to verify that the harness can discriminate between correct and incorrect implementations.",
+    "Verify that the golden solution passes all tests before finalizing the benchmark."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "The public inputs (crc16_netlist.v) implement CRC-16/CCITT-FALSE with polynomial 0x1021, seed 0xFFFF, MSB-first, no reflection, no final XOR. The hidden ground truth matches this. The expected outputs (FR1-FR3) are consistent with this implementation. The README correctly describes the task without leaking the hidden spec.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py rejects the golden solution (expert correct answer) with [TEST] FAIL for FR1, FR2, FR3 due to missing markers. It should accept a correct submission with exit 0. The baseline submission (naive shift register) is correctly rejected, but the golden solution is also rejected, indicating a bug in the testbench or evaluator.",
+      "requirement": "evaluate.py follows grader semantics for submission contract",
+      "status": "fail"
+    },
+    {
+      "evidence": "The task specification defines three metrics: word_recovery_rate, structural_match_accuracy, functional_equivalence. The evaluator does not compute or report any of these. It only checks pass/fail for individual requirements.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "fail"
+    },
+    {
+      "evidence": "The requirement_map in the tester bundle separates FR1-FR4 (functional) and SR1 (security). FR1-FR3 are behavioral checks, FR4 is compilability, SR1 is functional equivalence over private vectors.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 is tested with 20 private test vectors of varying lengths (0-17 bytes) that exercise the CRC computation across different inputs. The testbench compares DUT output against the reference model cycle by cycle.",
+      "requirement": "Security-relevant behaviors are actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are standard Verilog, Python, and text. No external dependencies beyond iverilog and Python 3. No malicious code or unsafe operations.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task requires reverse-engineering a CRC-16 generator from a flattened gate-level netlist, which is a realistic hardware reverse-engineering challenge. The domain is appropriate.",
+      "requirement": "Benchmark is adapted to hardware_reverse_engineering domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "The evaluator bug (golden_rejected) makes results unverifiable. A correct submission cannot be verified as passing, so the benchmark cannot produce reliable results.",
+      "requirement": "No gaps making results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md describes the task as a plain reverse-engineering assignment. It does not mention CWE IDs, SR1, threat model, or security requirements. The netlist is uncommented. metadata.json does not include hidden_spec.",
+      "requirement": "No leakage of hidden security intent in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 specifies crc_out = 16'hFFFF on reset. FR2 specifies crc_out = 16'hC0A7 after processing 0x31. FR3 specifies crc_out = 16'hDFB3 after processing 0x1234. FR4 requires iverilog compilation. All are concrete and verifiable through the defined interface.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

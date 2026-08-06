@@ -1,0 +1,27 @@
+{
+  "task_id": "rtl_redundant_counter_common_mode_fault",
+  "domain_id": "side_channel_fault_analysis",
+  "input_artifacts": [
+    "timeout_module.v",
+    "fault_model.txt",
+    "design_brief.md"
+  ],
+  "expected_output": "A JSON file at submission/vulnerability_report.json with fields 'common_mode_node' (hierarchical net/register identifier) and 'failure_mechanism' (explanation of how a single fault on that node defeats both counters).",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Accuracy of identifying the correct common-mode vulnerability node.",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Coverage of the reported failure mechanism against the known fault model.",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Precision of the analysis in pinpointing the exact single point of failure.",
+      "direction": "maximize"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "0312da553e84e0538691891407fcd72f8dcab67f63edd1a55e41532dad460af4",
+    "expert/expert_bundle.json": "72c38753a65b0bcc1e5f1fe6156cb0f1d9bc3d82082d685344134397bfa64d62",
+    "mutants/mutation_bundle.json": "3f67290d5ecb40e32ef2825e1f4f047cadfa93b004ea54654d67906d8492a8fe",
+    "reports/analyzer_report.json": "03fb27886e31bafa4e35513818f109eddd3d904d3f77d1d26bde03ef6c065095",
+    "reports/quality_report.json": "29a5f66d0e500a29359c1c1479418d7a9b14ee2b95747986b94218863c1830d5",
+    "reports/validation_report.json": "8d425c376ceeed43d8dda6b8076e43efeec7f898e166ed29f1ef8387f0fbd647",
+    "spec/task_spec.json": "da1b8e907a0d5bd312566459769586b809a00b3b035483436eaffa9f23800793",
+    "tests/tester_bundle.json": "3d48dbbcec92db5ed0f66542669940a5c63902e33b16342107532d1bf70b9bff"
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "final_attempted_round": 0,
+  "quality_status": "pass",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "quality_passed",
+  "task_id": "reverse_hamming74_sec_decoder"
+}

@@ -1,0 +1,74 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for RTL Trojan Detection\n\n## Grading Contract\n\nThis evaluation follows the **report_grading** contract. The participant submits an analysis report file at `submission/trojan_report.json`. The grader (`evaluate.py`) reads the input artifacts under `inputs/` for reference (the RTL design and design brief) but **grades only the submitted answer file**. The input artifacts are not modified by the participant.\n\n## Requirements\n\nThe following requirements are checked by `evaluate.py`:\n\n| ID   | Type       | Description                                                                 |\n|------|------------|-----------------------------------------------------------------------------|\n| FR1  | functional | The submitted `trojan_report.json` must be valid JSON and parseable.        |\n| FR2  | functional | The report must contain all required fields: `trojan_present`, `trigger_condition`, `payload_effect`, `trigger_signals`, `payload_signals`, `confidence`. |\n| FR3  | functional | The `confidence` field must be a number between 0.0 and 1.0 inclusive.      |\n| SR1  | security   | The analysis must correctly identify the rare sequential trigger condition based on the valid-ready handshake history (trigger pattern, signals). |\n| SR2  | security   | The analysis must correctly identify the payload logic that corrupts the output valid signal (payload effect, signals). |\n\n## Running the Evaluation\n\nExecute from the repository root:\n\n```bash\npython evaluation/evaluate.py\n```\n\nThe script will:\n1. Read `submission/trojan_report.json`.\n2. Validate JSON structure and required fields (FR1\u2013FR3).\n3. Compare the submitted findings against the private ground truth (SR1\u2013SR2).\n4. Print `[TEST] PASS` or `[TEST] FAIL` markers for each requirement.\n5. Exit with code 0 if all requirements pass, non-zero otherwise.\n\n## Available Toolchain\n\nThe following tools are available for optional cross-checks on the input artifacts (not required for grading):\n\n- `iverilog` \u2013 Verilog compiler\n- `vvp` \u2013 Verilog simulation runtime\n- `yosys` \u2013 RTL synthesis and analysis\n\nThese tools may be used to simulate the netlist or perform structural analysis to confirm a reported trigger, but the PASS/FAIL verdicts are determined solely by the content of `submission/trojan_report.json` against the hidden ground truth.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport sys\nimport os\n\ndef main():\n    results = {}\n    all_pass = True\n\n    # --- FR1: Valid JSON ---\n    submission_path = os.path.join(\"submission\", \"trojan_report.json\")\n    if not os.path.exists(submission_path):\n        print(\"[TEST] FAIL: SETUP: submission/trojan_report.json not found\")\n        sys.exit(1)\n\n    try:\n        with open(submission_path, \"r\") as f:\n            report = json.load(f)\n        print(\"[TEST] PASS: FR1\")\n        results[\"FR1\"] = True\n    except (json.JSONDecodeError, FileNotFoundError) as e:\n        print(f\"[TEST] FAIL: FR1: invalid JSON - {e}\")\n        results[\"FR1\"] = False\n        all_pass = False\n        # Cannot continue with other checks if JSON is invalid\n        sys.exit(1)\n\n    # --- FR2: Required fields ---\n    required_fields = [\"trojan_present\", \"trigger_condition\", \"payload_effect\",\n                       \"trigger_signals\", \"payload_signals\", \"confidence\"]\n    missing = [f for f in required_fields if f not in report]\n    if missing:\n        for field in missing:\n            print(f\"[TEST] FAIL: FR2: missing field {field}\")\n        results[\"FR2\"] = False\n        all_pass = False\n    else:\n        print(\"[TEST] PASS: FR2\")\n        results[\"FR2\"] = True\n\n    # --- FR3: Confidence range ---\n    confidence = report.get(\"confidence\")\n    if isinstance(confidence, (int, float)) and 0.0 <= confidence <= 1.0:\n        print(\"[TEST] PASS: FR3\")\n        results[\"FR3\"] = True\n    else:\n        print(f\"[TEST] FAIL: FR3: confidence out of range or not a number (got {confidence})\")\n        results[\"FR3\"] = False\n        all_pass = False\n\n    # --- Load ground truth ---\n    gt_path = os.path.join(\"evaluation\", \"private\", \"ground_truth.json\")\n    if not os.path.exists(gt_path):\n        print(\"[TEST] FAIL: SETUP: evaluation/private/ground_truth.json not found\")\n        sys.exit(1)\n\n    with open(gt_path, \"r\") as f:\n        ground_truth = json.load(f)\n\n    # --- SR1: Trigger identification ---\n    sr1_pass = True\n    # Check trojan_present\n    if report.get(\"trojan_present\") != ground_truth.get(\"trojan_present\"):\n        print(f\"[TEST] FAIL: SR1: trojan_present mismatch (expected {ground_truth.get('trojan_present')}, got {report.get('trojan_present')})\")\n        sr1_pass = False\n    else:\n        # Check trigger_condition contains key pattern\n        submitted_cond = report.get(\"trigger_condition\", \"\")\n        if \"1011\" not in submitted_cond:\n            print(\"[TEST] FAIL: SR1: trigger_condition does not contain '1011'\")\n            sr1_pass = False\n        elif \"valid\" not in submitted_cond.lower() or \"ready\" not in submitted_cond.lower():\n            print(\"[TEST] FAIL: SR1: trigger_condition does not mention valid-ready handshake\")\n            sr1_pass = False\n        else:\n            # Check trigger_signals exact match\n            submitted_trig = set(report.get(\"trigger_signals\", []))\n            expected_trig = set(ground_truth.get(\"trigger_signals\", []))\n            if submitted_trig != expected_trig:\n                missing_trig = expected_trig - submitted_trig\n                extra_trig = submitted_trig - expected_trig\n                msg = \"trigger_signals mismatch\"\n                if missing_trig:\n                    msg += f\"; missing: {missing_trig}\"\n                if extra_trig:\n                    msg += f\"; unexpected: {extra_trig}\"\n                print(f\"[TEST] FAIL: SR1: {msg}\")\n                sr1_pass = False\n\n    if sr1_pass:\n        print(\"[TEST] PASS: SR1\")\n        results[\"SR1\"] = True\n    else:\n        results[\"SR1\"] = False\n        all_pass = False\n\n    # --- SR2: Payload identification ---\n    sr2_pass = True\n    # Check payload_effect describes dropping transfer by forcing m_valid low\n    submitted_effect = report.get(\"payload_effect\", \"\").lower()\n    if \"drop\" not in submitted_effect and \"suppress\" not in submitted_effect and \"force\" not in submitted_effect:\n        print(\"[TEST] FAIL: SR2: payload_effect does not describe dropping/suppressing a transfer\")\n        sr2_pass = False\n    elif \"m_valid\" not in submitted_effect and \"valid\" not in submitted_effect:\n        print(\"[TEST] FAIL: SR2: payload_effect does not mention m_valid or valid signal\")\n        sr2_pass = False\n    else:\n        # Check payload_signals exact match\n        submitted_pay = set(report.get(\"payload_signals\", []))\n        expected_pay = set(ground_truth.get(\"payload_signals\", []))\n        if submitted_pay != expected_pay:\n            missing_pay = expected_pay - submitted_pay\n            extra_pay = submitted_pay - expected_pay\n            msg = \"payload_signals mismatch\"\n            if missing_pay:\n                msg += f\"; missing: {missing_pay}\"\n            if extra_pay:\n                msg += f\"; unexpected: {extra_pay}\"\n            print(f\"[TEST] FAIL: SR2: {msg}\")\n            sr2_pass = False\n\n    if sr2_pass:\n        print(\"[TEST] PASS: SR2\")\n        results[\"SR2\"] = True\n    else:\n        results[\"SR2\"] = False\n        all_pass = False\n\n    if all_pass:\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "{\n  \"trojan_present\": true,\n  \"trigger_condition\": \"The trigger activates when the 4-bit shift register hist_reg matches the pattern 1011 (MSB first), representing the most recent four valid-ready handshake outcomes: valid-ready, no-transfer, valid-ready, valid-ready.\",\n  \"payload_effect\": \"When the trigger pattern matches, the payload logic forces m_valid low for exactly one cycle, silently dropping a single otherwise-valid transfer.\",\n  \"trigger_signals\": [\n    \"hist_reg[0]\",\n    \"hist_reg[1]\",\n    \"hist_reg[2]\",\n    \"hist_reg[3]\"\n  ],\n  \"payload_signals\": [\n    \"payload_gate\"\n  ]\n}",
+      "path": "evaluation/private/ground_truth.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the grading contract (report_grading), list the requirement IDs and their types, explain how to run evaluate.py, and note that the toolchain (iverilog, vvp, yosys) is available for optional cross-checks on inputs/ but verdicts grade submission/trojan_report.json."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Opens submission/trojan_report.json, validates JSON parseability and field presence/format (FR1, FR2, FR3). For SR1 and SR2, reads the hidden ground truth from a private JSON file (evaluation/private/ground_truth.json) and compares the submitted trigger_condition, payload_effect, trigger_signals, payload_signals, and trojan_present against it using exact and substring matching rules. Emits [TEST] PASS/FAIL markers for each requirement. Exits 0 on all-pass, non-zero on any failure. Must fail the naive baseline submission (empty or wrong fields) and pass a correct golden answer."
+    },
+    {
+      "path": "evaluation/private/ground_truth.json",
+      "purpose": "Private hidden ground truth file containing the expected correct answer fields: trojan_present (true), trigger_condition (exact string describing the 4-cycle 1011 pattern), payload_effect (exact string about dropping a transfer by forcing m_valid low), trigger_signals (array with hist_reg[0] through hist_reg[3]), payload_signals (array with payload_gate). Used by evaluate.py to grade SR1 and SR2 substantively."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "evaluate.py attempts to parse submission/trojan_report.json as JSON. If parsing fails, emit [TEST] FAIL: FR1: invalid JSON. If parsing succeeds, emit [TEST] PASS: FR1.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py checks that the parsed JSON object contains all required keys: trojan_present, trigger_condition, payload_effect, trigger_signals, payload_signals, confidence. Missing any key emits [TEST] FAIL: FR2: missing field <name>. All present emits [TEST] PASS: FR2.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py checks that the confidence field is a number and 0.0 <= confidence <= 1.0. Violation emits [TEST] FAIL: FR3: confidence out of range or not a number. Valid emits [TEST] PASS: FR3.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py compares submitted trojan_present, trigger_condition, and trigger_signals against ground truth. trojan_present must be true. trigger_condition must contain the substring '1011' and mention valid-ready handshake history. trigger_signals must include all four shift register bits (hist_reg[0] through hist_reg[3]) by exact name match. Any mismatch emits [TEST] FAIL: SR1: <specific reason>. All correct emits [TEST] PASS: SR1.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.json"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py compares submitted payload_effect and payload_signals against ground truth. payload_effect must describe dropping a transfer by forcing m_valid low. payload_signals must include payload_gate by exact name match. Any mismatch emits [TEST] FAIL: SR2: <specific reason>. All correct emits [TEST] PASS: SR2.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.json"
+      ]
+    }
+  ]
+}

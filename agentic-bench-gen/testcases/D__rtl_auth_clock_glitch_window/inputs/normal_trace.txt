@@ -1,0 +1,5 @@
+Cycle 0: state_q=IDLE, auth_result_q=0, password=0x00
+Cycle 1: state_q=COMPARE, auth_result_q=0, password=0xA5
+Cycle 2: state_q=DECIDE, auth_result_q=1, password=0xA5
+Cycle 3: state_q=GRANT, auth_result_q=1, password=0x00
+Cycle 4: state_q=IDLE, auth_result_q=0, password=0x00

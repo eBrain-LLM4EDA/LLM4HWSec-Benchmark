@@ -1,0 +1,113 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required suspect nodes (trigger and payload) correctly identified by instance name and role, relative to hidden ground truth set.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported suspect_nodes entries that do not correspond to any actual trojan gate in the hidden ground truth (spurious/incorrect node names).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time in seconds taken by evaluate.py to grade the submitted report plus any optional toolchain cross-check simulation.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      },
+      {
+        "description": "Binary correctness of the top-level 'clean'/'infected' classification against hidden ground truth.",
+        "direction": "maximize",
+        "name": "classification_accuracy"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "PASS requires classification=='infected' (SR1).",
+      "PASS requires payload_xor_p7 correctly identified with role payload (SR2).",
+      "PASS requires trig_and_final correctly identified with role trigger (SR3); bonus scoring if all trig_and1..6 also listed.",
+      "PASS requires trigger_condition textually and functionally consistent with a=10110100b, b=01101011b, confirmed via toolchain simulation showing p[7] mismatch only at that input (SR4).",
+      "Baseline empty/naive submission must FAIL (SR5)."
+    ],
+    "cwe_ids": [
+      "CWE-1039",
+      "CWE-1231",
+      "CWE-1244"
+    ],
+    "ground_truth": "The netlist mult8_top implements an 8x8 array multiplier in structural gates. Hidden inside it is a combinational trojan: a wide AND-tree (gates trig_and1 through trig_and6, feeding a final trig_and_final) taps six specific internal partial-product nets (pp_2_3, pp_4_1, pp_5_6, pp_1_7, pp_6_2, pp_3_5) that are simultaneously 1 only for one specific rare 8-bit x 8-bit input combination (a=8'b10110100, b=8'b01101011, verified by exhaustive-equivalent simulation to be the unique satisfying input pair among the sampled corpus used to build this netlist). The trigger output feeds payload gate 'payload_xor_p7', an XOR gate that flips output bit p[7] only when trig_and_final=1, otherwise passing the correct product bit through (via a preceding mux realized as payload_mux_sel/payload_mux_and1/payload_mux_and2/payload_mux_or). The correct classification is 'infected'; the required suspect_nodes must include trig_and1, trig_and2, trig_and3, trig_and4, trig_and5, trig_and6, trig_and_final (role=trigger) and payload_xor_p7 (role=payload), at minimum the final trigger gate and the payload gate must be named correctly for partial credit tiers described in acceptance_criteria.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String equality check on 'classification' field against hidden ground truth label.",
+        "id": "SR1",
+        "requirement": "The report must correctly classify the netlist as 'infected' (not 'clean')."
+      },
+      {
+        "detection_strategy": "Check suspect_nodes array for an entry with instance_name=='payload_xor_p7' and role=='payload'; award pass only if present.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify the payload gate instance name (payload_xor_p7) with role 'payload'."
+      },
+      {
+        "detection_strategy": "Check suspect_nodes array for instance_name=='trig_and_final' with role=='trigger'; partial credit if trig_and1..trig_and6 also present.",
+        "id": "SR3",
+        "requirement": "The report must correctly identify at least the final trigger AND gate (trig_and_final) among suspect_nodes with role 'trigger', demonstrating localization of the rare-condition logic rather than a blanket guess."
+      },
+      {
+        "detection_strategy": "Parse trigger_condition for a,b bit assignments; run iverilog/vvp testbench with the given inputs against inputs/mult8_netlist.v and confirm output p differs from arithmetic-correct a*b at bit 7 only for that input, and matches for all other sampled inputs (false positive rate check).",
+        "id": "SR4",
+        "requirement": "The reported trigger_condition must correctly identify the rare 8-bit input pair (a=8'b10110100, b=8'b01101011) that activates the trojan, verifiable by simulating the netlist with the toolchain and observing p[7] flip relative to a golden non-trojan multiplication."
+      },
+      {
+        "detection_strategy": "Baseline submission shipped with classification='clean' and empty suspect_nodes is graded and must receive FAIL on SR1-SR4.",
+        "id": "SR5",
+        "requirement": "A naive/empty baseline submission (classification='clean' or missing required fields) must fail all SR checks, establishing a non-trivial pass bar."
+      }
+    ],
+    "threat_model": "Third-party IP integrator receives a synthesized gate-level netlist for an arithmetic core from an untrusted foundry/vendor and must determine, without access to RTL or vendor cooperation, whether a hardware trojan (rare-trigger combinational logic driving a payload that corrupts functional output) has been inserted, before tape-out or deployment."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist uses only structural gate-level Verilog primitives: and, or, nand, nor, not, xor, xnor, buf.",
+      "No always blocks, no behavioral arithmetic operators (+, *, etc.) appear in the netlist file.",
+      "The netlist is self-contained in a single file with one top module named mult8_top with ports a[7:0], b[7:0], p[15:0].",
+      "All internal wires and gate instances are explicitly declared and named."
+    ],
+    "expected_outputs": [
+      "trojan_report.json containing a top-level classification label and a list of suspect gate instance names with roles"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted trojan_report.json must be valid JSON containing top-level string field 'classification' with value exactly 'clean' or 'infected', matching the required schema in response_format."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must include a field 'netlist_summary' with integer fields 'total_gates', 'gate_type_counts' (object mapping gate primitive name to count) that match the actual counts found in inputs/mult8_netlist.v exactly."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If classification is 'infected', the report must include a field 'suspect_nodes' which is a non-empty array of objects, each with fields 'instance_name' (string, must exactly match a gate instance name present in inputs/mult8_netlist.v) and 'role' (string, one of 'trigger' or 'payload')."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a field 'trigger_condition' (string) describing, in terms of named primary input bits of the netlist (e.g. 'a[3]=1,a[5]=1,b[2]=0,...'), the specific rare input assignment(s) under which the reported trigger nets are all satisfied simultaneously; this must be consistent with simulating the reported suspect trigger gates against inputs/mult8_netlist.v using the provided toolchain."
+      }
+    ],
+    "input_artifacts": [
+      "mult8_netlist.v",
+      "port_list.txt",
+      "design_brief.md"
+    ],
+    "interface": "Submission file: submission/trojan_report.json (JSON object). Required top-level fields: 'classification' (string: 'clean'|'infected'), 'netlist_summary' (object: {'total_gates': int, 'gate_type_counts': object<string,int>}), 'suspect_nodes' (array, required and non-empty only if classification=='infected'; each element: {'instance_name': string, 'role': string in ['trigger','payload']}), 'trigger_condition' (string, required only if classification=='infected'). The evaluator reads inputs/mult8_netlist.v for reference and may invoke iverilog/vvp/yosys to simulate reported suspect nodes against declared trigger_condition to cross-check consistency, but PASS/FAIL is determined by grading the submitted JSON fields against hidden ground truth.",
+    "objective": "You are given a gate-level Verilog netlist implementing an 8x8 unsigned combinational multiplier, synthesized down to simple gate primitives (and, or, nand, nor, not, xor, xnor, buf). Analyze the netlist structurally and functionally, then submit an analysis report describing the design's gate composition and any anomalous logic structures you can identify by tracing signal fan-in/fan-out, node naming, and rarity of activation conditions. Your report must classify the overall netlist as either 'clean' or 'infected' and, if infected, list the specific suspect gate instance names that form any anomalous rarely-activated combinational structure and the gate(s) it drives.",
+    "response_format": "A single JSON file at submission/trojan_report.json with exactly the fields described in 'interface'. No additional wrapping, no markdown, valid JSON only."
+  },
+  "task_id": "gate_trojan_detection_mult8_and_tree_001",
+  "title": "Combinational AND-tree Trojan in a synthesized multiplier netlist"
+}

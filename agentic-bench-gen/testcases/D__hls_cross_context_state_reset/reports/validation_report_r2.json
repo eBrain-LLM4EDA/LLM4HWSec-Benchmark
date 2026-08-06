@@ -1,0 +1,137 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/stream_accumulator.cpp",
+    "inputs/stream_accumulator.h",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "evidence": {
+      "golden_passed": true,
+      "kind": "behavioral_test",
+      "required": false,
+      "vulnerable_passed": true
+    },
+    "failure_class": "multiple",
+    "failure_signature": "ccd218fbd0ba49cbd8405d1348b9f31b0a5a732208d09788ab7011198bc0a8c7",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n{\"cwe_violation_rate\": 0.5, \"information_flow_correctness\": 0.6, \"synthesis_pass_rate\": 0.0}\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n{\"cwe_violation_rate\": 1.0, \"information_flow_correctness\": 0.2, \"synthesis_pass_rate\": 0.0}\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/stream_accumulator.cpp",
+    "golden/stream_accumulator.h"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "evaluate.py never emitted [TEST] PASS/FAIL for ['FR2', 'FR3', 'FR4', 'SR1', 'SR2'] on the golden run \u2014 requirement_map ids and the script's marker ids must match exactly",
+      "issue": "requirement_id_mismatch"
+    },
+    {
+      "detail": "evaluate.py accepts the known-insecure baseline input (FAIL expected) \u2014 security checks are inverted, no-ops, or absent",
+      "issue": "vulnerable_accepted"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "multiple",
+    "failure_signature": "ccd218fbd0ba49cbd8405d1348b9f31b0a5a732208d09788ab7011198bc0a8c7",
+    "repeated_signature": true
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "898a97057544ef7054f5e52366e18440da98ee790d54ba437a6f4fac15690333",
+        "changed": true,
+        "golden": "golden/stream_accumulator.cpp",
+        "golden_sha256": "73c8146fc543d9100a2371c947011561d429f058935ec986f53833479a2cf266",
+        "target": "inputs/stream_accumulator.cpp"
+      },
+      {
+        "baseline_sha256": "c907ad2114aa6e319b526ef668299cb1dd89eabf4ce22f8f3feac827b51a291f",
+        "changed": true,
+        "golden": "golden/stream_accumulator.h",
+        "golden_sha256": "1044ccc9b3884906533d1c403822d3358b51ecbcae9108253031f97129d6d565",
+        "target": "inputs/stream_accumulator.h"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/stream_accumulator.cpp",
+      "inputs/stream_accumulator.h"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2"
+  ]
+}

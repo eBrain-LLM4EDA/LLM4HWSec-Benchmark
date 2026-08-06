@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "a47d6062a6e5d30d5a3fa2057b3c1f7702522274f96a1269f4d1331eaa835f4b",
+    "expert/expert_bundle.json": "3f44f80ed85adb33bc44d60d2e8a5b0090b70cb57748f339c56ffa599b4db983",
+    "mutants/mutation_bundle.json": "6aa5744b45cfcd85c440ab21b0003d4e0a4f41d79458e9ff537fc1ede4fdbcca",
+    "reports/analyzer_report.json": "a95775f5cfa841c83ec2a8983ba52fa5ad6b61ca66cd165f309fc3ebf29ca5b7",
+    "reports/quality_report.json": "cac5e272570bfe78384708b1660a247630ab1a9448fcae3dd0b431ef6c2f88dd",
+    "reports/validation_report.json": "2e44a3f092777032b99eaa3db721a8697bb5e03fceedcfed89ae70db0d26b53d",
+    "spec/task_spec.json": "0fb8caac40beb04f6e025a66766324f02c8ff59d5ab74799bbfb968e3d8f7d62",
+    "tests/tester_bundle.json": "8b00ee4286122828e8e85368b1ffc4146cef1369c6b2f3f57ad21424e70840ce"
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "final_attempted_round": 0,
+  "quality_status": "pass",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "quality_passed",
+  "task_id": "hw_reveng_quadrature_decoder_001"
+}

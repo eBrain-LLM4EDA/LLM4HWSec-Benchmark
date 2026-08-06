@@ -1,0 +1,15 @@
+{
+  "task_id": "logic_deobfuscation_sat_001",
+  "domain_id": "logic_deobfuscation_sat",
+  "title": "Unlocked netlist negative control",
+  "input_artifacts": [
+    "locked_netlist.v",
+    "locking_scheme.txt"
+  ],
+  "expected_output": "submission/recovered_key.json",
+  "metrics": [
+    "key_recovery_rate",
+    "key_gate_localization_accuracy",
+    "sat_iteration_reduction"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "trojan_present": false,
+  "trigger_condition": "",
+  "payload_effect": "",
+  "trigger_signals": [],
+  "payload_signals": [],
+  "confidence": 0.0
+}

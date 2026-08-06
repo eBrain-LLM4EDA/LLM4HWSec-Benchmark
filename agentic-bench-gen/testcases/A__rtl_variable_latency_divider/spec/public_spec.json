@@ -1,0 +1,35 @@
+{
+  "constraints": [
+    "The provided RTL is a small iterative unsigned divider with start, done, quotient, and an internal iteration counter.",
+    "The timing_traces.txt file contains a timing observation model and traces for operands with different leading-zero counts.",
+    "The analysis must be based solely on the provided artifacts."
+  ],
+  "expected_outputs": [
+    "A vulnerability_report.json file in the submission directory that identifies the variable-latency source and proposes a fixed-latency repair."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must be valid JSON and contain the top-level keys 'vulnerability_found', 'vulnerable_component', and 'recommended_fix'."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The 'vulnerability_found' field must be a boolean."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The 'vulnerable_component' field must be a string identifying a specific signal or block in the provided RTL."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The 'recommended_fix' field must be a non-empty string describing a concrete RTL modification."
+    }
+  ],
+  "input_artifacts": [
+    "divider.v",
+    "timing_traces.txt"
+  ],
+  "interface": "The participant submits a single file: submission/vulnerability_report.json. The file must be a JSON object with exactly three keys: 'vulnerability_found' (boolean), 'vulnerable_component' (string), and 'recommended_fix' (string).",
+  "objective": "Analyze the provided RTL for a divider whose done latency varies with operand values. Identify the root cause of the variable latency and recommend a design change to make the latency fixed.",
+  "response_format": "A JSON object with the following schema: {\"vulnerability_found\": <boolean>, \"vulnerable_component\": \"<string>\", \"recommended_fix\": \"<string>\"}"
+}

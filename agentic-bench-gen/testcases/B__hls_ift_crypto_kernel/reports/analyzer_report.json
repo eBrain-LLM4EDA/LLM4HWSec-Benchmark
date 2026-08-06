@@ -1,0 +1,41 @@
+{
+  "issues": [
+    {
+      "artifact": "validation_report.per_requirement_coverage",
+      "description": "FR3 and FR4 are not directly exercised by the mutation set (no mutant specifically breaks status-always-zero absent SR1 trigger, and no mutant breaks the exact function signature), though both are still checked by evaluate.py and would be caught by other failure modes.",
+      "evidence": "untested_requirements: [\"FR3\", \"FR4\"], mutation_score 1.0 overall",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider adding a mutant that flips the function signature or return type to strengthen FR4 coverage evidence, and a mutant that violates FR3 independent of SR1 (e.g., status depends on plaintext instead of key) to close the untested_requirements gap."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run stdout shows all PASS including FR1-FR4",
+      "requirement": "FR1-FR4 functional pass on hardened submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows FAIL: FR3, SR1, SR3, SR4 as expected per acceptance_criteria (baseline fails at least SR1/SR3/SR4)",
+      "requirement": "SR1-SR4 pass on hardened submission, fail on baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, metadata.json frame the task as ordinary determinism/robustness/HLS constraints without mentioning CWE, SR ids, or 'intentionally insecure' baseline",
+      "requirement": "No leakage of CWE ids/SR ids/threat-model language in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec map directly to kat/random/compile checks in evaluate.py",
+      "requirement": "Public FRs are concrete and machine-checkable",
+      "status": "pass"
+    },
+    {
+      "evidence": "harness_support.py generates SR1 fixed-plaintext/200-key vectors, SR2 timing groups by bit-majority key distributions, SR4 keys chosen to trigger baseline's parity condition specifically",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "pass"
+    }
+  ]
+}

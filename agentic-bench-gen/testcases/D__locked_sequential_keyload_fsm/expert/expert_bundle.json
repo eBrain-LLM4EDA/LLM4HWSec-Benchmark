@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"key_sequence\": \"0110\",\n  \"lock_registers\": [\n    \"top.lock_reg[0]\",\n    \"top.lock_reg[1]\",\n    \"top.lock_reg[2]\",\n    \"top.lock_reg[3]\"\n  ]\n}",
+      "path": "golden/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_key.json",
+      "purpose": "The golden answer file for the analysis_report submission. Contains the correct 4-bit key sequence '0110' and the ordered list of lock register hierarchical names ['top.lock_reg[0]', 'top.lock_reg[1]', 'top.lock_reg[2]', 'top.lock_reg[3]']. This file is placed at submission/recovered_key.json during grading. It must satisfy FR1 (valid JSON), FR2 (key_sequence is a 4-char string of 0/1), FR3 (lock_registers is a list of 4 valid hierarchical names), and the hidden acceptance criteria (exact key match, exact register list and order)."
+    }
+  ]
+}

@@ -215,6 +215,54 @@ def test_file_bundle_agent_gives_later_files_the_earlier_content(tmp_path):
     assert "README.md" in second_request           # the file being requested
 
 
+def test_file_bundle_retries_oversized_file_with_compact_request(tmp_path):
+    plan = {"manifest": [{"path": "inputs/netlist.v", "purpose": "compact netlist"}]}
+    agent = _make_agent(tmp_path, plan)
+    calls = []
+
+    def complete_text(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise RuntimeError("OpenRouter completion failed: output is too large")
+        return "module compact; endmodule"
+
+    agent.llm.complete_text = complete_text
+    bundle = agent.run({"x": "y"})
+    assert bundle["files"][0]["content"] == "module compact; endmodule"
+    assert len(calls) == 2
+    assert "COMPACT REPLACEMENT REQUIRED" in calls[1]["messages"][1]["content"]
+    assert calls[1]["max_tokens"] <= 16000
+
+
+def test_file_bundle_targeted_repair_skips_plan_and_unrelated_files(tmp_path):
+    plan = {"manifest": [
+        {"path": "evaluation/evaluate.py", "purpose": "grader"},
+        {"path": "evaluation/private/tb.v", "purpose": "simulation evidence"},
+        {"path": "evaluation/README.md", "purpose": "docs"},
+    ]}
+    agent = _make_agent(tmp_path, plan)
+    previous = {**plan, "files": [
+        {"path": "evaluation/evaluate.py", "content": "old grader"},
+        {"path": "evaluation/private/tb.v", "content": "old tb"},
+        {"path": "evaluation/README.md", "content": "old docs"},
+    ]}
+
+    repaired = agent.repair_files(
+        {"x": "y", "repair_notes": "fix evidence", "previous_bundle_json": previous},
+        previous,
+        ["evaluation/private/tb.v", "evaluation/evaluate.py"],
+    )
+
+    assert agent.llm.json_calls == []
+    assert len(agent.llm.text_calls) == 2
+    by_path = {item["path"]: item["content"] for item in repaired["files"]}
+    assert by_path == {
+        "evaluation/evaluate.py": "content 2",
+        "evaluation/private/tb.v": "content 1",
+        "evaluation/README.md": "old docs",
+    }
+
+
 def test_file_bundle_agent_rejects_empty_manifest(tmp_path):
     agent = _make_agent(tmp_path, {"manifest": []})
     with pytest.raises(ValueError, match="empty manifest"):

@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "The netlist must be expressed in structural Verilog using only primitive gates (and, or, nand, nor, xor, not, buf) and D flip-flops with enable, no behavioral always-blocks in decoder_netlist.v.",
+    "The decoder must implement all 8 possible 3-bit addresses feeding exactly four register banks (bank0..bank3), with addresses 3'b100 through 3'b111 treated as unused/don't-care for write-enable purposes.",
+    "A testbench_harness.v must be provided that exhaustively drives all 3-bit addresses combined with both write_en values (0 and 1), so participants (or the evaluator) can run iverilog+vvp to observe write-enable activity per address.",
+    "gate_library.v must define any custom primitive wrappers used (e.g. named AND/OR/NAND cells) so the netlist compiles standalone with iverilog.",
+    "The netlist and testbench must compile and simulate cleanly with iverilog/vvp with zero warnings related to undeclared nets."
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON conforming exactly to the schema in public_spec.interface: all required top-level fields present with correct types, suspect_nets entries each containing net_name, gate_instance, and role restricted to one of the three enumerated values, and control_inputs keys matching the exact port names declared in decoder_netlist.v."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The design_under_test field must equal the literal string 'decoder_netlist.v', and trigger_condition.address must be a 3-character string of '0'/'1' characters representing a valid 3-bit address."
+    },
+    {
+      "id": "FR3",
+      "requirement": "affected_outputs must list only strings that are exact output port names appearing in decoder_netlist.v (e.g. subset of bank0_we, bank1_we, bank2_we, bank3_we), and must contain at least two distinct entries if trojan_present is true."
+    },
+    {
+      "id": "FR4",
+      "requirement": "For every legal 3-bit address other than the one identified in trigger_condition.address, the report's implicit claim (via suspect_nets/affected_outputs) must not assert that more than one bank write-enable activates; i.e. the reported anomaly must be scoped to a single specific address, not a blanket claim covering all addresses."
+    }
+  ],
+  "input_artifacts": [
+    "decoder_netlist.v",
+    "testbench_harness.v",
+    "design_brief.md",
+    "gate_library.v"
+  ],
+  "interface": "The submission is a single JSON file at submission/trojan_report.json (no other files are graded). Top-level schema (all fields required unless marked optional): { \"design_under_test\": string (must equal \"decoder_netlist.v\"), \"trojan_present\": boolean, \"suspect_nets\": array of objects, each { \"net_name\": string (exact net/wire identifier as it appears in decoder_netlist.v), \"gate_instance\": string (instance name driving the net, as in the netlist), \"role\": string, one of [\"trigger\",\"payload\",\"benign\"] }, \"trigger_condition\": { \"address\": string (3-bit binary literal, e.g. \"011\"), \"control_inputs\": object mapping each control signal name (as declared in decoder_netlist.v ports, e.g. \"write_en\") to its triggering value (\"0\"/\"1\") }, \"affected_outputs\": array of strings, each an exact output port name from decoder_netlist.v that becomes incorrectly asserted (e.g. [\"bank0_we\",\"bank2_we\"]), \"evidence\": string (free text describing the simulation or structural evidence, e.g. iverilog/vvp waveform observation or gate-level trace) }. The evaluator reads inputs/decoder_netlist.v, inputs/testbench_harness.v and inputs/gate_library.v for reference and optionally invokes iverilog/vvp against decoder_netlist.v to replay the reported trigger_condition and confirm affected_outputs assert simultaneously; it does not execute or require code from the submission file itself.",
+  "objective": "Analyze the provided gate-level netlist implementing a 3-bit address decoder driving four register-bank write-enable signals (bank0_we, bank1_we, bank2_we, bank3_we). Determine whether the decode logic behaves as a strict one-hot decoder for every legal 3-bit address and every write-request combination, and produce a structured analysis report identifying any nodes whose behavior deviates from one-hot decoding, including the exact stimulus (address and control values) that exposes the deviation.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface; no markdown, comments, or additional files are graded."
+}

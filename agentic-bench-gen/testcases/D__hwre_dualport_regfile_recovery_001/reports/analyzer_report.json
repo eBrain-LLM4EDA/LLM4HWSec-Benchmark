@@ -1,0 +1,82 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/tb_regfile.v / evaluation/evaluate.py",
+      "description": "The differential validation run shows the golden (expert-correct) submission is REJECTED by evaluate.py: FR1, FR3, FR4 fail with 'missing PROBE for cycle 0' / 'missing PROBE for collision cycle 0', despite the README claiming the race condition between stimulus loading and DUT driving was fixed via a single initial block. The tb_regfile.v file shown still appears to exhibit the missing cycle-0 probe bug (or evaluate.py's stimulus/reference indexing is misaligned with the TB's actual probe timing), causing the documented fix to not actually resolve the issue in practice.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR1: missing PROBE for cycle 0\\n[TEST] PASS: FR2\\n[TEST] FAIL: FR3: missing PROBE for collision cycle 0\\n[TEST] FAIL: FR4: missing PROBE for cycle 0' with golden_run.ok=false, expected=pass",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Since the golden submission fails, the benchmark case is not usable as-is: a correct participant answer would be marked incorrect, making the task unfair and the mutation/discrimination testing meaningless (requirement_discrimination_coverage_score is 0.0 and mutation_status is blocked_by_differential).",
+      "evidence": "validation report: 'mutation_status': 'blocked_by_differential', 'requirement_discrimination_coverage_score': 0.0, issue 'golden_rejected': 'evaluate.py rejects the expert golden solution (PASS expected)'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Repeated retry of the tester produced the identical failure signature, indicating the bug is deterministic and not a flaky race \u2014 the claimed fix (merging load and drive into one initial block) is not actually effective or not correctly reflected in the artifact bundle used for grading.",
+      "evidence": "preflight.attempt_history shows two attempts with identical failure_signature '119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef'",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluation/tb_regfile.v (or evaluate.py's stimulus/probe indexing) so that the golden reference submission passes all requirements \u2014 the cycle-0 and collision-cycle-0 probe loss must be root-caused and eliminated, not just documented as fixed.",
+    "Re-run the differential validation (golden vs. naive-stub vs. at least one intentionally-flawed submission for each SR) after the fix to confirm golden passes with exit 0 and all baselines fail as expected.",
+    "Add a regression test to the harness itself (or a CI gate) that runs the golden submission through evaluate.py and asserts exit code 0 before shipping the benchmark case.",
+    "Verify that PROBE_MID-based SR1 check and SR3 reset check are not incidentally passing only because upstream probes are missing (i.e., re-validate all metrics once cycle-0 probes are restored, since functional_equivalence and cycle_accurate_match_rate were computed against an incomplete probe set)."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run reports '[TEST] FAIL: FR1: missing PROBE for cycle 0' \u2014 correct submission rejected",
+      "requirement": "FR1: basic write-then-read",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run reports '[TEST] PASS: FR2'",
+      "requirement": "FR2: reset clears all entries",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run reports '[TEST] FAIL: FR3: missing PROBE for collision cycle 0'",
+      "requirement": "FR3: same-address collision forwarding",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run reports '[TEST] FAIL: FR4: missing PROBE for cycle 0'",
+      "requirement": "FR4: dual independent read ports",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run reports '[TEST] PASS: SR1', though this pass may be coincidental given the broader probe-loss bug",
+      "requirement": "SR1: zero read latency",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run reports '[TEST] PASS: SR2' (purely static scan)",
+      "requirement": "SR2: no combinational bypass mux",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run reports '[TEST] PASS: SR3'",
+      "requirement": "SR3: reset does not leak stale data",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows the stub (tying rdata to 0) fails with FR1/FR3/FR4/SR1 all FAIL and cycle_accurate_match_rate 0.095, confirming the evaluator correctly rejects the naive baseline",
+      "requirement": "Naive stub baseline must fail",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md contain no CWE/SR ids or security-intent language; design brief reads as plain engineering documentation per manifest description",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are concrete: specific data values (0x00/0xFF/0xA5/0x3C), specific collision and reset semantics, and dual-port independence, each directly verifiable via the pinned interface",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

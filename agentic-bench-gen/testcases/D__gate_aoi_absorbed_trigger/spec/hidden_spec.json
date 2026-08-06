@@ -1,0 +1,25 @@
+{
+  "acceptance_criteria": [
+    "The submitted trigger_cells array contains the exact instance names of the AOI21 and OAI22 cells that form the trigger.",
+    "The submitted trigger_nets array contains the exact name of the net connecting the AOI21 and OAI22 cells.",
+    "The submitted payload_cells array contains the exact instance name of the XOR cell driving control_out.",
+    "The submitted payload_nets array contains the exact name of the net connecting the trigger output to the XOR cell input."
+  ],
+  "cwe_ids": [
+    "CWE-1245"
+  ],
+  "ground_truth": "Two labeled AOI/OAI cells jointly implement the rare state-and-input match; their output controls the labeled payload XOR on control_out.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if the reported trigger cells include the specific AOI21 and OAI22 instances that implement the rare comparator, and if the reported trigger nets include the internal net connecting them.",
+      "id": "SR1",
+      "requirement": "The detection method must identify the trigger logic even when it is absorbed into complex AOI/OAI cells."
+    },
+    {
+      "detection_strategy": "Check if the reported payload cells include the XOR gate instance that drives control_out, and if the reported payload nets include the net connecting the trigger output to the XOR input.",
+      "id": "SR2",
+      "requirement": "The detection method must identify the payload logic that flips the control_out signal."
+    }
+  ],
+  "threat_model": "Technology mapping obscures the recognizable AND-tree shape used by structural Trojan detectors."
+}

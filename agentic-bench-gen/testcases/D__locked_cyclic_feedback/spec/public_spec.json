@@ -1,0 +1,32 @@
+{
+  "constraints": [
+    "Use a compact gate netlist with two key-controlled feedback edges and a supplied combinational oracle.",
+    "Public hints state key width and that cyclic locking is present; hidden ground truth lists feedback gates and the correct key.",
+    "Reports must distinguish lock-induced cycles from ordinary reconvergent paths."
+  ],
+  "expected_outputs": [
+    "recovered_key.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted recovered_key.json file must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The \"key\" field must be present and its value must be a string consisting only of '0' and '1' characters, with length exactly equal to the key width specified in hints.txt."
+    },
+    {
+      "id": "FR3",
+      "requirement": "When the submitted key is applied to the locked netlist (by setting the key inputs accordingly), the resulting circuit must be combinational (no cycles) and functionally equivalent to the oracle circuit for all possible input combinations, as verified by simulation with iverilog/vvp."
+    }
+  ],
+  "input_artifacts": [
+    "locked_netlist.v",
+    "oracle.v",
+    "hints.txt"
+  ],
+  "interface": "The participant must produce a single answer file at submission/recovered_key.json. The file must be valid JSON with the following schema: an object with a required field \"key\" whose value is a string of '0' and '1' characters representing the recovered key bits, and an optional field \"feedback_gates\" whose value is an array of strings naming the netlist gates that implement key-controlled feedback edges. The key string length must match the key width stated in hints.txt. The evaluator will parse this file and compare the key value against the hidden ground truth key; the feedback_gates field is for informational cross-check only and does not affect the primary PASS/FAIL verdict.",
+  "objective": "Identify key-controlled feedback edges in a cyclically locked combinational netlist and recover a key that restores acyclic functional behavior.",
+  "response_format": "A JSON file named recovered_key.json placed in the submission/ directory. The file must contain a JSON object with a required string field \"key\" (e.g., \"1010\") and an optional array field \"feedback_gates\" (e.g., [\"mux_fb1\", \"mux_fb2\"])."
+}

@@ -1,0 +1,60 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/vulnerability_report.json / evaluation/evaluate.py",
+      "description": "The golden/expert submission is rejected by evaluate.py on FR4: the golden mitigation_patch's table_data diverges from the original module for 8 of 256 (public_index, secret_key) combinations (e.g. public_index=6, secret_key=14: orig=5 patched=10). This means either the golden mitigation_patch is functionally incorrect (bug in the bit-sliced/full-scan boolean logic reproducing the ROM's permutation), or the tb_equiv.v testbench/evaluate.py latency handling mismatches assumptions the golden patch was written against. Either way the differential harness confirms the benchmark's own reference solution fails its own grader, which is disqualifying per the task's core requirement that a fully correct submission must pass.",
+      "evidence": "golden_run: [TEST] FAIL: FR4: mitigation_patch table_data diverges from original for 8 of 256 combinations (e.g. public_index=6, secret_key=14: orig=5 patched=10); golden_run.expected=pass, golden_run.status=fail",
+      "severity": "high"
+    },
+    {
+      "artifact": "requirement_discrimination_coverage_score",
+      "description": "Discrimination coverage score is 0.0, consistent with the mutation pipeline being blocked because the differential check failed before mutation testing could run; this is a downstream symptom of the golden_rejected issue rather than an independent defect, but it means none of the requirement checks have been empirically validated to actually discriminate correct vs. incorrect submissions.",
+      "evidence": "mutation_status: blocked_by_differential; mutation_score: 0.0; requirement_discrimination_coverage_score: 0.0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the golden/expert mitigation_patch (or the tb_equiv.v testbench/evaluate.py FR4 logic) so that the reference solution's table_data output matches the original subst_lookup module bit-for-bit across all 256 (public_index, secret_key) combinations at the correct pipeline latency -- debug the specific failing case (public_index=6, secret_key=14: orig=5 vs patched=10) to find whether the bit-sliced boolean logic or the latency/reset alignment in tb_equiv.v is at fault.",
+    "Re-run the differential and mutation testing pipeline after the golden fix to confirm mutation_score and requirement_discrimination_coverage_score reflect real pass/fail discrimination rather than being blocked.",
+    "Once golden passes, re-validate that FR4's iverilog/vvp co-compilation and renaming logic in evaluate.py correctly handles the corrected golden module and does not silently mask latency-related off-by-one sampling issues introduced by the testbench's fixed 2-clock-edge wait per combination."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Vulnerable/baseline run correctly PASSes FR1 (valid JSON with all fields) while failing downstream checks; golden run also PASSes FR1.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline (recovered_secret_key=0) correctly FAILs FR2 for all 16 trace entries; golden run PASSes FR2.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline with empty leaking_signals correctly FAILs FR3; golden run PASSes FR3.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden/expert submission FAILs FR4 due to functional mismatch between golden mitigation_patch and original module for 8/256 combinations, contradicting the requirement that a fully correct submission must pass all checks. This is the core blocking defect identified by the differential harness (golden_rejected).",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "Baseline correctly FAILs SR1 ('rom_addr_q' missing from leaking_signals); golden run PASSes SR1.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline correctly FAILs SR2 (FR2 dependency failed); golden run PASSes SR2.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both baseline (empty mitigation_patch, vacuously) and golden run PASS SR3; static scan logic appears consistent, though corroboration via FR4 is currently broken.",
+      "requirement": "SR3",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

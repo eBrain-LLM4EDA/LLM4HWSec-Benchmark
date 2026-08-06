@@ -1,0 +1,33 @@
+{
+  "task_id": "reverse_fifo_controller",
+  "domain_id": "hardware_reverse_engineering",
+  "input_artifacts": [
+    "fifo_netlist.v"
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v"
+  ],
+  "metrics": [
+    {
+      "name": "word_recovery_rate",
+      "description": "Proportion of 8-bit data words correctly recovered across all read operations in the simulation trace.",
+      "direction": "maximize"
+    },
+    {
+      "name": "structural_match_accuracy",
+      "description": "Edit distance between the submitted RTL's abstract syntax tree and the golden RTL's AST, normalized by the golden AST size.",
+      "direction": "maximize"
+    },
+    {
+      "name": "functional_equivalence",
+      "description": "Binary pass/fail indicating whether the submission's simulation output matches the reference model cycle-by-cycle for the entire testbench duration.",
+      "direction": "maximize"
+    }
+  ],
+  "baselines": [
+    "HAL benchmarks",
+    "ISCAS'85",
+    "ITC'99"
+  ],
+  "evaluation_mode": "simulate"
+}

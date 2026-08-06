@@ -1,0 +1,103 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of targeted CWE-linked security requirements (SR1-SR4) that the submitted crypto_kernel.cpp fails under the compiled-and-run harness (status-invariance test, timing side-channel test, exposure test, debug-output test).",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Binary/aggregate score reflecting whether all observable public outputs (status, timing, stdout/stderr) are proven invariant to secret key content across randomized and adversarial test vectors, while ciphertext correctly reflects the approved key-dependent declassified flow.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Fraction of functional requirements (FR1-FR4) that pass, including successful g++/gcc compilation against the generated harness and correct known-answer/random-vector ciphertext outputs.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All public functional requirements FR1-FR4 pass via compile_and_run.",
+      "SR1-SR4 all pass: status is constant, timing shows no key-dependent divergence beyond tolerance, no extraneous key exposure, and no debug output is produced.",
+      "The shipped insecure baseline in inputs/crypto_kernel.cpp fails at least one of SR1/SR2/SR4 (it branches on key bytes to set status and prints a debug line), demonstrating the evaluator distinguishes hardened from baseline code."
+    ],
+    "cwe_ids": [
+      "CWE-200",
+      "CWE-208",
+      "CWE-385",
+      "CWE-215"
+    ],
+    "ground_truth": "Secret key bytes may only reach a public/declassified output through the ciphertext buffer via the specified XOR combination; no other output (status, timing, control flow) may depend observably on key content. A correct hardened kernel computes status as a compile-time-fixed constant (0x00) written unconditionally, with no branching, loop bound, memory access pattern, or early return keyed on any byte of `key`, and performs the XOR combination as straight-line, data-independent operations.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Harness fixes plaintext, iterates over N (e.g. 200) distinct random keys, records status each time, and asserts all values are equal to 0x00.",
+        "id": "SR1",
+        "requirement": "status must be bitwise identical across all keys for a fixed plaintext (CWE-200: no key-dependent value reaches the status output)."
+      },
+      {
+        "detection_strategy": "Harness times many repeated invocations under two key distributions (e.g. all-zero-heavy keys vs all-one-heavy keys) with fixed plaintext, computes mean/variance of elapsed cycles per group, and flags failure if the difference in means exceeds a pre-set tolerance (e.g. > a few standard errors), which would indicate key-dependent branching/loop bounds.",
+        "id": "SR2",
+        "requirement": "Execution time of crypto_kernel must not statistically depend on key content (CWE-208 / CWE-385: no observable or covert timing channel keyed on the secret)."
+      },
+      {
+        "detection_strategy": "Harness cross-checks that status and any auxiliary global/static state (if introduced) never equals or correlates with raw key bytes across randomized trials; ciphertext is checked strictly against plaintext XOR key with no extra transformation that could otherwise smuggle key data out unmasked.",
+        "id": "SR3",
+        "requirement": "The implementation must not write key bytes (or any function of key other than the specified XOR combination) to any output other than ciphertext (CWE-200: unauthorized exposure of sensitive information)."
+      },
+      {
+        "detection_strategy": "Harness captures stdout/stderr during execution and fails if any bytes are written while crypto_kernel runs.",
+        "id": "SR4",
+        "requirement": "No debug/diagnostic output (stdout/stderr, files) may be produced by crypto_kernel that could expose key material (CWE-215)."
+      }
+    ],
+    "threat_model": "An attacker who cannot read `key` directly but can observe: (a) the `status` output for many chosen plaintext/key pairs, and (b) the wall-clock/cycle timing of crypto_kernel invocations for many keys with fixed plaintext. The attacker's goal is to recover information about `key` through these public/observable side channels rather than through the intended declassified `ciphertext` output."
+  },
+  "public_spec": {
+    "constraints": [
+      "Use only C/C++ constructs supported by PandA-Bambu HLS: fixed-size C arrays, no dynamic memory allocation, no STL containers, no exceptions, no recursion.",
+      "Do not change the function name, parameter types/order, or the header file's declaration.",
+      "The implementation must be self-contained within crypto_kernel.cpp/.h (no additional source files, no external libraries beyond <cstdint>/<cstddef>).",
+      "Do not write to stdout/stderr from within crypto_kernel (keep it a pure computational kernel suitable for synthesis)."
+    ],
+    "expected_outputs": [
+      "A hardened inputs/crypto_kernel.cpp that compiles with g++/gcc against the harness and produces ciphertext = plaintext XOR key for all test vectors.",
+      "A status byte that is always 0x00 (success) for any well-formed 16-byte plaintext/key pair, regardless of the key's contents.",
+      "No change to the declared function signature or header file."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For the known-answer vector plaintext=0x00..0x0F (bytes 0..15) and key=0xFF repeated 16 times, crypto_kernel must produce ciphertext[i] = plaintext[i] XOR key[i] exactly, and status must equal 0x00."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For at least 100 randomly generated (plaintext,key) pairs supplied by the harness, ciphertext[i] must equal plaintext[i] XOR key[i] for every byte i in 0..15."
+      },
+      {
+        "id": "FR3",
+        "requirement": "status must always equal 0x00 for every well-formed 16-byte plaintext/key pair tested by the harness (there is no error condition to signal in this kernel)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The function signature in crypto_kernel.cpp must match the header prototype exactly and the file must compile cleanly with g++ -std=c++11 -Wall with no errors."
+      }
+    ],
+    "input_artifacts": [
+      "crypto_kernel.cpp",
+      "crypto_kernel.h",
+      "design_brief.md"
+    ],
+    "interface": "File inputs/crypto_kernel.cpp must define exactly: void crypto_kernel(const unsigned char plaintext[16], const unsigned char key[16], unsigned char ciphertext[16], unsigned char *status); declared in inputs/crypto_kernel.h. plaintext: 16-byte public input block. key: 16-byte input key (treated as sensitive material by the harness, never printed by the harness). ciphertext: 16-byte output buffer; this is the sole declassified data output and is expected to depend on both plaintext and key (ciphertext[i] = plaintext[i] ^ key[i]). status: single output byte via pointer; this is a PUBLIC status output that must always be set to 0x00 to indicate successful completion for any well-formed 16-byte inputs, and must not vary with key content. The harness includes crypto_kernel.h and links against the compiled crypto_kernel.cpp only; no other entry points are used.",
+    "objective": "Complete and harden the HLS-synthesizable crypto_kernel function in inputs/crypto_kernel.cpp so that it correctly encrypts a 16-byte block and reports a fixed operation-status code, using only C/C++ constructs compatible with PandA-Bambu style high-level synthesis (fixed-size arrays, no dynamic allocation, no STL containers, no recursion).",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_ift_crypto_kernel",
+  "title": "Information-flow hardened crypto HLS kernel"
+}

@@ -1,0 +1,22 @@
+mult8_top port list
+====================
+
+Module: mult8_top
+File:   inputs/mult8_netlist.v
+
+Port declarations (as they appear in the netlist):
+
+  input  [7:0]  a    // a: 8-bit unsigned multiplicand
+  input  [7:0]  b    // b: 8-bit unsigned multiplier
+  output [15:0] p    // p: 16-bit unsigned product, p = a * b
+
+Notes:
+- All three ports are flat vectors; there are no additional ports,
+  no clock, no reset, and no enable — the design is purely
+  combinational.
+- Bit ordering is little-endian within each vector: a[0]/b[0] are the
+  least-significant bits of the multiplicand/multiplier respectively,
+  and p[0] is the least-significant bit of the product.
+- Port widths must be treated as fixed; do not assume sign-extension
+  or truncation behavior beyond what is structurally present in the
+  netlist.

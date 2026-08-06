@@ -1,0 +1,23 @@
+{
+  "acceptance_criteria": [
+    "The submitted recovered_key exactly matches '101101'.",
+    "The submitted key_gate_nets array contains all nets listed in the ground truth."
+  ],
+  "cwe_ids": [
+    "CWE-200"
+  ],
+  "ground_truth": "The labeled XNOR-and comparator detects input equal to key 101101; its output XORs result[0], and that protected cube is the correct recovered key. The key gate nets are [\"lock_comp/xor_0\", \"lock_comp/xor_1\", \"lock_comp/xor_2\", \"lock_comp/xor_3\", \"lock_comp/xor_4\", \"lock_comp/xor_5\", \"lock_comp/and_stage1_0\", \"lock_comp/and_stage1_1\", \"lock_comp/and_stage2\", \"lock_comp/corrupt_xor\"].",
+  "security_requirements": [
+    {
+      "detection_strategy": "Exact string comparison of the submitted recovered_key against the ground truth key.",
+      "id": "SR1",
+      "requirement": "The recovered key must exactly match the hidden key '101101'."
+    },
+    {
+      "detection_strategy": "Compare the submitted array of net names against the ground truth set of key gate nets. The submission must contain at least all ground truth nets; extra non-key nets are tolerated but may indicate imprecise localization.",
+      "id": "SR2",
+      "requirement": "The set of submitted key gate nets must contain all nets in the comparator cone that directly implement the key comparison and corruption logic."
+    }
+  ],
+  "threat_model": "A point-function lock minimizes discriminating inputs, making ordinary oracle-guided SAT iterations ineffective. The attacker must analyze the netlist structure and use the provided oracle vectors to deduce the protected input pattern."
+}

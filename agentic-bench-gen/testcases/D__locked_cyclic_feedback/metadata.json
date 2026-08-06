@@ -1,0 +1,19 @@
+{
+  "task_id": "locked_cyclic_feedback",
+  "domain_id": "logic_deobfuscation_sat",
+  "title": "Cyclic logic-locking cone localization",
+  "input_artifacts": [
+    "locked_netlist.v",
+    "oracle.v",
+    "hints.txt"
+  ],
+  "expected_output": {
+    "file": "submission/recovered_key.json",
+    "description": "A JSON object with a required 'key' string of '0'/'1' characters and an optional 'feedback_gates' array of gate names."
+  },
+  "metrics": [
+    "key_recovery_rate",
+    "key_gate_localization_accuracy",
+    "sat_iteration_reduction"
+  ]
+}

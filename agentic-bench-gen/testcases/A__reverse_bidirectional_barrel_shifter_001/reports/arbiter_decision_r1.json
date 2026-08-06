@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs are at ceiling: mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, validation_status=pass, baseline_exit_code=0, zero validation/analyzer issues, analyzer_status=pass. The differential harness shows the golden submission passing all six [TEST] checks (FR1-FR4, SR1, SR2) and the vulnerable baseline failing with concrete mismatch counts. All six mutants (targeting FR1-FR4, SR1, SR2) were detected, confirming the requirement harnesses are discriminating and not dead checks. The analyzer confirms no leakage of hidden security intent (mode=11 don't-care resolution and SR1/SR2 framing) into public-facing artifacts, and confirms FRs are concrete and machine-checkable rather than generic restatements. The evaluation contract (simulate) is correctly implemented via iverilog/vvp exhaustive and targeted-subset comparison against the reference netlist, not static source matching. No rule trigger conditions (missing_interface, golden_rejected, vulnerable_accepted, dead_check, uncovered_requirement, baseline_failed, public_security_leak, missing_functional_requirements, etc.) are present in the reports. The case meets all retention criteria.",
+  "retain_case": true,
+  "revision_instructions": "No revision needed; retain the case as-is.",
+  "root_cause": "none",
+  "source_round": 1
+}

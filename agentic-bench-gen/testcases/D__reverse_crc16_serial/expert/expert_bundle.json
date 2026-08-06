@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "module crc16_serial (\n    input wire clk,\n    input wire rst_n,\n    input wire enable,\n    input wire data_in,\n    output reg [15:0] crc_out\n);\n\n    // CRC-16/CCITT-FALSE: polynomial 0x1021, seed 0xFFFF, MSB-first, no reflection, no final XOR\n    // Moore-type output: crc_out is the registered state, updated one cycle after enabled input\n\n    reg [15:0] crc_state;\n\n    always @(posedge clk) begin\n        if (!rst_n) begin\n            // Synchronous active-low reset: set state to seed 0xFFFF\n            crc_state <= 16'hFFFF;\n        end else if (enable) begin\n            // MSB-first shift: new bit combined with MSB of current state\n            // Polynomial: x^16 + x^12 + x^5 + 1 (0x1021)\n            // Feedback = data_in ^ crc_state[15]\n            // Shift left by 1, XOR polynomial if feedback is 1\n            if (data_in ^ crc_state[15]) begin\n                crc_state <= {crc_state[14:0], 1'b0} ^ 16'h1021;\n            end else begin\n                crc_state <= {crc_state[14:0], 1'b0};\n            end\n        end\n        // else: hold state when enable is low\n    end\n\n    // crc_out always reflects the current registered state (Moore output)\n    always @(posedge clk) begin\n        crc_out <= crc_state;\n    end\n\nendmodule",
+      "path": "golden/recovered_rtl.v"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_rtl.v",
+      "purpose": "Golden submission: synthesizable Verilog module crc16_serial implementing CRC-16/CCITT-FALSE (polynomial 0x1021, seed 0xFFFF, MSB-first, no reflection, no final XOR). Ports: clk, rst_n, enable, data_in, crc_out[15:0]. Moore-type output: crc_out is registered state, updates one cycle after enabled input. Synchronous active-low reset sets state to 16'hFFFF in same cycle. Must pass cycle-accurate simulation against reference netlist for all test vectors including FR2 (0x31 -> 0xC0A7) and FR3 (0x1234 -> 0xDFB3)."
+    }
+  ]
+}

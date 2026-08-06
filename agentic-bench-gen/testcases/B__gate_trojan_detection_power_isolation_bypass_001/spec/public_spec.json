@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The netlist is expressed purely with AND2, OR2, and MUX2 primitive instances (no higher-level always blocks) plus wire declarations, so it can be parsed structurally or simulated exhaustively over all 5 input bits (secure_data[3:0], power_down).",
+    "The clean/expected contract is: whenever power_down=1, public_out must equal 4'b0000 regardless of secure_data value; whenever power_down=0, public_out must equal secure_data.",
+    "All input combinations (32 total) must be exhaustively exercised by any simulation-based check the participant or evaluator performs; the netlist is small enough for full enumeration.",
+    "The netlist and primitive library are fully self-contained and synthesizable/simulatable with iverilog without external libraries."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a trojan classification label, a list of suspect node names, and a list of affected output ports"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON containing all six required top-level fields (trojan_present, confidence, suspect_nodes, affected_outputs, violating_condition, analysis_summary) with the exact types specified in the interface (boolean, float, array of strings, array of strings, string, string)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "trojan_present must be set to true, matching the presence of an isolation violation in the reference netlist."
+    },
+    {
+      "id": "FR3",
+      "requirement": "suspect_nodes must include at least one gate instance name that exists in inputs/isolation_wrapper_netlist.v (case-sensitive exact match against instance names declared in the file)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "affected_outputs must correctly identify which bit(s) of public_out are compromised, referencing them using the exact bit-indexed naming convention 'public_out[N]'."
+    }
+  ],
+  "input_artifacts": [
+    "isolation_wrapper_netlist.v",
+    "design_brief.md",
+    "primitive_library.v"
+  ],
+  "interface": "Netlist file: inputs/isolation_wrapper_netlist.v, top module name: isolation_wrapper, ports: input secure_data (4-bit, inputs/secrets held by the secure domain), input power_down (1-bit control, 1 = secure domain should be shut off), input clk (unused by combinational logic but present for interface uniformity), output public_out (4-bit, the always-on observable output). Gate primitives used: AND2, OR2, MUX2 (sel,a,b -> sel?b:a), all defined in inputs/primitive_library.v with named ports (a, b, sel, y). The submission is NOT code: participants write an answer file at submission/trojan_report.json with this exact JSON schema: {\"trojan_present\": <boolean>, \"confidence\": <float 0.0-1.0>, \"suspect_nodes\": [<string, gate instance names from isolation_wrapper_netlist.v>], \"affected_outputs\": [<string, port names of public_out bits, e.g. \"public_out[0]\">], \"violating_condition\": <string, a short description of the input assignment(s) under which the isolation contract fails>, \"analysis_summary\": <string>}. evaluate.py reads inputs/ for reference and optionally re-simulates the netlist via iverilog/vvp to confirm reported violating_condition, then grades submission/trojan_report.json.",
+  "objective": "You are given a synthesized gate-level Verilog netlist implementing a small secure-domain power-gating wrapper. The wrapper is supposed to isolate a secure internal register from an always-on output pin whenever the domain is powered down, using standard combinational primitives (AND, OR, MUX). Analyze the netlist structurally (and optionally simulate it with the provided toolchain) to determine whether the isolation behavior actually holds for all input combinations, and produce a structured trojan_report.json identifying any suspect gates/nets that violate the isolation contract and any output signals affected.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface. No other submission files are graded."
+}

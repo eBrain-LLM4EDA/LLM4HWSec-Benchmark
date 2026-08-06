@@ -1,0 +1,8 @@
+{
+  "trojan_present": false,
+  "confidence": 0.5,
+  "suspect_nodes": [],
+  "affected_outputs": [],
+  "violating_condition": "",
+  "analysis_summary": "No isolation violations detected in preliminary review."
+}

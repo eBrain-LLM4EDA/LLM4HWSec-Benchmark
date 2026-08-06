@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected by evaluate.py, causing the baseline run to fail and making the mutation score meaningless (0.0). The evaluator has bugs in the SR checks that prevent it from accepting the correct golden submission. Additionally, no mutants exist for any requirement, so discrimination coverage is 0.0. The evaluator must be fixed to correctly grade the golden solution and must implement proper behavioral checks for all requirements. The metrics defined in the task specification (detection_rate, false_positive_rate, inference_latency) are not measured, but this is secondary to the critical failure of rejecting the golden solution.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

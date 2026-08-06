@@ -1,0 +1,30 @@
+{
+  "task_id": "hls_stale_bram_data_clearing_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Clear stale packet data in a reused HLS buffer",
+  "submission_kind": "hardened_artifact",
+  "input_artifacts": [
+    "inputs/packet_kernel.cpp"
+  ],
+  "expected_output_summary": "A hardened version of inputs/packet_kernel.cpp implementing void process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32]) such that every invocation fully populates all 32 bytes of out_buf using only that call's own in_buf and length, with no dependence on any prior call's state. For each index i in [0,32): out_buf[i] must equal ((in_buf[i] ^ 0xA5) + i) & 0xFF when i < length, and must equal 0x00 when i >= length. Must compile cleanly with g++ using fixed 32-iteration loops, no dynamic allocation, and no recursion.",
+  "interface": "void process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32]);",
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize"
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize"
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize"
+    }
+  ],
+  "evaluation_mode": "compile_and_run",
+  "toolchain": [
+    "g++",
+    "gcc"
+  ]
+}

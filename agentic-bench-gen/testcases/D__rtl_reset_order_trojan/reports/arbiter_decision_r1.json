@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden run failed. The golden solution is correct per the hidden spec, but evaluate.py rejects it with SR1 and SR2 failures due to a buggy testbench that cannot activate the trigger. The evaluator also fails to measure the specified metrics (detection_rate, false_positive_rate, trigger_payload_localization). The testbench (evaluation/tb_trigger.v) must be fixed to correctly apply the two-cycle gap reset sequence so the golden solution passes SR1 and SR2. Additionally, the evaluator must implement the requested metrics. The fuzzy matching threshold and confidence threshold are undocumented, making grading opaque. FR3 checks input artifacts rather than the submission, which is a setup sanity check mislabeled as a functional requirement. The README does not disclose simulation-based cross-validation.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

@@ -1,0 +1,108 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden_rejected). The golden run expected PASS but got FAIL because the testbench simulation produced no [TEST] markers, causing evaluate.py to emit 'no marker found' for all behavioral requirements. This indicates a bug in the evaluation harness that prevents correct submissions from passing.",
+      "evidence": "Validation report shows golden_run exit_code=1, stdout contains '[TEST] FAIL: FR1: no marker found in simulation output' for all requirements. Differential failure_class is 'golden_rejected'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench includes a private vector file via `include \"evaluation/private/tb_sr1_vectors.v\"` but the private file uses Verilog syntax that may not be synthesizable or compatible with iverilog in the context of the testbench (flattened 2D array access, large initial blocks). This likely causes simulation failures or silent errors, preventing any [TEST] markers from being printed.",
+      "evidence": "The golden solution compiles (FR4 passes) but simulation produces no markers, suggesting the testbench itself fails during simulation. The private vector file uses constructs like 'sr1_messages[vec * 256 + byte_idx]' which may not be supported in standard Verilog simulation.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/private/tb_sr1_vectors.v",
+      "description": "The private vector file defines arrays with non-standard indexing (flattened 2D array emulation) and large initial blocks that may cause iverilog compilation or runtime errors. This breaks the SR1 security requirement check and prevents the entire simulation from producing output markers.",
+      "evidence": "The file uses 'reg [7:0] sr1_messages [0:5119]' and accesses it as 'sr1_messages[vec * 256 + byte_idx]'. This is valid Verilog but the large initial block with 20 vectors may exceed simulator limits or cause timing issues.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench has a race condition in the reset check for FR1. It applies reset, waits one posedge, then checks crc_out after #1 delay. However, the DUT may not have updated crc_out in the same cycle as specified in the timing contract, leading to false failures.",
+      "evidence": "FR1 check: '@(posedge clk); #1; if (crc_out_dut !== 16'hFFFF)' - the timing contract says crc_out must reflect seed state 'in the same cycle', but the testbench checks after a delay which may miss the value if the DUT updates on the next edge.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure the declared metrics (word_recovery_rate, structural_match_accuracy, functional_equivalence) as numeric scores. It only produces binary PASS/FAIL per requirement. The task specification expects these metrics to be reported, but the harness does not compute or output them.",
+      "evidence": "evaluate.py only parses [TEST] PASS/FAIL markers and exits 0 or 1. No code exists to compute word_recovery_rate, structural_match_accuracy, or functional_equivalence as quantitative metrics.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The public README hints at the polynomial and seed by providing expected CRC values for specific messages (FR2: 0x31 -> 0xC0A7, FR3: 0x1234 -> 0xDFB3). While this is necessary for functional requirements, it partially leaks the ground truth by allowing participants to verify their reverse-engineering against known answers.",
+      "evidence": "FR2 and FR3 in README.md give exact expected crc_out values. This is acceptable for a reverse-engineering task but reduces the hidden nature of the security requirement.",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench reference model is implemented inline in the testbench, which is correct for grading but means the reference implementation is visible in the evaluation bundle. This is not a security issue since participants don't see the evaluation bundle, but it's noted for completeness.",
+      "evidence": "tb_crc16.v contains a complete behavioral CRC-16/CCITT-FALSE implementation in the 'always @(posedge clk)' block.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the testbench simulation failure: investigate why the golden solution produces no [TEST] markers. Likely causes: (a) the private vector file's large initial block causes iverilog to hang or crash silently, (b) the flattened array indexing is not supported, (c) the testbench has a timing or reset sequence bug. Simplify the private vectors or use a different inclusion mechanism.",
+    "Add actual metric computation to evaluate.py: compute word_recovery_rate as the fraction of test vectors with correct final crc_out, structural_match_accuracy by checking polynomial/seed/convention properties, and functional_equivalence as cycle-accurate match percentage. Report these as numeric scores in addition to PASS/FAIL.",
+    "Fix the FR1 timing check: ensure the testbench samples crc_out at the correct time relative to reset. The current #1 delay after posedge may not align with the DUT's output timing. Consider checking crc_out at the negedge or using a more robust synchronization method.",
+    "Add mutation testing for all requirements: the validation report shows 0 mutants and untested_requirements for all five requirements. Create targeted mutants (e.g., wrong seed, wrong polynomial, wrong bit order) to verify that each requirement's harness can discriminate between correct and incorrect implementations.",
+    "Consider reducing the size of the private vector file or generating vectors procedurally in the testbench to avoid large initial blocks that may cause simulator issues.",
+    "Add a timeout and error capture in the testbench to ensure that simulation failures produce explicit error markers rather than silent missing markers."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "The public spec (README.md, metadata.json) describes a CRC-16 reverse-engineering task. The hidden spec correctly identifies the polynomial (0x1021), seed (0xFFFF), and conventions. The expected outputs (FR1-FR3 values) match the ground truth CRC-16/CCITT-FALSE implementation. The netlist (crc16_netlist.v) correctly implements this CRC variant.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "The validation report shows golden_rejected: the expert golden solution fails with 'no marker found in simulation output' for all behavioral requirements. The baseline also fails identically. The evaluator cannot distinguish between correct and incorrect submissions due to a bug in the testbench or evaluation flow.",
+      "requirement": "Evaluator accepts correct submission and rejects baseline",
+      "status": "fail"
+    },
+    {
+      "evidence": "The task specification defines three metrics: word_recovery_rate, structural_match_accuracy, and functional_equivalence. The evaluator (evaluate.py) only produces binary PASS/FAIL per requirement and does not compute or report any of these metrics as numeric values.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "fail"
+    },
+    {
+      "evidence": "The requirement_map in the evaluation bundle separates FR1-FR4 (functional) from SR1 (security). FR1-FR3 test specific behaviors (reset, known messages), FR4 tests compilability, and SR1 tests functional equivalence over private vectors.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 is tested by running the DUT against 20 private test vectors (including edge cases like empty message, all zeros, all ones) and comparing cycle-by-cycle against the reference model. This actively verifies the hidden security property (correct polynomial and convention) rather than just checking surface-level behavior.",
+      "requirement": "Security-relevant behaviors are actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are standard Verilog, Python, and Markdown. No external dependencies beyond iverilog and Python 3. No network access, no privileged operations. The netlist and testbench are self-contained.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task requires reverse-engineering a flattened gate-level netlist to recover a CRC polynomial and bit-ordering convention. This is a realistic hardware reverse-engineering scenario, not a generic programming task. The use of XOR/DFF netlist analysis is domain-specific.",
+      "requirement": "Benchmark is adapted to hardware_reverse_engineering domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "The golden_rejected failure means results are currently unverifiable. The evaluation harness has a bug that prevents any submission (including the correct one) from passing. This must be fixed before the benchmark can produce meaningful results.",
+      "requirement": "No gaps that make results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "The public README.md and metadata.json do not mention CWE IDs, SR1, threat model, or security requirements. They present the task as a plain reverse-engineering assignment. The expected CRC values (FR2, FR3) are necessary functional requirements and do not explicitly reveal the polynomial or seed.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 specifies exact reset value (0xFFFF). FR2 specifies exact input (0x31) and expected output (0xC0A7). FR3 specifies exact input (0x1234) and expected output (0xDFB3). FR4 specifies compilability with iverilog. All are verifiable through the pinned interface (clk, rst_n, enable, data_in, crc_out).",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,96 @@
+{
+  "domain_id": "hardware_reverse_engineering",
+  "evaluation": {
+    "baselines": [
+      "Naive always-zero stub: outputs pos=0, dir=0, invalid=0 unconditionally; must fail FR1 and FR2.",
+      "HAL-style netlist passthrough baseline that merely re-wraps the flattened gate netlist without word-level recovery (used as a lower-bound sanity baseline, expected to fail interface conformance since port names/widths differ).",
+      "ISCAS'85/ITC'99-style flattened combinational reinterpretation baseline that misclassifies sequential state as combinational, expected to fail FR1/FR2 due to zero-cycle-latency mismatch."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of pinned interface signals (pos, dir, invalid) that match the reference design's values across all simulated cycles of the full test vector suite (forward, reverse, stationary, bouncing, illegal traces).",
+        "direction": "maximize",
+        "name": "word_recovery_rate"
+      },
+      {
+        "description": "Fraction of public functional requirement test cases (FR1-FR4) that pass under cycle-accurate simulation comparison against the independently generated reference waveform.",
+        "direction": "maximize",
+        "name": "structural_match_accuracy"
+      },
+      {
+        "description": "Boolean-style pass rate across the full hidden acceptance suite (public FRs plus hidden SR1/SR2 behavioral checks and SR3 static scan); a case is only PASS if all criteria succeed.",
+        "direction": "maximize",
+        "name": "functional_equivalence"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All four public functional requirements (FR1-FR4) pass under cycle-accurate simulation against the independently authored reference design using the pinned quad_decoder interface.",
+      "SR1 and SR2 hidden behavioral checks pass under additional illegal-transition and sticky-invalid stress vectors not shown in the public functional requirements.",
+      "SR3 static backdoor scan reports no forbidden constructs in submission/recovered_rtl.v.",
+      "The submission compiles without errors under iverilog using only the pinned port list and standard synthesizable Verilog-2001 constructs.",
+      "A naive/empty baseline submission (e.g. an always-zero stub module) fails at least one of FR1-FR4."
+    ],
+    "cwe_ids": [],
+    "ground_truth": "The gate-level netlist implements a 2-bit Gray-code state register (current {a,b}) and a 2-bit previous-state register, both DFF-based, sampled synchronously. XOR gates compute bitwise difference between current and previous state to detect any change and to detect simultaneous 2-bit change (illegal jump). A small decode/MUX tree maps the specific {prev,curr} pair to one of: no-op (hold), +1 (forward Gray step 00->01->11->10->00), -1 (reverse Gray step), or illegal (both bits changed). dir is a registered Moore output updated only on legal forward/reverse transitions and held otherwise. invalid is a registered Moore output asserted for exactly one cycle following detection of a two-bit change and cleared otherwise. pos is an 8-bit signed accumulator with two's-complement wraparound. Reset is synchronous active-high, zeroing pos, dir, and invalid, with the zeroed values visible starting the cycle after the reset edge is sampled. The flattening obscures the fact that the forward/reverse mapping is fixed by the Gray code adjacency table, not by arbitrary combinational logic, and that invalid must be a strictly one-cycle pulse rather than a level held until the next legal transition -- a common reverse-engineering mistake is to let invalid stay high until the next legal edge, or to update dir/pos on the illegal edge itself.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Testbench drives a diagonal jump (e.g. 00->11) mid-sequence, captures pos and dir the cycle before and the two cycles after, and asserts equality via $display/$strobe compared against reference values embedded in the testbench; also cross-checks against an independently generated reference simulation using the same stimulus vectors.",
+        "id": "SR1",
+        "requirement": "The recovered design must not apply any position or direction update when an illegal two-bit transition is detected -- pos and dir must be bitwise identical to their pre-transition values on that edge and the edge immediately after."
+      },
+      {
+        "detection_strategy": "Testbench counts consecutive cycles where invalid=1 after each illegal-transition stimulus and asserts the count equals exactly 1; also verifies invalid=0 for at least 3 subsequent cycles absent further illegal jumps.",
+        "id": "SR2",
+        "requirement": "invalid must be asserted for exactly one clock cycle per illegal transition and must not remain asserted or re-assert without a new illegal transition (avoiding an information-leaking sticky-fault side channel that could mask or amplify fault reporting to downstream logic)."
+      },
+      {
+        "detection_strategy": "Static fail-on-presence scan of submission/recovered_rtl.v for forbidden tokens ($stop, $finish, force, deposit, `ifdef TESTBENCH) prior to simulation; presence causes immediate FAIL regardless of simulated behavior.",
+        "id": "SR3",
+        "requirement": "Submitted RTL must not contain any $stop, $finish, initial-block force of outputs, or non-synthesizable X-injection intended to make the testbench trivially pass regardless of stimulus (i.e., no output-forcing backdoors)."
+      }
+    ],
+    "threat_model": "Flattening the RTL into raw gates hides the Gray-code adjacency table and the exact register update semantics (which signals hold vs update on illegal transitions, and the exact single-cycle width of the invalid pulse) needed to correctly reintegrate this block into an undocumented motion-control subsystem; an incorrect reconstruction (e.g. holding invalid high too long, or applying position updates during illegal transitions) could cause an integrating controller to silently accumulate wrong position data or mask fault conditions."
+  },
+  "public_spec": {
+    "constraints": [
+      "The recovered design must compile cleanly with iverilog (no unsupported constructs) and must be a single file at submission/recovered_rtl.v.",
+      "The design must use only synchronous, edge-triggered logic driven by posedge clk; no additional clocks, latches, or asynchronous resets are permitted.",
+      "pos must be exactly an 8-bit signed register that wraps using two's complement arithmetic on overflow/underflow.",
+      "The module name and port list must match the pinned interface exactly, including bit widths and signal directions.",
+      "The provided netlist and wrapper files must not be modified; they are reference-only inputs describing the flattened gate-level implementation to reverse-engineer."
+    ],
+    "expected_outputs": [
+      "submission/recovered_rtl.v implementing module quad_decoder as specified in the interface"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "Given the forward sequence a,b = 00,01,11,10,00 sampled one pattern per clock cycle after reset release, pos must increment by exactly 1 per legal forward transition, dir must read 1 during and after these transitions, and invalid must read 0 throughout."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Given the reverse sequence a,b = 00,10,11,01,00 sampled one pattern per clock cycle after reset release, pos must decrement by exactly 1 per legal transition, dir must read 0 during and after these transitions, and invalid must read 0 throughout."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If the same {a,b} pattern is sampled on two or more consecutive cycles (a bounce/stationary trace), pos and dir must remain unchanged across those cycles and invalid must read 0."
+      },
+      {
+        "id": "FR4",
+        "requirement": "If {a,b} jumps directly between diagonal states (00<->11 or 01<->10) in one cycle, invalid must assert to 1 for exactly one cycle on the edge following detection, then deassert to 0 on the subsequent edge if no further illegal jump occurs, while pos and dir remain unchanged by that illegal transition."
+      }
+    ],
+    "input_artifacts": [
+      "quadrature_netlist.v",
+      "quadrature_wrapper.v",
+      "design_brief.md"
+    ],
+    "interface": "The recovered module MUST be named exactly `quad_decoder` and declared in submission/recovered_rtl.v with the exact port list: module quad_decoder (input wire clk, input wire rst, input wire a, input wire b, output reg signed [7:0] pos, output reg dir, output reg invalid); . Port semantics: clk is the rising-edge clock. rst is SYNCHRONOUS, ACTIVE-HIGH: while rst=1 at a rising clock edge, on that same edge pos is loaded to 8'sd0, dir is loaded to 0, and invalid is loaded to 0; these reset values are the observable values starting the cycle immediately after the reset edge (Moore, registered outputs only). a and b are the sampled quadrature inputs, each expected to hold a stable 2-bit Gray-code value {a,b} across a given cycle (only one of a or b should differ between consecutive sampled cycles for a legal transition; both differing simultaneously is illegal). All three outputs (pos, dir, invalid) are Moore outputs: registered on the rising clock edge, so the value observed after the rising edge of cycle N reflects the transition detected between the {a,b} pair sampled at the END of cycle N-1 (i.e. the value present just before that edge) and the {a,b} pair sampled at the end of cycle N (present just before this edge). Concretely: let S(N) = {a,b} value stable during cycle N (sampled combinationally, present at the D-inputs of the state registers before the rising edge ending cycle N). At the rising edge ending cycle N (transitioning into cycle N+1): if S(N) equals S(N-1) (no change), pos and dir hold their previous values and invalid becomes 0. If S(N) is the successor of S(N-1) in the forward Gray sequence 00->01->11->10->00, pos increments by 1 (wrapping as signed 8-bit two's complement), dir becomes 1, and invalid becomes 0. If S(N) is the predecessor of S(N-1) in that same cycle (i.e., the reverse direction 00->10->11->01->00), pos decrements by 1 (wrapping as signed 8-bit two's complement), dir becomes 0, and invalid becomes 0. If S(N) differs from S(N-1) in BOTH bits simultaneously (an illegal two-bit jump, e.g. 00->11 or 01->10), pos and dir HOLD their previous values, and invalid becomes 1 for exactly one cycle (the cycle immediately following the edge at which the illegal transition was detected), then invalid returns to 0 on the next edge if no further illegal transition occurs. There is no additional latency: the effect of comparing S(N-1) to S(N) is observable starting exactly one clock edge after S(N) becomes the sampled value, i.e. exactly 1 cycle of latency from input event to output update, with no extra pipeline stages. dir does not change on hold or illegal cycles (it must retain the last legal direction). All comparisons use the {a,b} values present at the D-inputs of the two-bit state register on each active edge; a and b are assumed synchronous inputs requiring no additional metastability handling in this task.",
+    "objective": "You are given a flattened gate-level netlist (DFFs, XOR gates, and MUXes only) implementing an undocumented quadrature decoder block used in a motion-control subsystem. Analyze the netlist and the accompanying obfuscated RTL wrapper to recover a clean, word-level Verilog module that samples quadrature signals A and B each clock cycle, tracks position updates consistent with standard Gray-code quadrature transitions, reports direction, and flags illegal (two-bit) transitions. Submit your recovered design as a single self-contained Verilog file.",
+    "response_format": "A single Verilog source file at submission/recovered_rtl.v containing exactly one module named quad_decoder matching the pinned port list. No testbench, package, or additional top-level modules should be included."
+  },
+  "task_id": "hw_reveng_quadrature_decoder_001",
+  "title": "Recover a quadrature position and direction decoder"
+}

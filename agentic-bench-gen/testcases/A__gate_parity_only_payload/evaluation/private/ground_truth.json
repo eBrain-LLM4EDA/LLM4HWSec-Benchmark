@@ -1,0 +1,21 @@
+{
+  "label": "Trojan",
+  "payload_gate": "u_payload_and",
+  "trigger_cone_gates": [
+    "u_xnor0",
+    "u_xnor1",
+    "u_xnor2",
+    "u_xnor3",
+    "u_xnor4",
+    "u_xnor5",
+    "u_xnor6",
+    "u_xnor7",
+    "u_and0",
+    "u_and1",
+    "u_and2",
+    "u_and3",
+    "u_and4",
+    "u_and5",
+    "u_and6"
+  ]
+}

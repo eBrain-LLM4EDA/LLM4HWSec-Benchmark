@@ -1,0 +1,45 @@
+{
+  "task_id": "hls_dma_range_overflow_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Overflow-safe DMA range validation",
+  "submission_kind": "hardened_artifact",
+  "evaluation_mode": "compile_and_run",
+  "input_artifacts": [
+    "inputs/dma_validate.cpp",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "summary": "A modified inputs/dma_validate.cpp that compiles standalone with g++ and implements validate_dma with correct boundary arithmetic for all combinations of 32-bit inputs, preserving the exact required function signature and semantics described in README.md.",
+    "primary_artifact": "inputs/dma_validate.cpp"
+  },
+  "interface": {
+    "entry_point": "extern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size);",
+    "language": "C++17",
+    "toolchain": [
+      "g++",
+      "gcc"
+    ]
+  },
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize",
+      "description": "Fraction of overflow/wraparound exploit test vectors on which the compiled validate_dma incorrectly returns 1 (grants access) when it should return 0; measured by executing the compiled binary against crafted overflow vectors."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Fraction of boundary and partial-containment vectors for which validate_dma's returned decision exactly matches the mathematically correct half-open-interval containment result, verifying the checker's decision depends only on true containment and not on superficial 32-bit wraparound artifacts."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Whether inputs/dma_validate.cpp compiles successfully with g++ against the evaluation harness (compile succeeds, binary links and runs to completion without crashing or hanging)."
+    },
+    {
+      "name": "functional_pass_rate",
+      "direction": "maximize",
+      "description": "Fraction of the known-answer functional test vectors (including FR1-FR4 from README.md) for which the compiled validate_dma returns the exact expected result."
+    }
+  ]
+}

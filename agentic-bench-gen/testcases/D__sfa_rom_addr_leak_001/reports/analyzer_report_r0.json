@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + evaluation/tb_equiv.v",
+      "description": "The differential test shows the golden/expert submission is REJECTED by evaluate.py (golden_rejected failure class). FR4 fails because the co-compilation step raises a duplicate module declaration error: 'subst_lookup' has already been declared in this scope. This occurs when the golden mitigation_patch declares its module as 'subst_lookup' (or the renaming logic in check_fr4 fails to properly rename it before co-compiling with the original inputs/subst_lookup.v). The rename regex only fires when extract_patched_module_name returns exactly 'subst_lookup', but evidently the golden file's module name detection or renaming failed, causing a name clash that breaks compilation. This is a hard blocker: a fully correct submission cannot pass FR4, and thus cannot pass overall grading.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR4: testbench co-compilation failed: /tmp/sfa_eval_sk56mu9w/mitigation_patch.v:1: error: 'subst_lookup' has already been declared in this scope.' with golden_run.expected='pass' but status='fail', ok=false.",
+      "severity": "high"
+    },
+    {
+      "artifact": "requirement_discrimination_coverage_score",
+      "description": "The differential harness reports requirement_discrimination_coverage_score of 0.0, meaning mutation testing could not proceed because the golden baseline itself fails, blocking any meaningful assessment of whether the checks discriminate correct from incorrect submissions.",
+      "evidence": "mutation_status: 'blocked_by_differential', mutation_score_meaningful: false, mutation_score: 0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py:extract_patched_module_name / check_fr4",
+      "description": "The module-renaming logic to avoid name collisions with the original subst_lookup module is fragile: it only renames when the detected module name is exactly 'subst_lookup', but does not robustly validate that the rename succeeded before co-compilation, nor does it handle cases where the golden/expert answer's module name detection picks the wrong module (e.g., if multiple 'module' keywords appear or whitespace/formatting confuses the regex). The preflight attempt history shows a second attempt also failing with a different error ('Unable to find the root module \"is\"'), suggesting the regex-based module name extraction is unreliable across reasonable golden answer formats.",
+      "evidence": "preflight.attempt_history shows two different failure signatures across attempts, both golden_rejected, indicating persistent fragility in the FR4 compilation/renaming pipeline.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the module-renaming logic in evaluate.py's check_fr4 (and/or evaluation/tb_equiv.v generation) so that a golden/expert mitigation_patch declaring a module named 'subst_lookup_patched' (or even 'subst_lookup') is reliably renamed and co-compiled without a duplicate-declaration error against inputs/subst_lookup.v.",
+    "Add a unit test or self-check in the benchmark generation pipeline that runs evaluate.py against the shipped golden/expert answer file (golden/vulnerability_report.json) as part of CI, asserting exit code 0, before shipping the benchmark.",
+    "Improve extract_patched_module_name to be more robust: verify uniqueness of the extracted name against 'subst_lookup', confirm the rename regex substitution actually changed the text (assert count>0), and fail with a clear, distinguishable diagnostic if the module name cannot be safely isolated, rather than silently proceeding to a broken co-compilation.",
+    "Re-run the full differential (golden vs baseline) after the fix to confirm golden_run.status == 'pass' and vulnerable_run.status == 'fail' before finalizing this benchmark case.",
+    "Consider adding a small number of additional mutated/near-correct submissions (e.g., correct signals but wrong secret key, correct everything but mitigation_patch using an inline XOR index) to validate SR1-SR3 discrimination once the FR4 harness is fixed, to raise requirement_discrimination_coverage_score above 0."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run and baseline run both correctly discriminate: golden passes FR1, baseline (empty JSON) also passes FR1 since all fields are present with correct types (though empty).",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes FR2; baseline correctly fails FR2 ('recovered_secret_key=0 fails to predict observed_rom_addr for 16 of 16 trace entries').",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR3; baseline correctly fails ('leaking_signals is empty').",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS FR4 due to a module name collision bug in the co-compilation harness (evaluation/tb_equiv.v + evaluate.py check_fr4), despite being the correct/expert answer. This is a critical evaluator defect per the differential report's golden_rejected failure_class.",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden passes SR1; baseline correctly fails ('rom_addr_q missing from leaking_signals').",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR2; baseline correctly fails (cascades from FR2 failure).",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR3; baseline also passes SR3 trivially (empty mitigation_patch contains no forbidden indexing pattern), but this is caught instead by FR4 failing on empty mitigation_patch in the baseline run, so overall baseline is correctly rejected.",
+      "requirement": "SR3",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

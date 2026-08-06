@@ -1,0 +1,61 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 has no targeting mutant, so its harness discrimination is unproven. The validation report shows 0 mutants targeting FR1, meaning the evaluator's ability to detect a corrupted submission file (missing or invalid JSON) is not independently verified.",
+      "evidence": "Validation report: per_requirement_coverage.FR1.covered = false, mutants_targeting = 0. Issue: untested_requirement for FR1.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure the requested metrics (key_recovery_rate, key_gate_localization_accuracy, sat_iteration_reduction). It only checks boolean pass/fail conditions against the hidden ground truth. The metrics listed in metadata.json and the task specification are not computed or reported.",
+      "evidence": "evaluate.py only emits [TEST] PASS/FAIL markers for FR1-FR4, SR1-SR2. No metric computation code exists. The task specification lists three metrics but none are implemented.",
+      "severity": "low"
+    },
+    {
+      "artifact": "inputs/locking_scheme.txt",
+      "description": "The locking_scheme.txt describes a locking scheme with key ports named key_in[7:0], but the actual netlist has no such ports. This is intentional as a red herring, but the description is detailed enough that a participant might waste time searching for these ports. The public README warns that the description may not match, which mitigates this.",
+      "evidence": "locking_scheme.txt: 'Key ports: key_in[7:0] (top-level inputs).' locked_netlist.v has no key_in ports.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant that corrupts submission/recovered_key.json (delete file, make it invalid JSON, or rename it) to verify FR1 discrimination.",
+    "Implement metric computation in evaluate.py for key_recovery_rate, key_gate_localization_accuracy, and sat_iteration_reduction, or remove these metrics from metadata.json and the task specification if they are not intended to be measured.",
+    "Consider adding a note in the public README explicitly stating that locking_scheme.txt is provided for context but may not reflect the actual netlist, to reduce participant confusion."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "FR1 check exists in evaluate.py (file existence and valid JSON), but no mutant targets it. The validation report confirms 0 mutants targeting FR1, so discrimination is unproven.",
+      "requirement": "FR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "FR2 check verifies presence and types of locked, key_bits, key_gates. 1 mutant targeted and detected. Validation report: per_requirement_coverage.FR2.covered = true.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR3 check verifies that when locked=false, key_bits='' and key_gates=[]. 1 mutant targeted and detected. Validation report: per_requirement_coverage.FR3.covered = true.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR4 check verifies that when locked=true, key_bits is non-empty binary and key_gates is non-empty array of strings. 1 mutant targeted and detected. Validation report: per_requirement_coverage.FR4.covered = true.",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 check verifies key_gates is empty (no false key gates). 1 mutant targeted and detected. Validation report: per_requirement_coverage.SR1.covered = true.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR2 check verifies key_bits is empty (no false key recovery). 1 mutant targeted and detected. Validation report: per_requirement_coverage.SR2.covered = true.",
+      "requirement": "SR2",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

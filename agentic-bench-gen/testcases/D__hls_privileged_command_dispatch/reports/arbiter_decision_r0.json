@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden baseline run failed. The root cause is a compilation error in evaluate.py: it compiles from the project root without adding -Iinputs/ to the include path, so dispatcher.h cannot be found. This causes both the golden and vulnerable baselines to fail identically, making the benchmark unusable. Additionally, FR1 has no real check (unconditionally prints PASS), all requirements lack targeting mutants, and the metrics defined in metadata.json are never computed. The README.md leaks the exact hardening requirement, and metadata.json references CWE and information flow terminology. The primary fix is to repair evaluate.py so it compiles and runs correctly, then add proper behavioral checks for all requirements, compute the required metrics, and remove security leaks from participant-facing artifacts.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

@@ -1,0 +1,8 @@
+{
+  "trojan_present": false,
+  "suspect_gates": [],
+  "altered_net": "",
+  "affected_registers": [],
+  "trigger_condition": "",
+  "justification": "No trojan detected; netlist appears to implement standard reset behavior."
+}

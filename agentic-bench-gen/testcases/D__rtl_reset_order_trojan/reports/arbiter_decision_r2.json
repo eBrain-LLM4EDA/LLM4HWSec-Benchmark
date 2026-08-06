@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission correctly identifies the Trojan but the evaluator rejects it because the testbench fails to trigger the reset-order-dependent behavior, causing SR1 and SR2 to FAIL. The mutation score is 0.0 because no mutants exist and the baseline run fails, making the score meaningless. The primary issue is a buggy evaluation harness (tb_trigger.v and evaluate.py) that cannot observe the correct trigger condition, not a specification or artifact problem. The evaluator must be fixed to reliably simulate the trigger and grade the submitted report against the hidden ground truth behaviorally.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "c00fe45f41c156c088b1e18913c160b6d3d4ca8c2652e1138215f7ac0e2d7dd0",
+    "expert/expert_bundle.json": "e52d9b81afb6c1c81506e1f098551919391a2960c73d923c5554cd3de68be552",
+    "mutants/mutation_bundle.json": "c594516f70af134ff50743e0f5a14815997a542790481bd7739596914b7ac8bf",
+    "reports/analyzer_report.json": "f8b78a4638bf438039d45a3453b4e179511aa7a6cae8412ac68f477eb3efe3c5",
+    "reports/quality_report.json": "e255cb041b334e01abee16dbd896c9ded89a1e05afca4a26455b56cea7798722",
+    "reports/validation_report.json": "be81d0a75488378dca7b7d283a7e63cb282b7436a8df1b34439baf155920654a",
+    "spec/task_spec.json": "51d2edb3aad8a7491bd20b568e24dc847b1164f8762d8e5a883428d0416f8595",
+    "tests/tester_bundle.json": "a30cf3a3914d7b24e3e941efbe10400681f3364fbc5e73f8d1a9d70e77efd442"
+  },
+  "domain_id": "gate_trojan_detection",
+  "final_attempted_round": 1,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "quality_failed",
+  "task_id": "gate_trojan_detection_power_isolation_bypass_001"
+}

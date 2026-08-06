@@ -1,0 +1,32 @@
+{
+  "constraints": [
+    "The RTL is self-contained, under 200 lines of synthesizable SystemVerilog.",
+    "The design uses two reset inputs: core_rst_n and peri_rst_n, both active-low.",
+    "The design elaborates correctly with iverilog -g2012.",
+    "Normal simultaneous reset behavior must remain functionally correct."
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "When both core_rst_n and peri_rst_n are asserted (low) simultaneously and then de-asserted (high) simultaneously, the protected_mode output must remain low (0) at all times after reset release."
+    },
+    {
+      "id": "FR2",
+      "requirement": "When core_rst_n is asserted alone and then de-asserted, or peri_rst_n is asserted alone and then de-asserted, the protected_mode output must remain low (0) at all times after reset release."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The design must elaborate without errors using iverilog -g2012."
+    }
+  ],
+  "input_artifacts": [
+    "core_wrapper.sv",
+    "cells.lib"
+  ],
+  "interface": "The submission is a JSON report file named trojan_report.json placed in the submission/ directory. The report must follow the schema described in response_format.",
+  "objective": "Analyze the provided SystemVerilog RTL design and identify any logic that could cause the protected_mode output to assert under non-standard reset sequencing. Document your findings in a structured report.",
+  "response_format": "The trojan_report.json must be a JSON object with the following fields:\n- \"trojan_present\": boolean, true if any suspicious logic is found.\n- \"findings\": array of objects, each describing a suspicious construct. Each object must have:\n  - \"signal_name\": string, the hierarchical name of the suspicious signal or instance.\n  - \"trigger_condition\": string, a human-readable description of the condition that activates the suspicious behavior.\n  - \"payload_effect\": string, a human-readable description of what the suspicious logic does when triggered.\n  - \"confidence\": number between 0.0 and 1.0 indicating confidence that this is a Trojan.\n- \"rationale\": string, overall reasoning for the conclusions."
+}

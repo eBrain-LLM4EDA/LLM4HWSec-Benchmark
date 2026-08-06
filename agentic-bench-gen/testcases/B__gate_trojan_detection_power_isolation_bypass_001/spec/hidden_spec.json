@@ -1,0 +1,37 @@
+{
+  "acceptance_criteria": [
+    "A submission passes only if trojan_present=true, suspect_nodes contains a name matching the true bypass path, affected_outputs is exactly {public_out[0]} (no extra falsely-flagged bits), and violating_condition correctly names power_down=1 & secure_data[0]=1 as the failing case.",
+    "A submission that reports trojan_present=false, or that flags all four output bits generically without isolating bit 0, or that names only unrelated gates (e.g. only u_iso_mux) must fail.",
+    "The baseline empty/naive submission (trojan_present=false, empty suspect_nodes/affected_outputs) must fail all SR checks."
+  ],
+  "cwe_ids": [
+    "CWE-1256",
+    "CWE-1231",
+    "CWE-200",
+    "CWE-284"
+  ],
+  "ground_truth": "The netlist contains a legitimate isolation MUX (instance u_iso_mux) that correctly forces public_out[3:1] to 0 when power_down=1. However, bit 0 is routed through an extra OR2 gate (instance u_leak_or, hidden name in netlist) that computes public_out[0] = secure_data[0] OR (isolated_bit0 AND power_down)-equivalent bypass, effectively leaking secure_data[0] through public_out[0] whenever power_down=1, since OR with secure_data[0] never forces zero when secure_data[0]=1. This violates the required public_out=0 during power_down for bit 0, exposing one bit of the secure register even while nominally powered down. The correct classification is trojan_present=true, suspect_nodes must include the OR gate instance name (e.g. u_leak_or) and the bypass wire feeding it (e.g. net_bypass_bit0), affected_outputs must include 'public_out[0]' only (bits 1-3 are correctly isolated), and violating_condition should state that setting power_down=1 and secure_data[0]=1 yields public_out[0]=1 instead of the required 0.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Exhaustively simulate isolation_wrapper over all 32 (secure_data,power_down) combinations using iverilog/vvp; compare public_out against the reference isolation contract (public_out=0 when power_down=1). Any mismatch confirms trojan_present=true. Cross-check against the submitted trojan_present field.",
+      "id": "SR1",
+      "requirement": "The report must correctly flag trojan_present=true; the netlist contains an isolation bypass, and a false-negative (reporting no trojan) must fail grading."
+    },
+    {
+      "detection_strategy": "Parse affected_outputs field; require 'public_out[0]' present and reject if any of public_out[1], public_out[2], public_out[3] are also claimed as affected (false positives on correctly-isolated bits indicate imprecise/incorrect analysis).",
+      "id": "SR2",
+      "requirement": "The report must identify that only public_out[0] is compromised, not bits 1-3, distinguishing a precise finding from a vague or overbroad one."
+    },
+    {
+      "detection_strategy": "Extract the set of instance/net names appearing in inputs/isolation_wrapper_netlist.v; verify at least one reported suspect_node string exactly matches the known bypass-path instance name(s) recorded in ground_truth (e.g. u_leak_or or net_bypass_bit0), rather than matching an unrelated instance like u_iso_mux or an AND2 used elsewhere.",
+      "id": "SR3",
+      "requirement": "suspect_nodes must name at least one actual gate instance from the netlist that lies on the bypass path (the leak OR gate or its unique bypass net), not an arbitrary or unrelated gate name."
+    },
+    {
+      "detection_strategy": "Keyword/pattern check for mention of power_down=1 (or power_down asserted) together with secure_data[0]=1 (or bit 0 set) in the violating_condition string; optionally re-simulate that exact vector via vvp to confirm public_out[0]=1 is produced, substantiating the claim.",
+      "id": "SR4",
+      "requirement": "The violating_condition description must correctly characterize the failing input assignment (power_down=1 combined with secure_data[0]=1) rather than an unrelated or incorrect condition."
+    }
+  ],
+  "threat_model": "An on-chip or board-level observer with access only to the always-on public_out pin samples its value while the secure domain is asserted powered-down (power_down=1). Because bit 0 is routed through an inserted OR gate rather than the isolation MUX, the observer directly recovers secure_data[0] during shutdown, defeating the intended power-gating-based confidentiality isolation. The attacker does not need internal probe access, only the ability to toggle power_down and read public_out across the domain's normal power cycles."
+}

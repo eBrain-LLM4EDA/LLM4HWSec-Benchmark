@@ -1,0 +1,42 @@
+{
+  "acceptance_criteria": [
+    "PASS requires: verdict == 'trojan_detected'; suspect_instances contains the ground-truth instance name u_eq2 (or its build-time equivalent) and no unrelated/nonexistent instance names; cell_type_analysis for that instance reports found=XOR2 and expected=XNOR2; at least one mismatching_inputs entry is dynamically confirmed via iverilog/vvp simulation to produce a grant discrepancy versus the golden XNOR-based reference model.",
+    "FAIL if verdict == 'trojan_free', or suspect_instances is empty/wrong, or cell_type_analysis is missing/incorrect, or no mismatching_inputs entry can be dynamically verified, or referenced instance names do not exist in netlist.v.",
+    "The shipped baseline naive submission (empty suspect_instances, verdict=trojan_free, generic justification) must FAIL under this rubric."
+  ],
+  "cwe_ids": [
+    "CWE-1191",
+    "CWE-1244",
+    "CWE-670",
+    "CWE-707"
+  ],
+  "ground_truth": "Instance u_eq2 in inputs/netlist.v, which is supposed to implement bit-2 equality (id_in[2] XNOR id_auth[2]) as part of the 4-bit comparator, is instantiated as an XOR2 primitive instead of the correct XNOR2 primitive. This single-cell polarity substitution inverts the bit-2 equality term, so the comparator asserts grant=1 whenever id_in differs from id_auth only at bit index 2 (and agrees elsewhere), and it incorrectly asserts grant=0 for the true authorized identifier itself since bit 2 of a true match now evaluates to 0 instead of 1. All other instance names, net names, and the overall AND-reduction tree structure are identical between the intended and infected netlists; no gates were added or removed.",
+  "security_requirements": [
+    {
+      "detection_strategy": "evaluate.py checks that submission verdict == 'trojan_detected'.",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly classify the netlist as trojan_detected (not trojan_free); failing to detect the injected polarity fault is a security-relevant false negative."
+    },
+    {
+      "detection_strategy": "evaluate.py performs substring/set match of suspect_instances against the hidden ground-truth instance name; also cross-checks by parsing netlist.v for the XOR2/XNOR2 primitive mismatch at that instance.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify u_eq2 as a suspect instance (or the sole instance actually responsible for the discrepancy, if renamed differently in a regenerated netlist variant, evaluate.py resolves by ground-truth instance name recorded at artifact build time)."
+    },
+    {
+      "detection_strategy": "evaluate.py string-compares cell_type_analysis[u_eq2].found and .expected against the ground truth values extracted from the artifact metadata.",
+      "id": "SR3",
+      "requirement": "The report must correctly characterize the cell-type discrepancy (found=XOR2, expected=XNOR2) rather than misattributing the fault to a different gate type or a missing/extra gate."
+    },
+    {
+      "detection_strategy": "Dynamic cross-check: instantiate netlist.v standalone testbench sweeping the claimed pattern(s), compare grant against golden model computed by evaluate.py from id_auth and standard XNOR equality; require at least one exact behavioral confirmation.",
+      "id": "SR4",
+      "requirement": "At least one reported mismatching_inputs value must be verifiable: evaluate.py simulates inputs/netlist.v via iverilog/vvp for that id_in value against the fixed id_auth and confirms grant deviates from a reference XNOR-based comparator built by the harness."
+    },
+    {
+      "detection_strategy": "evaluate.py requires FR3 (valid instance name in netlist.v) and SR2/SR3/SR4 evidence to all agree before granting a PASS verdict; the shipped baseline naive submission (verdict=trojan_free, empty suspect_instances) is used as a canary that must FAIL.",
+      "id": "SR5",
+      "requirement": "A report that flags trojan_detected purely by naive guessing without any correct instance/cell-type/input evidence (e.g., empty or placeholder fields, or fields referencing nonexistent instances) must fail, ensuring shallow/naive submissions do not pass."
+    }
+  ],
+  "threat_model": "A malicious foundry, ECO patch, or compromised synthesis/liberty-mapping step silently swaps the library cell bound to one instance (XNOR2 -> XOR2) without altering the netlist's instance count, net count, or connectivity graph, so the trojan is invisible to structural diffing, area/timing checks, and equivalence checks that only inspect topology rather than gate function. The attacker's goal is to let a small set of unauthorized identifiers (those matching the authorized ID except at bit 2) pass the permission check."
+}

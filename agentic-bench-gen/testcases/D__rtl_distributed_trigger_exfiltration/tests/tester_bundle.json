@@ -1,0 +1,101 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for RTL Trojan Detection\n\n## Directory Layout\n\n```\nevaluation/\n\u251c\u2500\u2500 README.md              # This file\n\u251c\u2500\u2500 evaluate.py            # Main grading script (entry point)\n\u2514\u2500\u2500 private/\n    \u2514\u2500\u2500 ground_truth.py    # Hidden ground truth constants (not shipped to participants)\n```\n\n## Submission Contract\n\nThis task follows the **analysis_report** submission contract:\n\n- Participants do **not** modify the input RTL files (`inputs/top.v`, `inputs/counter.v`, `inputs/command_decoder.v`, `inputs/error_handler.v`).\n- Participants submit a single answer file: `submission/trojan_report.json`.\n- The answer file must be valid JSON conforming to the schema described in the task specification.\n\n## Grading Contract\n\nThis task follows the **report_grading** evaluation contract:\n\n- `evaluate.py` reads the submitted `submission/trojan_report.json` and grades its content against the hidden ground truth.\n- The input RTL artifacts under `inputs/` are available for reference (e.g., optional cross-checks), but the PASS/FAIL verdicts are based solely on the submitted report.\n- The script emits standardized `[TEST] PASS: <id>` or `[TEST] FAIL: <id>: <reason>` markers for each requirement.\n- Exit code **0** indicates all requirements passed (correct submission).\n- Exit code **non-zero** indicates at least one requirement failed (baseline or incorrect submission).\n\n## Toolchain\n\nThe following tools are available in the evaluation environment and may be used by `evaluate.py` for optional cross-checks on the input artifacts:\n\n- `iverilog` \u2013 Verilog compiler (supports `-g2012`)\n- `vvp` \u2013 Verilog simulation runtime\n- `yosys` \u2013 RTL synthesis and analysis framework\n\n## Requirements Checked\n\nThe harness checks all functional requirements (FR1\u2013FR3) and all security requirements (SR1\u2013SR5) as defined in the task specification. The private ground truth module contains the expected trigger signals, payload description keywords, and confidence thresholds used for substantive grading.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"evaluate.py \u2013 grades submission/trojan_report.json against hidden ground truth.\"\"\"\n\nimport json\nimport os\nimport sys\n\n# ---------------------------------------------------------------------------\n# Private ground truth (imported from evaluation/private/ground_truth.py)\n# ---------------------------------------------------------------------------\nsys.path.insert(0, os.path.join(os.path.dirname(__file__), \"private\"))\nfrom ground_truth import (\n    EXPECTED_TRIGGER_SIGNALS,\n    EXPECTED_PAYLOAD_KEYWORDS,\n    MIN_CONFIDENCE,\n    EXPECTED_TROJAN_DETECTED,\n)\n\n# ---------------------------------------------------------------------------\n# Helpers\n# ---------------------------------------------------------------------------\ndef emit(ok: bool, req_id: str, reason: str = \"\") -> None:\n    \"\"\"Print a standardised PASS/FAIL line.\"\"\"\n    if ok:\n        print(f\"[TEST] PASS: {req_id}\")\n    else:\n        print(f\"[TEST] FAIL: {req_id}: {reason}\")\n\ndef load_submission(path: str):\n    \"\"\"Return the parsed JSON object or None on failure.\"\"\"\n    if not os.path.isfile(path):\n        emit(False, \"FR1\", f\"submission file not found: {path}\")\n        return None\n    try:\n        with open(path, \"r\", encoding=\"utf-8\") as fh:\n            data = json.load(fh)\n    except (json.JSONDecodeError, UnicodeDecodeError) as exc:\n        emit(False, \"FR1\", f\"invalid JSON: {exc}\")\n        return None\n    return data\n\n# ---------------------------------------------------------------------------\n# Main\n# ---------------------------------------------------------------------------\ndef main() -> int:\n    submission_path = os.path.join(\"submission\", \"trojan_report.json\")\n    report = load_submission(submission_path)\n\n    # FR1 \u2013 valid JSON (already checked during load)\n    if report is not None:\n        emit(True, \"FR1\")\n    else:\n        # FR1 already emitted FAIL; we cannot continue with the other checks\n        # because they all depend on a valid report.\n        # Emit FAIL for every remaining requirement and exit.\n        for rid in (\"FR2\", \"FR3\", \"SR1\", \"SR2\", \"SR3\", \"SR4\", \"SR5\"):\n            emit(False, rid, \"cannot grade \u2013 report not valid JSON\")\n        return 1\n\n    # FR2 \u2013 top-level fields and types\n    fr2_ok = True\n    if not isinstance(report.get(\"trojan_detected\"), bool):\n        emit(False, \"FR2\", \"missing or non-boolean 'trojan_detected'\")\n        fr2_ok = False\n    if not isinstance(report.get(\"findings\"), list):\n        emit(False, \"FR2\", \"missing or non-array 'findings'\")\n        fr2_ok = False\n    if not isinstance(report.get(\"overall_confidence\"), (int, float)):\n        emit(False, \"FR2\", \"missing or non-numeric 'overall_confidence'\")\n        fr2_ok = False\n    if fr2_ok:\n        emit(True, \"FR2\")\n\n    # FR3 \u2013 each finding must have module (str), signal (str), rationale (str), confidence (number)\n    findings = report.get(\"findings\", [])\n    fr3_ok = True\n    for idx, finding in enumerate(findings):\n        if not isinstance(finding, dict):\n            emit(False, \"FR3\", f\"finding[{idx}] is not an object\")\n            fr3_ok = False\n            continue\n        for field in (\"module\", \"signal\", \"rationale\"):\n            if not isinstance(finding.get(field), str):\n                emit(False, \"FR3\", f\"finding[{idx}] missing or non-string '{field}'\")\n                fr3_ok = False\n        if not isinstance(finding.get(\"confidence\"), (int, float)):\n            emit(False, \"FR3\", f\"finding[{idx}] missing or non-numeric 'confidence'\")\n            fr3_ok = False\n    if fr3_ok:\n        emit(True, \"FR3\")\n\n    # -----------------------------------------------------------------------\n    # Security requirements \u2013 substantive checks against ground truth\n    # -----------------------------------------------------------------------\n    # Helper: check if a finding matches a given module and signal name.\n    def finding_matches(finding, module, signal):\n        return (finding.get(\"module\", \"\").strip().lower() == module.lower() and\n                finding.get(\"signal\", \"\").strip().lower() == signal.lower())\n\n    # SR1 \u2013 counter_terminal in counter.v\n    sr1_ok = any(finding_matches(f, \"counter\", \"counter_terminal\") for f in findings)\n    emit(sr1_ok, \"SR1\", \"counter_terminal not identified in counter.v\")\n\n    # SR2 \u2013 command_match in command_decoder.v\n    sr2_ok = any(finding_matches(f, \"command_decoder\", \"command_match\") for f in findings)\n    emit(sr2_ok, \"SR2\", \"command_match not identified in command_decoder.v\")\n\n    # SR3 \u2013 sticky_error in error_handler.v\n    sr3_ok = any(finding_matches(f, \"error_handler\", \"sticky_error\") for f in findings)\n    emit(sr3_ok, \"SR3\", \"sticky_error not identified in error_handler.v\")\n\n    # SR4 \u2013 payload mux in top.v (multiplexer / conditional assignment driving secret_reg[0] to status_out)\n    sr4_ok = False\n    for f in findings:\n        if f.get(\"module\", \"\").strip().lower() != \"top\":\n            continue\n        rationale = f.get(\"rationale\", \"\").lower()\n        # Check for presence of payload-related keywords\n        if any(kw in rationale for kw in EXPECTED_PAYLOAD_KEYWORDS):\n            sr4_ok = True\n            break\n    emit(sr4_ok, \"SR4\", \"payload mux (secret_reg[0] -> status_out) not described in top.v\")\n\n    # SR5 \u2013 trojan_detected == true and overall_confidence >= threshold\n    sr5_ok = (report.get(\"trojan_detected\") is True and\n              report.get(\"overall_confidence\", 0) >= MIN_CONFIDENCE)\n    emit(sr5_ok, \"SR5\", \"trojan_detected must be true and overall_confidence >= 0.7\")\n\n    # -----------------------------------------------------------------------\n    # Determine exit code\n    # -----------------------------------------------------------------------\n    # Collect all emitted lines to decide exit code (any FAIL -> non-zero)\n    # We re-read stdout? Simpler: track failures manually.\n    # We'll just check the boolean flags we already have.\n    all_ok = (fr2_ok and fr3_ok and sr1_ok and sr2_ok and sr3_ok and sr4_ok and sr5_ok)\n    # FR1 is already handled \u2013 if we got here it passed.\n    return 0 if all_ok else 1\n\nif __name__ == \"__main__\":\n    sys.exit(main())",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# Hidden ground truth constants for the RTL Trojan detection task.\n# This file is NOT shipped to participants.\n\n# Expected trigger signals: (module_name, signal_name)\nEXPECTED_TRIGGER_SIGNALS = [\n    (\"counter\", \"counter_terminal\"),\n    (\"command_decoder\", \"command_match\"),\n    (\"error_handler\", \"sticky_error\"),\n]\n\n# Keywords that must appear in the rationale of the payload finding (top.v)\nEXPECTED_PAYLOAD_KEYWORDS = [\n    \"secret_reg[0]\",\n    \"status_out\",\n    \"multiplexer\",\n    \"mux\",\n    \"conditional\",\n    \"select\",\n    \"leak\",\n    \"exfiltrat\",\n]\n\n# Minimum overall confidence required for SR5\nMIN_CONFIDENCE = 0.7\n\n# Expected value of trojan_detected for a correct submission\nEXPECTED_TROJAN_DETECTED = True",
+      "path": "evaluation/private/ground_truth.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the directory layout, the role of evaluate.py as the single entry point, the submission contract (analysis_report: submission/trojan_report.json), and the grading contract (report_grading). List the toolchain (iverilog, vvp, yosys) and note that evaluate.py exits 0 on a correct submission and non-zero on the baseline."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading script. Reads submission/trojan_report.json and grades it against the hidden ground truth. Implements all FR checks (valid JSON, required fields, correct types) and all SR checks (substantive correctness of findings: counter_terminal in counter.v, command_match in command_decoder.v, sticky_error in error_handler.v, payload mux in top.v, trojan_detected=true, overall_confidence>=0.7). Emits [TEST] PASS/FAIL markers per requirement_map. Exits 0 on all-pass, non-zero on any failure. Must fail the naive baseline submission (empty or wrong findings)."
+    },
+    {
+      "path": "evaluation/private/ground_truth.py",
+      "purpose": "Private module containing the hidden ground truth constants: expected trigger signals per module, expected payload description keywords, minimum confidence threshold, and the expected trojan_detected value. Imported by evaluate.py. Must NOT be shipped to participants."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "FAIL on baseline if submission/trojan_report.json is missing or not valid JSON; PASS when the file is valid parseable JSON.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if top-level fields trojan_detected (boolean), findings (array), overall_confidence (number) are missing or have wrong types; PASS when all three are present with correct types.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if any entry in findings array lacks module (string), signal (string), rationale (string), or confidence (number) fields or has wrong types; PASS when every finding has all four fields with correct types.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline because the naive report does not identify counter_terminal in counter.v as a trigger fragment; PASS when a finding lists module='counter', signal='counter_terminal' with a rationale mentioning trigger condition.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline because the naive report does not identify command_match in command_decoder.v; PASS when a finding lists module='command_decoder', signal='command_match' with trigger rationale.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline because the naive report does not identify sticky_error in error_handler.v; PASS when a finding lists module='error_handler', signal='sticky_error' with trigger rationale.",
+      "requirement_id": "SR3",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline because the naive report does not describe the payload mux selecting secret_reg[0] onto status_out in top.v; PASS when a finding in module='top' describes a multiplexer or conditional assignment driving secret_reg[0] to status_out based on combined trigger signals.",
+      "requirement_id": "SR4",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline because trojan_detected is false or overall_confidence is below 0.7; PASS when trojan_detected is true and overall_confidence >= 0.7.",
+      "requirement_id": "SR5",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    }
+  ]
+}

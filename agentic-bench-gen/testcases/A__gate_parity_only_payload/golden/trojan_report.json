@@ -1,0 +1,7 @@
+{
+  "label": "Trojan",
+  "suspect_nodes": [
+    "u_payload_and",
+    "u_xnor0"
+  ]
+}

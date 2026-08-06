@@ -1,0 +1,12 @@
+{
+  "trojan_present": true,
+  "findings": [
+    {
+      "signal_name": "protected_mode",
+      "trigger_condition": "Releasing peri_rst_n exactly two clock cycles before core_rst_n sets a sticky trigger bit.",
+      "payload_effect": "Forces protected_mode high and holds it high until both resets are asserted simultaneously again.",
+      "confidence": 1.0
+    }
+  ],
+  "rationale": "The design contains a reset-order-dependent Trojan. When peri_rst_n is released two clock cycles before core_rst_n, a sticky trigger bit is set. This trigger forces the protected_mode output high, granting an undocumented privileged mode. The protected_mode remains high even after normal operation resumes, and can only be cleared by asserting both resets simultaneously. This behavior violates the functional requirement that protected_mode must remain low under all reset sequences, and matches the hidden security requirement for a reset-order-triggered privilege escalation Trojan."
+}

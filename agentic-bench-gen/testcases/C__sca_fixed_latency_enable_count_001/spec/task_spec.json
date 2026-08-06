@@ -1,0 +1,95 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "Naive baseline: submission/vulnerability_report.json declares the design secure because done latency is constant, provides no per-operand activity_analysis, and recommends only adding random delay after done -- fails FR3, SR1, SR2, and SR3."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of analyzed secret_operand trials for which the report's enable_count correctly equals popcount(secret_operand) as verified against inputs/traces.csv (and optionally via iverilog/vvp simulation of mult_ctrl.v).",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Proportion of required report fields and distinct secret_operand values (>=16 per FR3) correctly populated and cross-checked, measuring completeness of the activity analysis relative to the full trace manifest.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Fraction of submitted hardening_recommendations that specifically target switching-activity equalization (per SR3) rather than ineffective timing-only countermeasures, out of all recommendations submitted.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "FR1-FR4 all pass on the submitted JSON structure and field-level numeric checks against inputs/traces.csv.",
+      "SR1 passes: reported enable_count values match popcount(secret_operand) for all analyzed trials (cross-checked against traces.csv and, optionally, via iverilog/vvp simulation of inputs/mult_ctrl.v).",
+      "SR2 passes: report explicitly states constant latency does not prevent leakage.",
+      "SR3 passes: at least one hardening recommendation addresses activity equalization rather than only delay/timing obfuscation.",
+      "The baseline empty/naive submission (e.g., report claiming 'no vulnerability, latency is constant' with no activity_analysis) fails FR3, SR1, and SR2."
+    ],
+    "cwe_ids": [],
+    "ground_truth": "mult_ctrl always asserts done exactly 8 cycles after start (constant, secret-independent latency), satisfying naive timing-based constant-time expectations. However, mul_en is asserted on cycle k (1<=k<=8) if and only if bit (8-k) of secret_operand is 1, meaning the total number of cycles with mul_en=1 during a transaction equals popcount(secret_operand) -- the Hamming weight of the secret byte. An observer monitoring switching activity (e.g. power consumption correlated with mul_en-gated accumulator toggling) during the fixed 8-cycle window can count active cycles and directly recover the Hamming weight of secret_operand, leaking ~3 bits of information per byte despite constant timing. A correct hardening recommendation must equalize the number of active (switching) cycles regardless of operand value -- e.g., by making mul_en assert unconditionally every cycle and instead gating the accumulator's *value update* internally with data-independent dummy operations for zero bits, or by using a constant-Hamming-weight encoding of intermediate control signals -- rather than simply padding or delaying the done signal, which does nothing to hide the enable_count leakage.",
+    "security_requirements": [
+      {
+        "detection_strategy": "For each entry in activity_analysis, check that enable_count == hamming_weight (popcount of the secret_operand field) and that hamming_weight itself is computed correctly from the operand's bit pattern; flag reports that only discuss done/product timing without connecting mul_en activity to the operand's bit pattern.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that mul_en assertion count (enable_count) equals the Hamming weight (popcount) of secret_operand for every analyzed trial, not just note constant done timing."
+      },
+      {
+        "detection_strategy": "Scan 'summary' and 'timing_analysis' free text (case-insensitive keyword and semantic check) for an explicit statement that latency being constant is insufficient / does not eliminate leakage; a report claiming the design is secure solely because latency is fixed should fail this SR.",
+        "id": "SR2",
+        "requirement": "The report must explicitly recognize that constant done latency alone does NOT prevent side-channel leakage, since mul_en activity varies with the secret."
+      },
+      {
+        "detection_strategy": "Inspect each string in hardening_recommendations for keywords/semantics indicating activity-equalization (dummy operations, always-toggle enable, masking, constant Hamming-weight encoding) versus keywords indicating only timing-delay countermeasures (random delay, extra wait cycles after done, latency jitter); require at least one recommendation of the former type and penalize/fail reports whose only recommendations are of the latter type.",
+        "id": "SR3",
+        "requirement": "Hardening recommendations must target equalizing per-cycle switching/enable activity (e.g., unconditional mul_en assertion with internally masked/dummy updates, constant-weight recoding) rather than only proposing to add delay, randomize done timing, or insert no-op wait states after done."
+      }
+    ],
+    "threat_model": "A power/EM side-channel observer monitors switching activity of the design during each fixed-duration 8-cycle multiplication transaction. The observer cannot see internal signals directly but can count high-activity cycles (correlated with mul_en toggling the accumulator) within the known-length window. Because latency is constant, timing-only countermeasures are insufficient; the observer directly recovers popcount(secret_operand), the Hamming weight of the secret operand, cycle-by-cycle, without needing thousands of traces -- a single transaction leaks the weight with high confidence via simple activity counting."
+  },
+  "public_spec": {
+    "constraints": [
+      "The controller mult_ctrl is a fixed 8-cycle Moore-output FSM: done and product timing must never vary regardless of secret_operand value.",
+      "mul_en is driven combinationally from FSM state and secret_operand bit inspection logic; it is asserted on a given cycle only when the corresponding secret_operand bit position (scanned MSB-first over cycles 1..8) is set.",
+      "traces.csv contains complete per-cycle records for 64 distinct secret_operand values (0x00 through a representative sample up to 0xFF) with public_operand fixed at a constant value across all trials, sufficient to compute enable_count per operand without needing to run simulation.",
+      "Participants must not edit any file under inputs/; only submission/vulnerability_report.json is graded."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON with top-level string/array fields: 'summary' (string), 'timing_analysis' (object with fields 'observed_latency_cycles' (integer) and 'latency_is_constant' (boolean)), 'activity_analysis' (array of objects, one per distinct secret_operand value analyzed, each with fields 'secret_operand' (hex string, e.g. '0x3F'), 'enable_count' (integer count of cycles mul_en=1 observed for that operand in the trace), and 'hamming_weight' (integer, popcount of the operand)), and 'hardening_recommendations' (array of strings)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must state the exact measured value of 'observed_latency_cycles' as 8 and set 'latency_is_constant' to true, consistent with cross-checking inputs/traces.csv, where every trial's done assertion occurs exactly 8 cycles after its start."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The 'activity_analysis' array must cover at least 16 distinct secret_operand values drawn from inputs/traces.csv, and for each entry the reported 'enable_count' must exactly match the count of mul_en=1 rows for that secret_operand in inputs/traces.csv (tolerance: 0, exact integer match)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "Each entry in 'hardening_recommendations' must be a non-empty string; the array must contain at least 2 entries describing concrete circuit-level modifications (e.g., dummy-cycle insertion, constant-weight recoding, always-on enable with masked accumulation) rather than purely statistical or software-level countermeasures."
+      }
+    ],
+    "input_artifacts": [
+      "mult_ctrl.v",
+      "fault_model.md",
+      "trace_manifest.json",
+      "traces.csv",
+      "design_brief.md"
+    ],
+    "interface": "Module under analysis: mult_ctrl (file inputs/mult_ctrl.v). Ports: input clk, input rst_n (active-low synchronous reset), input start (pulse, 1 cycle, begins a transaction), input [7:0] secret_operand (the multiplicand under analysis; treat as the sensitive input), input [7:0] public_operand (multiplier, non-sensitive), output done (Moore output, asserted for exactly 1 cycle, exactly 8 clock cycles after the cycle in which start was sampled high while idle), output [15:0] product (valid and held the cycle done is asserted, until the next start), output mul_en (Mealy output driven by the internal controller FSM; may toggle every cycle of the 8-cycle transaction). Reset: while rst_n=0, done=0, mul_en=0, product=0 on the next clock edge and the controller returns to IDLE. The traces in inputs/traces.csv are per-cycle vectors of {trial_id, secret_operand (hex byte), cycle_index (0..9 relative to start), mul_en, done} produced by simulating this exact module for 64 different secret_operand values with public_operand held constant. Participants submit ONLY the answer file submission/vulnerability_report.json; inputs/ files are read-only reference material and must not be modified.",
+    "objective": "Analyze the provided 8-cycle multiplier controller RTL and its accompanying power-proxy activity traces to characterize the relationship between the controller's internal enable-signal activity and the operand values used across the recorded trace set. Produce a written vulnerability_report.json documenting per-trace enable-activity statistics, the observed relationship between activity counts and operand bit patterns, and concrete hardening recommendations that make per-cycle switching activity uniform across all operand values (not merely uniform completion timing).",
+    "response_format": "A single JSON file at submission/vulnerability_report.json containing exactly the top-level fields described in FR1, with no additional wrapping or markdown."
+  },
+  "task_id": "sca_fixed_latency_enable_count_001",
+  "title": "Fixed-Latency Multiplier Controller: Activity Trace Analysis"
+}

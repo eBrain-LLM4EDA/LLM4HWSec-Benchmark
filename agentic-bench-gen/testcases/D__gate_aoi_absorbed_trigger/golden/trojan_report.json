@@ -1,0 +1,15 @@
+{
+  "trigger_cells": [
+    "aoi21_trigger",
+    "oai22_trigger"
+  ],
+  "trigger_nets": [
+    "trigger_internal"
+  ],
+  "payload_cells": [
+    "xor_payload"
+  ],
+  "payload_nets": [
+    "trigger_to_xor"
+  ]
+}

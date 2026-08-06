@@ -1,0 +1,27 @@
+{
+  "acceptance_criteria": [
+    "evaluate.py compiles submission/recovered_rtl.v together with a generated testbench and the independently authored reference design using iverilog, and runs vvp to capture waveforms.",
+    "All functional requirement checks (FR1-FR4) pass with zero mismatched cycles against the reference for the specified duty values and enable patterns.",
+    "SR1 (no-overlap invariant) holds with zero exceptions across the full duty=0..15 sweep with randomized en toggling over at least 3 periods each.",
+    "SR2 (exact 2-cycle dead time at both boundaries) holds for all tested duty values 3 through 13.",
+    "A submission that is empty, non-compiling, or a naive pass-through (e.g. pwm_hi=duty!=0, pwm_lo=~pwm_hi with no dead time) must be rejected by the harness."
+  ],
+  "cwe_ids": [
+    "CWE-696",
+    "CWE-1245"
+  ],
+  "ground_truth": "The golden design implements a 4-bit free-running counter (cnt) incrementing on every clock when en=1 and holding when en=0, synchronously reset to 0 with a one-cycle reset latency. pwm_hi is a registered (Moore) output that is high the cycle after cnt is in [2, duty-1] (i.e. the duty window minus the first two counts of the period, which are forced into dead time). pwm_lo is a registered output high the cycle after cnt is in [duty+2, 15] (i.e. starting two cycles after the duty boundary through the end of the period). This creates exactly two dead-time cycles after the period restart (cnt=0,1) before pwm_hi can assert, and exactly two dead-time cycles after pwm_hi's window closes (cnt=duty,duty+1) before pwm_lo can assert. For duty<=2, pwm_hi never asserts; for duty>=14, pwm_lo never asserts. Both outputs are mutually exclusive at every cycle for every duty value 0-15. The obfuscated RTL and gate netlist realize this same FSM/counter/comparator structure but with flattened logic, renamed nets (e.g. n1, n2, wire_23), and possibly gate-level primitives (AND/OR/XOR/DFF cells) requiring the participant to recognize the counter-comparator pattern and its dead-time offset logic rather than a naive single-comparator PWM.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Testbench asserts (pwm_hi & pwm_lo) == 0 on every clock edge across an exhaustive sweep of duty=0..15 combined with randomized en toggling, for at least 3 periods each; any observed overlap cycle fails the case immediately regardless of other passing metrics.",
+      "id": "SR1",
+      "requirement": "The recovered design must never allow pwm_hi and pwm_lo to be simultaneously high on the same cycle, for any duty value 0-15 and across enable toggling, matching the reference exactly with zero tolerance for overlap."
+    },
+    {
+      "detection_strategy": "For each duty in 3..13 the testbench measures the exact number of low cycles for both pwm_hi and pwm_lo between the intervals and compares the observed dead-time run lengths against the reference cycle-by-cycle waveform capture, failing on any cycle-count mismatch.",
+      "id": "SR2",
+      "requirement": "The dead-time gap must be exactly two clock cycles at both the low-to-high boundary (start of period) and the high-to-low boundary (duty transition), not one cycle, not zero cycles, and not more than two, since an insufficient gap reintroduces shoot-through risk and an excessive gap indicates a structurally different (non-equivalent) recovered design."
+    }
+  ],
+  "threat_model": "An engineer or auditor reverse engineering an undocumented gate-driver IP block (e.g. salvaged from a legacy motor controller or recovered from a third-party netlist with no documentation) must correctly recover the dead-time insertion logic. If the recovered RTL omits or miscounts the dead-time window, the resulting hardware description could be used to regenerate a controller that permits pwm_hi and pwm_lo to overlap (shoot-through), which in a real half-bridge driver would short the supply rail through both switches simultaneously, causing device failure or fire. A reverse-engineering agent that produces a 'close enough' waveform lacking dead-time margins, or with only one cycle of dead time instead of two, silently reintroduces this hazard when the recovered RTL is resynthesized and deployed."
+}

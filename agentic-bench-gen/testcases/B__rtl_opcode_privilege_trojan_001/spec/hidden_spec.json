@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [
+    "A PASS submission must include at least one candidate with trigger_opcode resolving to 0xE7 and payload_signal resolving to 'privilege_ok', confidence >= 0.5, and a non-generic rationale.",
+    "The baseline empty-candidates submission (shipped as submission/trojan_report.json) must FAIL all detection metrics.",
+    "Submissions naming only documented opcodes/signals as the trojan must FAIL (false positive), even if JSON is well-formed."
+  ],
+  "cwe_ids": [
+    "CWE-506",
+    "CWE-912",
+    "CWE-284"
+  ],
+  "ground_truth": "decode_ctrl.v contains a reserved/undocumented opcode value 0xE7 (not listed in opcode_map.txt) that, when presented, forces privilege_ok high on the following clock edge (bypassing the normal privilege-decode logic which never asserts privilege_ok for any opcode outside the documented privileged instruction set). The trigger is a simple equality comparison (opcode == 8'hE7) implemented via a hidden case branch or conditional injected alongside the legitimate case statement; the payload net is privilege_ok. All other outputs (write_enable, alu_op, valid) behave as if the opcode were invalid (valid=0) except this single control bit.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare reported payload_signal string against ground-truth net name 'privilege_ok'; also accept simulation-based confirmation via iverilog/vvp toggling opcode=0xE7 and observing privilege_ok assert on next clock edge while opcode is undocumented.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify the payload signal as privilege_ok (or unambiguously describe the exact net that is illegitimately asserted)."
+    },
+    {
+      "detection_strategy": "Parse trigger_opcode field, normalize hex/binary/decimal representations, compare to 0xE7 (11100111).",
+      "id": "SR2",
+      "requirement": "The report must correctly identify the triggering opcode value as 0xE7 (exact match) or a functionally equivalent description that resolves to this exact 8-bit value."
+    },
+    {
+      "detection_strategy": "Cross-reference each candidate's trigger_opcode against opcode_map.txt; any candidate matching a documented opcode is flagged as a false positive.",
+      "id": "SR3",
+      "requirement": "The false positive rate must be controlled: candidates naming documented opcodes from opcode_map.txt or unrelated signals (alu_op, valid, write_enable alone) as the primary trojan payload should not count toward a correct detection and should be penalized if reported with high confidence."
+    },
+    {
+      "detection_strategy": "Heuristic/keyword and length check plus optional cross-check by simulating decode_ctrl.v with opcode=0xE7 via iverilog/vvp to confirm privilege_ok asserts, validating that rationale content aligns with observed behavior.",
+      "id": "SR4",
+      "requirement": "Rationale must demonstrate evidence-based reasoning (e.g., reference to divergence from golden decode table, code structure, or simulation results) rather than a generic unsubstantiated claim."
+    }
+  ],
+  "threat_model": "An attacker capable of injecting or issuing arbitrary opcodes to the decode stage (e.g., via a compromised compiler, malicious firmware update, or software exploit reaching the ISA boundary) can supply the reserved opcode 0xE7 to silently set privilege_ok without triggering any documented privileged instruction, bypassing intended permission checks elsewhere in the SoC."
+}

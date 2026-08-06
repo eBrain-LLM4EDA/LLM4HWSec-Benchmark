@@ -1,0 +1,70 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/recovered_key.json) because the net-name extraction logic in extract_net_names() fails to recognize hierarchical net names like 'lock_comp/xor_0' as valid nets present in locked_netlist.v. This causes FR3 to fail for the correct answer, making the benchmark unusable.",
+      "evidence": "Golden run stdout: '[TEST] PASS: FR1\\n[TEST] PASS: FR2\\n[TEST] FAIL: FR3: net 'lock_comp/xor_0' not found in locked_netlist.v\\n[TEST] PASS: SR1\\n[TEST] PASS: SR2'. The golden submission contains the correct key '101101' and the correct hierarchical net names, but the evaluator's regex-based net extraction does not capture hierarchical paths.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator's net-name validation for FR3 is overly strict and buggy. It attempts to parse hierarchical net names from the netlist but the regex logic is incomplete, causing all hierarchical names (which are the expected format for key_gate_nets) to be rejected. This makes it impossible for any participant to pass FR3 with the correct answer.",
+      "evidence": "The extract_net_names function uses patterns like 'wire\\\\s+(?:\\\\[\\\\d+:\\\\d+\\\\]\\\\s+)?(\\\\w+)\\\\s*;' which only captures simple wire names, not hierarchical paths. The instance port connection logic adds 'lock_comp/xor_0' style names but the regex for port connections is fragile and fails to match the actual netlist syntax.",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/oracle_vectors.json",
+      "description": "The oracle vectors file contains only 8 vectors with inputs like '00', '11', ..., '77' which are 2-character hex strings. However, the netlist expects two 4-bit operands (a[3:0] and b[3:0]), requiring 8-bit inputs. The oracle vectors appear to be underspecified or incorrectly formatted for the actual circuit interface.",
+      "evidence": "Oracle vectors show 'input': '00', 'output': '00' but the netlist has inputs a[3:0] and b[3:0] (8 bits total). A 2-character hex string represents only 8 bits if interpreted as one byte, but the mapping to a and b operands is ambiguous. The README says '8-bit hex string representing the two 4-bit adder operands concatenated' but '00' is only 2 hex digits = 8 bits, which is correct but the values chosen (00, 11, 22, ..., 77) represent a=b for each vector, which may not include the protected pattern clearly.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator imports ground_truth from evaluation/private/ground_truth.py but the import path manipulation (sys.path.insert) is fragile and assumes the script is run from a specific working directory. This could cause import failures in some execution environments.",
+      "evidence": "Code: 'sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'private'))' followed by 'from ground_truth import CORRECT_KEY, GROUND_TRUTH_NETS'. This works only if __file__ is defined and the relative path is correct.",
+      "severity": "low"
+    },
+    {
+      "artifact": "submission/recovered_key.json",
+      "description": "The shipped baseline submission contains an empty key and empty net list, which correctly fails the evaluation. However, the validation report shows that the vulnerable run fails FR2, SR1, and SR2 but passes FR3. This is inconsistent because an empty array should pass FR3 (no invalid nets to check), but the golden solution with correct hierarchical nets fails FR3. This confirms the evaluator bug.",
+      "evidence": "Vulnerable run stdout: '[TEST] PASS: FR1\\n[TEST] FAIL: FR2...\\n[TEST] PASS: FR3\\n[TEST] FAIL: SR1...\\n[TEST] FAIL: SR2...'. Golden run fails FR3.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the extract_net_names() function in evaluate.py to correctly parse hierarchical net names from the structural Verilog netlist. The function should recognize nets declared inside submodules and referenced with instance paths (e.g., 'lock_comp/xor_0'). Consider using a simple approach: accept any string as a valid net name if it appears anywhere in the netlist file as a declared wire or as part of a module instance hierarchy, or simply skip FR3 validation of net names against the netlist and instead only check that key_gate_nets is an array of non-empty strings.",
+    "Clarify the oracle_vectors.json format. Ensure the input field is an 8-bit hex string (2 hex digits) representing {a[3:0], b[3:0]} concatenated, and that the vectors include at least one vector where the input matches the hidden key (causing output corruption) and several where it does not. Document the exact bit mapping.",
+    "Add a golden submission file (golden/recovered_key.json) that contains the correct key and net names, and verify that evaluate.py exits with code 0 when grading it. This should be part of the preflight validation.",
+    "Consider making the net-name validation for FR3 more lenient: instead of parsing the netlist to build a set of valid nets, simply verify that each string in key_gate_nets is a non-empty string. The security requirement SR2 already checks that the submitted nets contain the ground-truth nets, so FR3 can be simplified to type-checking.",
+    "Fix the import path in evaluate.py to be more robust, or use absolute imports with proper package structure."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and vulnerable runs pass FR1. The evaluator correctly parses valid JSON and rejects invalid JSON.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes FR2 with key '101101'. Vulnerable run fails FR2 with empty key. The check for non-empty string of '0' and '1' works correctly.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails FR3 because the evaluator cannot validate hierarchical net names like 'lock_comp/xor_0' against the netlist. The net-name extraction logic is buggy and rejects valid hierarchical names that are present in the netlist.",
+      "requirement": "FR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run passes SR1 with correct key '101101'. Vulnerable run fails SR1 with empty key. Exact string comparison against ground truth works correctly.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes SR2 because FR3 failure does not prevent SR2 from executing (the submitted nets are still checked against ground truth). Vulnerable run fails SR2 with empty array. The superset check works correctly.",
+      "requirement": "SR2",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,5 @@
+{
+  "locked": true,
+  "key_bits": "10101010",
+  "key_gates": ["xor_gate_1", "mux_sel_0"]
+}

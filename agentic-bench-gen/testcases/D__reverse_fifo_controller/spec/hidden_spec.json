@@ -1,0 +1,17 @@
+{
+  "acceptance_criteria": [
+    "Cycle-accurate simulation matches the reference FIFO model for all sequences of writes, reads, simultaneous operations, overflow attempts, and underflow attempts over 1000 cycles.",
+    "The submitted module compiles with iverilog without errors.",
+    "The submitted module synthesizes with yosys without errors."
+  ],
+  "cwe_ids": [],
+  "ground_truth": "The design is a depth-4, width-8 FIFO with two-bit write and read pointers, a 3-bit occupancy counter, and registered read data output. Full flag is occupancy == 4, empty flag is occupancy == 0. Write increments write pointer and occupancy when write_en and not full. Read increments read pointer and decrements occupancy when read_en and not empty. read_data is the output of a register that samples the RAM output at the read pointer address.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Requirement-level private harness.",
+      "id": "SR1",
+      "requirement": "The submitted artifact satisfies the hidden domain-specific security property."
+    }
+  ],
+  "threat_model": "Flattening hides storage boundaries and timing semantics needed to integrate or audit an undocumented queue."
+}

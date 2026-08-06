@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import tempfile
+import hashlib
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -122,7 +123,7 @@ def validate_benchmark_case(
     if not task_spec.get("public_spec", {}).get("input_artifacts"):
         issues.append({"issue": "missing_input_artifacts", "path": "spec/task_spec.json"})
     else:
-        _valid_exts = {".cpp", ".c", ".h", ".v", ".sv", ".json", ".md", ".txt", ".tcl", ".yaml", ".py", ".vhd"}
+        _valid_exts = {".cpp", ".c", ".h", ".v", ".sv", ".json", ".md", ".txt", ".tcl", ".yaml", ".py", ".vhd", ".lib"}
         for entry in task_spec.get("public_spec", {}).get("input_artifacts", []):
             entry_str = str(entry)
             has_ext = any(entry_str.endswith(ext) for ext in _valid_exts)
@@ -282,8 +283,14 @@ def validate_benchmark_case(
     coverage_score = _estimate_requirement_coverage(req_ids, mapped_ids)
     dms: dict[str, Any] = {}
     differential: dict[str, Any] = {}
+    submission_invariants: dict[str, Any] = {}
+    mutation_blocked = bool((mutation_bundle or {}).get("skipped"))
     if ws:
         runner = runner or EvaluationRunner(timeout_seconds=60)
+        submission_invariants = _submission_overlay_plan(
+            task_spec, expert_bundle or {}, ws=ws, profile=profile,
+        )
+        issues.extend(submission_invariants.get("issues", []))
 
         # Differential gate first (grader semantics): the evaluator must ACCEPT
         # the expert golden solution and REJECT the known-insecure baseline
@@ -311,14 +318,19 @@ def validate_benchmark_case(
                 })
         vuln = differential.get("vulnerable_run")
         if vuln is not None and not vuln.get("ok", False):
-            issues.append({
-                "issue": "vulnerable_accepted",
-                "detail": "evaluate.py accepts the known-insecure baseline input (FAIL expected) — security checks are inverted, no-ops, or absent",
-            })
-
+            if vuln.get("status") == "pass":
+                issues.append({
+                    "issue": "vulnerable_accepted",
+                    "detail": "evaluate.py accepts the known-insecure baseline input (FAIL expected) — security checks are inverted, no-ops, or absent",
+                })
+            else:
+                issues.append({
+                    "issue": "vulnerable_rejection_invalid",
+                    "detail": "The baseline exited non-zero, but not as a valid requirement-level rejection (for example, setup or runtime failed)",
+                })
         dms = _compute_dynamic_mutation_score(
             mutation_bundle or {}, mapped_ids, ws, runner,
-            golden_overlay=_golden_overlay(task_spec, expert_bundle or {}, profile),
+            golden_overlay=submission_invariants.get("overlay", {}),
             golden_run=golden,
         )
         mutation_score = dms["score"]
@@ -331,44 +343,61 @@ def validate_benchmark_case(
                     f"result is meaningful. stdout: {(_b.get('stdout') or '')[:400]}"
                 ),
             })
-        # Every atomic FR and SR must demonstrate discrimination. Treating FR
-        # gaps as advisory produced nominally passing cases with untested public
-        # behavior, contrary to the requirement-level HardSecBench gate.
-        for check_id in dms.get("dead_checks", []):
+        if not mutation_blocked:
+            # Every atomic FR and SR must demonstrate discrimination. Treating FR
+            # gaps as advisory produced nominally passing cases with untested public
+            # behavior, contrary to the requirement-level HardSecBench gate.
+            for check_id in dms.get("dead_checks", []):
+                issues.append({
+                    "issue": "dead_check",
+                    "detail": f"{check_id} never emitted [TEST] FAIL on its targeting mutants — provides no discrimination",
+                })
+            for req_id in dms.get("uncovered_requirements", []):
+                issues.append({
+                    "issue": "uncovered_requirement",
+                    "detail": f"{req_id} has no targeting mutant detected by its own check — requirement coverage gap",
+                })
+            for req_id in dms.get("untested_requirements", []):
+                issues.append({
+                    "issue": "untested_requirement",
+                    "detail": f"{req_id} has no targeting mutant, so its harness discrimination is unproven",
+                })
+            if dms.get("error_runs", 0):
+                issues.append({
+                    "issue": "mutation_execution_error",
+                    "detail": f"{dms['error_runs']} mutant run(s) crashed, timed out, or used unsafe paths; mutation quality is incomplete",
+                })
+        generation_failures = (mutation_bundle or {}).get("generation_failures", []) or []
+        if generation_failures:
+            failed_ids = sorted({str(item.get("target_requirement_id", "")) for item in generation_failures})
             issues.append({
-                "issue": "dead_check",
-                "detail": f"{check_id} never emitted [TEST] FAIL on its targeting mutants — provides no discrimination",
-            })
-        for req_id in dms.get("uncovered_requirements", []):
-            issues.append({
-                "issue": "uncovered_requirement",
-                "detail": f"{req_id} has no targeting mutant detected by its own check — requirement coverage gap",
-            })
-        for req_id in dms.get("untested_requirements", []):
-            issues.append({
-                "issue": "untested_requirement",
-                "detail": f"{req_id} has no targeting mutant, so its harness discrimination is unproven",
-            })
-        if dms.get("error_runs", 0):
-            issues.append({
-                "issue": "mutation_execution_error",
-                "detail": f"{dms['error_runs']} mutant run(s) crashed, timed out, or used unsafe paths; mutation quality is incomplete",
+                "issue": "mutation_generation_failure",
+                "detail": f"Mutant generation failed for requirements {failed_ids}; repair the mutation bundle",
             })
     else:
         mutation_score = _estimate_mutation_score(mutation_bundle or {}, mapped_ids)
+
+    discrimination_coverage = round(
+        sum(1 for row in dms.get("per_requirement_coverage", {}).values() if row.get("covered"))
+        / len(mapped_ids), 3,
+    ) if mapped_ids else 0.0
 
     report: dict[str, Any] = {
         "status": "pass" if not issues else "fail",
         "issues": issues,
         "domain_id": domain_id,
+        "requirement_mapping_coverage_score": coverage_score,
+        "requirement_discrimination_coverage_score": discrimination_coverage,
         "coverage_score": coverage_score,
         "mutation_score": mutation_score,
+        "mutation_status": "blocked_by_differential" if mutation_blocked else "evaluated",
         # False when the golden/baseline run or the differential gate failed:
         # every mutant result is then noise (and the orchestrator skips mutant
         # generation entirely on a failed pre-flight), so a 0.0 must be read as
         # "not measurable", not "no discrimination".
         "mutation_score_meaningful": (
-            not dms.get("baseline_failed", False)
+            (ws is None or bool((mutation_bundle or {}).get("mutants")))
+            and not dms.get("baseline_failed", False)
             and differential.get("status") != "fail"
             and not dms.get("error_runs", 0)
         ),
@@ -377,9 +406,16 @@ def validate_benchmark_case(
         "expert_files": sorted(expert_files),
         "tester_files": sorted(test_files),
     }
+    if submission_invariants:
+        report["submission_invariants"] = {
+            key: value for key, value in submission_invariants.items() if key != "overlay"
+        }
     if dms.get("baseline_run") is not None:
+        report["mutation_baseline_run"] = dms["baseline_run"]
+        # Compatibility alias for existing report consumers.
         report["baseline_run"] = dms["baseline_run"]
     if dms.get("per_requirement_coverage"):
+        report["per_requirement_discrimination"] = dms["per_requirement_coverage"]
         report["per_requirement_coverage"] = dms["per_requirement_coverage"]
     if "check_activation" in dms:
         report["check_activation"] = dms["check_activation"]
@@ -387,8 +423,10 @@ def validate_benchmark_case(
         report["dead_checks"] = dms["dead_checks"]
     if dms.get("uncovered_requirements") is not None:
         report["uncovered_requirements"] = dms["uncovered_requirements"]
-    if dms.get("untested_requirements"):
+    if dms.get("untested_requirements") and not mutation_blocked:
         report["untested_requirements"] = dms["untested_requirements"]
+    if mutation_blocked:
+        report["blocked_mutation_requirements"] = sorted(mapped_ids)
     if dms.get("error_runs"):
         report["error_runs"] = dms["error_runs"]
     if differential.get("status", "skipped") != "skipped":
@@ -401,27 +439,38 @@ def quality_report(
     analyzer_report: dict[str, Any],
     min_coverage_score: float = 0.80,
     min_mutation_score: float = 0.50,
+    source_round: int | None = None,
+    final_attempted_round: int | None = None,
 ) -> dict[str, Any]:
     analyzer_status = analyzer_report.get("overall_status", "unknown")
     validation_status = validation_report.get("status", "unknown")
     coverage_score = float(validation_report.get("coverage_score", 0.0))
+    mapping_coverage = float(validation_report.get("requirement_mapping_coverage_score", coverage_score))
+    discrimination_coverage = float(validation_report.get("requirement_discrimination_coverage_score", 0.0))
     mutation_score = float(validation_report.get("mutation_score", 0.0))
     passes_quality = (
         validation_status == "pass"
         and analyzer_status in {"pass", "warning"}
-        and coverage_score >= min_coverage_score
+        and mapping_coverage >= min_coverage_score
         and mutation_score >= min_mutation_score
     )
-    return {
+    report = {
         "overall_status": "pass" if passes_quality else "fail",
         "validation_status": validation_status,
         "analyzer_status": analyzer_status,
         "coverage_score": coverage_score,
+        "requirement_mapping_coverage_score": mapping_coverage,
+        "requirement_discrimination_coverage_score": discrimination_coverage,
         "mutation_score": mutation_score,
         "min_coverage_score": min_coverage_score,
         "min_mutation_score": min_mutation_score,
         "issue_count": len(validation_report.get("issues", [])) + len(analyzer_report.get("issues", [])),
     }
+    if source_round is not None:
+        report["source_round"] = source_round
+    if final_attempted_round is not None:
+        report["final_attempted_round"] = final_attempted_round
+    return report
 
 
 def _requirement_ids(task_spec: dict[str, Any]) -> set[str]:
@@ -493,8 +542,6 @@ def _parse_failing_checks(stdout: str) -> set[str]:
 
 
 _MARKER_RE = re.compile(rf"\[TEST\]\s+(?:PASS|FAIL):\s+({_REQ_ID})")
-
-
 def _parse_marker_ids(stdout: str) -> set[str]:
     """Extract every requirement ID that emitted a [TEST] PASS/FAIL marker."""
     return {m.group(1) for m in _MARKER_RE.finditer(stdout) if m.group(1) != "SETUP"}
@@ -696,17 +743,95 @@ _CODE_EXTS = {".cpp", ".cc", ".c", ".h", ".hpp", ".v", ".sv", ".vhd", ".py", ".t
 
 
 def _match_golden_file(target_name: str, golden_files: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Pick the golden/expert file that answers the submission target
-    `target_name`: exact filename, then same stem, then same extension — the
-    Expert is told to mirror the submission filename, so exact should hit; the
-    fallbacks guard against a stray extra file (e.g. a testbench)."""
-    stem, ext = Path(target_name).stem, Path(target_name).suffix
-    match = next((f for f in golden_files if Path(str(f.get("path", ""))).name == target_name), None)
-    if match is None:
-        match = next((f for f in golden_files if Path(str(f.get("path", ""))).stem == stem), None)
-    if match is None:
-        match = next((f for f in golden_files if Path(str(f.get("path", ""))).suffix == ext), None)
-    return match
+    """Return the unique exact-name golden answer for a submission target.
+
+    Stem/extension fallbacks are unsafe: `golden/foo.cpp` previously matched
+    `inputs/foo.h` and replaced the header with implementation text.
+    """
+    matches = [
+        file_obj for file_obj in golden_files
+        if Path(str(file_obj.get("path", ""))).name == target_name
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _sha256_text(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _submission_overlay_plan(
+    task_spec: dict[str, Any],
+    expert_bundle: dict[str, Any],
+    ws: Workspace | None = None,
+    profile: DomainProfile | None = None,
+) -> dict[str, Any]:
+    """Build an auditable, exact one-to-one golden overlay plan."""
+    if profile is None:
+        try:
+            profile = get_domain_profile(str(task_spec.get("domain_id", "")))
+        except ValueError:
+            return {"status": "fail", "overlay": {}, "mappings": [], "issues": [
+                {"issue": "unknown_domain", "detail": "Cannot resolve submission targets."}
+            ]}
+    input_artifacts = [str(item) for item in task_spec.get("public_spec", {}).get("input_artifacts", [])]
+    targets = submission_paths(profile, input_artifacts)
+    golden_files = [
+        file_obj for file_obj in expert_bundle.get("files", [])
+        if "golden" in Path(str(file_obj.get("path", ""))).parts
+    ]
+    by_name: dict[str, list[dict[str, Any]]] = {}
+    for file_obj in golden_files:
+        by_name.setdefault(Path(str(file_obj.get("path", ""))).name, []).append(file_obj)
+
+    overlay: dict[str, str] = {}
+    mappings: list[dict[str, Any]] = []
+    issues: list[dict[str, str]] = []
+    for target in targets:
+        if ws is not None and not ws.path(target).is_file():
+            issues.append({"issue": "submission_target_missing", "path": target})
+            continue
+        name = Path(target).name
+        matches = by_name.get(name, [])
+        if len(matches) > 1:
+            issues.append({
+                "issue": "golden_overlay_ambiguous",
+                "detail": f"Multiple golden files exactly match submission target {target}",
+            })
+            continue
+        if not matches:
+            # Companion inputs such as headers remain baseline files. At least
+            # one exact mapped answer is required for the case as a whole.
+            continue
+        golden = matches[0]
+        content = str(golden.get("content", ""))
+        baseline = ws.path(target).read_text(encoding="utf-8") if ws is not None else ""
+        overlay[target] = content
+        mappings.append({
+            "target": target,
+            "golden": str(golden.get("path", "")),
+            "baseline_sha256": _sha256_text(baseline) if ws is not None else None,
+            "golden_sha256": _sha256_text(content),
+            "changed": baseline != content if ws is not None else None,
+        })
+
+    if not overlay:
+        issues.append({
+            "issue": "golden_overlay_missing",
+            "detail": f"No exact golden filename matches submission targets {targets}",
+        })
+    elif ws is not None and not any(mapping["changed"] for mapping in mappings):
+        issues.append({
+            "issue": "golden_equals_baseline",
+            "detail": "Every mapped golden submission is byte-identical to the vulnerable baseline",
+        })
+    return {
+        "status": "pass" if not issues else "fail",
+        "targets": targets,
+        "overlay": overlay,
+        "mappings": mappings,
+        "unmapped_targets": sorted(set(targets) - set(overlay)),
+        "issues": issues,
+    }
 
 
 def _golden_overlay(
@@ -723,29 +848,7 @@ def _golden_overlay(
     resolve through domains.submission_paths(), the single source of truth the
     prompts also use, so evaluate.py and this overlay can never disagree.
     """
-    input_artifacts = [str(x) for x in task_spec.get("public_spec", {}).get("input_artifacts", [])]
-    if profile is None:
-        try:
-            profile = get_domain_profile(str(task_spec.get("domain_id", "")))
-        except ValueError:
-            return {}
-    targets = submission_paths(profile, input_artifacts)
-    if not targets:
-        return {}
-
-    # Prefer golden files under a golden/ directory; fall back to any expert file.
-    expert_files = expert_bundle.get("files", [])
-    golden_files = [
-        f for f in expert_files
-        if "golden" in Path(str(f.get("path", ""))).parts
-    ] or expert_files
-
-    overlay: dict[str, str] = {}
-    for target in targets:
-        match = _match_golden_file(Path(target).name, golden_files)
-        if match is not None:
-            overlay[target] = str(match.get("content", ""))
-    return overlay
+    return _submission_overlay_plan(task_spec, expert_bundle, profile=profile)["overlay"]
 
 
 def _summarize_diff_run(result: dict[str, Any], expected_pass: bool, ok: bool) -> dict[str, Any]:
@@ -776,14 +879,22 @@ def _compute_differential_validation(
     analysis_report domains). The vulnerable submission is the workspace as
     shipped — the insecure baseline code, or the naive baseline answer file.
 
-    Returns a dict with status pass|fail|skipped and per-arm summaries. The gate
-    degrades to skipped when no golden overlay can be identified, so it never
-    makes a case worse than before.
+    Returns a classified result with a stable failure signature so orchestration
+    can stop retrying identical or non-Tester-repairable failures.
     """
     runner = runner or EvaluationRunner(timeout_seconds=60)
-    overlay = _golden_overlay(task_spec, expert_bundle, profile)
-    if not overlay:
-        return {"status": "skipped", "golden_run": None, "vulnerable_run": None}
+    plan = _submission_overlay_plan(task_spec, expert_bundle, ws=ws, profile=profile)
+    overlay = plan["overlay"]
+    if plan["status"] != "pass":
+        detail = " | ".join(str(issue.get("issue")) for issue in plan["issues"])
+        return {
+            "status": "fail",
+            "failure_class": "submission_invariant",
+            "failure_signature": _sha256_text(f"submission_invariant:{detail}"),
+            "golden_run": None,
+            "vulnerable_run": None,
+            "submission_invariants": {key: value for key, value in plan.items() if key != "overlay"},
+        }
 
     # Golden submission: overlay the golden answer onto the graded path(s), expect PASS.
     with tempfile.TemporaryDirectory(prefix="bench_golden_") as stage_root:
@@ -813,8 +924,41 @@ def _compute_differential_validation(
         and "Traceback (most recent call last)" not in (vuln_result.get("stderr", "") or "")
     )
 
+    status = "pass" if (golden_ok and vuln_ok) else "fail"
+    evaluator_traceback = any(
+        "Traceback (most recent call last)" in (result.get("stderr", "") or "")
+        for result in (golden_result, vuln_result)
+    )
+    if status == "pass":
+        failure_class = None
+    elif any(result.get("status") in {"error", "timeout"} for result in (golden_result, vuln_result)):
+        failure_class = "runner_error"
+    elif any("[TEST] FAIL: SETUP" in (result.get("stdout", "") or "") for result in (golden_result, vuln_result)):
+        failure_class = "setup_error"
+    elif evaluator_traceback:
+        failure_class = "evaluator_error"
+    elif not golden_ok and not vuln_ok:
+        failure_class = "multiple"
+    elif not golden_ok:
+        failure_class = "golden_rejected"
+    else:
+        failure_class = "vulnerable_accepted"
+    signature_text = "|".join([
+        str(failure_class),
+        str(golden_result.get("status")),
+        str(golden_result.get("returncode")),
+        ",".join(sorted(_parse_failing_checks(golden_result.get("stdout", "")))),
+        str(vuln_result.get("status")),
+        str(vuln_result.get("returncode")),
+        ",".join(sorted(vulnerable_fails)),
+        re.sub(r"/[^\s:]+", "<path>", (golden_result.get("stdout", "") or "")[:500]),
+        re.sub(r"/[^\s:]+", "<path>", (golden_result.get("stderr", "") or "")[-500:]),
+        re.sub(r"/[^\s:]+", "<path>", (vuln_result.get("stdout", "") or "")[:500]),
+    ])
     return {
-        "status": "pass" if (golden_ok and vuln_ok) else "fail",
+        "status": status,
+        "failure_class": failure_class,
+        "failure_signature": None if status == "pass" else _sha256_text(signature_text),
         "golden_run": _summarize_diff_run(golden_result, expected_pass=True, ok=golden_ok),
         "vulnerable_run": _summarize_diff_run(vuln_result, expected_pass=False, ok=vuln_ok),
     }

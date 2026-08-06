@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected by evaluate.py (SR1 and SR2 FAIL), no mutants were generated for any requirement (mutation_score=0.0, untested_requirements covers all FRs and SRs), and the evaluator does not implement the specified metrics (detection_rate, false_positive_rate, inference_latency). The primary failure is that the evaluator cannot correctly grade the correct answer, making the benchmark unusable. The evaluator must be fixed to accept the golden submission, implement proper behavioral checks for all requirements, and generate mutants to validate harness discrimination.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

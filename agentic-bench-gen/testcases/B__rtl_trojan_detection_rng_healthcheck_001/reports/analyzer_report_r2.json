@@ -1,0 +1,88 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The differential validation shows the golden/expert submission (golden/trojan_report.json) is REJECTED by evaluate.py on SR1. The evaluator's structural derivation logic computed the true missing tap as state[3] (x^4) instead of the intended state[6] (x^6), contradicting both the hidden_spec ground truth (which states the omitted tap is x^6/state[6]) and the evaluator's own hardcoded self-check constant {7,5,4} for implemented taps. This means either the feedback_logic block extraction regex is buggy, the self-check constant is inconsistent with the DOCUMENTED_TAPS_0IDX set difference, or the golden report itself names the wrong bit. Regardless of root cause, the grader does not accept a correct submission, violating the core requirement that a correct answer must pass.",
+      "evidence": "golden_run: [TEST] FAIL: SR1: submission claims the omitted tap is bit index(es) [-1, 4, 5, 6] (0-indexed / normalized), but the true omitted tap is state[3] (x^4 in the documented polynomial); vulnerable_run also fails all requirements as expected but golden_run failing means the baseline pass case is broken.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py / inputs/lfsr_rng.v",
+      "description": "DOCUMENTED_TAPS_0IDX is defined as {7,5,4,3} which is inconsistent with the hidden_spec ground truth stating the polynomial x^8+x^6+x^5+x^4+1 maps to 0-indexed bits {7,5,4,3} only if x^6 maps to index 5, but the RTL's actual feedback expression is state[7]^state[5]^state[4], meaning implemented taps are {7,5,4} and the missing bit per this documented set would correctly be 3 (x^4), not 6 (x^6) as claimed elsewhere in the hidden spec and README golden reasoning. There's a mapping inconsistency between 1-indexed tap positions {8,6,5,4} and their 0-indexed equivalents: bit 6 (1-indexed) should map to state[5] not state[6]/x^6, but the hidden spec's ground_truth and SR1 detection_strategy both describe the missing tap as 'x^6 (bit index 6, i.e. state[6])' while the evaluator's own derivation (which self-validates against {7,5,4}) computes the missing bit as 3 (state[3], x^4). This is a fundamental tap-indexing contradiction between the hidden ground truth narrative and the actual grading code, and it caused the golden submission (presumably written to satisfy the hidden spec's stated x^6/state[6] claim) to fail.",
+      "evidence": "hidden_spec.ground_truth states: 'silently drops the x^6 (bit index 6, i.e. state[6]) tap' and SR1 detection_strategy references '{8,6,5,4} (equivalently {7,5,4,3} in 0-indexed)' -- but evaluate.py computes missing = {7,5,4,3} - {7,5,4} = {3}, which is x^4, not x^6. The two conflict, and the golden run confirms the evaluator's real behavior contradicts the documented ground truth.",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report",
+      "description": "mutation_status is blocked_by_differential and mutation_score is 0.0 with mutation_score_meaningful=false, meaning the benchmark's discriminative power (ability to distinguish correct submissions from incorrect ones) could not be verified due to the golden_rejected failure. requirement_discrimination_coverage_score is 0.0.",
+      "evidence": "\"mutation_status\": \"blocked_by_differential\", \"mutation_score\": 0.0, \"requirement_discrimination_coverage_score\": 0.0",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the fundamental tap-index inconsistency in evaluate.py's derive_true_missing_tap_0indexed(): resolve whether the documented polynomial x^8+x^6+x^5+x^4+1 maps 1-indexed tap 6 to 0-indexed state[5] or state[6], and make DOCUMENTED_TAPS_0IDX, KNOWN_CORRECT_IMPLEMENTED_TAPS_0IDX, and the hidden_spec.ground_truth's stated 'x^6/state[6]' claim all agree on the same convention.",
+    "Re-run the differential validation after fixing the tap-indexing bug to confirm the golden/expert submission (golden/trojan_report.json) passes evaluate.py with exit code 0.",
+    "Regenerate golden/trojan_report.json if necessary to match whichever indexing convention is ultimately correct, and re-verify SR1's regex-based claimed-bit extraction against the corrected true_missing_bit_0idx.",
+    "Re-run mutation testing after the fix to obtain a meaningful mutation_score and requirement_discrimination_coverage_score, since both are currently 0.0/blocked due to the golden rejection.",
+    "Add an explicit unit test or assertion in evaluate.py itself (outside the grading self-check) that verifies the 1-indexed-to-0-indexed tap mapping table against a small set of known examples, to prevent this class of off-by-one/indexing bug from recurring."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and vulnerable runs both show FR1 passing/failing appropriately when fields present/absent; naive baseline shipped in submission bundle has empty/irrelevant findings but structurally valid JSON so FR1 would pass, appropriately not gating on content.",
+      "requirement": "FR1 (report structural validity)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run (naive baseline) correctly FAILs FR2: 'no finding references feedback/tap/next-state logic'.",
+      "requirement": "FR2 (feedback/tap reference present)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run correctly FAILs FR3 for the naive baseline.",
+      "requirement": "FR3 (health-monitor reference present)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run correctly FAILs FR4 due to no numeric period reported.",
+      "requirement": "FR4 (period estimate consistency)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run (expert/correct submission) is REJECTED by SR1 due to an internal derivation/self-check inconsistency between the evaluator's hardcoded true-missing-bit computation (state[3]/x^4) and the hidden ground truth's stated missing tap (state[6]/x^6). This is a critical grader-correctness bug per the differential validation report.",
+      "requirement": "SR1 (correct missing tap identification)",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run shows SR2 PASS; vulnerable_run shows SR2 FAIL as expected for the naive baseline.",
+      "requirement": "SR2 (zero-crossing suppression explanation)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run shows SR3 PASS; vulnerable_run shows SR3 FAIL as expected.",
+      "requirement": "SR3 (period estimate in [20,40])",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run shows SR4 PASS; vulnerable_run shows SR4 FAIL as expected for the naive baseline (empty confidence).",
+      "requirement": "SR4 (no false-clearance + confidence>=0.5)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run output confirms FR2, FR3, FR4, SR1, SR2, SR3, SR4 all FAIL for the naive/empty baseline submission, matching acceptance criteria.",
+      "requirement": "Shipped naive baseline must fail all SR checks and FR2-FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, lfsr_rng.v read as ordinary engineering documents with no CWE/SR references or 'intentionally vulnerable' comments, per manifest purposes.",
+      "requirement": "No leakage of hidden CWE/SR ids or security framing in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are concrete, tied to interface signals (feedback logic, health monitor, numeric period), and independently verifiable via regex/simulation, not a single generic restatement.",
+      "requirement": "Public functional requirements concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

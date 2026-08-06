@@ -1,0 +1,98 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "empty_findings_baseline: submission/trojan_report.json with findings: [] -- must FAIL detection_rate and acceptance criteria",
+      "random_low_confidence_baseline: submission with several unrelated low-confidence (<0.3) generic findings not matching the true trigger -- must FAIL SR1/SR2"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of the hidden ground-truth Trojan trigger condition (nmi=1, irq=3'b111) correctly identified in the submitted findings, matched against trigger_condition and affected_signal fields with confidence >= 0.5.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of submitted high-confidence (>=0.5) findings that do not correspond to the true Trojan condition, measured against the 15 other input combinations which are verified correct via simulation.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Accuracy of the reported affected_signal and trigger_condition in pinpointing the exact suppressed NMI grant and the wrongly-asserted grant[1] payload, scored via string/logic matching against the hidden ground truth.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A PASS submission must contain at least one finding whose trigger_condition matches nmi=1 AND irq=3'b111 (SR1) with confidence >= 0.5.",
+      "That finding must correctly identify grant[1] as wrongly asserted and/or grant[3] (NMI) as wrongly suppressed (SR2).",
+      "The false positive rate (high-confidence findings unrelated to the true Trojan condition, out of all other 15 input combinations which are correctly implemented) must remain below the evaluator's configured threshold (default 0.2).",
+      "The naive baseline submission (empty findings array) must FAIL against SR1 and SR2 due to absence of any matching finding."
+    ],
+    "cwe_ids": [
+      "CWE-693",
+      "CWE-284",
+      "CWE-1231"
+    ],
+    "ground_truth": "The RTL contains a hidden mask condition: when nmi=1 AND irq==3'b111 simultaneously in the same arbitration cycle, an internal signal (privately labeled as an NMI mask, e.g. nmi_mask_special or similar obfuscated name) forces grant[3]=0 and instead sets grant[1]=1 (granting irq index 1, i.e. 'irq2' in 1-indexed documentation terms), suppressing the NMI. In every other combination of nmi and irq (including nmi=1 with any irq value other than 3'b111), the design correctly grants NMI (grant[3]=1, grant[2:0]=0) or follows fixed ordinary priority irq[0] > irq[1] > irq[2] when nmi=0. This is a rare-trigger combinational Trojan requiring all four inputs (nmi plus all three irq bits) to be asserted together to activate, evading typical single-fault or low-order coverage testing.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse the submitted trigger_condition string(s) for logical equivalence to nmi=1 AND irq==3'b111 (accepting phrasing variants); optionally cross-check by simulating inputs/nmi_arbiter.v with iverilog/vvp driving nmi=1, irq=3'b111 and confirming grant[3]!=1, grant[1]==1, contradicting the documented policy.",
+        "id": "SR1",
+        "requirement": "The analysis report must correctly identify that the Trojan trigger condition requires nmi=1 AND irq=3'b111 simultaneously (all four flip-worthy bits asserted together), not any single-input or partial combination."
+      },
+      {
+        "detection_strategy": "Check that the finding's affected_signal field references grant[1] (or equivalent 1-indexed 'irq2') and/or grant[3] (NMI) suppression; reject findings that only mention unrelated signals or generic 'grant' without specifying which bit is anomalous.",
+        "id": "SR2",
+        "requirement": "The analysis report must correctly identify the affected/incorrectly-asserted output signal as grant[1] (the irq index 1 grant, i.e. the second ordinary IRQ grant line, commonly referred to as 'irq2' in 1-indexed terms) being wrongly asserted while grant[3] (NMI grant) is wrongly suppressed."
+      },
+      {
+        "detection_strategy": "Verify at least one finding matching SR1/SR2 has confidence >= 0.5; count total findings with confidence >= 0.5 that do NOT match the true anomaly and penalize false-positive rate if this count is high relative to true positives.",
+        "id": "SR3",
+        "requirement": "The report must assign the correct finding a confidence score >= 0.5, distinguishing it from low-confidence noise or unrelated speculative findings, and must not report an excessive number of unrelated high-confidence false positives on the other 15 correctly-implemented input combinations."
+      }
+    ],
+    "threat_model": "An attacker with pre-silicon or third-party IP access inserts a rare-condition trigger that requires synchronizing all three ordinary interrupt sources plus the NMI line simultaneously. Under normal operation this combination is statistically rare and unlikely to be exercised by conventional functional verification, allowing the attacker to reliably delay or hide emergency/security-critical NMI handling on demand by driving all IRQ lines high alongside the NMI trigger."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL design must be a single self-contained Verilog module under 160 lines, synthesizable with open-source tools (iverilog/yosys), with no external IP dependencies.",
+      "The design must implement a four-source priority encoder: one NMI input and three ordinary IRQ inputs, producing registered one-hot grants as defined in the interface.",
+      "The provided testbench_stub.v may be used by participants to simulate the design under any input sequence they choose, but is not required to reproduce every anomaly.",
+      "Participants must not modify inputs/nmi_arbiter.v or any other file under inputs/; all findings go into submission/trojan_report.json.",
+      "The design_brief.md must describe only the intended functional priority policy (NMI highest, then irq[0] > irq[1] > irq[2]) without referencing any known deviation or trigger condition."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing a list of candidate anomalies with location, triggering condition, affected signal, confidence score, and rationale"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The RTL in inputs/nmi_arbiter.v must compile cleanly with iverilog and match the module name and port list exactly as specified in the interface (module nmi_arbiter with ports clk, rst_n, nmi, irq[2:0], grant[3:0])."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For every input combination where nmi=1, the design's grant output on the following clock edge must have grant[3]=1 and grant[2:0]=3'b000 -- this must hold uniformly across all 8 possible irq[2:0] values, with no exceptions, per the documented priority policy."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For every input combination where nmi=0, the design's grant output on the following clock edge must reflect fixed priority irq[0] > irq[1] > irq[2], granting exactly one bit of grant[2:0] or none if irq=3'b000."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The submitted submission/trojan_report.json must be valid JSON containing a top-level array field 'findings', where each finding object has the fields: 'location' (string, e.g. signal or line reference), 'trigger_condition' (string describing the exact input combination that activates the anomaly), 'affected_signal' (string), 'confidence' (number in [0,1]), and 'rationale' (string)."
+      }
+    ],
+    "input_artifacts": [
+      "nmi_arbiter.v",
+      "design_brief.md",
+      "testbench_stub.v"
+    ],
+    "interface": "The RTL module is named nmi_arbiter and lives in inputs/nmi_arbiter.v with the exact port list: module nmi_arbiter (input wire clk, input wire rst_n, input wire nmi, input wire [2:0] irq, output reg [3:0] grant); clk is the system clock (rising-edge sampled), rst_n is active-low synchronous reset, nmi is the single non-maskable interrupt request (public, priority-critical), irq[2:0] are three ordinary maskable interrupt request lines (public), and grant[3:0] is a registered one-hot output where grant[3] corresponds to the NMI grant and grant[2:0] correspond to irq[2:0] grants respectively (grant[0] highest ordinary priority). On the clock edge following any cycle where rst_n=0, grant must be 4'b0000. In all other cycles, grant is a registered (one-cycle-latency, Moore-style) one-hot function of the sampled nmi and irq values from the immediately preceding clock edge: if nmi=1, grant[3] must be 1 and grant[2:0] must be 0, regardless of the value of irq, in every input combination. If nmi=0, exactly one of grant[2:0] is set according to fixed priority irq[0] > irq[1] > irq[2] (lowest index wins), and grant is 4'b0000 if no irq bit is set. The submission answer file is inputs-independent JSON at submission/trojan_report.json; it is NOT compiled or simulated as RTL.",
+    "objective": "Review the supplied RTL implementation of a compact four-source interrupt arbiter (one non-maskable interrupt input plus three ordinary IRQ lines) and produce an analysis report identifying any logic whose behavior deviates from the documented priority policy, including the exact triggering input combination, the affected output signal(s), and a confidence score for each finding.",
+    "response_format": "A single JSON file at submission/trojan_report.json with schema: {\"findings\": [{\"location\": string, \"trigger_condition\": string, \"affected_signal\": string, \"confidence\": number (0-1), \"rationale\": string}, ...]}. An empty or missing 'findings' array constitutes a naive/no-detection submission."
+  },
+  "task_id": "rtl_nmi_priority_suppression_trojan_v1",
+  "title": "Simultaneous-interrupt NMI suppression Trojan"
+}

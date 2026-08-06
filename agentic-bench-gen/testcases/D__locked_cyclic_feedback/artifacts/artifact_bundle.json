@@ -1,0 +1,54 @@
+{
+  "files": [
+    {
+      "content": "# Cyclic Logic-Locking Key Recovery\n\n## Objective\n\nYou are given a gate-level Verilog netlist that has been locked by inserting key-controlled feedback edges. These edges create combinational cycles when the wrong key is applied. Your task is to analyze the locked netlist, identify the key-controlled feedback gates, and recover the correct key that restores acyclic, functional behavior.\n\n## Input Artifacts\n\nAll input files are located in the `inputs/` directory:\n\n- **`locked_netlist.v`** \u2013 The cyclically locked gate-level netlist. It contains key inputs and feedback multiplexers that introduce cycles for incorrect key values.\n- **`oracle.v`** \u2013 A combinational reference module with the same primary inputs and outputs as the locked netlist, but without any key inputs or cycles. It implements the correct function.\n- **`hints.txt`** \u2013 A plain-text file providing public information about the locking scheme (key width, presence of cyclic locking, etc.).\n\n## Expected Output\n\nYou must produce a single answer file at `submission/recovered_key.json`. This file should contain your recovered key and, optionally, the names of the feedback gates you identified.\n\n### JSON Schema\n\n```json\n{\n  \"key\": \"<string of '0' and '1' characters>\",\n  \"feedback_gates\": [\"<gate_name>\", ...]\n}\n```\n\n- **`key`** (required): A string consisting only of `'0'` and `'1'` characters. Its length must exactly match the key width stated in `hints.txt`.\n- **`feedback_gates`** (optional): An array of strings, each naming a netlist gate that implements a key-controlled feedback edge. This field is for informational cross-check only and does not affect the primary pass/fail verdict.\n\n## Toolchain\n\nYou may use the following tools to simulate and verify the netlist:\n\n- **Icarus Verilog (`iverilog`)** \u2013 for compiling Verilog sources.\n- **`vvp`** \u2013 the Icarus Verilog simulation runtime.\n\nExample simulation flow:\n\n```bash\n# Compile the locked netlist and a testbench together\niverilog -g2012 -o sim.vvp locked_netlist.v tb.v\n\n# Run the simulation\nvvp sim.vvp\n```\n\nYou can apply a candidate key by setting the key inputs in your testbench and checking whether the resulting circuit is cycle-free and functionally matches the oracle for all input combinations.\n\n## Submission\n\nPlace your answer file at `submission/recovered_key.json`. The provided baseline submission contains an empty key and will be rejected by the evaluator. Replace it with your actual recovered key.",
+      "path": "README.md"
+    },
+    {
+      "content": "{\n  \"task_id\": \"locked_cyclic_feedback\",\n  \"domain_id\": \"logic_deobfuscation_sat\",\n  \"title\": \"Cyclic logic-locking cone localization\",\n  \"input_artifacts\": [\n    \"locked_netlist.v\",\n    \"oracle.v\",\n    \"hints.txt\"\n  ],\n  \"expected_output\": {\n    \"file\": \"submission/recovered_key.json\",\n    \"description\": \"A JSON object with a required 'key' string of '0'/'1' characters and an optional 'feedback_gates' array of gate names.\"\n  },\n  \"metrics\": [\n    \"key_recovery_rate\",\n    \"key_gate_localization_accuracy\",\n    \"sat_iteration_reduction\"\n  ]\n}",
+      "path": "metadata.json"
+    },
+    {
+      "content": "// Cyclically locked gate-level netlist\n// Function: out = (a & b) | c\n// Key width: 2 bits (key[1:0])\n// Correct key: 10 (key[1]=1, key[0]=0) selects forward paths and breaks all cycles\n\nmodule locked_netlist (\n    input  wire a, b, c,\n    input  wire [1:0] key,\n    output wire out\n);\n\n    // Internal nets\n    wire and_out;\n    wire or_out;\n    wire fb1_out, fb2_out;\n    wire mux1_out, mux2_out;\n\n    // Forward logic\n    and g_and (and_out, a, b);\n    or  g_or  (or_out, and_out, c);\n\n    // Feedback MUX 1: controlled by key[0]\n    // When key[0]=0, selects feedback path (fb1_out) creating a cycle\n    // When key[0]=1, selects forward path (or_out) breaking the cycle\n    mux2_1 mux_fb1 (\n        .in0(fb1_out),\n        .in1(or_out),\n        .sel(key[0]),\n        .out(mux1_out)\n    );\n\n    // Feedback MUX 2: controlled by key[1]\n    // When key[1]=0, selects feedback path (fb2_out) creating a cycle\n    // When key[1]=1, selects forward path (mux1_out) breaking the cycle\n    mux2_1 mux_fb2 (\n        .in0(fb2_out),\n        .in1(mux1_out),\n        .sel(key[1]),\n        .out(mux2_out)\n    );\n\n    // Feedback loops\n    // fb1_out is the output of mux_fb2, creating a cycle when key[0]=0\n    assign fb1_out = mux2_out;\n\n    // fb2_out is the output of mux_fb1, creating a cycle when key[1]=0\n    assign fb2_out = mux1_out;\n\n    // Final output\n    assign out = mux2_out;\n\nendmodule\n\n// Simple 2-to-1 multiplexer primitive\nmodule mux2_1 (\n    input  wire in0, in1, sel,\n    output wire out\n);\n    assign out = sel ? in1 : in0;\nendmodule",
+      "path": "inputs/locked_netlist.v"
+    },
+    {
+      "content": "// Combinational oracle module\n// Implements the correct function: out = (a & b) | c\n// No key inputs, no cycles\n\nmodule oracle (\n    input  wire a, b, c,\n    output wire out\n);\n\n    wire and_out;\n\n    and g_and (and_out, a, b);\n    or  g_or  (out, and_out, c);\n\nendmodule",
+      "path": "inputs/oracle.v"
+    },
+    {
+      "content": "Key width: 2 bits\nThe locked netlist uses cyclic locking: feedback edges are controlled by key bits.\nThe oracle module is a cycle-free combinational reference implementing the correct function.",
+      "path": "inputs/hints.txt"
+    },
+    {
+      "content": "{\n  \"key\": \"\"\n}",
+      "path": "submission/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "README.md",
+      "purpose": "Participant-facing instructions. States the objective: recover the key from a cyclically locked netlist using the supplied oracle and hints. Lists input artifacts (locked_netlist.v, oracle.v, hints.txt), expected output (submission/recovered_key.json), and the JSON schema for the answer file (required 'key' string of 0/1, optional 'feedback_gates' array). Describes the toolchain (iverilog/vvp for simulation). Does NOT mention CWE, SR ids, threat model, or ground truth."
+    },
+    {
+      "path": "metadata.json",
+      "purpose": "Task metadata: task_id='locked_cyclic_feedback', domain_id='logic_deobfuscation_sat', list of input artifacts (locked_netlist.v, oracle.v, hints.txt), expected output summary (recovered_key.json with key string), metrics (key_recovery_rate, key_gate_localization_accuracy, sat_iteration_reduction). No hidden spec content."
+    },
+    {
+      "path": "inputs/locked_netlist.v",
+      "purpose": "Cyclically locked gate-level Verilog netlist. Implements a small combinational function (e.g., 2-input AND-OR tree) with two key-controlled feedback MUXes that create combinational cycles when key bits are wrong. Key width = 2 bits (key[1:0]). The correct key '10' selects forward paths and breaks all cycles. Uses simple gates (AND, OR, NOT, MUX) and is synthesizable with iverilog -g2012. Instance names include 'mux_fb1' and 'mux_fb2' for the feedback MUXes (hidden ground truth)."
+    },
+    {
+      "path": "inputs/oracle.v",
+      "purpose": "Combinational oracle Verilog module with identical primary inputs/outputs as the locked netlist but no key inputs and no cycles. Implements the correct function (e.g., out = (a & b) | c). Used by participants to verify their recovered key via simulation against the locked netlist with key applied."
+    },
+    {
+      "path": "inputs/hints.txt",
+      "purpose": "Public hints file. States: key width = 2 bits, the netlist uses cyclic locking (feedback edges controlled by key bits), and the oracle is a cycle-free combinational reference. Does NOT reveal which gates are feedback MUXes or the correct key value."
+    },
+    {
+      "path": "submission/recovered_key.json",
+      "purpose": "Naive baseline submission that MUST fail evaluation. Contains an empty key string (\"\") and no feedback_gates field. The evaluator will reject this because the key length does not match the required 2 bits and the empty key does not restore acyclic behavior. Participants replace this file with their real answer."
+    }
+  ]
+}

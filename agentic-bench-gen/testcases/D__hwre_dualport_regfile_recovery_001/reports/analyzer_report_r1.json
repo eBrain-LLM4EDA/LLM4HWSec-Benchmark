@@ -1,0 +1,82 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/tb_regfile.v / evaluation/evaluate.py",
+      "description": "The golden reference solution (correct implementation) is rejected by the evaluator. The differential harness shows the golden run failing FR1, FR3, FR4 due to 'missing PROBE for cycle 0', despite the README claiming a race-condition fix that guarantees a cycle-0 PROBE. This indicates the testbench still has a bug (likely in $fscanf/plusarg handling, array sizing, or timing of the first drive/probe) causing the very first PROBE line to never be emitted for a correct submission, which cascades into failing FR1/FR3/FR4 and produces cycle_accurate_match_rate=0.995 instead of 1.0 for a correct design.",
+      "evidence": "golden_run stdout: '[TEST] FAIL: FR1: missing PROBE for cycle 0' / '[TEST] FAIL: FR3: missing PROBE for collision cycle 0' / '[TEST] FAIL: FR4: missing PROBE for cycle 0' while expected='pass' and exit_code=1.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Because the evaluator rejects the correct golden design, the mutation/discrimination testing is blocked entirely (mutation_status: blocked_by_differential, requirement_discrimination_coverage_score: 0.0), meaning it's unverified whether the evaluator correctly discriminates between correct and buggy submissions for any requirement.",
+      "evidence": "mutation_score: 0.0, mutation_score_meaningful: false, requirement_discrimination_coverage_score: 0.0, issues: [{'issue': 'golden_rejected', ...}, {'issue': 'repeated_preflight_failure', ...}]",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_regfile.v",
+      "description": "Even though naive baseline correctly fails (vulnerable_run expected='fail', ok=true), the same missing-cycle-0-probe defect affects that run too, contaminating the failure signal so that FR1/FR3/FR4 failures for a bad submission are indistinguishable from FR1/FR3/FR4 failures caused purely by the harness bug for a good submission.",
+      "evidence": "vulnerable_run stdout shows failures starting at 'cycle 1' (not cycle 0) which differs from golden_run's cycle 0 failures \u2014 confirming the probe-loss bug is a distinct, harness-level defect independent of submission correctness.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the tb_regfile.v / evaluate.py stimulus-loading and cycle-0 driving sequence so that a correct (golden) submission reliably produces a PROBE line for cycle 0 \u2014 investigate the $fscanf loop, array declaration ordering, or delta-cycle timing that is dropping the first PROBE despite the claimed race-condition fix.",
+    "Re-run the differential test after the fix to confirm the golden submission passes all 7 requirements (FR1-FR4, SR1-SR3) with exit code 0.",
+    "Once the harness bug is fixed, re-run mutation testing to obtain a meaningful requirement_discrimination_coverage_score, since it is currently 0.0 due to the blocked differential.",
+    "Consider adding a harness self-test (e.g., asserting num_cycles matches expected count and that PROBE count equals num_cycles) that fails loudly with a diagnostic distinct from a submission functional failure, to make future debugging of harness vs. submission bugs easier."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden solution fails FR1 due to missing PROBE for cycle 0 per differential report.",
+      "requirement": "FR1: basic write/read",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: FR2'.",
+      "requirement": "FR2: reset clears all entries",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] FAIL: FR3: missing PROBE for collision cycle 0'.",
+      "requirement": "FR3: same-address collision forwarding",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] FAIL: FR4: missing PROBE for cycle 0'.",
+      "requirement": "FR4: dual independent read ports",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: SR1' (though blocked overall by other failures).",
+      "requirement": "SR1: zero read latency",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: SR2' via static scan.",
+      "requirement": "SR2: no combinational bypass mux",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: SR3'.",
+      "requirement": "SR3: reset must not leak stale data",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.exit_code=1, expected='pass', ok=false \u2014 the evaluator does not accept the correct golden implementation.",
+      "requirement": "Evaluator accepts correct submission (exit 0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run.exit_code=1, expected='fail', ok=true \u2014 baseline correctly rejected, though via a harness bug rather than solely legitimate detection.",
+      "requirement": "Evaluator rejects naive baseline (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/design_brief.md contain no CWE ids, SR ids, or explicit vulnerability language; design_brief.md is framed as plain engineering documentation.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

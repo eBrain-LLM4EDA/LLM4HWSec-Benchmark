@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 0.875,
+  "rationale": "Validation passes (exit_code 0, status pass), analyzer status is warning (not fail), mutation_score=0.875 exceeds the 0.5 threshold, and coverage_score=1.0. The golden submission is accepted, the baseline empty-candidates submission correctly fails all detection metrics, and differential testing confirms expected PASS/FAIL behavior. The single low-severity analyzer issue concerns FR3 mutation coverage (0/1 mutants detected in isolation), but the differential run demonstrates the FR3 check does correctly fire on the vulnerable baseline ('FAIL: FR3: undocumented deviation 0xE7 undocumented in report'), and no mutant specifically targeting FR3 in isolation was provided in the bundle to fail against \u2014 this is a minor coverage gap, not a functional defect. The FR1/FR2 dead_checks are expected and appropriate given the fixed RTL input contract (analysis_report domain where RTL is pinned and only the report varies). All thresholds are met and no blocking issues (missing_interface, golden_rejected, vulnerable_accepted, requirement_id_mismatch, baseline_failed, public_security_leak) are present.",
+  "retain_case": true,
+  "revision_instructions": "No revision required. Optional future improvement: add a mutation test that specifically isolates FR3's undocumented-deviation-reporting logic (e.g., a submission reporting a different undocumented opcode but omitting 0xE7) to raise its mutation coverage above 0, but this is not required for retention given current thresholds are satisfied.",
+  "root_cause": "none"
+}

@@ -1,0 +1,26 @@
+{
+  "acceptance_criteria": [
+    "The submitted report correctly identifies the reset-order dependency as a Trojan trigger.",
+    "The report correctly identifies protected_mode as the payload.",
+    "The report describes the exact two-cycle release gap required for activation.",
+    "The report correctly states that the trigger is sticky until a full simultaneous reset."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-1262"
+  ],
+  "ground_truth": "Releasing peri_rst_n exactly two clock cycles before core_rst_n sets a sticky trigger bit. This trigger forces protected_mode high and holds it high until both resets are asserted simultaneously again.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Simulate the netlist with various reset release orderings and observe protected_mode. A two-cycle gap between peri_rst_n release and core_rst_n release should cause protected_mode to assert.",
+      "id": "SR1",
+      "requirement": "Detect the reset-order-dependent sticky trigger logic."
+    },
+    {
+      "detection_strategy": "Once protected_mode asserts, confirm it remains high even after normal operation resumes, until a full simultaneous reset occurs.",
+      "id": "SR2",
+      "requirement": "Identify the payload effect (protected_mode assertion) and its persistence."
+    }
+  ],
+  "threat_model": "An attacker with control over board-level reset sequencing can release the peripheral reset two cycles before the core reset to enter an undocumented privileged mode, bypassing normal security controls."
+}

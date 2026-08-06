@@ -1,0 +1,129 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/auth_fsm.v",
+    "inputs/fault_model.json",
+    "inputs/normal_trace.txt",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "evaluator_error",
+    "failure_signature": "b2c0ec4f51bdf85fd7a72c4f0d4da3ae0621892ec7baa9076dd240113a241b2f",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "Traceback (most recent call last):\n  File \"/work/evaluation/evaluate.py\", line 127, in <module>\n    main()\n  File \"/work/evaluation/evaluate.py\", line 37, in main\n    signal_names = extract_signal_names(\"inputs/auth_fsm.v\")\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/evaluation/private/ground_truth.py\", line 29, in extract_signal_names\n    for match in re.finditer(pattern, content):\n                 ^^\nNameError: name 're' is not defined\n",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": false,
+      "status": "fail",
+      "stderr": "Traceback (most recent call last):\n  File \"/work/evaluation/evaluate.py\", line 127, in <module>\n    main()\n  File \"/work/evaluation/evaluate.py\", line 37, in main\n    signal_names = extract_signal_names(\"inputs/auth_fsm.v\")\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/evaluation/private/ground_truth.py\", line 29, in extract_signal_names\n    for match in re.finditer(pattern, content):\n                 ^^\nNameError: name 're' is not defined\n",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "evaluate.py never emitted [TEST] PASS/FAIL for ['FR3', 'FR4', 'SR1', 'SR2'] on the golden run \u2014 requirement_map ids and the script's marker ids must match exactly",
+      "issue": "requirement_id_mismatch"
+    },
+    {
+      "detail": "The baseline exited non-zero, but not as a valid requirement-level rejection (for example, setup or runtime failed)",
+      "issue": "vulnerable_rejection_invalid"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "evaluator_error",
+    "failure_signature": "b2c0ec4f51bdf85fd7a72c4f0d4da3ae0621892ec7baa9076dd240113a241b2f",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "31a095d7a1a7b30a05416bb327d16a3f7062b0618b4810c5eea8d3eccd5ed9dd",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "b24e26add5f3d80e674ed41ab8b1c6894c14ca76c4b8959c5fed93e4f2bf8f10",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/__init__.py",
+    "evaluation/private/ground_truth.py",
+    "evaluation/private/targeting_mutants.py"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2"
+  ]
+}

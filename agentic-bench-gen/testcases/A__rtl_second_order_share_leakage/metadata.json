@@ -1,0 +1,26 @@
+{
+  "task_id": "rtl_second_order_share_leakage",
+  "domain_id": "side_channel_fault_analysis",
+  "input_artifacts": [
+    "masked_datapath.v",
+    "leakage_models.json"
+  ],
+  "expected_output": "vulnerability_report.json identifying the leaking register pair and explaining the alignment condition",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Binary metric: 1 if the correct leaking register pair is identified, 0 otherwise.",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Binary metric: 1 if the report correctly identifies the alignment condition and second-order leakage, 0 otherwise.",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Binary metric: 1 if the report correctly states that both registers are safe under first-order analysis, 0 otherwise.",
+      "direction": "maximize"
+    }
+  ]
+}

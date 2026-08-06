@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"locked\": false,\n  \"key_bits\": \"\",\n  \"key_gates\": []\n}",
+      "path": "golden/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_key.json",
+      "purpose": "The single submission answer file for the analysis_report domain. It must be valid JSON with exactly three fields: locked (boolean), key_bits (string), and key_gates (array of strings). For this negative-control task the netlist contains no key-gate logic, so locked must be false, key_bits must be the empty string \"\", and key_gates must be the empty array []. This satisfies all functional requirements (FR1-FR4) and security requirements (SR1-SR2) by correctly reporting no locking structures and no recovered key."
+    }
+  ]
+}

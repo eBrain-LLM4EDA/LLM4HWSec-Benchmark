@@ -1,0 +1,92 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/trojan_report.json) that should pass all checks. The golden run shows FAIL for SR1-SR4, indicating the evaluator is buggy or over-strict, or it grades the wrong file. This makes the benchmark unusable because a correct submission cannot achieve a passing grade.",
+      "evidence": "Golden run stdout: [TEST] FAIL: SR1: counter_terminal not identified in counter.v; [TEST] FAIL: SR2: command_match not identified in command_decoder.v; [TEST] FAIL: SR3: sticky_error not identified in error_handler.v; [TEST] FAIL: SR4: payload mux (secret_reg[0] -> status_out) not described in top.v",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The baseline submission (submission/trojan_report.json) is expected to fail, but the differential report shows the vulnerable run passes SR5 while the golden run fails SR5. This inconsistency suggests the evaluator logic for SR5 is flawed or the golden submission is incorrectly constructed.",
+      "evidence": "Vulnerable run stdout: [TEST] FAIL: SR5: trojan_detected must be true and overall_confidence >= 0.7; Golden run stdout: [TEST] PASS: SR5",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "All eight requirements (FR1-FR3, SR1-SR5) are marked as untested because no targeting mutants were provided. The harness discrimination is unproven, meaning we cannot verify that the evaluator correctly distinguishes between passing and failing submissions for each requirement.",
+      "evidence": "Validation report: untested_requirements: [FR1, FR2, FR3, SR1, SR2, SR3, SR4, SR5]; mutation_score: 0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure the requested metrics (detection_rate, false_positive_rate, trigger_payload_localization). It only performs binary pass/fail checks on individual requirements, which does not align with the evaluation specification.",
+      "evidence": "evaluate.py only emits PASS/FAIL per requirement; no computation of detection_rate, false_positive_rate, or trigger_payload_localization metrics.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The requirement map lists expected_detection for SR5 as 'FAIL on baseline because trojan_detected is false or overall_confidence is below 0.7', but the golden run shows SR5 PASS while the vulnerable run shows SR5 FAIL. This is the opposite of the expected behavior and indicates a logic error in the evaluator or the golden submission.",
+      "evidence": "Requirement map SR5: expected_detection: FAIL on baseline; Golden run: PASS; Vulnerable run: FAIL",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator checks for payload keywords in the rationale field using a substring match, but the golden submission may use different phrasing that does not contain the exact keywords (e.g., 'secret_reg[0]', 'status_out', 'multiplexer'). This makes the check brittle and may reject valid reports.",
+      "evidence": "EXPECTED_PAYLOAD_KEYWORDS list in ground_truth.py; golden run fails SR4 despite presumably correct payload description.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py to correctly parse and grade the golden submission. Ensure the finding_matches function uses case-insensitive comparison and that the golden submission's module and signal names exactly match the expected values.",
+    "Add the golden submission file (golden/trojan_report.json) to the artifact bundle so the evaluator can be tested against it.",
+    "Implement the required metrics (detection_rate, false_positive_rate, trigger_payload_localization) in evaluate.py instead of only binary pass/fail checks.",
+    "Provide targeting mutants for each requirement to prove harness discrimination and achieve a meaningful mutation score.",
+    "Review the SR5 logic: the baseline submission has trojan_detected=false and overall_confidence=0.0, so it should fail SR5. The golden submission should pass SR5. The current behavior is inverted.",
+    "Make the payload keyword check more robust by allowing synonyms or using a more flexible matching strategy (e.g., checking for the presence of 'secret_reg' and 'status_out' in the same rationale rather than exact substring matches)."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run passes FR1, but no mutant test exists to prove discrimination. Evaluator rejects golden solution on other requirements, making overall benchmark unusable.",
+      "requirement": "FR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run passes FR2, but no mutant test exists. Evaluator is buggy on substantive checks.",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run passes FR3, but no mutant test exists. Evaluator is buggy on substantive checks.",
+      "requirement": "FR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run fails SR1 despite correct submission. Evaluator logic is broken.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run fails SR2 despite correct submission. Evaluator logic is broken.",
+      "requirement": "SR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run fails SR3 despite correct submission. Evaluator logic is broken.",
+      "requirement": "SR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run fails SR4 despite correct submission. Evaluator logic is broken.",
+      "requirement": "SR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run passes SR5 but vulnerable run fails SR5, opposite of expected behavior. Evaluator logic is inconsistent.",
+      "requirement": "SR5",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

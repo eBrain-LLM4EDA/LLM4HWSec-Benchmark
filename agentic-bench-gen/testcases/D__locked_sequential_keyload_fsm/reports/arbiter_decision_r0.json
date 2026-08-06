@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden run failed. The validation report shows golden_rejected: evaluate.py rejects the correct golden submission on FR3 (regex does not match hierarchical names like 'top.lock_reg[0]') and SR2 (testbench race condition causes incorrect key loading). The analyzer confirms these are high-severity evaluator bugs. Additionally, no mutants were generated, so all requirements are untested. The evaluator must be fixed to accept the golden submission before the case can be retained.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

@@ -1,0 +1,15 @@
+Locking Scheme Description
+===========================
+
+The netlist was locked using a standard XOR-based key-gate insertion algorithm.
+Key size: 8 bits.
+Key ports: key_in[7:0] (top-level inputs).
+Algorithm:
+  - Selected internal wires were cut and replaced with XOR gates.
+  - One input of each XOR gate is driven by a key bit from key_in.
+  - The other input is the original driver of the cut wire.
+  - A MUX-based locking cone was added to the output path, controlled by
+    additional key bits to corrupt the output when the wrong key is applied.
+The locking tool randomly chose 8 internal nets for insertion; the exact
+locations are not disclosed. The key ports are present in the module
+interface.

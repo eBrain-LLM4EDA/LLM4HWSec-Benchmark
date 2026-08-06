@@ -1,0 +1,61 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 has no targeting mutant, so its harness discrimination is unproven. The validation report shows 0 mutants targeting FR1, meaning the evaluator's ability to detect a missing or invalid submission file is not independently verified.",
+      "evidence": "Validation report: per_requirement_coverage.FR1.covered = false, mutants_targeting = 0. Issue: untested_requirement for FR1.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/locking_scheme.txt",
+      "description": "The locking_scheme.txt describes a locking scheme that does not match the actual netlist. While this is intentional as a red herring, it may confuse participants who rely on the description rather than structural analysis. The public_spec does not explicitly warn that the description may be misleading.",
+      "evidence": "locking_scheme.txt states key ports key_in[7:0] and XOR/MUX locking, but locked_netlist.v has no such ports or logic.",
+      "severity": "low"
+    },
+    {
+      "artifact": "submission/recovered_key.json",
+      "description": "The shipped baseline submission contains a deliberately wrong answer (locked=true, key_bits='10101010', key_gates=['xor_gate_1','mux_sel_0']). This is correct for differential testing but may be confusing if the baseline is accidentally treated as a reference solution.",
+      "evidence": "submission/recovered_key.json content: {\"locked\": true, \"key_bits\": \"10101010\", \"key_gates\": [\"xor_gate_1\", \"mux_sel_0\"]}",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant that deletes or corrupts submission/recovered_key.json to independently verify FR1 detection.",
+    "Consider adding a note in README.md that the locking_scheme.txt may not match the actual netlist, to reduce participant confusion while preserving the red-herring test.",
+    "Ensure the baseline submission is clearly documented as intentionally wrong in the manifest, not in participant-facing artifacts."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "FR1 check exists in evaluate.py (file existence and valid JSON), but no mutant targets it, so discrimination is unproven. The check itself appears correct.",
+      "requirement": "FR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "FR2 check verifies presence and types of locked, key_bits, key_gates. Covered by 1 mutant, detected.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR3 check enforces that when locked=false, key_bits='' and key_gates=[]. Covered by 1 mutant, detected.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR4 check enforces that when locked=true, key_bits is non-empty binary string and key_gates is non-empty string array. Covered by 1 mutant, detected.",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 check verifies key_gates is empty (no false key gates). Covered by 1 mutant, detected. Differential test shows vulnerable run fails with SR1.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR2 check verifies key_bits is empty (no false key recovery). Covered by 1 mutant, detected. Differential test shows vulnerable run fails with SR2.",
+      "requirement": "SR2",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

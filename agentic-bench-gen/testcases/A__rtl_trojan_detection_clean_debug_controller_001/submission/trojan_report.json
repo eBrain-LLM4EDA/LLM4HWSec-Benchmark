@@ -1,0 +1,25 @@
+{
+  "infected": true,
+  "triggers": [
+    {
+      "signal_or_expression": "debug_enable",
+      "description": "This signal looks suspicious because it enables an alternate observation path into internal state. Rare/optional enable signals like this are a classic Trojan trigger pattern."
+    },
+    {
+      "signal_or_expression": "watchdog_cnt == 8'hFF",
+      "description": "A counter reaching a rare fixed value is a common hardware Trojan trigger idiom, so this comparison is flagged as a likely time-bomb or rare-condition trigger."
+    }
+  ],
+  "payloads": [
+    {
+      "effect": "debug_out",
+      "description": "debug_out is written from internal signal groups and is therefore suspected of leaking internal state as a payload effect once the trigger fires."
+    },
+    {
+      "effect": "status",
+      "description": "status[15] changes value when the counter rolls over, which is suspected to be an unauthorized modification of primary outputs caused by the hidden counter payload."
+    }
+  ],
+  "confidence": 0.7,
+  "rationale": "The design contains a debug-enabled mux and a free-running counter, both of which are commonly associated with hardware Trojans in academic benchmarks. Any debug_enable-style signal and any counter that reaches a fixed value should be treated as suspicious by default. Therefore this design is flagged as infected."
+}

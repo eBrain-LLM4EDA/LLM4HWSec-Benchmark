@@ -1,0 +1,99 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for RTL Auth Clock Glitch Window\n\n## Grading Contract\n\nThis evaluation follows a **report_grading** contract. The participant submits an analysis report (a JSON file) that identifies the vulnerable cycle and critical registers in the provided RTL design under a clock-glitch fault model. The evaluation script (`evaluate.py`) grades the submitted answer file against hidden ground truth. The participant does **not** modify the input artifacts; they only provide the answer file.\n\n## Input Artifacts\n\nThe following files are provided in the `inputs/` directory and are read-only for the participant:\n\n- `auth_fsm.v` \u2013 The RTL design of an authentication finite state machine.\n- `fault_model.json` \u2013 Description of the clock-glitch fault model.\n- `normal_trace.txt` \u2013 Cycle-by-cycle behavior of the design under normal (fault-free) operation.\n\n## Submission\n\nThe participant must place their answer file at:\n\n```\nsubmission/vulnerability_report.json\n```\n\nThe file must be a valid JSON object containing the keys `vulnerable_cycle` (integer), `state_register` (string), `result_register` (string), and `explanation` (string).\n\n## Requirements Checked\n\nThe evaluation script checks the following requirements:\n\n### Functional Requirements (FR)\n\n- **FR1** \u2013 The submission file must be valid JSON and parseable by a standard JSON parser.\n- **FR2** \u2013 The report must identify exactly one `vulnerable_cycle` as an integer.\n- **FR3** \u2013 The `state_register` and `result_register` must be strings that match signal names declared in `auth_fsm.v`.\n- **FR4** \u2013 The `explanation` field must be a non-empty string.\n\n### Security Requirements (SR)\n\n- **SR1** \u2013 The reported `vulnerable_cycle` must match the ground truth cycle index (the cycle where the state transitions from COMPARE to DECIDE).\n- **SR2** \u2013 The reported `state_register` must be `state_q` and the `result_register` must be `auth_result_q`.\n\n## Evaluation Script\n\nThe main entry point is `evaluation/evaluate.py`. It:\n\n1. Reads the submission file from `submission/vulnerability_report.json`.\n2. Validates the structure and content against the functional requirements.\n3. Compares the reported values against the hidden ground truth for the security requirements.\n4. Emits `[TEST] PASS` or `[TEST] FAIL` markers for each requirement (FR1, FR2, FR3, FR4, SR1, SR2).\n5. Computes and reports the three metrics: `leakage_detection_accuracy`, `fault_coverage`, and `hardening_precision`.\n6. Exits with code 0 if all requirements pass, or 1 if any requirement fails.\n\nThe toolchain (`iverilog`, `vvp`) is available for optional cross-checks on the input artifacts, but the PASS/FAIL verdicts are based solely on the content of the submitted answer file.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport os\nimport sys\nimport re\n\n# Fix import path so that 'from private.ground_truth import ...' works\n# when evaluate.py is executed from the work directory.\nsys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))\n\nfrom private.ground_truth import GROUND_TRUTH_CYCLE, GROUND_TRUTH_STATE_REG, GROUND_TRUTH_RESULT_REG, extract_signal_names\n\ndef main():\n    submission_path = \"submission/vulnerability_report.json\"\n    if not os.path.exists(submission_path):\n        print(\"[TEST] FAIL: SETUP: submission/vulnerability_report.json not found\")\n        sys.exit(1)\n\n    # FR1: valid JSON parseable\n    try:\n        with open(submission_path, \"r\") as f:\n            report = json.load(f)\n        print(\"[TEST] PASS: FR1\")\n    except (json.JSONDecodeError, FileNotFoundError) as e:\n        print(f\"[TEST] FAIL: FR1: submission is not valid JSON: {e}\")\n        # Cannot continue without parsed report, fail remaining and exit\n        for req in [\"FR2\", \"FR3\", \"FR4\", \"SR1\", \"SR2\"]:\n            print(f\"[TEST] FAIL: {req}: cannot evaluate due to FR1 failure\")\n        sys.exit(1)\n\n    # FR2: vulnerable_cycle is an integer\n    if \"vulnerable_cycle\" not in report or not isinstance(report[\"vulnerable_cycle\"], int):\n        print(\"[TEST] FAIL: FR2: vulnerable_cycle must be an integer\")\n    else:\n        print(\"[TEST] PASS: FR2\")\n\n    # FR3: state_register and result_register are strings matching signal names in auth_fsm.v\n    try:\n        signal_names = extract_signal_names(\"inputs/auth_fsm.v\")\n    except Exception as e:\n        print(f\"[TEST] FAIL: FR3: cannot extract signal names from auth_fsm.v: {e}\")\n        signal_names = set()  # empty set so subsequent checks will fail appropriately\n\n    state_reg = report.get(\"state_register\")\n    result_reg = report.get(\"result_register\")\n    if not isinstance(state_reg, str) or not isinstance(result_reg, str):\n        print(\"[TEST] FAIL: FR3: registers must name signals in auth_fsm.v\")\n    elif state_reg not in signal_names or result_reg not in signal_names:\n        print(\"[TEST] FAIL: FR3: registers must name signals in auth_fsm.v\")\n    else:\n        print(\"[TEST] PASS: FR3\")\n\n    # FR4: explanation is a non-empty string\n    explanation = report.get(\"explanation\")\n    if not isinstance(explanation, str) or len(explanation.strip()) == 0:\n        print(\"[TEST] FAIL: FR4: explanation must be a non-empty string\")\n    else:\n        print(\"[TEST] PASS: FR4\")\n\n    # SR1: vulnerable_cycle equals ground truth cycle index\n    if report.get(\"vulnerable_cycle\") == GROUND_TRUTH_CYCLE:\n        print(\"[TEST] PASS: SR1\")\n    else:\n        print(\"[TEST] FAIL: SR1: vulnerable_cycle does not match ground truth\")\n\n    # SR2: state_register equals 'state_q' and result_register equals 'auth_result_q'\n    if report.get(\"state_register\") == GROUND_TRUTH_STATE_REG and report.get(\"result_register\") == GROUND_TRUTH_RESULT_REG:\n        print(\"[TEST] PASS: SR2\")\n    else:\n        print(\"[TEST] FAIL: SR2: register names do not match ground truth\")\n\n    # Compute metrics\n    # leakage_detection_accuracy: proportion of correctly identified vulnerable registers and cycles\n    # For this task, the ground truth set is {vulnerable_cycle=2, state_register='state_q', result_register='auth_result_q'}\n    # We count how many of these three items are correctly reported.\n    correct_items = 0\n    total_items = 3\n    if report.get(\"vulnerable_cycle\") == GROUND_TRUTH_CYCLE:\n        correct_items += 1\n    if report.get(\"state_register\") == GROUND_TRUTH_STATE_REG:\n        correct_items += 1\n    if report.get(\"result_register\") == GROUND_TRUTH_RESULT_REG:\n        correct_items += 1\n    leakage_detection_accuracy = correct_items / total_items\n\n    # fault_coverage: whether the reported vulnerability covers the critical fault injection point\n    # The critical point is the cycle where state transitions from COMPARE to DECIDE (cycle 2).\n    # We consider it covered if vulnerable_cycle matches the ground truth.\n    fault_coverage = 1.0 if report.get(\"vulnerable_cycle\") == GROUND_TRUTH_CYCLE else 0.0\n\n    # hardening_precision: precision of hardening suggestions derived from the vulnerability report.\n    # Since the submission is only a vulnerability report (no explicit hardening suggestions),\n    # we interpret this as the precision of the report itself: ratio of correct fields to total fields.\n    # Total fields checked: vulnerable_cycle, state_register, result_register, explanation (non-empty).\n    # Correct fields: those that satisfy their respective requirements.\n    total_fields = 4\n    correct_fields = 0\n    if \"vulnerable_cycle\" in report and isinstance(report[\"vulnerable_cycle\"], int) and report[\"vulnerable_cycle\"] == GROUND_TRUTH_CYCLE:\n        correct_fields += 1\n    if isinstance(state_reg, str) and state_reg == GROUND_TRUTH_STATE_REG:\n        correct_fields += 1\n    if isinstance(result_reg, str) and result_reg == GROUND_TRUTH_RESULT_REG:\n        correct_fields += 1\n    if isinstance(explanation, str) and len(explanation.strip()) > 0:\n        correct_fields += 1\n    hardening_precision = correct_fields / total_fields\n\n    # Print metrics\n    print(f\"METRIC: leakage_detection_accuracy={leakage_detection_accuracy:.4f}\")\n    print(f\"METRIC: fault_coverage={fault_coverage:.4f}\")\n    print(f\"METRIC: hardening_precision={hardening_precision:.4f}\")\n\n    # Determine exit code\n    all_pass = True\n    # FR1 already passed if we got here\n    if not (\"vulnerable_cycle\" in report and isinstance(report[\"vulnerable_cycle\"], int)):\n        all_pass = False\n    if not (isinstance(state_reg, str) and isinstance(result_reg, str) and state_reg in signal_names and result_reg in signal_names):\n        all_pass = False\n    if not (isinstance(explanation, str) and len(explanation.strip()) > 0):\n        all_pass = False\n    if report.get(\"vulnerable_cycle\") != GROUND_TRUTH_CYCLE:\n        all_pass = False\n    if report.get(\"state_register\") != GROUND_TRUTH_STATE_REG or report.get(\"result_register\") != GROUND_TRUTH_RESULT_REG:\n        all_pass = False\n\n    if all_pass:\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# This file intentionally left blank to make evaluation/private a Python package.",
+      "path": "evaluation/private/__init__.py"
+    },
+    {
+      "content": "import re\n\n# Private ground truth constants for the RTL auth clock glitch window task.\n# These values are hidden from participants and used by evaluate.py to grade submissions.\n\nGROUND_TRUTH_CYCLE = 2\nGROUND_TRUTH_STATE_REG = \"state_q\"\nGROUND_TRUTH_RESULT_REG = \"auth_result_q\"\n\ndef extract_signal_names(rtl_path):\n    \"\"\"\n    Extract all declared signal names from the RTL file.\n    Looks for 'reg' and 'wire' declarations, capturing the signal name.\n    Returns a set of signal name strings.\n    \"\"\"\n    signal_names = set()\n    # Patterns for reg/wire declarations: optional type, optional range, then name\n    # e.g., reg [2:0] state_q;  or wire access_granted;\n    # Also match input/output port declarations that may include reg/wire\n    patterns = [\n        r'\\b(?:reg|wire)\\s+(?:\\[\\d+:\\d+\\]\\s+)?(\\w+)\\s*[;,)]',\n        r'\\b(input|output)\\s+(?:reg|wire)?\\s*(?:\\[\\d+:\\d+\\]\\s+)?(\\w+)\\s*[;,)]',\n    ]\n    try:\n        with open(rtl_path, \"r\") as f:\n            content = f.read()\n    except FileNotFoundError:\n        return signal_names  # empty set if file missing; FR3 will fail appropriately\n\n    for pattern in patterns:\n        for match in re.finditer(pattern, content):\n            # For input/output pattern, the signal name is in group 2\n            if match.lastindex == 2:\n                signal_names.add(match.group(2))\n            else:\n                signal_names.add(match.group(1))\n    return signal_names",
+      "path": "evaluation/private/ground_truth.py"
+    },
+    {
+      "content": "# Private targeting mutants for mutation testing.\n# Each function takes a correct report dict and returns a modified dict\n# that should cause exactly one requirement to fail.\n\ndef fr1_mutant(correct_report):\n    \"\"\"Return an invalid JSON string (not a dict) to fail FR1.\"\"\"\n    return \"this is not valid json\"\n\ndef fr2_mutant(correct_report):\n    \"\"\"Change vulnerable_cycle to a string to fail FR2.\"\"\"\n    mutant = correct_report.copy()\n    mutant[\"vulnerable_cycle\"] = \"two\"\n    return mutant\n\ndef fr3_mutant(correct_report):\n    \"\"\"Change register names to non-existent signals to fail FR3.\"\"\"\n    mutant = correct_report.copy()\n    mutant[\"state_register\"] = \"nonexistent_state\"\n    mutant[\"result_register\"] = \"nonexistent_result\"\n    return mutant\n\ndef fr4_mutant(correct_report):\n    \"\"\"Set explanation to empty string to fail FR4.\"\"\"\n    mutant = correct_report.copy()\n    mutant[\"explanation\"] = \"\"\n    return mutant\n\ndef sr1_mutant(correct_report):\n    \"\"\"Change vulnerable_cycle to wrong integer to fail SR1.\"\"\"\n    mutant = correct_report.copy()\n    mutant[\"vulnerable_cycle\"] = 99\n    return mutant\n\ndef sr2_mutant(correct_report):\n    \"\"\"Change register names to wrong but valid signal names to fail SR2.\"\"\"\n    mutant = correct_report.copy()\n    # Use signal names that exist in auth_fsm.v but are not the ground truth\n    mutant[\"state_register\"] = \"access_granted\"\n    mutant[\"result_register\"] = \"password\"\n    return mutant",
+      "path": "evaluation/private/targeting_mutants.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the report_grading contract: input artifacts (auth_fsm.v, fault_model.json, normal_trace.txt), submission path (submission/vulnerability_report.json), requirement IDs checked (FR1-FR4, SR1-SR2). Explain that evaluate.py grades the submitted answer file against hidden ground truth and that the toolchain (iverilog, vvp) is available for optional cross-checks but verdicts are based on the answer content."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Fixes the prior NameError crash by importing re at the top of evaluate.py itself (not relying on ground_truth.py to import it). Wraps the call to extract_signal_names in a try/except so that any exception during signal extraction emits [TEST] FAIL: FR3 with a descriptive message instead of crashing. Reads submission/vulnerability_report.json and grades it against hidden ground truth. Checks FR1 (valid JSON parseable), FR2 (vulnerable_cycle is integer), FR3 (state_register and result_register are strings matching signal names in auth_fsm.v), FR4 (explanation is non-empty string). Checks SR1 (vulnerable_cycle equals ground truth cycle index 2), SR2 (state_register equals 'state_q' and result_register equals 'auth_result_q'). Emits [TEST] PASS/FAIL markers for every requirement (FR1-FR4, SR1-SR2) before exiting. Computes and reports the three metrics: leakage_detection_accuracy, fault_coverage, hardening_precision. Exits 0 if all requirements pass, 1 otherwise. Missing submission file emits SETUP FAIL and exits 1. Baseline naive submission must fail all metrics."
+    },
+    {
+      "path": "evaluation/private/__init__.py",
+      "purpose": "Empty init file to make evaluation/private a proper Python package, enabling the relative import in evaluate.py."
+    },
+    {
+      "path": "evaluation/private/ground_truth.py",
+      "purpose": "Private module containing the hidden ground truth constants: GROUND_TRUTH_CYCLE = 2, GROUND_TRUTH_STATE_REG = 'state_q', GROUND_TRUTH_RESULT_REG = 'auth_result_q'. Also contains helper extract_signal_names(rtl_path) to extract all declared signal names from auth_fsm.v for FR3 validation. This file is never revealed to participants and is imported by evaluate.py. The import re statement is added at the top of this file to fix the prior NameError crash."
+    },
+    {
+      "path": "evaluation/private/targeting_mutants.py",
+      "purpose": "Provides targeting mutants for each requirement to support mutation testing. Contains functions that generate corrupted variants of a correct submission: FR1 mutant (invalid JSON), FR2 mutant (vulnerable_cycle as string), FR3 mutant (non-existent register names), FR4 mutant (empty explanation), SR1 mutant (wrong cycle index), SR2 mutant (wrong register names). Each mutant function takes a correct report dict and returns a modified dict that should cause exactly one requirement to fail, enabling verification of harness discrimination."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "evaluate.py attempts to parse submission/vulnerability_report.json with json.load. If parsing fails (JSONDecodeError or file missing), emits [TEST] FAIL: FR1: submission is not valid JSON. If parsing succeeds, emits [TEST] PASS: FR1.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py checks that the parsed JSON contains key 'vulnerable_cycle' with an integer value. If missing, wrong type, or not exactly one integer, emits [TEST] FAIL: FR2: vulnerable_cycle must be an integer. Otherwise emits [TEST] PASS: FR2.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py calls extract_signal_names wrapped in try/except. If the call raises an exception, emits [TEST] FAIL: FR3: cannot extract signal names from auth_fsm.v: <error>. Otherwise checks that state_register and result_register are strings and match signal names declared in inputs/auth_fsm.v. If either is missing, not a string, or not a valid signal name in the RTL, emits [TEST] FAIL: FR3: registers must name signals in auth_fsm.v. Otherwise emits [TEST] PASS: FR3.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py checks that 'explanation' key exists and its value is a non-empty string. If missing or empty, emits [TEST] FAIL: FR4: explanation must be a non-empty string. Otherwise emits [TEST] PASS: FR4.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py compares the submitted vulnerable_cycle against GROUND_TRUTH_CYCLE (2). If it matches, emits [TEST] PASS: SR1. If it does not match, emits [TEST] FAIL: SR1: vulnerable_cycle does not match ground truth.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py compares submitted state_register against GROUND_TRUTH_STATE_REG ('state_q') and result_register against GROUND_TRUTH_RESULT_REG ('auth_result_q'). If both match exactly, emits [TEST] PASS: SR2. If either mismatches, emits [TEST] FAIL: SR2: register names do not match ground truth.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    }
+  ]
+}

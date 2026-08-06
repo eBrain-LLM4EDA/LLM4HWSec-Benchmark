@@ -1,0 +1,85 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR1 is not covered by mutation testing (uncovered_requirement per validation report). No mutant specifically targeting the SR1 logic-bug-vs-wiring-defect characterization was detected, meaning this requirement's discriminative power is unverified even though the logic appears present and plausible in the code (misdescribed logic-bug detection).",
+      "evidence": "per_requirement_coverage.SR1.covered=false, mutants_detected=0, mutants_targeting=1; uncovered_requirements: ['SR1']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "overall benchmark",
+      "description": "Mutation score is 0.875 (7/8) rather than 1.0 due solely to the SR1 gap; all other requirements (FR1-4, SR2-4) are well covered and discriminative.",
+      "evidence": "mutation_score: 0.875, mutation_score_meaningful: true",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or verify a mutant that specifically flips the SR1 characterization (e.g., a submission with correct nets/instances but root_cause reframed as an internal logic-equation bug) to confirm SR1's discriminative logic is actually exercised and caught, closing the mutation coverage gap flagged in the validation report.",
+    "Consider adding a distinct FR2/FR3 mutant that supplies a plausible-but-wrong instance/net name (rather than only empty lists) to further harden coverage of the strict name-matching logic.",
+    "Double check that the SR1 'misdescribed' detection branch (logic-bug keywords without duplication keywords) is reachable and tested, since the current mutation results suggest this specific branch has not been empirically exercised by any generated mutant."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline run PASS; malformed JSON mutant correctly fails deterministically per code and differential test shows FR1 pass on golden, and vulnerable/naive submission passes FR1 (valid JSON) but fails downstream SR checks as intended.",
+      "requirement": "FR1 schema validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; naive baseline vacuously passes FR2 since trojan_present=false, consistent with spec.",
+      "requirement": "FR2 suspect_instances validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; naive baseline vacuously passes FR3.",
+      "requirement": "FR3 suspect_nets validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; vulnerable/naive run correctly FAILs FR4 due to empty affected_output field.",
+      "requirement": "FR4 affected_output match",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage marks SR1 as uncovered by mutation testing; no mutant was found to specifically trigger and be caught by this check, so its correctness is unverified despite baseline/vulnerable differential passing.",
+      "requirement": "SR1 wiring vs logic-bug characterization",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run PASS; vulnerable run FAILs SR2 as expected (naive submission has empty suspect_instances).",
+      "requirement": "SR2 names cloning instance",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; vulnerable run FAILs SR3 as expected.",
+      "requirement": "SR3 flags dangling net_repb_out",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; vulnerable run FAILs SR4 as expected (trojan_present=false).",
+      "requirement": "SR4 correct affected_output and trojan_present",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run exit_code=1, status=fail, matching expected='fail'; FR4, SR1, SR2, SR3, SR4 all correctly FAIL for the naive baseline.",
+      "requirement": "Naive/empty baseline must FAIL",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and netlist comments use only ordinary RTL terminology (u_buf1, wire_tap, net_repb_out) with no mention of trojan/CWE/SR ids/threat model; constraint explicitly enforced in public_spec.constraints.",
+      "requirement": "No hidden-intent leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are each independently verifiable via JSON schema/type checks, instance-name matching, net-name matching, and output-port matching against the pinned netlist -- not a single generic restatement.",
+      "requirement": "Functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1-SR4 checks parse root_cause text and suspect lists against ground-truth net/instance names derived from actual netlist parsing (not merely presence checks), and SR4 includes an empirical iverilog/vvp cross-check via fault_sim_tb.v.",
+      "requirement": "Security-relevant behaviors actively triggered",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

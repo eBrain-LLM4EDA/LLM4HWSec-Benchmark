@@ -1,0 +1,119 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.md",
+    "inputs/mult_ctrl.v",
+    "inputs/trace_manifest.json",
+    "inputs/traces.csv",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "aa287cdda3af295406f027d7f4cf58e56274736051457fddccff329fd2506c82",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: FR2: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: FR3: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: FR4: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: SR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: SR2: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: SR3: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: FR2: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: FR3: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: FR4: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: SR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: SR2: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n[TEST] FAIL: SR3: SETUP: failed to parse inputs/traces.csv: 'trial_id'\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/traces.csv",
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "input_artifacts entry is not a plain filename: 'traces.csv'",
+      "issue": "input_artifact_not_filename"
+    },
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: FR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'",
+        "failure_class": "golden_rejected",
+        "failure_signature": "aa287cdda3af295406f027d7f4cf58e56274736051457fddccff329fd2506c82"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: FR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'",
+        "failure_class": "golden_rejected",
+        "failure_signature": "aa287cdda3af295406f027d7f4cf58e56274736051457fddccff329fd2506c82"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "aa287cdda3af295406f027d7f4cf58e56274736051457fddccff329fd2506c82",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true,
+    "selected_attempt": 0
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "ca36a8ee553a66d0d5002a6284226ff0a018038610111e853103f84ae5e638a6",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "659a0cb2912e8580eabfd2e72604a6c896218bc9762b3af925e2560cb1c1e175",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_mult_ctrl_check.v"
+  ],
+  "uncovered_requirements": []
+}

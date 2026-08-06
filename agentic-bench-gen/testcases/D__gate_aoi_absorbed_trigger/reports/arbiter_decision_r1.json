@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected by evaluate.py with FR4 failures, indicating the netlist parser does not correctly extract cell and net names from design.v. The golden run stdout shows failures for cells 'aoi21_trigger' and 'oai22_trigger', but the actual golden file contains 'aoi_trig' and 'oai_trig', suggesting the evaluator is grading a different file or the parser is broken. Additionally, no mutants exist, so mutation_score is 0.0 and not meaningful. The evaluator must be fixed to correctly parse the netlist and grade the correct golden file before the benchmark can be retained.",
+  "retain_case": false,
+  "revision_instructions": "Fix evaluate.py to correctly parse the gate-level Verilog netlist in design.v and grade the correct golden submission file. The netlist parser must extract all cell instance names and net names from design.v, including those declared with standard Verilog instance syntax (e.g., 'AOI21 aoi_trig (.A0(n20), .A1(in[1]), .B0(in[2]), .Y(n21));'). The parser must not rely on overly restrictive regex patterns that fail to match valid instance names. Ensure the evaluator reads the submission file from the correct path (submission/trojan_report.json) and the golden file from golden/trojan_report.json. Verify that a correct submission containing the actual instance names from design.v passes all FR checks (FR1-FR4) and SR checks (SR1-SR2). The evaluator must also correctly compute detection_rate and false_positive_rate metrics based on the ground truth. After fixing the parser, create targeted mutants for each requirement (FR1-FR4, SR1-SR2) to prove harness discrimination. Each mutant must introduce a specific violation of one requirement, and the evaluator must detect it with a FAIL for that requirement.",
+  "root_cause": "evaluation_issue",
+  "source_round": 1
+}

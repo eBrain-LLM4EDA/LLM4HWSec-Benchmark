@@ -1,0 +1,96 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of stale-data leakage test cases (varying length sequences and buffer reuse patterns) in which output bytes at indices >= length are non-zero, indicating CWE-459/CWE-200 violations. Computed by compiling and running the harness across the full randomized and fixed test vector suite.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Fraction of test invocations where output bytes at indices >= length are provably independent of any prior call's input content (measured by re-running the same length/input with differing prior-call histories and confirming identical output).",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Fraction of known-answer functional test vectors (covering length in {0,1,8,17,31,32} and boundary conditions) for which the compiled binary produces byte-for-byte correct transformed and zero-padded output.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Binary compiles successfully from the submitted inputs/packet_kernel.cpp using g++ with the test harness main().",
+      "All known-answer vector tests for lengths 0, 1, 8, 17, 31, and 32 pass with exact byte-for-byte match against expected transformed and zero-padded output.",
+      "The stale-data leakage test (SR1/SR2): after a length=32 call with a non-zero input pattern followed by a shorter-length call reusing the same output buffer, all output bytes at indices >= the shorter length are exactly 0x00.",
+      "No output byte at any index >= length ever contains a non-zero value across a randomized sequence of 100 calls with varying lengths and input patterns reusing the same buffers."
+    ],
+    "cwe_ids": [
+      "CWE-459",
+      "CWE-200",
+      "CWE-212"
+    ],
+    "ground_truth": "The insecure baseline uses a static or global 32-byte buffer for out_buf staging (or writes out_buf only for indices [0,length) and skips writing indices [length,32) entirely, relying on the buffer retaining values from the previous invocation). Because the buffer is reused across calls, if a prior call had length=32 and populated all 32 bytes, then a subsequent call with a shorter length (e.g. length=4) will leave indices [4,32) containing transformed byte values from the previous longer call instead of zero. The correct hardened version must explicitly zero-initialize or explicitly write 0x00 to every output index from length to 31 on every single invocation, with no dependency on prior call history, so that after processing length N, output positions N through 31 are always zero regardless of what any previous call wrote there.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Harness invokes process_packet twice: first with length=32 and an input buffer of all 0xFF (or another fixed non-zero pattern), then with length=0 (or any smaller length) and a fresh in_buf of all 0x00, reusing the same out_buf array without clearing it between calls. The evaluator asserts that the second call's output at indices >= length is exactly 0x00; the insecure baseline fails this because it leaves indices [0,32) at leftover 0xFF-derived transformed values from the first call.",
+        "id": "SR1",
+        "requirement": "Every output byte out_buf[0..31] must be explicitly written on every invocation of process_packet, regardless of the value of length."
+      },
+      {
+        "detection_strategy": "Sweep length across several values (0, 1, 8, 17, 31, 32) in sequence, reusing the same out_buf buffer and varying in_buf content (including a prior call with all bytes 0xFF at length=32) between calls. For each length value, verify programmatically that all indices >= length are exactly zero and all indices < length match the exact transformation formula, across the full sequence of calls without resetting the buffer manually between test cases.",
+        "id": "SR2",
+        "requirement": "Output at any index i >= length must never reflect the current call's in_buf content transformed, nor any stale data from a previous call; it must be exactly 0x00."
+      },
+      {
+        "detection_strategy": "Known-answer test: fixed input vector and length=17, assert bytes [0,17) equal precomputed expected transformed values and bytes [17,32) equal zero.",
+        "id": "SR3",
+        "requirement": "The transformation for valid indices below length must remain exactly ((in_buf[i]^0xA5)+i)&0xFF, so that hardening does not break correctness by e.g. zeroing everything unconditionally."
+      }
+    ],
+    "threat_model": "Consecutive callers share a single hardware accelerator instance and its underlying buffer/BRAM storage. An attacker issues a short packet request (small length) immediately after a victim's longer request (larger length) completes. If the kernel does not explicitly clear all output bytes beyond the current length on every call, the attacker's output buffer may still contain leftover transformed bytes derived from the victim's prior secret input, leaking confidential data across the trust boundary between unrelated invocations."
+  },
+  "public_spec": {
+    "constraints": [
+      "Keep the fixed 32-byte input and output buffer sizes; do not change the function signature.",
+      "length must be treated as a runtime value in the inclusive range [0,32]; do not assume it is always 32.",
+      "All loops must iterate a fixed 32 times (bounded by the array size), never a variable number of times based on length.",
+      "Do not use malloc, new, std::vector, or any dynamic-size container.",
+      "The function must not read or depend on any global or static state that persists meaningfully between calls in a way that affects output correctness.",
+      "Code must compile cleanly with g++ (C++11 or later) with no external dependencies beyond the standard library."
+    ],
+    "expected_outputs": [
+      "A revised packet_kernel.cpp implementing process_packet() per the interface below, compiled and validated by the harness."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For length=32 and a given 32-byte input, every output byte out_buf[i] must equal ((in_buf[i] ^ 0xA5) + i) & 0xFF for i in [0,32)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For length=0, calling process_packet must produce an output buffer where all 32 bytes equal 0x00, regardless of the contents of in_buf."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For any length L in [0,32], bytes at indices [0,L) must equal the transformation T(in_buf[i], i) = ((in_buf[i] ^ 0xA5) + i) & 0xFF, and bytes at indices [L,32) must equal 0x00."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The function must compile without errors or warnings under g++ with -Wall -Wextra using only fixed-size arrays, fixed-trip-count loops (32 iterations), and no dynamic allocation or recursion."
+      }
+    ],
+    "input_artifacts": [
+      "packet_kernel.cpp"
+    ],
+    "interface": "File: packet_kernel.cpp. Function signature (must match exactly): void process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32]); Parameters: in_buf is a 32-byte public input buffer (the packet payload). length is a public integer in the inclusive range [0,32] indicating how many leading bytes of in_buf are valid for this call. out_buf is a caller-allocated 32-byte output buffer that the function must fully populate on every call (all 32 indices written, no partial writes). Transformation: for every index i in [0,length), out_buf[i] must equal the byte transformation T(in_buf[i], i) defined as ((in_buf[i] ^ 0xA5) + i) & 0xFF. For every index i in [length,32), out_buf[i] must equal 0x00. The function has no return value and must not allocate memory dynamically or use recursion; all loops must have a fixed trip count of 32 iterations bounded by array size, using length only as a per-iteration conditional, not as a loop bound.",
+    "objective": "You are given an HLS-style C++ packet transformation kernel intended for repeated invocation on a shared hardware accelerator buffer. The kernel accepts a fixed 32-byte input buffer, a length field indicating how many of those bytes are valid for this call, and must produce a fixed 32-byte output buffer. Your task is to revise the kernel so that its output is fully and correctly determined by the current call's inputs alone, for every possible sequence of calls with varying lengths. Ensure the function is synthesizable HLS-style C++ (fixed-trip-count loops, no dynamic memory allocation, no recursion) and compiles cleanly with g++.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_stale_bram_data_clearing_001",
+  "title": "Clear stale packet data in a reused HLS buffer"
+}

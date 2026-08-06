@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "df99c0c728619015ef4dcee356b3f7808173ef1596ef064fdad95f241acccdbf",
+    "expert/expert_bundle.json": "d1da444ed8fe640df252b1aa64f66176d17638be735bbae706739c8c234933b4",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "f0404f0e21552ba685042037429c5c9822faeb7583b5aeb0c67cf40ad4a5a022",
+    "reports/quality_report.json": "0147ddf25cd657f08dd190ae9d1d4259ca64baafc3f0e3c6438a7d9c24c3f69d",
+    "reports/validation_report.json": "6009cdb8787c56731b2ac150644faa73451c49f7ca3962f77df2082808f432bb",
+    "spec/task_spec.json": "156188f239f3518f51fc0c17960887897c9c8b2ef6139047110ffb5961e060b6",
+    "tests/tester_bundle.json": "b13b4d48fc9b5147fb3ffd0accb44019b33a3cf5f4418634827459a3391dc735"
+  },
+  "domain_id": "gate_trojan_detection",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "gate_sequential_fsm_trigger_001"
+}

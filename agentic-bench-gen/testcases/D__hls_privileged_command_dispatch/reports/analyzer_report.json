@@ -1,0 +1,96 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "evaluate.py rejects the expert golden solution due to a missing include path for dispatcher.h. The harness files use #include \"dispatcher.h\" but evaluate.py compiles from the project root without adding the inputs/ directory to the include path, causing a fatal compilation error for both the golden and vulnerable baselines.",
+      "evidence": "Validation report shows golden_run exit_code=1 with stdout containing 'fatal error: dispatcher.h: No such file or directory' for all requirements. The compilation command in evaluate.py is: g++ -std=c++11 -O0 -o binary inputs/dispatcher.cpp evaluation/harness_main.cpp evaluation/private/security_checks.cpp, which lacks -Iinputs/.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator cannot discriminate between a correct hardened submission and the insecure baseline because both fail to compile due to the missing include path. This makes the benchmark unusable for grading.",
+      "evidence": "Both golden_run and vulnerable_run produce identical failure signatures (f827376393b40f0e78fe5506b6f0502a9be540af953e07fafa3fa548407fba46) with all requirements failing with the same compile error.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/harness_main.cpp",
+      "description": "FR1 is tested only by reaching main() and printing a PASS marker, but there is no actual verification that the dispatch function has the correct signature or compiles without warnings. The requirement is effectively untested.",
+      "evidence": "harness_main.cpp prints '[TEST] PASS: FR1' unconditionally after entering main(). No compile-time or runtime checks for signature correctness or warning-free compilation exist.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/private/security_checks.cpp",
+      "description": "Security checks SR1-SR4 are placed in a private/ directory to hide security intent, but the README.md explicitly states the hardening requirement: 'Only callers with privilege = 1 (trusted) are allowed to execute the write commands.' This leaks the security intent to participants.",
+      "evidence": "README.md states: 'Your task is to modify dispatcher.cpp so that: Only callers with privilege = 1 (trusted) are allowed to execute the write commands. If a write command is attempted with privilege = 0 (untrusted), the dispatcher must: Return -1. Set *status to 0xFE (UNAUTHORIZED). Leave *state completely unchanged.'",
+      "severity": "medium"
+    },
+    {
+      "artifact": "metadata.json",
+      "description": "metadata.json includes metric names and descriptions that reference CWE-tagged security test vectors and information flow correctness, which may hint at the security nature of the task beyond the functional hardening description.",
+      "evidence": "metadata.json contains: 'cwe_violation_rate: Proportion of CWE-tagged security test vectors that the hardened submission fails to block' and 'information_flow_correctness: Binary measure of whether the hardened submission prevents unauthorized information flow from privileged state to unprivileged callers.'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py to add -Iinputs/ to the g++ compilation command so that dispatcher.h can be found.",
+    "Add a proper compile-time or runtime check for FR1 that verifies the dispatch function signature and warning-free compilation, rather than unconditionally printing PASS.",
+    "Compute the metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate) in evaluate.py and output them in a machine-parseable format.",
+    "Remove the explicit hardening requirement from README.md to avoid leaking security intent. Instead, frame the task as a general code improvement or bug-fix exercise without specifying the privilege check behavior.",
+    "Remove CWE references and information flow terminology from metadata.json to prevent hinting at the security nature of the task.",
+    "Consider moving the security checks out of a private/ directory if the security intent is already exposed, or ensure the public task description does not reveal the exact hardening needed."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "The public inputs (dispatcher.cpp, dispatcher.h) implement the functional requirements correctly but lack privilege checks. The hidden ground truth specifies that privilege=1 is required for write commands. The expected outputs (hardened dispatcher.cpp) align with both the public functional requirements and the hidden security requirements.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py fails to compile both the golden solution and the vulnerable baseline due to a missing -Iinputs/ flag. It cannot accept a correct submission (exit 0) or reject the insecure baseline (exit non-zero) because compilation fails for both.",
+      "requirement": "evaluate.py follows grader semantics for hardened_artifact domain",
+      "status": "fail"
+    },
+    {
+      "evidence": "The evaluator does not compute cwe_violation_rate, information_flow_correctness, or synthesis_pass_rate as defined in metadata.json. It only checks pass/fail per requirement and exits with 0 or 1. The metrics are not calculated or reported.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "fail"
+    },
+    {
+      "evidence": "The requirement_map in the tester bundle lists FR1-FR4 as functional and SR1-SR4 as security, with distinct test files and detection strategies for each.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "The security checks in evaluation/private/security_checks.cpp actively call dispatch with privilege=0 and privilege=1 for WRITE_CONFIG_LO and WRITE_CONFIG_HI, verifying rejection, status codes, and state immutability.",
+      "requirement": "Security-relevant behaviors are actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are plain C++ source, headers, Python scripts, and markdown. No external network access, no dynamic code execution beyond compilation and running the harness binary. No unsafe operations.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task involves HLS command dispatcher hardening with privilege-based access control, using fixed-width scalar fields and a pinned dispatch interface, which is specific to hardware security code generation.",
+      "requirement": "Benchmark is adapted to the selected domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "The compilation failure in evaluate.py makes all results unverifiable. Additionally, FR1 has no meaningful test, and the metrics are not computed.",
+      "requirement": "No gaps that would make results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md explicitly describes the privilege-based hardening requirement, including the exact behavior for unauthorized write commands (return -1, status 0xFE, state unchanged). This leaks the security intent that was supposed to be hidden. metadata.json references CWE-tagged vectors and information flow correctness.",
+      "requirement": "Participant-facing artifacts do not leak hidden security intent",
+      "status": "fail"
+    },
+    {
+      "evidence": "FR1-FR4 are specific: FR1 requires exact function signature and compilation; FR2 specifies READ_STATUS behavior with return value, status, and state checks; FR3 specifies NOOP behavior; FR4 specifies unknown command rejection. All are verifiable through the pinned interface.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

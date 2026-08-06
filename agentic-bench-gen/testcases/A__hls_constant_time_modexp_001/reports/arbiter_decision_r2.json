@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs indicate a high-quality case: mutation_score=1.0, coverage_score=1.0, validation_status=pass, baseline_exit_code=0, issue_count=0, analyzer_status=pass. The differential run confirms the evaluator accepts the golden hardened solution and correctly rejects the shipped insecure baseline on SR1/SR2 while still passing FR1-FR4 and SR3, exactly matching the acceptance criteria. No dead checks or uncovered requirements were found, and the analyzer confirms coherence between public/hidden specs, proper requirement mapping, and no leakage of security intent into public-facing artifacts.",
+  "retain_case": true,
+  "revision_instructions": "No revisions required. Case meets all retention criteria.",
+  "root_cause": "none"
+}

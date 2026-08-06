@@ -1,0 +1,91 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "Proportion of tasks where the correct infected status is reported.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Proportion of clean tasks incorrectly flagged as infected.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time taken to produce the report, measured in seconds.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "infected is false",
+      "trigger_nodes is an empty array",
+      "payload_nodes is an empty array"
+    ],
+    "cwe_ids": [
+      "CWE-1269"
+    ],
+    "evidence_policy": {
+      "kind": "security_trigger_simulation",
+      "required": false
+    },
+    "ground_truth": "The netlist is clean. All scan-related nodes are reachable only through the documented test_mode and affect only scan shifting. The correct report has infected=false, trigger_nodes=[], payload_nodes=[].",
+    "security_requirements": [
+      {
+        "detection_strategy": "Simulate the netlist with test_mode=0 and verify that scan-control nodes do not affect functional outputs. Confirm that scan shifting only occurs when test_mode=1.",
+        "id": "SR1",
+        "requirement": "The detection method must not flag legitimate scan-chain control logic (test_mode, scan_enable, scan multiplexers) as Trojan trigger nodes."
+      },
+      {
+        "detection_strategy": "Trace all paths from any candidate payload node to primary outputs and verify no unauthorized data leakage or corruption path exists under functional mode.",
+        "id": "SR2",
+        "requirement": "The detection method must correctly identify the absence of any payload nodes that leak or corrupt functional data."
+      }
+    ],
+    "threat_model": "Rare-net heuristics misclassify legitimate design-for-test structures as Trojans and produce costly false alarms."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist uses only primitive gates (AND, OR, NOT, NAND, NOR, XOR, XNOR, BUF) and D-type flip-flops (DFF).",
+      "The design includes scan multiplexers and a documented test_mode input with naturally low switching activity.",
+      "The participant must not modify the input artifacts; only the report file is submitted."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must contain the exact fields infected, trigger_nodes, and payload_nodes with the correct types (boolean, array of strings, array of strings)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If infected is false, trigger_nodes and payload_nodes must be empty arrays. If infected is true, both arrays must be non-empty."
+      },
+      {
+        "id": "FR4",
+        "requirement": "All node names listed in trigger_nodes or payload_nodes must be valid identifiers present in the provided netlist."
+      }
+    ],
+    "input_artifacts": [
+      "scan_controller.v",
+      "design_brief.md"
+    ],
+    "interface": "The participant must produce a single answer file at submission/trojan_report.json. The file must be valid JSON with the following schema: {\"infected\": <boolean>, \"trigger_nodes\": [<string>, ...], \"payload_nodes\": [<string>, ...]}. If infected is false, trigger_nodes and payload_nodes must be empty arrays. If infected is true, trigger_nodes and payload_nodes must contain at least one node name each, where node names are exact hierarchical instance paths or wire names as they appear in the netlist.",
+    "objective": "Analyze the provided gate-level netlist and determine whether it contains any hardware Trojan logic. Submit a structured report identifying any suspect trigger or payload nodes, or declare the netlist clean.",
+    "response_format": "A JSON object with three fields: infected (boolean), trigger_nodes (array of strings), payload_nodes (array of strings)."
+  },
+  "task_id": "gate_clean_scan_chain",
+  "title": "Clean DFT netlist with rare scan controls"
+}

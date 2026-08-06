@@ -1,0 +1,31 @@
+{
+  "constraints": [
+    "The RTL implements a first-order masked S-box with two random shares and registered nonlinear processing.",
+    "The design includes benign share registers and one flawed recombination register.",
+    "The leakage model is Hamming-distance based."
+  ],
+  "expected_outputs": [
+    "vulnerability_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must contain the three required fields: \"recombination_net\", \"recombination_register\", and \"leakage_type\", each with a non-empty string value."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The values for \"recombination_net\" and \"recombination_register\" must be valid hierarchical identifiers present in the provided RTL netlist."
+    }
+  ],
+  "input_artifacts": [
+    "masked_sbox.v",
+    "leakage_model.txt"
+  ],
+  "interface": "The participant must submit a single JSON file at submission/vulnerability_report.json. The file must contain an object with the following required fields: \"recombination_net\" (string, the exact hierarchical name of the net where shares recombine), \"recombination_register\" (string, the exact hierarchical name of the register that captures the recombined value), and \"leakage_type\" (string, a brief description of the leakage mechanism, e.g., \"first-order switching leakage\").",
+  "objective": "Analyze the provided masked S-box RTL and identify the exact net and register where two individually masked shares are recombined in a single cycle, creating a first-order switching leakage point.",
+  "response_format": "A JSON object with keys: \"recombination_net\", \"recombination_register\", \"leakage_type\"."
+}

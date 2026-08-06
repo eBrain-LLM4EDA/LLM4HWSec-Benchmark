@@ -1,0 +1,104 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for HLS Privileged Command Dispatcher\n\nThis directory contains the evaluation harness that grades a hardened `dispatcher.cpp` submission.\n\n## Structure\n\n- **`evaluate.py`** \u2014 Main grading script. Compiles the submission with the test harness, executes the binary, and parses the output to determine pass/fail for each requirement.\n- **`harness_main.cpp`** \u2014 Test harness `main()` that exercises the `dispatch()` function. It runs all functional and security checks and prints `[TEST] PASS/FAIL` markers.\n- **`private/security_checks.cpp`** \u2014 Implements the security-specific test probes (SR1\u2013SR4). Kept in a private directory to avoid revealing security intent to participants.\n\n## Protocol\n\n1. **Compile**: `evaluate.py` compiles `inputs/dispatcher.cpp` together with `evaluation/harness_main.cpp` and `evaluation/private/security_checks.cpp` using `g++ -std=c++11 -O0`.\n2. **Execute**: The resulting binary is run with a timeout. Its standard output is captured.\n3. **Grade**: The script parses the output for `[TEST] PASS: <id>` and `[TEST] FAIL: <id>: <reason>` lines. It aggregates results per requirement and exits with code 0 if all requirements pass, non-zero otherwise.\n\n## Markers\n\nAll test outcomes are reported using the standardized markers:\n\n- `[TEST] PASS: <requirement_id>`\n- `[TEST] FAIL: <requirement_id>: <brief reason>`\n\nThese markers are the sole basis for grading.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import subprocess\nimport sys\nimport os\nimport tempfile\nimport shutil\n\nREQUIREMENTS = [\"FR1\", \"FR2\", \"FR3\", \"FR4\", \"SR1\", \"SR2\", \"SR3\", \"SR4\"]\n\ndef main():\n    # Paths\n    submission_cpp = \"inputs/dispatcher.cpp\"\n    harness_cpp = \"evaluation/harness_main.cpp\"\n    security_cpp = \"evaluation/private/security_checks.cpp\"\n    \n    # Check required files exist\n    for f in [submission_cpp, harness_cpp, security_cpp]:\n        if not os.path.isfile(f):\n            print(f\"[TEST] FAIL: SETUP: {f} not found\")\n            sys.exit(1)\n    \n    # Create a temporary directory for build artifacts\n    tmpdir = tempfile.mkdtemp()\n    binary = os.path.join(tmpdir, \"harness\")\n    \n    # Compile\n    compile_cmd = [\n        \"g++\", \"-std=c++11\", \"-O0\",\n        \"-o\", binary,\n        submission_cpp,\n        harness_cpp,\n        security_cpp\n    ]\n    \n    try:\n        proc = subprocess.run(\n            compile_cmd,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            timeout=30\n        )\n    except subprocess.TimeoutExpired:\n        # Compile timeout\n        for req in REQUIREMENTS:\n            print(f\"[TEST] FAIL: {req}: compile timed out\")\n        shutil.rmtree(tmpdir)\n        sys.exit(1)\n    \n    if proc.returncode != 0:\n        # Compile failed\n        stderr = proc.stderr.decode(errors=\"replace\")\n        # Emit FAIL for every behavioral requirement\n        for req in REQUIREMENTS:\n            print(f\"[TEST] FAIL: {req}: compile failed: {stderr[:200]}\")\n        shutil.rmtree(tmpdir)\n        sys.exit(1)\n    \n    # Run the binary\n    try:\n        run_proc = subprocess.run(\n            [binary],\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            timeout=10\n        )\n    except subprocess.TimeoutExpired:\n        for req in REQUIREMENTS:\n            print(f\"[TEST] FAIL: {req}: run timed out\")\n        shutil.rmtree(tmpdir)\n        sys.exit(1)\n    \n    stdout = run_proc.stdout.decode(errors=\"replace\")\n    \n    # Parse output for [TEST] markers\n    results = {}\n    for line in stdout.splitlines():\n        line = line.strip()\n        if line.startswith(\"[TEST] PASS: \"):\n            req_id = line[len(\"[TEST] PASS: \"):].strip()\n            results[req_id] = \"PASS\"\n        elif line.startswith(\"[TEST] FAIL: \"):\n            # Extract requirement id (up to first colon)\n            rest = line[len(\"[TEST] FAIL: \"):]\n            if \":\" in rest:\n                req_id = rest.split(\":\", 1)[0].strip()\n            else:\n                req_id = rest.strip()\n            results[req_id] = \"FAIL\"\n    \n    # Ensure all requirements are accounted for\n    all_pass = True\n    for req in REQUIREMENTS:\n        if req not in results:\n            print(f\"[TEST] FAIL: {req}: no result reported by harness\")\n            all_pass = False\n        elif results[req] == \"FAIL\":\n            all_pass = False\n    \n    # Cleanup\n    shutil.rmtree(tmpdir)\n    \n    if all_pass:\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "#include \"dispatcher.h\"\n#include <cstdio>\n#include <cstdint>\n\n// Forward declarations of security check functions (defined in private/security_checks.cpp)\nvoid test_SR1();\nvoid test_SR2();\nvoid test_SR3();\nvoid test_SR4();\n\nint main() {\n    // FR1: Compilation and linkage is implicitly tested by this harness existing.\n    // We'll emit a PASS marker for FR1 since we reached main().\n    printf(\"[TEST] PASS: FR1\\n\");\n\n    // FR2: READ_STATUS\n    {\n        uint32_t state = 0x12345678;\n        uint8_t status = 0xFF;\n        int ret = dispatch(CMD_READ_STATUS, PRIV_UNTRUSTED, 0, &state, &status);\n        if (ret == 0 && status == (state & 0xFF) && state == 0x12345678) {\n            printf(\"[TEST] PASS: FR2\\n\");\n        } else {\n            printf(\"[TEST] FAIL: FR2: READ_STATUS failed (ret=%d, status=0x%02X, state=0x%08X)\\n\", ret, status, state);\n        }\n    }\n\n    // FR3: NOOP\n    {\n        uint32_t state = 0xDEADBEEF;\n        uint8_t status = 0xFF;\n        int ret = dispatch(CMD_NOOP, PRIV_TRUSTED, 0, &state, &status);\n        if (ret == 0 && status == STATUS_OK && state == 0xDEADBEEF) {\n            printf(\"[TEST] PASS: FR3\\n\");\n        } else {\n            printf(\"[TEST] FAIL: FR3: NOOP failed (ret=%d, status=0x%02X, state=0x%08X)\\n\", ret, status, state);\n        }\n    }\n\n    // FR4: Unknown command\n    {\n        uint32_t state = 0xCAFEBABE;\n        uint8_t status = 0x00;\n        int ret = dispatch(0xFF, PRIV_UNTRUSTED, 0, &state, &status);\n        if (ret == -1 && status == STATUS_UNKNOWN_COMMAND && state == 0xCAFEBABE) {\n            printf(\"[TEST] PASS: FR4\\n\");\n        } else {\n            printf(\"[TEST] FAIL: FR4: Unknown command not rejected (ret=%d, status=0x%02X, state=0x%08X)\\n\", ret, status, state);\n        }\n    }\n\n    // Run security checks (SR1-SR4) from private implementation\n    test_SR1();\n    test_SR2();\n    test_SR3();\n    test_SR4();\n\n    return 0;\n}",
+      "path": "evaluation/harness_main.cpp"
+    },
+    {
+      "content": "#include \"dispatcher.h\"\n#include <cstdio>\n#include <cstdint>\n\nvoid test_SR1() {\n    uint32_t state = 0xAAAAAAAA;\n    uint8_t status = 0x00;\n    int ret = dispatch(CMD_WRITE_CONFIG_LO, PRIV_UNTRUSTED, 0xDEADBEEF, &state, &status);\n    if (ret == -1 && status == STATUS_UNAUTHORIZED && state == 0xAAAAAAAA) {\n        printf(\"[TEST] PASS: SR1\\n\");\n    } else {\n        printf(\"[TEST] FAIL: SR1: WRITE_CONFIG_LO with privilege=0 not rejected (ret=%d, status=0x%02X, state=0x%08X)\\n\", ret, status, state);\n    }\n}\n\nvoid test_SR2() {\n    uint32_t state = 0xBBBBBBBB;\n    uint8_t status = 0x00;\n    int ret = dispatch(CMD_WRITE_CONFIG_HI, PRIV_UNTRUSTED, 0xCAFEBABE, &state, &status);\n    if (ret == -1 && status == STATUS_UNAUTHORIZED && state == 0xBBBBBBBB) {\n        printf(\"[TEST] PASS: SR2\\n\");\n    } else {\n        printf(\"[TEST] FAIL: SR2: WRITE_CONFIG_HI with privilege=0 not rejected (ret=%d, status=0x%02X, state=0x%08X)\\n\", ret, status, state);\n    }\n}\n\nvoid test_SR3() {\n    uint32_t state = 0xFFFF0000;\n    uint8_t status = 0xFF;\n    int ret = dispatch(CMD_WRITE_CONFIG_LO, PRIV_TRUSTED, 0xDEADBEEF, &state, &status);\n    if (ret == 0 && status == STATUS_OK && (state & 0xFFFF) == 0xBEEF) {\n        printf(\"[TEST] PASS: SR3\\n\");\n    } else {\n        printf(\"[TEST] FAIL: SR3: WRITE_CONFIG_LO with privilege=1 failed (ret=%d, status=0x%02X, state=0x%08X)\\n\", ret, status, state);\n    }\n}\n\nvoid test_SR4() {\n    uint32_t state = 0x0000FFFF;\n    uint8_t status = 0xFF;\n    int ret = dispatch(CMD_WRITE_CONFIG_HI, PRIV_TRUSTED, 0xCAFEBABE, &state, &status);\n    if (ret == 0 && status == STATUS_OK && (state >> 16) == 0xBABE) {\n        printf(\"[TEST] PASS: SR4\\n\");\n    } else {\n        printf(\"[TEST] FAIL: SR4: WRITE_CONFIG_HI with privilege=1 failed (ret=%d, status=0x%02X, state=0x%08X)\\n\", ret, status, state);\n    }\n}",
+      "path": "evaluation/private/security_checks.cpp"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness structure: describe evaluate.py as the entry point, list the test files (harness_main.cpp, private/security_checks.cpp), explain the compile-and-run protocol, and note that PASS/FAIL markers follow the [TEST] convention. No implementation details."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading script. Compile inputs/dispatcher.cpp with evaluation/harness_main.cpp and evaluation/private/security_checks.cpp using g++ -std=c++11 -O0. Run the binary with timeout, capture stdout, parse [TEST] markers. Emit aggregated PASS/FAIL per requirement. Exit 0 if all pass, non-zero otherwise. Handle compile failures by emitting [TEST] FAIL for every behavioral requirement with compiler stderr summary."
+    },
+    {
+      "path": "evaluation/harness_main.cpp",
+      "purpose": "Test harness main() that exercises the dispatch() function. Declares dispatch() with the pinned signature from dispatcher.h. Runs functional checks FR1-FR4 by calling dispatch with known inputs and verifying return values, *status, and *state against expected outcomes. Runs security checks SR1-SR4 by calling dispatch with privilege=0 and privilege=1 for WRITE_CONFIG_LO/HI and verifying rejection/acceptance and state mutation rules. Prints one [TEST] PASS/FAIL line per requirement. Includes the private security check probes from evaluation/private/security_checks.cpp via #include."
+    },
+    {
+      "path": "evaluation/private/security_checks.cpp",
+      "purpose": "Implements the security-specific test probes called by harness_main.cpp. Contains functions that test SR1 (reject WRITE_CONFIG_LO with privilege=0, status=0xFE, state unchanged), SR2 (reject WRITE_CONFIG_HI with privilege=0, status=0xFE, state unchanged), SR3 (accept WRITE_CONFIG_LO with privilege=1, status=0x00, lower 16 bits updated), SR4 (accept WRITE_CONFIG_HI with privilege=1, status=0x00, upper 16 bits updated). Each function prints [TEST] PASS/FAIL markers. Kept in private/ to avoid revealing security intent to participants."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Compile and link succeeds; dispatch function exists with correct signature. Harness calls dispatch and verifies it compiles and links without errors. Emits [TEST] PASS: FR1 if compilation succeeds, else [TEST] FAIL: FR1: compile failed.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Call dispatch(CMD_READ_STATUS, any_privilege, 0, &state, &status). Verify return==0, status==(state & 0xFF), state unchanged. Emits [TEST] PASS: FR2 on match, else [TEST] FAIL: FR2 with reason.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Call dispatch(CMD_NOOP, any_privilege, 0, &state, &status). Verify return==0, status==0x00, state unchanged. Emits [TEST] PASS: FR3 on match, else [TEST] FAIL: FR3 with reason.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Call dispatch with unknown command (not 0x01,0x02,0x10,0x11). Verify return==-1, status==0xFF, state unchanged. Emits [TEST] PASS: FR4 on match, else [TEST] FAIL: FR4 with reason.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Call dispatch(0x10, 0, 0xDEADBEEF, &state, &status). Verify return==-1, status==0xFE, state unchanged from prior value. Emits [TEST] PASS: SR1 on match, else [TEST] FAIL: SR1 with reason.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/private/security_checks.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Call dispatch(0x11, 0, 0xCAFEBABE, &state, &status). Verify return==-1, status==0xFE, state unchanged from prior value. Emits [TEST] PASS: SR2 on match, else [TEST] FAIL: SR2 with reason.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/private/security_checks.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Call dispatch(0x10, 1, 0xDEADBEEF, &state, &status). Verify return==0, status==0x00, (state & 0xFFFF)==0xBEEF. Emits [TEST] PASS: SR3 on match, else [TEST] FAIL: SR3 with reason.",
+      "requirement_id": "SR3",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/private/security_checks.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Call dispatch(0x11, 1, 0xCAFEBABE, &state, &status). Verify return==0, status==0x00, (state >> 16)==0xBABE. Emits [TEST] PASS: SR4 on match, else [TEST] FAIL: SR4 with reason.",
+      "requirement_id": "SR4",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/private/security_checks.cpp"
+      ]
+    }
+  ]
+}

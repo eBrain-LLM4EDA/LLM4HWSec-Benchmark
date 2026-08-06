@@ -1,0 +1,37 @@
+# Opcode Map: decode_ctrl Documented Instructions
+#
+# This table lists every opcode value recognized by decode_ctrl as a
+# defined instruction, along with the exact output values decode_ctrl
+# must drive one cycle after the opcode is presented.
+#
+# Opcode values not listed here are undocumented / undefined and must
+# be treated as invalid by the decode stage (write_enable=0,
+# privilege_ok=0, valid=0), per design_brief.md.
+#
+# Columns:
+#   opcode       - 8-bit hex value of the instruction
+#   mnemonic     - human-readable instruction name
+#   write_enable - expected write_enable output (0/1)
+#   alu_op       - expected alu_op[2:0] output (binary)
+#   valid        - expected valid output (0/1)
+#   privilege_ok - expected privilege_ok output (0/1)
+
+opcode  mnemonic     write_enable  alu_op  valid  privilege_ok
+0x00    NOP          0             000     1      0
+0x01    ADD          1             000     1      0
+0x02    SUB          1             001     1      0
+0x03    AND          1             010     1      0
+0x04    OR           1             011     1      0
+0x05    XOR          1             100     1      0
+0x10    LOAD         1             101     1      0
+0x11    STORE        0             101     1      0
+0x20    SHIFT_LEFT   1             110     1      0
+0x21    SHIFT_RIGHT  1             111     1      0
+0xF0    HALT         0             000     1      1
+0xF1    IO_CONFIG    1             010     1      1
+0xF2    MODE_SET     0             001     1      1
+
+# End of documented opcode table. Any opcode value not appearing above
+# (including but not limited to values such as 0x30, 0x7F, 0xA5, 0xE7,
+# 0xFF) is undocumented and must default to write_enable=0, alu_op=000,
+# valid=0, privilege_ok=0 per the decode stage's intended contract.

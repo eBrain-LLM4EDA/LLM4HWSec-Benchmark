@@ -1,0 +1,116 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/locked_netlist.v",
+    "inputs/oracle_vectors.txt",
+    "inputs/public_key_width.txt",
+    "metadata.json",
+    "submission/recovered_key.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "setup_error",
+    "failure_signature": "b05870264928b719b4bc00906c9b782c14bd6820e8cf2ae3699ec30899f32cf2",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: SETUP: cannot import ground truth: No module named 'evaluation'\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: SETUP: cannot import ground truth: No module named 'evaluation'\n"
+    }
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "expert_files": [
+    "golden/recovered_key.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "evaluate.py never emitted [TEST] PASS/FAIL for ['SR1', 'SR2'] on the golden run \u2014 requirement_map ids and the script's marker ids must match exactly",
+      "issue": "requirement_id_mismatch"
+    },
+    {
+      "detail": "The baseline exited non-zero, but not as a valid requirement-level rejection (for example, setup or runtime failed)",
+      "issue": "vulnerable_rejection_invalid"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 0,
+    "failure_class": "setup_error",
+    "failure_signature": "b05870264928b719b4bc00906c9b782c14bd6820e8cf2ae3699ec30899f32cf2",
+    "repeated_signature": false
+  },
+  "requirement_count": 5,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "ef8ac936d90bffcd583c68a5e2c62701762ee8eb9fbcfef439e6226217f2ec57",
+        "changed": true,
+        "golden": "golden/recovered_key.json",
+        "golden_sha256": "97492e06d1d620152154c0f3b2a7a8d3e6c50c4ea92efd37597972ca9594efa8",
+        "target": "submission/recovered_key.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_key.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.py"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "SR1",
+    "SR2"
+  ]
+}

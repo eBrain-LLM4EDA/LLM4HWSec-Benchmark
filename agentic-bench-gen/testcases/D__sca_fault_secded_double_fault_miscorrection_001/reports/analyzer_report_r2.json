@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Differential validation shows the golden/expert submission is rejected by evaluate.py with FR1 'submission is not valid JSON: Expecting value: line 1 column 1 (char 0)', which is the signature of json.loads() receiving an empty string. Despite the private README claiming this was fixed via utf-8-sig decoding and explicit path handling, the actual preflight/differential run still reproduces the failure across multiple attempts, meaning the fix documented in evaluation/private/README.md was not actually effective (or the harness used to run the golden differs from what's described). This blocks all mutation testing and makes the benchmark unusable as-is.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR1: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)' repeated in preflight.attempt_history across attempt 0 and 1 with distinct failure_signatures, and differential.status='fail' with failure_class='golden_rejected'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Because the golden is rejected at FR1, all downstream requirement checks (FR2-FR4, SR1-SR4) are never meaningfully exercised for a correct submission, so requirement_discrimination_coverage_score is 0.0 and mutation_status is blocked_by_differential with mutation_score 0.0 \u2014 the benchmark cannot currently distinguish correct from incorrect submissions.",
+      "evidence": "requirement_discrimination_coverage_score: 0.0, mutation_status: 'blocked_by_differential', mutation_score: 0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The vulnerable/baseline run does correctly fail (as expected), but SR2 and SR3 spuriously PASS against the empty baseline submission (fault_cases=[] and vulnerable_fault_ids=[]), which is a correctness gap in the evaluator's tolerance logic: SR2 uses symmetric-difference<=2 which would only pass if the ground-truth miscorrection set were empty or near-empty, and SR3 trivially passes when ground_truth_vuln is empty. Combined with the internal documentation stating the true ground-truth miscorrection set is 'all 78 two-bit cases', an empty vulnerable_fault_ids submission should have a symmetric difference of 78, which should fail SR2 -- yet the observed vulnerable_run shows 'PASS: SR2' and 'PASS: SR3' for the empty baseline, indicating the oracle-derived ground truth in the actual execution environment differs from what internal documentation claims, or the checks are not behaving as documented.",
+      "evidence": "vulnerable_run.stdout: '[TEST] PASS: SR2' and '[TEST] PASS: SR3' when submission fault_cases and vulnerable_fault_ids are both empty, contradicting the expectation that an empty vulnerable set should have symmetric-difference 78 against a 78-element ground truth.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Root-cause and fix the FR1 golden-rejection bug in evaluate.py's load_submission()/json parsing path before this task can be used; the private README's claimed fix does not match observed differential behavior across repeated attempts.",
+    "Investigate why SR2 and SR3 pass against the empty/naive baseline submission \u2014 this suggests either the computed ground-truth miscorrection set is empty/small in the live grading environment (contradicting internal documentation that it should be all 78 two-bit cases), or a logic bug in check_sr2/check_sr3 tolerance handling; both must reject the empty baseline per the acceptance criteria.",
+    "Re-verify the oracle_tb.v derivation of ground truth against inputs/secded_codec.v and inputs/fault_model.json's fixed reference codeword end-to-end in the actual CI/grading environment (not just in maintainer notes) to confirm the true miscorrection and escape sets, then update the private README and SR2/SR3/SR4 logic to match reality.",
+    "Add a regression test that runs evaluate.py against the golden submission file at the documented path as part of CI, asserting exit code 0 and all PASS lines, to catch this class of regression before shipping.",
+    "Once FR1 is fixed, re-run the full differential (golden vs baseline vs mutants) to confirm mutation_score_meaningful becomes true and requirement_discrimination_coverage_score improves above 0."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run.exit_code=1, expected='pass' but status='fail'; FR1 rejects valid JSON due to an apparent empty-read bug not actually fixed despite documentation claiming otherwise.",
+      "requirement": "evaluate.py accepts a correct/golden submission (exit 0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run.exit_code=1, expected='fail', ok=true; FR2, FR3, FR4, SR1, SR4 correctly FAIL for the empty baseline, though SR2/SR3 anomalously PASS (see issues).",
+      "requirement": "evaluate.py rejects the naive/baseline submission (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as 'functional' and SR1-SR4 as 'security', each with expected_detection text and test_files pointing to evaluate.py/oracle_tb.v; requirement_mapping_coverage_score=1.0.",
+      "requirement": "Requirement map covers FR1-FR4 and SR1-SR4 separately with functional vs security typing",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, secded_codec.v, fault_model.json, fault_enum_tb.v contain no CWE identifiers, SR labels, or explicit statements that the RTL is intentionally flawed; design_brief.md describes correct SECDED theory in prose without confirming the RTL matches it.",
+      "requirement": "Public artifacts do not leak hidden security intent (CWE ids, SR ids, threat model)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 specify exact JSON schema fields, exact 91-case coverage, exact classification/data_out equality for single-bit cases, and exact summary count consistency \u2014 all directly checkable against the pinned module interface and fault_model.json enumeration.",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "oracle_tb.v exhaustively drives all 91 single/double-bit fault codewords through the actual DUT decode path and captures syndrome/overall_parity_error/data_out per case, and SR2/SR3/SR4 derive ground truth from that live simulation rather than from static assertions.",
+      "requirement": "Security-relevant behaviors are actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "The internal fix-2 documentation asserts a specific structural fact (all 78 two-bit faults land in the miscorrection set, zero-syndrome escape set is empty) which is inconsistent with the hidden_spec's threat model describing a distinct zero-syndrome escape class as a real, separately-existing risk; combined with the observed vulnerable_run showing SR2/SR3 passing against an empty submission, it is unclear whether the oracle's actual computed ground truth in the live environment matches either the private README's claim or the hidden_spec's assumption, making the coherence of ground truth unverifiable from the provided evidence.",
+      "requirement": "Benchmark is coherent (public inputs, hidden spec, expected outputs align)",
+      "status": "unknown"
+    }
+  ],
+  "source_round": 2
+}

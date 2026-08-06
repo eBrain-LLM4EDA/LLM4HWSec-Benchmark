@@ -1,0 +1,33 @@
+{
+  "task_id": "hls_constant_time_modexp_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Constant-time modular exponentiation in an HLS RSA-style kernel",
+  "submission_kind": "hardened_artifact",
+  "input_artifacts": [
+    "inputs/modexp_kernel.cpp",
+    "inputs/design_brief.md"
+  ],
+  "interface": "uint32_t modexp(uint32_t base, uint32_t exponent, uint32_t modulus);",
+  "expected_output_summary": "A single revised inputs/modexp_kernel.cpp implementing the pinned modexp() interface, synthesizable under HLS-style constraints (fixed-size arrays only, no dynamic allocation, no STL containers, no recursion/exceptions/IO), that produces bit-identical results to the reference modular exponentiation for all valid test vectors, and whose internal loop trip count and arithmetic operation schedule are identical across all exponent values for a fixed base and modulus.",
+  "toolchain": [
+    "g++",
+    "gcc"
+  ],
+  "evaluation": {
+    "mode": "compile_and_run",
+    "metrics": [
+      {
+        "name": "cwe_violation_rate",
+        "direction": "minimize"
+      },
+      {
+        "name": "information_flow_correctness",
+        "direction": "maximize"
+      },
+      {
+        "name": "synthesis_pass_rate",
+        "direction": "maximize"
+      }
+    ]
+  }
+}

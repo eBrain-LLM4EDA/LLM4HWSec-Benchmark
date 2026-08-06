@@ -1,0 +1,77 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "evaluate.py rejects the expert golden solution (golden/recovered_key.json) because it looks for gate labels 'lock_gate_0' through 'lock_gate_3' but the golden submission uses 'g1' through 'g4'. The evaluator must accept the correct answer; this is a critical grading bug.",
+      "evidence": "Golden run stdout: [TEST] FAIL: SR1: missing gate_label 'lock_gate_0' in submission. The golden file contains gate_label values 'g1','g2','g3','g4' while ground_truth.py expects 'lock_gate_0','lock_gate_1','lock_gate_2','lock_gate_3'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "evaluate.py never emits [TEST] PASS/FAIL for SR2 on the golden run because it exits early on SR1 failure. This masks whether SR2 detection works at all.",
+      "evidence": "Golden run stdout shows only FR1, FR2, FR3, SR1 markers; SR2 marker is absent.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/private/mutation_tests.py",
+      "description": "Mutation tests are defined but the validation report shows mutation_score 0.0 and all five requirements marked untested. The mutation testing framework did not execute any mutants, so harness discrimination is completely unproven.",
+      "evidence": "Validation report: mutation_score=0.0, untested_requirements=[FR1,FR2,FR3,SR1,SR2], requirement_discrimination_coverage_score=0.0.",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/oracle_vectors.txt",
+      "description": "Oracle vectors use a non-standard hex format that does not match the design brief explanation. The brief says each line is '<hex_input> <hex_output>' with hex_input encoding {a,b} as 4 bits and hex_output encoding y as 2 bits, but the actual file contains lines like '0000 0' which are ambiguous and do not follow the described encoding.",
+      "evidence": "File content: '0000 0', '0101 1', etc. The design brief says 'A 3' means a=2'b10, b=2'b10, y=2'b11, but the actual vectors use decimal-looking numbers.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/locked_netlist.v",
+      "description": "The netlist uses 'assign' statements for MUX lock gates (lock_gate_2, lock_gate_3) which are not synthesizable as named gate instances. This may confuse participants trying to locate lock gates by instance name, since assign statements do not produce gate instances with labels in the same way as primitive instantiations.",
+      "evidence": "Lines: 'assign locked_n3 = key[2] ? mux2_inv : n3;' and 'assign locked_n4 = key[3] ? n4 : mux3_inv;'",
+      "severity": "medium"
+    },
+    {
+      "artifact": "submission/recovered_key.json",
+      "description": "The shipped baseline submission uses gate labels 'g1'-'g4' which do not match any instance names in the netlist. While this is intentionally wrong, it may confuse participants about the expected label format.",
+      "evidence": "Baseline submission contains gate_label values 'g1','g2','g3','g4'; netlist uses 'lock_gate_0','lock_gate_1','lock_gate_2','lock_gate_3'.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py to accept the golden submission: either update ground_truth.py to use the gate labels from the golden file ('g1'-'g4') or update the golden file to use the netlist instance names ('lock_gate_0'-'lock_gate_3'). Both must match.",
+    "Ensure evaluate.py continues checking all requirements even if one fails, so that SR2 detection can be verified independently.",
+    "Fix the oracle_vectors.txt format to match the design brief description, or update the design brief to accurately describe the actual vector format.",
+    "Run the mutation testing framework against the corrected evaluator to verify that all FR and SR mutants are detected, achieving a non-zero mutation score.",
+    "Consider replacing the assign-based MUX lock gates with explicit gate-level instantiations (e.g., using a MUX2 primitive or structural equivalent) so that all lock gates have consistent instance labels.",
+    "Update the baseline submission to use gate labels that match the netlist instance names, so the baseline is structurally plausible but substantively wrong."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py correctly checks file existence, JSON validity, and presence of 'lock_gates' and 'recovered_key' keys. Golden run shows [TEST] PASS: FR1.",
+      "requirement": "FR1: Submission file exists, is valid JSON, and contains required top-level keys",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py correctly validates string type, length against public_key_width.txt, and binary character set. Golden run shows [TEST] PASS: FR2.",
+      "requirement": "FR2: recovered_key is a binary string of correct length (4)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py correctly validates array length, object structure, classification enum, and key_bit range. Golden run shows [TEST] PASS: FR3.",
+      "requirement": "FR3: lock_gates array contains exactly four objects with valid fields",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py compares submitted gate_label values against ground_truth.py which expects 'lock_gate_0' through 'lock_gate_3', but the golden submission uses 'g1' through 'g4'. This causes a false rejection of the correct answer.",
+      "requirement": "SR1: Each lock gate is correctly classified",
+      "status": "fail"
+    },
+    {
+      "evidence": "SR2 check is never reached in the golden run because evaluate.py exits on SR1 failure. Cannot verify SR2 detection works.",
+      "requirement": "SR2: Recovered key exactly matches hidden correct key '0101'",
+      "status": "unknown"
+    }
+  ],
+  "source_round": 2
+}

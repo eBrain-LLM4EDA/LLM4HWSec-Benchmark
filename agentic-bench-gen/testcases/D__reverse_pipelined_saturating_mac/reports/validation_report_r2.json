@@ -1,0 +1,122 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/obfuscated_mac_netlist.v",
+    "metadata.json",
+    "submission/recovered_rtl.v"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "a291ed8aa2ecfc0e6a5277ac425e5fc92c7889f89c3e0ee7fe9dd8c2fd79d025",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "IL: MISC: result mismatch at time 2175000: DUT=80000, GOLDEN=d8500\n[TEST] FAIL: MISC: result_valid mismatch at time 2175000: DUT=1, GOLDEN=0\n[TEST] FAIL: MISC: result mismatch at time 2185000: DUT=0, GOLDEN=d8500\n[TEST] FAIL: MISC: result mismatch at time 2195000: DUT=0, GOLDEN=d8500\n[TEST] FAIL: MISC: result mismatch at time 2205000: DUT=0, GOLDEN=d4580\n[TEST] FAIL: MISC: result_valid mismatch at time 2205000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2215000: DUT=7ffff, GOLDEN=d4580\n[TEST] FAIL: MISC: result_valid mismatch at time 2215000: DUT=1, GOLDEN=0\n[TEST] FAIL: MISC: result mismatch at time 2225000: DUT=0, GOLDEN=d4580\n[TEST] FAIL: MISC: result mismatch at time 2235000: DUT=0, GOLDEN=d4580\n[TEST] FAIL: MISC: result mismatch at time 2245000: DUT=0, GOLDEN=d0600\n[TEST] FAIL: MISC: result_valid mismatch at time 2245000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2255000: DUT=80000, GOLDEN=d0600\n[TEST] FAIL: MISC: result_valid mismatch at time 2255000: DUT=1, GOLDEN=0\n[TEST] FAIL: MISC: result mismatch at time 2265000: DUT=0, GOLDEN=d0600\n[TEST] FAIL: MISC: result mismatch at time 2275000: DUT=0, GOLDEN=d0600\n[TEST] FAIL: MISC: result mismatch at time 2285000: DUT=0, GOLDEN=cc680\n[TEST] FAIL: MISC: result_valid mismatch at time 2285000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2295000: DUT=7ffff, GOLDEN=cc680\n[TEST] FAIL: MISC: result_valid mismatch at time 2295000: DUT=1, GOLDEN=0\n[TEST] FAIL: MISC: result mismatch at time 2305000: DUT=0, GOLDEN=cc680\n[TEST] FAIL: MISC: result mismatch at time 2315000: DUT=0, GOLDEN=cc680\n[TEST] FAIL: MISC: result mismatch at time 2325000: DUT=0, GOLDEN=c8700\n[TEST] FAIL: MISC: result_valid mismatch at time 2325000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2335000: DUT=80000, GOLDEN=c8700\n[TEST] FAIL: MISC: result_valid mismatch at time 2335000: DUT=1, GOLDEN=0\n[TEST] FAIL: MISC: result mismatch at time 2345000: DUT=0, GOLDEN=c8700\n[TEST] FAIL: MISC: result mismatch at time 2355000: DUT=0, GOLDEN=c8700\n[TEST] FAIL: MISC: result mismatch at time 2365000: DUT=0, GOLDEN=c4780\n[TEST] FAIL: MISC: result_valid mismatch at time 2365000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2375000: DUT=7ffff, GOLDEN=c4780\n[TEST] FAIL: MISC: result_valid mismatch at time 2375000: DUT=1, GOLDEN=0\n[TEST] FAIL: MISC: result mismatch at time 2385000: DUT=0, GOLDEN=c4780\n[TEST] FAIL: MISC: result mismatch at time 2395000: DUT=0, GOLDEN=c4780\n[TEST] FAIL: MISC: result mismatch at time 2405000: DUT=0, GOLDEN=c0800\n[TEST] FAIL: MISC: result_valid mismatch at time 2405000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2415000: DUT=80000, GOLDEN=c0800\n[TEST] FAIL: MISC: result_valid mismatch at time 2415000: DUT=1, GOLDEN=0\n[TEST] FAIL: MISC: result mismatch at time 2425000: DUT=0, GOLDEN=c0800\n[TEST] FAIL: MISC: result mismatch at time 2435000: DUT=0, GOLDEN=c0800\n[TEST] FAIL: MISC: result mismatch at time 2445000: DUT=0, GOLDEN=bc880\n[TE"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "IL: MISC: result mismatch at time 1855000: DUT=0, GOLDEN=f8100\n[TEST] FAIL: MISC: result mismatch at time 1865000: DUT=0, GOLDEN=f8100\n[TEST] FAIL: MISC: result mismatch at time 1875000: DUT=0, GOLDEN=f8100\n[TEST] FAIL: MISC: result mismatch at time 1885000: DUT=0, GOLDEN=f4180\n[TEST] FAIL: MISC: result_valid mismatch at time 1885000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 1895000: DUT=0, GOLDEN=f4180\n[TEST] FAIL: MISC: result mismatch at time 1905000: DUT=0, GOLDEN=f4180\n[TEST] FAIL: MISC: result mismatch at time 1915000: DUT=0, GOLDEN=f4180\n[TEST] FAIL: MISC: result mismatch at time 1925000: DUT=0, GOLDEN=f0200\n[TEST] FAIL: MISC: result_valid mismatch at time 1925000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 1935000: DUT=0, GOLDEN=f0200\n[TEST] FAIL: MISC: result mismatch at time 1945000: DUT=0, GOLDEN=f0200\n[TEST] FAIL: MISC: result mismatch at time 1955000: DUT=0, GOLDEN=f0200\n[TEST] FAIL: MISC: result mismatch at time 1965000: DUT=0, GOLDEN=ec280\n[TEST] FAIL: MISC: result_valid mismatch at time 1965000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 1975000: DUT=0, GOLDEN=ec280\n[TEST] FAIL: MISC: result mismatch at time 1985000: DUT=0, GOLDEN=ec280\n[TEST] FAIL: MISC: result mismatch at time 1995000: DUT=0, GOLDEN=ec280\n[TEST] FAIL: MISC: result mismatch at time 2005000: DUT=0, GOLDEN=e8300\n[TEST] FAIL: MISC: result_valid mismatch at time 2005000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2015000: DUT=0, GOLDEN=e8300\n[TEST] FAIL: MISC: result mismatch at time 2025000: DUT=0, GOLDEN=e8300\n[TEST] FAIL: MISC: result mismatch at time 2035000: DUT=0, GOLDEN=e8300\n[TEST] FAIL: MISC: result mismatch at time 2045000: DUT=0, GOLDEN=e4380\n[TEST] FAIL: MISC: result_valid mismatch at time 2045000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2055000: DUT=0, GOLDEN=e4380\n[TEST] FAIL: MISC: result mismatch at time 2065000: DUT=0, GOLDEN=e4380\n[TEST] FAIL: MISC: result mismatch at time 2075000: DUT=0, GOLDEN=e4380\n[TEST] FAIL: MISC: result mismatch at time 2085000: DUT=0, GOLDEN=e0400\n[TEST] FAIL: MISC: result_valid mismatch at time 2085000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2095000: DUT=0, GOLDEN=e0400\n[TEST] FAIL: MISC: result mismatch at time 2105000: DUT=0, GOLDEN=e0400\n[TEST] FAIL: MISC: result mismatch at time 2115000: DUT=0, GOLDEN=e0400\n[TEST] FAIL: MISC: result mismatch at time 2125000: DUT=0, GOLDEN=dc480\n[TEST] FAIL: MISC: result_valid mismatch at time 2125000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2135000: DUT=0, GOLDEN=dc480\n[TEST] FAIL: MISC: result mismatch at time 2145000: DUT=0, GOLDEN=dc480\n[TEST] FAIL: MISC: result mismatch at time 2155000: DUT=0, GOLDEN=dc480\n[TEST] FAIL: MISC: result mismatch at time 2165000: DUT=0, GOLDEN=d8500\n[TEST] FAIL: MISC: result_valid mismatch at time 2165000: DUT=0, GOLDEN=1\n[TEST] FAIL: MISC: result mismatch at time 2175000: DUT=0, GOLDEN=d8500\n[TEST] FAIL: MISC: result mismatch at tim"
+    }
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "expert_files": [
+    "golden/recovered_rtl.v"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "evaluate.py never emitted [TEST] PASS/FAIL for ['FR1', 'FR2', 'FR3', 'FR4', 'SR1', 'SR2'] on the golden run \u2014 requirement_map ids and the script's marker ids must match exactly",
+      "issue": "requirement_id_mismatch"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "a291ed8aa2ecfc0e6a5277ac425e5fc92c7889f89c3e0ee7fe9dd8c2fd79d025",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "1b225165addd3d1c4fd38f18dd586363b58feb2e107696313f48ed0890ea48de",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "28215aa6e52bc2352b23c5a7f5fcc10dba94552939dcd624279826ba15cc865d",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/mac_golden.v",
+    "evaluation/tb_mac_top.v"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2"
+  ]
+}

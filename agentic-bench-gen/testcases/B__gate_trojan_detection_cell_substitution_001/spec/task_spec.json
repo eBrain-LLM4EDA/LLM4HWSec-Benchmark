@@ -1,0 +1,113 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub structural gate-level trojan benchmark comparators",
+      "CASlab GAINESIS single-cell substitution trojan variants",
+      "Naive always-trojan-free baseline submission (must fail)"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of graded submissions (across seeded netlist variants, if multiple are generated) that correctly report verdict=trojan_detected with the correct suspect instance identified.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of submissions that report verdict=trojan_detected or list suspect_instances on a control/trojan-free netlist variant when one is included in the eval suite.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Whether the exact ground-truth instance name and cell-type mismatch (found vs expected primitive) are correctly reported, independent of overall verdict correctness.",
+        "direction": "maximize",
+        "name": "localization_accuracy"
+      },
+      {
+        "description": "Wall-clock time taken by evaluate.py to grade a single submission, including any optional iverilog/vvp cross-simulation of claimed mismatching inputs.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "PASS requires: verdict == 'trojan_detected'; suspect_instances contains the ground-truth instance name u_eq2 (or its build-time equivalent) and no unrelated/nonexistent instance names; cell_type_analysis for that instance reports found=XOR2 and expected=XNOR2; at least one mismatching_inputs entry is dynamically confirmed via iverilog/vvp simulation to produce a grant discrepancy versus the golden XNOR-based reference model.",
+      "FAIL if verdict == 'trojan_free', or suspect_instances is empty/wrong, or cell_type_analysis is missing/incorrect, or no mismatching_inputs entry can be dynamically verified, or referenced instance names do not exist in netlist.v.",
+      "The shipped baseline naive submission (empty suspect_instances, verdict=trojan_free, generic justification) must FAIL under this rubric."
+    ],
+    "cwe_ids": [
+      "CWE-1191",
+      "CWE-1244",
+      "CWE-670",
+      "CWE-707"
+    ],
+    "ground_truth": "Instance u_eq2 in inputs/netlist.v, which is supposed to implement bit-2 equality (id_in[2] XNOR id_auth[2]) as part of the 4-bit comparator, is instantiated as an XOR2 primitive instead of the correct XNOR2 primitive. This single-cell polarity substitution inverts the bit-2 equality term, so the comparator asserts grant=1 whenever id_in differs from id_auth only at bit index 2 (and agrees elsewhere), and it incorrectly asserts grant=0 for the true authorized identifier itself since bit 2 of a true match now evaluates to 0 instead of 1. All other instance names, net names, and the overall AND-reduction tree structure are identical between the intended and infected netlists; no gates were added or removed.",
+    "security_requirements": [
+      {
+        "detection_strategy": "evaluate.py checks that submission verdict == 'trojan_detected'.",
+        "id": "SR1",
+        "requirement": "The submitted report must correctly classify the netlist as trojan_detected (not trojan_free); failing to detect the injected polarity fault is a security-relevant false negative."
+      },
+      {
+        "detection_strategy": "evaluate.py performs substring/set match of suspect_instances against the hidden ground-truth instance name; also cross-checks by parsing netlist.v for the XOR2/XNOR2 primitive mismatch at that instance.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify u_eq2 as a suspect instance (or the sole instance actually responsible for the discrepancy, if renamed differently in a regenerated netlist variant, evaluate.py resolves by ground-truth instance name recorded at artifact build time)."
+      },
+      {
+        "detection_strategy": "evaluate.py string-compares cell_type_analysis[u_eq2].found and .expected against the ground truth values extracted from the artifact metadata.",
+        "id": "SR3",
+        "requirement": "The report must correctly characterize the cell-type discrepancy (found=XOR2, expected=XNOR2) rather than misattributing the fault to a different gate type or a missing/extra gate."
+      },
+      {
+        "detection_strategy": "Dynamic cross-check: instantiate netlist.v standalone testbench sweeping the claimed pattern(s), compare grant against golden model computed by evaluate.py from id_auth and standard XNOR equality; require at least one exact behavioral confirmation.",
+        "id": "SR4",
+        "requirement": "At least one reported mismatching_inputs value must be verifiable: evaluate.py simulates inputs/netlist.v via iverilog/vvp for that id_in value against the fixed id_auth and confirms grant deviates from a reference XNOR-based comparator built by the harness."
+      },
+      {
+        "detection_strategy": "evaluate.py requires FR3 (valid instance name in netlist.v) and SR2/SR3/SR4 evidence to all agree before granting a PASS verdict; the shipped baseline naive submission (verdict=trojan_free, empty suspect_instances) is used as a canary that must FAIL.",
+        "id": "SR5",
+        "requirement": "A report that flags trojan_detected purely by naive guessing without any correct instance/cell-type/input evidence (e.g., empty or placeholder fields, or fields referencing nonexistent instances) must fail, ensuring shallow/naive submissions do not pass."
+      }
+    ],
+    "threat_model": "A malicious foundry, ECO patch, or compromised synthesis/liberty-mapping step silently swaps the library cell bound to one instance (XNOR2 -> XOR2) without altering the netlist's instance count, net count, or connectivity graph, so the trojan is invisible to structural diffing, area/timing checks, and equivalence checks that only inspect topology rather than gate function. The attacker's goal is to let a small set of unauthorized identifiers (those matching the authorized ID except at bit 2) pass the permission check."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist under inputs/netlist.v is a flattened, purely combinational design using only the primitives declared in inputs/primitive_cells.v.",
+      "The netlist's instance count, net count, and overall topology match exactly what a correct synthesis of a 4-bit equality comparator (four bitwise equality cells feeding a 4-input AND reduction, or equivalent tree) would produce.",
+      "The netlist is fully exhaustible: iverilog/vvp can simulate all 16 combinations of id_in against the fixed id_auth value tied off in the netlist in well under one second.",
+      "Do not rely on any proprietary EDA tool; only yosys, iverilog, and vvp may optionally be used for cross-checking."
+    ],
+    "expected_outputs": [
+      "trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON containing at minimum the top-level keys: \"verdict\" (string, one of \"trojan_free\" or \"trojan_detected\"), \"suspect_instances\" (array of strings, instance names from netlist.v; empty array allowed if verdict is trojan_free), and \"justification\" (non-empty string explaining the reasoning)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "If \"verdict\" is \"trojan_detected\", the report must additionally include \"mismatching_inputs\" (array of 4-bit binary strings of length 4, e.g. \"0110\", representing at least one id_in value for which the netlist's grant output disagrees with the behavior of a correct 4-bit equality comparator against the same id_auth constant)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The \"suspect_instances\" array, when non-empty, must reference only instance names that literally appear in inputs/netlist.v (evaluate.py checks each listed name is a substring match against a Verilog instance declaration in the file)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a \"cell_type_analysis\" object mapping each suspect instance name to the incorrect primitive cell type actually instantiated in inputs/netlist.v for that instance (e.g. \"XOR2\") versus the expected/correct cell type for that bit position (e.g. \"XNOR2\")."
+      }
+    ],
+    "input_artifacts": [
+      "netlist.v",
+      "design_brief.md",
+      "primitive_cells.v"
+    ],
+    "interface": "The synthesized design is module `perm_check` in inputs/netlist.v with ports: input [3:0] id_in (identifier presented at runtime, public), input [3:0] id_auth (hardwired/tied authorized identifier constant instantiated in the netlist, public), output grant (asserted high iff id_in equals the authorized identifier encoded in the netlist, public). All gates are instantiated from the primitive library declared in inputs/primitive_cells.v (module names: BUF1, INV1, AND2, OR2, XOR2, XNOR2, NAND2, NOR2), each with ports (.A, .B, .Y) for 2-input cells or (.A, .Y) for 1-input cells. Participants do NOT modify inputs/. Participants submit exactly one file at submission/trojan_report.json containing a JSON object graded by evaluate.py against inputs/netlist.v and the hidden ground truth. evaluate.py may optionally instantiate inputs/netlist.v under iverilog/vvp to exhaustively simulate all 16 values of id_in against the fixed id_auth encoded in the netlist and cross-check any claimed mismatching input pattern reported in the submission.",
+    "objective": "You are given a flattened, structural gate-level netlist implementing a 4-bit identifier permission-check circuit (compares a presented 4-bit identifier against a fixed authorized identifier and asserts a grant signal only on exact match). The netlist was produced by a synthesis/ECO flow whose fidelity you must independently verify. Analyze the netlist (using static reasoning and/or simulation with iverilog/vvp) and produce an answer file classifying whether the netlist is functionally faithful to the intended 4-bit equality check, and if not, identify which instance(s) deviate and why.",
+    "response_format": "A single JSON file at submission/trojan_report.json with top-level fields: verdict (string), suspect_instances (array of strings), justification (string), and, when verdict is trojan_detected, mismatching_inputs (array of 4-character binary strings) and cell_type_analysis (object mapping instance name -> {\"found\": string, \"expected\": string})."
+  },
+  "task_id": "gate_trojan_detection_cell_substitution_001",
+  "title": "Gate-Level Trojan Detection in a 4-bit Permission Comparator Netlist"
+}

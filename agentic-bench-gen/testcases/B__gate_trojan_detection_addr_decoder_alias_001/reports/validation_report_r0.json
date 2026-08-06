@@ -1,0 +1,113 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4",
+    "SR5"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/decoder_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/gate_library.v",
+    "inputs/testbench_harness.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "80d63b3dbdd67cf0f441512e7291dd7ccf25a9b9cd8bcf3b38573a5d67d4ef5c",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] FAIL: SR3: simulation cross-check mismatch: ground truth asserted set at addr=011,we=1 is ['bank2_we', 'bank3_we'], expected ['bank0_we', 'bank2_we']\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: trojan_present must be true (got False)\n[TEST] FAIL: SR2: trigger_condition.address must be '011' (got '000')\n[TEST] FAIL: SR3: affected_outputs must equal exactly ['bank0_we', 'bank2_we'] (got [])\n[TEST] FAIL: SR4: suspect_nets does not identify the structural bridging gate feeding bank2_we from the address==011 decode tap with role 'trigger' or 'payload' (expected one of net/instance names: ['bank2_we_alias_tap', 'g_alias_or2', 'minterm3', 'minterm3_tap_and', 'sel2_we', 'sel3_we', 'u_minterm3'])\n[TEST] FAIL: SR5: reported trigger_condition.address ('000') is not the address exhibiting the ground-truth anomaly (['011'])\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SR3: simulation cross-check mismatch: ground truth asserted set at addr=011,we=1 is ['bank2_we', 'bank3_we'], expected ['bank0_we', 'bank2_we']",
+        "failure_class": "golden_rejected",
+        "failure_signature": "80d63b3dbdd67cf0f441512e7291dd7ccf25a9b9cd8bcf3b38573a5d67d4ef5c"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: SR3: affected_outputs must equal exactly the simulated ground-truth asserted set ['bank2_we', 'bank3_we'] at addr=011,we=1 (got ['bank0_we', 'bank2_we'])",
+        "failure_class": "golden_rejected",
+        "failure_signature": "86f74299ca7d6aad4a148b6a926015c99e144319b5e1fee225e378038415c811"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "80d63b3dbdd67cf0f441512e7291dd7ccf25a9b9cd8bcf3b38573a5d67d4ef5c",
+    "repair_paths": [
+      "evaluation/README.md",
+      "evaluation/tb_exhaustive.v",
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 9,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "2beaa8871bb53b672cca093feb2215a38c7826bb901f6e26ee05ed6900356724",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "15cce120601bf7bc884b1c550d041c6ef9066b1ee49d4b02a756b8db8f7c3ef5",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_exhaustive.v"
+  ],
+  "uncovered_requirements": []
+}

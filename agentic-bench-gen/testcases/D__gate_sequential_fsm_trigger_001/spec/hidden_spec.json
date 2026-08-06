@@ -1,0 +1,30 @@
+{
+  "acceptance_criteria": [
+    "All trigger DFFs (SR1) are correctly identified and labeled.",
+    "The payload XOR gate (SR2) is correctly identified and labeled.",
+    "No more than 2 false positives (incorrectly reported nodes) are present in the submission."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-1262"
+  ],
+  "ground_truth": "The labeled trigger DFFs recognize input sequence 1101 across four cycles; the terminal state enables an XOR on data_out[2].",
+  "security_requirements": [
+    {
+      "detection_strategy": "Simulate the netlist exhaustively for short sequences and compare the reported trigger nodes against the hidden ground truth list of DFF instances. A node is correctly identified if its hierarchical name matches exactly.",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly identify all D-type flip-flop instances that form the 4-state sequence recognizer for the '1101' pattern."
+    },
+    {
+      "detection_strategy": "Trace the fan-in of the data_out[2] output port. The report must list the exact instance name of the XOR gate that has the Trojan's enable signal as one of its inputs.",
+      "id": "SR2",
+      "requirement": "The submitted report must correctly identify the specific combinational gate that performs the XOR corruption on the data_out[2] signal."
+    },
+    {
+      "detection_strategy": "For each correctly identified node, verify that the associated 'role' string in the report matches the expected role from the ground truth.",
+      "id": "SR3",
+      "requirement": "The submitted report must correctly label the identified nodes with the roles 'state_register', 'trigger_logic', or 'payload_gate'."
+    }
+  ],
+  "threat_model": "An attacker has inserted a Hardware Trojan into the gate-level netlist. The Trojan's trigger is a four-state sequence recognizer implemented with DFF primitives that activates upon observing the input sequence 1101 across four clock cycles. The payload is an XOR gate that corrupts the data_out[2] signal when the trigger's terminal state is reached. The activation logic is distributed across several flip-flops to evade simple combinational rare-net analysis."
+}

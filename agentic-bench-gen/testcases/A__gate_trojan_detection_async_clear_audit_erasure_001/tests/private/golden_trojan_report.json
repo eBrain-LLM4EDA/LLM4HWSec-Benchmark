@@ -1,0 +1,20 @@
+{
+  "trojan_present": true,
+  "suspect_gates": [
+    "u_maint_alarm_and",
+    "u_audit_clr_or"
+  ],
+  "altered_net": "audit_clr",
+  "affected_registers": [
+    "tamper_count_q_0",
+    "tamper_count_q_1",
+    "tamper_count_q_2",
+    "tamper_count_q_3",
+    "tamper_count_q_4",
+    "tamper_count_q_5",
+    "tamper_count_q_6",
+    "tamper_count_q_7"
+  ],
+  "trigger_condition": "maintenance_req & alarm",
+  "justification": "Structural analysis of inputs/audit_module_netlist.v shows that the asynchronous CLR pins of all eight tamper_count_q_* DFF_ASYNC_CLR instances are driven by the single net audit_clr. Backward tracing shows audit_clr is the output of OR2 instance u_audit_clr_or, whose inputs are maint_alarm_hit (the output of AND2 instance u_maint_alarm_and, whose inputs are the primary inputs maintenance_req and alarm) and rst_sync (the legitimate synchronized form of rst_n produced by the u_rst_inv/u_rst_buf chain). Because audit_clr is the logical OR of maint_alarm_hit and rst_sync rather than rst_sync alone, asserting maintenance_req and alarm simultaneously asynchronously clears the entire tamper_count register bank regardless of the state of rst_n, silently erasing accumulated tamper-event evidence without any genuine reset ever occurring. The documented reset architecture in design_brief.md and port_map.txt states that only the synchronized form of rst_n should ever clear tamper_count and that maintenance_req/alarm should have no effect on it, confirming this OR-gate merge is an unauthorized insertion. The correct implementation would connect rst_sync directly to the CLR pins of tamper_count_q_0..7 with no additional gating from u_maint_alarm_and or u_audit_clr_or."
+}

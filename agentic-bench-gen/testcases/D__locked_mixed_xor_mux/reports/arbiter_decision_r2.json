@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The validation report shows the golden solution is rejected by evaluate.py because it expects gate labels 'lock_gate_0' through 'lock_gate_3' but the golden uses different labels. This is a critical grading bug that prevents the evaluator from accepting the correct answer. Additionally, the mutation score is 0.0 because no mutants were generated or executed, meaning the evaluation harness has no discrimination power. The oracle vectors format is inconsistent with the design brief, and the MUX lock gates use assign statements that may confuse participants. All five requirements are untested. The primary issue is the evaluator rejecting the correct golden solution, which must be fixed first.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

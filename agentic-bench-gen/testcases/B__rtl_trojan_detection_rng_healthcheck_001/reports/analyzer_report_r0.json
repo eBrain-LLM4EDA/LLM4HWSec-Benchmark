@@ -1,0 +1,61 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR4 and SR1 are dead checks per mutation analysis: no generated mutant targeting these requirements was detected as failing by the corresponding check, indicating the regex-based detection logic for period extraction (FR4) and missing-tap phrasing (SR1) may not reliably discriminate correct from incorrect submissions in all cases, even though the baseline run and differential run show correct pass/fail behavior for the specific golden and naive baseline submissions provided.",
+      "evidence": "mutation_score=0.75; per_requirement_coverage FR4: covered=false, mutants_detected=0/1; SR1: covered=false, mutants_detected=0/1; issues list flags both as dead_check and uncovered_requirement.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR1 pattern logic",
+      "description": "The SR1 regex/enumeration acceptance logic is complex and includes a confusing internal comment acknowledging ambiguity between 1-indexed and 0-indexed tap conventions in the ground truth ('note ground truth says implemented taps are bits 8,6,5 ... which is 1-indexed 8,6,5...'), suggesting the tap-indexing convention used in grading may not perfectly align with the ground_truth's stated 0-indexed state[7]^state[5]^state[4] expression, risking false negatives or positives on borderline phrasing.",
+      "evidence": "evaluate.py comment block: 'ground_truth text: \"state[7] ^ state[5] ^ state[4]\" i.e. 0-indexed bits 7,5,4 which is 1-indexed 8,6,5... To stay strictly faithful to the ground_truth string, accept any phrasing that names the four documented taps...'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why the FR4-targeting and SR1-targeting mutants were not detected as failing; likely the mutant generation for these two requirements produced submissions that still incidentally satisfied the regex (e.g. a mutant removing the period number but leaving another stray number near 'cycle' text for FR4, or a mutant vaguening the tap description but still matching one of the many accepted SR1 regex patterns for SR1). Tighten or regenerate these mutants, or narrow the regex patterns to close the gap.",
+    "Simplify or clarify the SR1 matching logic in evaluate.py to remove the ambiguous indexing-convention commentary, and add an explicit unit test/mutant that submits only 'the feedback logic looks different' (no tap number) to confirm SR1 correctly fails on vague claims.",
+    "Consider adding a targeted mutant that reports a plausible-looking but incorrect period (e.g. '128 cycles') paired with health/feedback vocabulary to better exercise FR4's numeric-extraction path and confirm it doesn't spuriously pass.",
+    "Overall the task is usable as-is (golden passes, naive baseline fails all required checks per acceptance criteria) but the two dead checks reduce confidence in the harness's discriminative power for FR4 and SR1; address before treating mutation_score as fully satisfactory."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "baseline_run and differential.golden_run both show exit_code 0 with all 8 [TEST] PASS lines.",
+      "requirement": "Golden/correct submission passes all FR/SR checks (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run shows exit_code 1 with FAIL on FR2, FR3, FR4, SR1, SR2, SR3, SR4 \u2014 exceeding the required minimum failure set per acceptance criteria.",
+      "requirement": "Shipped naive baseline (empty/no-finding) submission fails all SR checks and at least FR2-FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as 'functional' and SR1-SR4 as 'security' with distinct test logic in evaluate.py (structural checks vs. content/simulation-corroborated checks).",
+      "requirement": "Requirement map separates functional (FR1-FR4) and security (SR1-SR4) requirements with distinct detection logic",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_period_health.v independently simulates inputs/lfsr_rng.v via iverilog/vvp to compute PERIOD and HEALTH_ERROR_SEEN, corroborating SR2/SR3 claims beyond static text matching.",
+      "requirement": "Security-relevant behaviors (missing tap, health-monitor suppression) are actively triggered via simulation, not only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and lfsr_rng.v comments contain no CWE references, SR ids, or explicit 'trojan'/'intentionally vulnerable' framing beyond the task's inherent review framing of 'discrepancies', which is appropriate for this domain.",
+      "requirement": "Public artifacts do not leak hidden security intent (CWE ids, SR ids, threat model, 'intentionally vulnerable' framing)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in the public spec/README specify exact JSON schema fields, required vocabulary linkage to feedback/health logic, and a numeric period statement \u2014 each independently verifiable by evaluate.py's regex/structural logic.",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable via the pinned interface, not generic restatements",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation analysis flags FR4 and SR1 as dead_checks with 0/1 mutants detected, and requirement_discrimination_coverage_score=0.75 (below 1.0), indicating a coverage gap in the harness's ability to prove these two checks discriminate correct vs incorrect submissions on the tested mutants.",
+      "requirement": "Full requirement coverage / discrimination without dead checks",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,21 @@
+{
+  "best_round": 2,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "ebed6641aa38d3f42acc19308b3ba2c34f9c512f8be30aae61441e7cfeffb85c",
+    "expert/expert_bundle.json": "b3a0ed105c2619035325aa3f4d6ef451bd20aa7fd7c28c748138e2152af5238d",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "6b2f5ab88df4d3f5fd00f24da81c87729e0135a1e32fa83a72354f19d07380a8",
+    "reports/quality_report.json": "41f32cb927e49a531134e494e57eb6f40f0d1e14d8d34554b76377bda341329e",
+    "reports/validation_report.json": "b879d6ee029b2dd55fbb9f51cee7864b016f332a5725063bb2ce7bb1d1fe2dba",
+    "spec/task_spec.json": "e148ca281d7e939a14f33637b51ac5f9b8df63d617529984e4fdebb280c2f16d",
+    "tests/tester_bundle.json": "c0f368492143e457c73eaf4e21849aba5f2e82da1428a86fbeceadf978a770f1"
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 2,
+  "status": "quality_failed",
+  "task_id": "hwre_dualport_regfile_recovery_001"
+}

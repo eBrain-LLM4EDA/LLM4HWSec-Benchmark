@@ -1,0 +1,98 @@
+# Fifth multi-domain seed set: seven new tasks spanning all six active domains.
+# HLS receives two tasks because prior bundles contain fewer unique HLS seeds.
+# Every seed ID and task concept is distinct from the earlier seed bundles.
+
+# ----------------------------------------------------------------------------
+# 1. Security-Aware HLS Code Generation
+# ----------------------------------------------------------------------------
+- seed_id: hls_signed_quota_narrowing
+  domain_id: hls_security_codegen
+  title: Width-safe signed quota accounting
+  objective: Harden an HLS admission kernel so signed requests and narrowing conversions cannot undercharge a quota or admit an invalid transaction.
+  constraints:
+    - Keep a pinned admit_request(int16_t requested, uint16_t quota, uint16_t *remaining, uint8_t *accepted) interface using fixed-width scalar types.
+    - Reject nonpositive requests, requests above quota, and values that cannot be represented by the downstream transaction-count field before performing any conversion or state update.
+    - Compile with g++ and test boundary values around zero, 255, 256, the quota, and the signed 16-bit limits.
+  threat_model: An untrusted client supplies a negative or oversized request that wraps or truncates during validation and consumes more accelerator service than its quota permits.
+  ground_truth: The insecure kernel narrows requested to eight bits before comparing it with quota, so values such as 256 are admitted as zero; a correct implementation validates the original signed value in a sufficiently wide type and decrements quota exactly once only after every check succeeds.
+
+- seed_id: hls_authenticated_decrypt_commit
+  domain_id: hls_security_codegen
+  title: Commit plaintext only after authentication
+  objective: Harden a fixed-size authenticated-decryption kernel so unauthenticated plaintext is never published when tag verification fails.
+  constraints:
+    - Keep fixed 16-byte ciphertext, tag, key, plaintext-output, and status arguments with no dynamic allocation or STL use in the kernel body.
+    - Perform tag comparison with a fixed-trip-count reduction and leave the caller-visible plaintext buffer deterministically zeroed when authentication fails.
+    - Preserve correct plaintext and success status for valid records and compile against a g++ harness containing valid and forged tags.
+  threat_model: An attacker submits chosen ciphertext with an invalid tag and reads plaintext bytes written to shared output memory before the accelerator reports authentication failure.
+  ground_truth: The insecure kernel decrypts directly into the public output before checking the tag; a correct implementation decrypts into private temporary storage, verifies every tag byte without early exit, and copies plaintext to the public buffer only on successful authentication.
+
+# ----------------------------------------------------------------------------
+# 2. RTL Hardware Trojan Detection
+# ----------------------------------------------------------------------------
+- seed_id: rtl_secret_latency_modulation_trojan
+  domain_id: rtl_trojan_detection
+  title: Secret-dependent response-latency Trojan
+  objective: Detect logic that preserves every response value but modulates transaction latency with selected secret-register bits, creating a covert timing channel.
+  constraints:
+    - Provide a compact request and response RTL block with an address, request-valid, response-data, response-valid, and a private 8-bit configuration register.
+    - Ordinary addresses must always complete after one cycle, while accesses to one innocuous status address acquire an extra wait cycle according to an attacker-controlled secret-bit index.
+    - Grade exact localization of the secret-bit selector, delay-state control, affected response-valid signal, and timing-channel classification using iverilog traces.
+  threat_model: An unprivileged requester repeatedly reads a public status address and reconstructs a protected configuration byte from one-cycle versus two-cycle response timing.
+  ground_truth: A hidden selector reads secret_cfg[probe_index] when the status address is requested and conditionally inserts a delay state before response_valid, while response_data remains functionally correct for every transaction.
+
+# ----------------------------------------------------------------------------
+# 3. Gate-Level Trojan Detection
+# ----------------------------------------------------------------------------
+- seed_id: gate_cdc_synchronizer_bypass
+  domain_id: gate_trojan_detection
+  title: Authorization synchronizer-bypass ECO Trojan
+  objective: Identify a malicious gate-level reroute that lets an asynchronous authorization request reach secure control without traversing the intended two-flop synchronizer.
+  constraints:
+    - Use explicit DFF, MUX, AND, OR, and inverter cells for a source-domain request, two destination-domain synchronizer stages, and a registered authorization pulse.
+    - Preserve the legitimate synchronized path but add one small parallel cone that can assert the destination authorization pulse from the raw asynchronous input during a maintenance-control coincidence.
+    - Supply structural labels and asynchronous phase-offset simulations that distinguish the bypass cone from the legitimate synchronizer and ordinary maintenance logic.
+  threat_model: A malicious ECO introduces a metastability-prone authorization path that can create an unsynchronized secure action when an attacker controls request timing and maintenance mode.
+  ground_truth: The inserted bypass AND gate combines raw_auth_req with maintenance_mode and feeds an OR gate after the second synchronizer stage, allowing auth_pulse to assert without sync_ff1 or sync_ff2 observing the request.
+
+# ----------------------------------------------------------------------------
+# 4. Hardware Reverse Engineering
+# ----------------------------------------------------------------------------
+- seed_id: reverse_priority_cam
+  domain_id: hardware_reverse_engineering
+  title: Recover a priority content-addressable memory
+  objective: Reconstruct readable cycle-accurate RTL for a flattened four-entry content-addressable memory with valid bits, parallel equality matching, and lowest-index priority.
+  constraints:
+    - Ship a flattened netlist containing four 4-bit entries, valid DFFs, equality cones, a priority encoder, synchronous writes, and registered query outputs.
+    - Pin synchronous active-high reset, one-cycle query latency, lowest-index selection on multiple matches, and simultaneous write/query behavior against the pre-write contents.
+    - Grade reset, entry updates, misses, duplicate entries, priority selection, and write/query collisions cycle by cycle with iverilog.
+  threat_model: An undocumented associative lookup block cannot be safely replaced until its validity, priority, update, and query timing semantics are recovered from the netlist.
+  ground_truth: Reset clears all valid bits; each enabled rising edge writes one indexed entry, and a query sampled on that edge produces registered match_valid and match_index one cycle later from the entries that existed immediately before the write, choosing the lowest valid matching index.
+
+# ----------------------------------------------------------------------------
+# 5. Side-Channel and Fault Analysis
+# ----------------------------------------------------------------------------
+- seed_id: rtl_trng_common_mode_entropy_fault
+  domain_id: side_channel_fault_analysis
+  title: Common-mode entropy collapse hidden by output-gated health tests
+  objective: Analyze a dual-source random sampler for a fault that collapses both entropy inputs together while preventing its health monitor from observing the failed samples.
+  constraints:
+    - Provide compact RTL with two sampled entropy-source inputs, XOR conditioning, a von Neumann-style output-valid filter, and repetition and proportion health-test counters.
+    - Model a persistent common-mode fault that drives both sampled sources identically for a programmable interval and provide normal and faulty digital traces.
+    - Grade identification of the correlated sample registers, the health-counter enable flaw, the entropy-loss consequence, and a recommendation to monitor raw samples independently of conditioned output validity.
+  threat_model: An attacker injects supply or electromagnetic interference that correlates two nominally independent entropy sources, causing predictable random output without raising a health alarm.
+  ground_truth: When source_a_q equals source_b_q, the conditioner produces no valid bits and the existing health counters are disabled by out_valid, so a long common-mode collapse leaves health_error low; raw-sample health tests clocked on every sample would detect the fault.
+
+# ----------------------------------------------------------------------------
+# 6. Logic Deobfuscation and SAT Assistance
+# ----------------------------------------------------------------------------
+- seed_id: locked_scan_chain_reordering_key
+  domain_id: logic_deobfuscation_sat
+  title: Recover a key-controlled scan-chain ordering
+  objective: Localize keyed scan-routing elements and recover the key that restores the intended serial ordering of a small state register from scan traces.
+  constraints:
+    - Use four state DFFs with ordinary functional next-state logic and a scan mode containing three key-controlled two-input routing cells.
+    - Supply reset, scan-in, scan-enable, and scan-out traces whose multi-cycle behavior uniquely distinguishes all eight keys while single-cycle functional outputs remain identical.
+    - Require recovered_key.json to report the routing-cell locations, per-cell straight or swapped mode, complete three-bit key, and trace-consistency evidence.
+  threat_model: Key-controlled scan routing obscures state-bit correspondence and prevents an analyst from loading or observing the intended internal state during reverse engineering.
+  ground_truth: The three labeled scan-routing cells restore serial order state_q[3] through state_q[0] for key_bits=3'b101; every other key permutes at least two shifted bits and disagrees with one or more supplied multi-cycle scan-out traces.

@@ -45,3 +45,19 @@ def test_overlay_copy_does_not_replace_sandbox_root_permissions(tmp_path):
 
     assert destination.stat().st_mode & 0o777 == 0o755
     assert (destination / "inputs" / "code.c").read_text() == "mutant"
+
+
+def test_runner_supports_workspace_root_package_imports(tmp_path):
+    case = tmp_path / "case"
+    helper = case / "evaluation" / "private" / "oracle.py"
+    helper.parent.mkdir(parents=True)
+    helper.write_text("VALUE = 7\n")
+    evaluator = case / "evaluation" / "evaluate.py"
+    evaluator.write_text(
+        "from evaluation.private.oracle import VALUE\n"
+        "assert VALUE == 7\n"
+        "print('[TEST] PASS: FR1')\n"
+    )
+
+    result = EvaluationRunner().run_evaluator(case)
+    assert result["status"] == "pass", result

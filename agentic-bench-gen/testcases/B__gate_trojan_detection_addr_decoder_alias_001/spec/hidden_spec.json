@@ -1,0 +1,44 @@
+{
+  "acceptance_criteria": [
+    "Submission JSON validates against the schema (FR1-FR4) with zero structural errors.",
+    "trojan_present == true and trigger_condition matches address=011, write_en=1 (SR1, SR2).",
+    "affected_outputs set equals {bank0_we, bank2_we} exactly (SR3).",
+    "At least one suspect_nets entry correctly names the alias gate instance/net driving the bridging behavior with role trigger or payload (SR4).",
+    "No false-positive anomaly claims exist for the other 7 addresses when cross-checked by exhaustive simulation (SR5)."
+  ],
+  "cwe_ids": [
+    "CWE-1244",
+    "CWE-1245",
+    "CWE-1295",
+    "CWE-284"
+  ],
+  "ground_truth": "The netlist contains a one-hot 3-to-8 address decoder feeding four register banks. For all addresses except 3'b011, exactly one write-enable line (bank0_we..bank3_we) can assert, gated by write_en. At address 3'b011 (which nominally should only ever assert bank... none, since 011 is reserved/unused in the legitimate one-hot mapping used for bank0 select logic aliasing), a hidden alias gate (instance name pattern 'g_alias' or similarly disguised, e.g. an OR gate merging the minterm-3 decode tap into the bank2_we enable tree while bank0_we's decode logic already independently responds to a mis-wired address-3 tap) causes both bank0_we and bank2_we to assert simultaneously when address=3'b011 and write_en=1. This violates the one-hot decode invariant and enables a bridging Trojan: a write nominally targeting bank0 silently also corrupts bank2 (used to store security configuration), a form of write-enable bridging/aliasing insertion. The Trojan gate is a 2-input OR gate whose second input taps the address-3 minterm signal (an AND of addr[2]'==0,addr[1]==1,addr[0]==1) and feeds directly into the bank2_we enable OR-tree, alongside the legitimate bank2 select decode.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare submitted trojan_present boolean against ground truth (true); trivial to check directly from the JSON.",
+      "id": "SR1",
+      "requirement": "The report must correctly set trojan_present to true."
+    },
+    {
+      "detection_strategy": "String/value comparison of trigger_condition fields against ground truth trigger stimulus; optionally replay via iverilog/vvp on decoder_netlist.v using testbench_harness.v to confirm both bank0_we and bank2_we assert at that stimulus.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify trigger_condition.address as '011' and control_inputs.write_en (or equivalently named write-enable port) as '1'."
+    },
+    {
+      "detection_strategy": "Set-equality check between submitted affected_outputs and the ground-truth set {bank0_we, bank2_we}; cross-validated via simulation replay of address 011/write_en=1 against decoder_netlist.v, checking which we lines assert high.",
+      "id": "SR3",
+      "requirement": "affected_outputs must include both bank0_we and bank2_we (and must not spuriously include bank1_we or bank3_we)."
+    },
+    {
+      "detection_strategy": "Match submitted net_name/gate_instance strings (allowing for reasonable naming variants) against the known ground-truth alias gate instance name embedded in decoder_netlist.v; structural cross-check that the named instance's output feeds bank2_we and one of its inputs is the address-3 minterm signal, inspectable via textual/structural parse of the netlist or via yosys `select`/`show` on the reported instance.",
+      "id": "SR4",
+      "requirement": "suspect_nets must identify the actual alias gate instance/net responsible for the bridging behavior (the OR gate merging the minterm-3 tap into the bank2_we tree) with role 'payload' or 'trigger', not merely list unrelated or benign decoder gates."
+    },
+    {
+      "detection_strategy": "Exhaustively simulate all 8 addresses x 2 write_en values via iverilog/vvp using testbench_harness.v and confirm exactly one write-enable asserts per address except at 011 where two assert; flag any submitted claim inconsistent with this exhaustive ground truth as a false positive.",
+      "id": "SR5",
+      "requirement": "The report must not falsely claim additional Trojan-affected addresses beyond 011 (no false positives across the other 7 legal addresses)."
+    }
+  ],
+  "threat_model": "An attacker with access to the gate-level netlist (e.g. via untrusted third-party synthesis, IP integration, or a compromised design house) inserts a small aliasing gate into the address decoder. The Trojan is dormant for all addresses except one rare or reserved address value, at which point an otherwise-ordinary write to bank0 (e.g. general-purpose data) silently also asserts the write-enable of bank2 (e.g. a security-configuration or lock-bit register bank), corrupting protected state without the software or verification stack noticing, since functional tests targeting bank0 alone would not typically check bank2 side effects."
+}

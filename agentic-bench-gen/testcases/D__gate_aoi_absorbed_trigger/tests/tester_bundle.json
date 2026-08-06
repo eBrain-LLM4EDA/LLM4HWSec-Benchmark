@@ -1,0 +1,91 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for Gate-Level Trojan Detection\n\n## Grading Contract\n\nThis task uses **report grading**: the participant submits an analysis report (not modified source code). The evaluation script `evaluate.py` reads the submitted answer file and grades it against a hidden ground truth. The input artifacts (`design.v`, `cells.lib`) are provided for reference only; the participant does not modify them.\n\n## Submission Requirements\n\nThe participant must produce a single file:\n\n```\nsubmission/trojan_report.json\n```\n\nThis file must be a valid JSON object containing the following fields, each mapping to a non-empty array of strings:\n\n- `trigger_cells`: instance names of cells implementing the trigger condition\n- `trigger_nets`: names of nets carrying the trigger signal\n- `payload_cells`: instance names of cells implementing the payload\n- `payload_nets`: names of nets carrying the payload effect\n\n## Evaluation Process\n\n`evaluate.py` performs the following checks:\n\n1. **FR1**: Validates that the submission file exists and contains parseable JSON.\n2. **FR2**: Verifies that the JSON object contains exactly the four required top-level keys.\n3. **FR3**: Ensures each required key maps to a non-empty array of strings.\n4. **FR4**: Confirms that all reported cell instance names and net names exist in the provided netlist (`inputs/design.v`).\n5. **SR1**: Checks that the reported trigger components match the hidden ground truth (specific AOI21/OAI22 cells and the net connecting them).\n6. **SR2**: Checks that the reported payload components match the hidden ground truth (specific XOR cell and the net connecting the trigger output to it).\n\nEach check emits a `[TEST] PASS` or `[TEST] FAIL` marker. The script exits with code 0 only if all checks pass.\n\n## Available Toolchain\n\nThe evaluation environment includes `yosys`, `iverilog`, and `vvp`. These tools are available for optional cross-checks on the input artifacts (e.g., simulating the netlist to confirm a reported trigger), but the PASS/FAIL verdicts are based solely on the content of the submitted `trojan_report.json`.\n\n## Hidden Ground Truth\n\nThe exact expected trigger and payload components are stored in `evaluation/private/ground_truth.json` and are never revealed to participants. The evaluation script compares the submitted report against this ground truth to determine substantive correctness.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"evaluate.py \u2013 Grade the submitted trojan_report.json against hidden ground truth.\"\"\"\n\nimport json\nimport os\nimport sys\nimport re\n\n# ----------------------------------------------------------------------\n# Helper: parse the netlist to extract all cell instances and net names\n# ----------------------------------------------------------------------\ndef parse_netlist(path):\n    \"\"\"Return (cells, nets) sets from a flat gate-level Verilog file.\"\"\"\n    cells = set()\n    nets = set()\n    try:\n        with open(path, \"r\") as f:\n            text = f.read()\n    except FileNotFoundError:\n        print(f\"[TEST] FAIL: SETUP: {path} not found\")\n        sys.exit(1)\n\n    # Cell instances:  <cell_type> <instance_name> ( ... );\n    # e.g.  AOI21 aoi_trig (.A0(...), ...);\n    cell_pattern = re.compile(\n        r'^\\s*([A-Za-z_]\\w*)\\s+([A-Za-z_]\\w*)\\s*\\(', re.MULTILINE\n    )\n    for m in cell_pattern.finditer(text):\n        cells.add(m.group(2))\n\n    # Nets: wire declarations and continuous assignments\n    # wire n1, n2, ...;\n    wire_pattern = re.compile(r'^\\s*wire\\s+([^;]+);', re.MULTILINE)\n    for m in wire_pattern.finditer(text):\n        for name in m.group(1).split(','):\n            name = name.strip()\n            if name:\n                nets.add(name)\n\n    # Also catch nets that appear as port connections (inside parentheses)\n    # This is a simple heuristic: any identifier that is not a keyword and\n    # appears in a port list could be a net. We'll just add all identifiers\n    # that look like net names (lowercase with optional underscores/digits).\n    # To avoid false positives, we only add identifiers that appear in\n    # port connection lists and are not already known cells.\n    port_conn_pattern = re.compile(r'\\.\\w+\\s*\\(\\s*(\\w+)\\s*\\)')\n    for m in port_conn_pattern.finditer(text):\n        net_candidate = m.group(1)\n        if net_candidate not in cells and re.match(r'^[a-z_]\\w*$', net_candidate):\n            nets.add(net_candidate)\n\n    return cells, nets\n\n\n# ----------------------------------------------------------------------\n# Main grading logic\n# ----------------------------------------------------------------------\ndef main():\n    # Paths\n    submission_path = \"submission/trojan_report.json\"\n    netlist_path = \"inputs/design.v\"\n    ground_truth_path = \"evaluation/private/ground_truth.json\"\n\n    all_pass = True\n\n    # ----------------------------------------------------------------\n    # FR1: File exists and is valid JSON\n    # ----------------------------------------------------------------\n    if not os.path.isfile(submission_path):\n        print(f\"[TEST] FAIL: FR1: {submission_path} not found\")\n        all_pass = False\n        # Cannot continue without the file\n        sys.exit(1)\n\n    try:\n        with open(submission_path, \"r\") as f:\n            report = json.load(f)\n    except json.JSONDecodeError as e:\n        print(f\"[TEST] FAIL: FR1: invalid JSON: {e}\")\n        all_pass = False\n        sys.exit(1)\n    except Exception as e:\n        print(f\"[TEST] FAIL: FR1: could not read file: {e}\")\n        all_pass = False\n        sys.exit(1)\n\n    print(\"[TEST] PASS: FR1\")\n\n    # ----------------------------------------------------------------\n    # FR2: Exactly the four required top-level keys\n    # ----------------------------------------------------------------\n    required_keys = {\"trigger_cells\", \"trigger_nets\", \"payload_cells\", \"payload_nets\"}\n    actual_keys = set(report.keys())\n    if actual_keys != required_keys:\n        missing = required_keys - actual_keys\n        extra = actual_keys - required_keys\n        msg = \"\"\n        if missing:\n            msg += f\"missing keys: {sorted(missing)}; \"\n        if extra:\n            msg += f\"extra keys: {sorted(extra)}\"\n        print(f\"[TEST] FAIL: FR2: {msg.strip()}\")\n        all_pass = False\n    else:\n        print(\"[TEST] PASS: FR2\")\n\n    # ----------------------------------------------------------------\n    # FR3: Each key maps to a non-empty array of strings\n    # ----------------------------------------------------------------\n    fr3_ok = True\n    for key in required_keys:\n        val = report.get(key)\n        if not isinstance(val, list) or len(val) == 0:\n            print(f\"[TEST] FAIL: FR3: '{key}' is not a non-empty array\")\n            fr3_ok = False\n        else:\n            for item in val:\n                if not isinstance(item, str):\n                    print(f\"[TEST] FAIL: FR3: '{key}' contains non-string element: {item}\")\n                    fr3_ok = False\n                    break\n    if fr3_ok:\n        print(\"[TEST] PASS: FR3\")\n    else:\n        all_pass = False\n\n    # ----------------------------------------------------------------\n    # FR4: All reported names exist in the netlist\n    # ----------------------------------------------------------------\n    cells_in_netlist, nets_in_netlist = parse_netlist(netlist_path)\n\n    fr4_ok = True\n    for key in [\"trigger_cells\", \"payload_cells\"]:\n        for name in report.get(key, []):\n            if name not in cells_in_netlist:\n                print(f\"[TEST] FAIL: FR4: cell '{name}' not found in netlist\")\n                fr4_ok = False\n    for key in [\"trigger_nets\", \"payload_nets\"]:\n        for name in report.get(key, []):\n            if name not in nets_in_netlist:\n                print(f\"[TEST] FAIL: FR4: net '{name}' not found in netlist\")\n                fr4_ok = False\n    if fr4_ok:\n        print(\"[TEST] PASS: FR4\")\n    else:\n        all_pass = False\n\n    # ----------------------------------------------------------------\n    # Load hidden ground truth\n    # ----------------------------------------------------------------\n    try:\n        with open(ground_truth_path, \"r\") as f:\n            gt = json.load(f)\n    except FileNotFoundError:\n        print(f\"[TEST] FAIL: SETUP: {ground_truth_path} not found\")\n        sys.exit(1)\n    except json.JSONDecodeError as e:\n        print(f\"[TEST] FAIL: SETUP: invalid ground truth JSON: {e}\")\n        sys.exit(1)\n\n    # ----------------------------------------------------------------\n    # SR1: Trigger components match ground truth\n    # ----------------------------------------------------------------\n    sr1_ok = True\n    gt_trigger_cells = set(gt[\"trigger_cells\"])\n    gt_trigger_nets = set(gt[\"trigger_nets\"])\n    reported_trigger_cells = set(report.get(\"trigger_cells\", []))\n    reported_trigger_nets = set(report.get(\"trigger_nets\", []))\n\n    missing_cells = gt_trigger_cells - reported_trigger_cells\n    missing_nets = gt_trigger_nets - reported_trigger_nets\n    if missing_cells:\n        print(f\"[TEST] FAIL: SR1: missing trigger cells: {sorted(missing_cells)}\")\n        sr1_ok = False\n    if missing_nets:\n        print(f\"[TEST] FAIL: SR1: missing trigger nets: {sorted(missing_nets)}\")\n        sr1_ok = False\n    if sr1_ok:\n        print(\"[TEST] PASS: SR1\")\n    else:\n        all_pass = False\n\n    # ----------------------------------------------------------------\n    # SR2: Payload components match ground truth\n    # ----------------------------------------------------------------\n    sr2_ok = True\n    gt_payload_cells = set(gt[\"payload_cells\"])\n    gt_payload_nets = set(gt[\"payload_nets\"])\n    reported_payload_cells = set(report.get(\"payload_cells\", []))\n    reported_payload_nets = set(report.get(\"payload_nets\", []))\n\n    missing_cells = gt_payload_cells - reported_payload_cells\n    missing_nets = gt_payload_nets - reported_payload_nets\n    if missing_cells:\n        print(f\"[TEST] FAIL: SR2: missing payload cells: {sorted(missing_cells)}\")\n        sr2_ok = False\n    if missing_nets:\n        print(f\"[TEST] FAIL: SR2: missing payload nets: {sorted(missing_nets)}\")\n        sr2_ok = False\n    if sr2_ok:\n        print(\"[TEST] PASS: SR2\")\n    else:\n        all_pass = False\n\n    # ----------------------------------------------------------------\n    # Exit with appropriate code\n    # ----------------------------------------------------------------\n    if all_pass:\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "{\n  \"trigger_cells\": [\"aoi_trig\", \"oai_trig\"],\n  \"trigger_nets\": [\"n_trigger_internal\"],\n  \"payload_cells\": [\"xor_payload\"],\n  \"payload_nets\": [\"n_payload_out\"]\n}",
+      "path": "evaluation/private/ground_truth.json"
+    },
+    {
+      "content": "import re\n\ndef parse_netlist(path):\n    \"\"\"Return (cells, nets) sets from a flat gate-level Verilog file.\"\"\"\n    cells = set()\n    nets = set()\n    try:\n        with open(path, \"r\") as f:\n            text = f.read()\n    except FileNotFoundError:\n        raise FileNotFoundError(f\"{path} not found\")\n\n    # Cell instances:  <cell_type> <instance_name> ( ... );\n    # e.g.  AOI21 aoi_trig (.A0(...), ...);\n    cell_pattern = re.compile(\n        r'^\\s*([A-Za-z_]\\w*)\\s+([A-Za-z_]\\w*)\\s*\\(', re.MULTILINE\n    )\n    for m in cell_pattern.finditer(text):\n        cells.add(m.group(2))\n\n    # Nets: wire declarations and continuous assignments\n    # wire n1, n2, ...;\n    wire_pattern = re.compile(r'^\\s*wire\\s+([^;]+);', re.MULTILINE)\n    for m in wire_pattern.finditer(text):\n        for name in m.group(1).split(','):\n            name = name.strip()\n            if name:\n                nets.add(name)\n\n    # Also catch nets that appear as port connections (inside parentheses)\n    # This is a simple heuristic: any identifier that is not a keyword and\n    # appears in a port list could be a net. We'll just add all identifiers\n    # that look like net names (lowercase with optional underscores/digits).\n    # To avoid false positives, we only add identifiers that appear in\n    # port connection lists and are not already known cells.\n    port_conn_pattern = re.compile(r'\\.\\w+\\s*\\(\\s*(\\w+)\\s*\\)')\n    for m in port_conn_pattern.finditer(text):\n        net_candidate = m.group(1)\n        if net_candidate not in cells and re.match(r'^[a-z_]\\w*$', net_candidate):\n            nets.add(net_candidate)\n\n    return cells, nets",
+      "path": "evaluation/private/netlist_parser.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the grading contract (report_grading), list the required submission file (submission/trojan_report.json), explain that evaluate.py grades the answer against hidden ground truth, and note that the toolchain (yosys, iverilog, vvp) is available for optional cross-checks but verdicts are based solely on the submitted report."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Opens submission/trojan_report.json, validates JSON structure and field presence per FR1-FR4, then checks substantive correctness per SR1-SR2 against the hidden ground truth (exact instance names: aoi_trig, oai_trig, xor_payload; exact net names: n_trigger_internal, n_payload_out). Also verifies all reported names exist in inputs/design.v. Emits [TEST] PASS/FAIL markers for each requirement. Exits 0 on all-pass, non-zero on any failure. Must fail the naive/empty baseline submission."
+    },
+    {
+      "path": "evaluation/private/ground_truth.json",
+      "purpose": "Hidden ground truth file containing the exact expected trigger_cells ([\"aoi_trig\", \"oai_trig\"]), trigger_nets ([\"n_trigger_internal\"]), payload_cells ([\"xor_payload\"]), and payload_nets ([\"n_payload_out\"]). Used by evaluate.py to grade SR1 and SR2. Never revealed to participants."
+    },
+    {
+      "path": "evaluation/private/netlist_parser.py",
+      "purpose": "Utility module to parse inputs/design.v and extract all cell instance names and net names. Used by evaluate.py to validate FR4 (all reported names exist in the netlist). Returns sets of cell instances and net names found in the Verilog file."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Check that submission/trojan_report.json exists and is valid JSON parseable by json.load. PASS if parseable; FAIL if file missing, empty, or invalid JSON.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the parsed JSON object contains exactly the four top-level keys: trigger_cells, trigger_nets, payload_cells, payload_nets. PASS if all four present and no extras; FAIL if any missing or extra keys present.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that each of the four required keys maps to a non-empty array of strings. PASS if all four arrays are non-empty and contain only strings; FAIL if any array is empty, missing, or contains non-string elements.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Parse inputs/design.v to extract all cell instance names and net names. Check that every string in the submitted trigger_cells, trigger_nets, payload_cells, and payload_nets arrays appears in the netlist. PASS if all reported names exist; FAIL if any reported name is not found in the netlist.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/netlist_parser.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the submitted trigger_cells array contains exactly the AOI21 and OAI22 instances (aoi_trig, oai_trig) and that trigger_nets contains the internal net connecting them (n_trigger_internal). PASS if both cells and the net are reported (order-insensitive, no extras required but extras tolerated as long as the required ones are present); FAIL if any required trigger component is missing.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.json"
+      ]
+    },
+    {
+      "expected_detection": "Check that the submitted payload_cells array contains the XOR instance driving control_out (xor_payload) and that payload_nets contains the net connecting the trigger output to the XOR input (n_payload_out). PASS if the cell and net are reported; FAIL if either is missing.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.json"
+      ]
+    }
+  ]
+}

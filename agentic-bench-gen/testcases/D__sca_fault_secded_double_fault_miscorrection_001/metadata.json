@@ -1,0 +1,32 @@
+{
+  "task_id": "sca_fault_secded_double_fault_miscorrection_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Double-bit fault miscorrection in a flawed SECDED decoder",
+  "input_artifacts": [
+    "inputs/secded_codec.v",
+    "inputs/fault_model.json",
+    "inputs/fault_enum_tb.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "expected_outputs": "A vulnerability_report.json describing, for all 91 enumerated single- and two-bit fault cases, the decoder's classification (no_error / corrected / detected_uncorrectable), the observed decoder output signals (syndrome, overall_parity_error, correctable, uncorrectable, correction_mask, data_out), a summary of classification counts, a list of fault_ids representing genuine data-integrity risks, and concrete hardening suggestions.",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "F1 score of the submitted vulnerable_fault_ids set against the hidden ground-truth two-bit miscorrection set (syndrome!=0 AND overall_parity_error=1 under the flawed decoder).",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Fraction of all 91 enumerated fault_model.json cases that appear exactly once in the submitted fault_cases array with well-formed observed_outputs, cross-checked against iverilog simulation where feasible.",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Fraction of required security findings (SR1-SR4: missing overall_parity_error gating, correct miscorrection set, corrupted data_out values, and separate zero-syndrome escape class) that are substantively and correctly present in the report.",
+      "direction": "maximize"
+    }
+  ]
+}

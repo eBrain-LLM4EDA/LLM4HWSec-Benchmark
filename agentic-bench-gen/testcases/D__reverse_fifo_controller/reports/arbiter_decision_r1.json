@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The benchmark is not usable. The evaluator (evaluate.py) rejects the expert golden solution with exit code 1 and prints FAIL markers for all five requirements (FR1-FR4, SR1). The golden run failure is deterministic and repeated. Because the golden run fails, the mutation score of 0.0 is not meaningful. The root cause is an evaluation framework bug: the evaluator either compiles or grades the wrong file, or the testbench instantiation/compilation fails silently, causing all checks to report missing markers. The evaluator must be fixed to correctly locate, compile, and simulate the submission file at submission/recovered_rtl.v, and to produce PASS for the golden solution before any other issues (mutation coverage, metrics) are addressed.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

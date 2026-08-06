@@ -1,0 +1,47 @@
+{
+  "task_id": "gate_trojan_detection_addr_decoder_alias_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Address-Decoder Aliasing Trojan with Dual Write Enables",
+  "description": "Analyze a gate-level netlist implementing a 3-bit address decoder driving four register-bank write-enable signals (bank0_we..bank3_we) and determine whether the decode logic behaves as a strict one-hot decoder for every legal address and control-input combination. Produce a structured JSON analysis report identifying any deviations, the exact triggering stimulus, and the responsible gate-level nets/instances.",
+  "input_artifacts": [
+    "inputs/decoder_netlist.v",
+    "inputs/testbench_harness.v",
+    "inputs/design_brief.md",
+    "inputs/gate_library.v"
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "submission": {
+    "kind": "analysis_report",
+    "path": "submission/trojan_report.json",
+    "notes": "Participants do not modify any files under inputs/. The single graded artifact is submission/trojan_report.json, which must conform to the JSON schema described in README.md. A naive/empty placeholder is shipped at this path and is expected to fail grading."
+  },
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ],
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of hidden security requirements satisfied by the submitted trojan_report.json, weighted equally and averaged across the case."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of non-anomalous addresses or nets incorrectly flagged as anomalous/affected in the submission relative to exhaustive simulation ground truth."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds for the evaluator to parse the submission, run schema validation, and complete optional iverilog/vvp cross-checks against decoder_netlist.v."
+    },
+    {
+      "name": "schema_compliance",
+      "direction": "maximize",
+      "description": "Binary/fractional score for adherence to the exact JSON schema pinned in the task's public interface specification."
+    }
+  ]
+}

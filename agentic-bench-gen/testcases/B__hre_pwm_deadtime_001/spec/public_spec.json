@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The submission must be a single self-contained Verilog file at submission/recovered_rtl.v, compilable standalone with iverilog (no proprietary IP, no vendor primitives).",
+    "The module must exactly match the pinned port list and names: clk, rst, en, duty[3:0], pwm_hi, pwm_lo.",
+    "The design must use a 4-bit internal counter with a fixed period of 16 clock cycles as described in the interface section; no other period length is acceptable.",
+    "Synchronous active-high reset only; do not use asynchronous reset.",
+    "The gate_netlist.v and obfuscated_rtl.v inputs are provided purely for reverse-engineering reference; do not assume they can be synthesized directly as the answer -- they use renamed/flattened signals and must be functionally reconstructed at the word level."
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v containing a synthesizable Verilog module named pwm_deadtime_gen matching the pinned port list, that reproduces the reference cycle-accurate waveform for all duty values 0-15 under simulation with iverilog/vvp."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For duty=8, en=1 held high, and rst asserted for one cycle then released, the submission must produce pwm_hi high for exactly cycles corresponding to cnt=2..7 (6 cycles) and pwm_lo high for exactly cnt=10..15 (6 cycles) within each 16-cycle period, matching the reference cycle-for-cycle over at least 4 full periods."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For every duty value 0 through 15 (with en=1 held throughout), pwm_hi and pwm_lo must never be observed high on the same clock cycle (no overlap), verified over at least 2 full 16-cycle periods per duty value."
+    },
+    {
+      "id": "FR3",
+      "requirement": "When duty=15, pwm_lo must never assert (stays low for the entire period) and pwm_hi must assert for cnt=2..14 (13 cycles); when duty=0 or duty=1 or duty=2, pwm_hi must never assert for that period."
+    },
+    {
+      "id": "FR4",
+      "requirement": "When en is deasserted (en=0) for several consecutive cycles, the internal counter must hold its value (cnt does not increment) and both pwm_hi and pwm_lo must remain at whatever value corresponds to the held cnt/duty combination, verified by comparing against the reference over a held interval of at least 8 cycles."
+    }
+  ],
+  "input_artifacts": [
+    "gate_netlist.v",
+    "obfuscated_rtl.v",
+    "design_brief.md"
+  ],
+  "interface": "Module name: pwm_deadtime_gen. File: submission/recovered_rtl.v. Ports: input clk (rising-edge clock), input rst (synchronous, active-high reset), input en (active-high enable, sampled synchronously), input [3:0] duty (programmable duty value, 0-15, sampled synchronously, may change asynchronously to the design but only registered values matter), output reg pwm_hi (high-side complementary drive), output reg pwm_lo (low-side complementary drive). All ports are single-bit except duty which is [3:0]. TIMING CONTRACT: The design implements a free-running 4-bit cycle counter cnt[3:0] that increments every rising edge of clk when en=1, wrapping from 15 back to 0, and holding its value (not incrementing) when en=0. The period is exactly 16 clock cycles (cnt = 0..15). Both pwm_hi and pwm_lo are Moore outputs: registered on the rising edge of clk, and therefore change exactly ONE cycle after the internal condition (based on cnt and duty) that determines them is satisfied -- i.e. pwm_hi and pwm_lo at cycle N+1 are a registered function of cnt and duty as sampled at cycle N. Behavior as a function of the registered cnt value observed at each rising edge (defining cnt(t) as the counter value during cycle t, and outputs observed during cycle t+1 as pwm_hi(t+1), pwm_lo(t+1)): pwm_hi is high during cycle t+1 iff cnt(t) is in the range [0, duty-1] AND cnt(t) >= 2 (i.e. the high-side window is the first 'duty' counts of the period, but the first two counts of the period, cnt=0 and cnt=1, are forced to dead time/low regardless of duty, to insert two cycles of dead time after every low-to-high boundary at the top of the period). pwm_lo is high during cycle t+1 iff cnt(t) is in the range [duty+2, 15] AND cnt(t) >= duty+2 AND cnt(t) is at least 2 cycles past the pwm_hi falling edge (i.e. the low-side window starts exactly 2 cycles after cnt(t)=duty, the point where pwm_hi's window ends, and runs through cnt(t)=15). Concretely for duty=D (0<=D<=15): pwm_hi(t+1)=1 for cnt(t) in [2, D-1] only when D>=3 (if D<=2, pwm_hi never asserts that period); pwm_lo(t+1)=1 for cnt(t) in [D+2, 15] only when D<=13 (if D>=14, pwm_lo never asserts that period). For all other cnt(t) values (cnt(t) in [0,1], or cnt(t) in [D, D+1], or the boundary wrap region), both pwm_hi(t+1)=0 and pwm_lo(t+1)=0 (dead time). When en=0, cnt holds and both pwm_hi and pwm_lo continue to update each cycle as the registered function of the held cnt and duty (they do not freeze, they settle to whatever the held cnt/duty implies and stay there). Reset: synchronous, active-high. When rst=1 sampled at a rising edge, on the NEXT rising edge cnt becomes 0 and pwm_hi=0, pwm_lo=0 are registered (i.e. reset takes one cycle to propagate, standard synchronous reset latency); outputs are guaranteed 0 exactly one cycle after rst is sampled high, and remain 0 as long as rst stays high. duty may be changed on any cycle and takes effect on the next rising edge per the cnt(t)-based formula above; there is no separate load/latch signal.",
+  "objective": "You are given a gate-level netlist and an obfuscated RTL wrapper describing a synthesized digital block whose true function has been obscured by flattening and signal renaming. Reverse engineer the design and submit a clean, word-level Verilog module named pwm_deadtime_gen that reproduces the exact same cycle-accurate behavior. The block is a 4-bit-programmable complementary PWM generator with a fixed 16-clock period, used to drive a two-switch half-bridge gate driver, and it must insert a dead-time gap around every duty-cycle transition so the two outputs are never simultaneously high.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

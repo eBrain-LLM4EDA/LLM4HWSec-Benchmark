@@ -1,0 +1,66 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/coverage_utils.py",
+      "description": "gcov invocation fails with 'cannot open notes file' for both golden and vulnerable submissions, causing FR4/SR1/SR2 to always FAIL regardless of submission correctness. The differential run confirms the golden hardened solution is rejected by evaluate.py, violating the core requirement that a correct submission must pass.",
+      "evidence": "Differential golden_run shows FAIL: FR4, FAIL: SR1, FAIL: SR2 with 'gcov failed: modexp_kernel.gcno:cannot open notes file' for the golden submission, which should pass. Likely caused by build_dir/binary naming mismatch (compiling to 'harness_cov' but .gcno file named after object files, or cwd/path issue with gcov needing -O0 without optimization flags affecting .gcno generation, or gcov being run in wrong directory or with mismatched source path).",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.status",
+      "description": "Overall differential status is 'fail' because the golden run does not pass despite being the correct hardened reference implementation, meaning the benchmark cannot currently discriminate correct submissions from insecure ones as required by the hardened_artifact contract.",
+      "evidence": "golden_run.ok: false, expected: pass, status: fail",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation_report.mutation_score",
+      "description": "mutation_score is 0.0 and marked not meaningful, consistent with the broken gcov harness making SR1/SR2/FR4 unusable as discriminators.",
+      "evidence": "mutation_score: 0.0, mutation_score_meaningful: false",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the gcov invocation in coverage_utils.py: ensure the --coverage build produces .gcno/.gcda files in the same directory gcov is invoked from, matching the exact object/source file naming (likely need to pass -fprofile-arcs -ftest-coverage explicitly or ensure gcov is run against the correct .gcno path relative to build_dir, and verify GCC version compatibility for --coverage flag with the given g++ invocation).",
+    "Re-run the differential test after the fix to confirm the golden hardened implementation passes all 7 requirements (FR1-FR4, SR1-SR3) and the insecure baseline fails at least SR1 or SR2 while passing FR1-FR3, as required by acceptance_criteria.",
+    "Add an explicit test in CI for the harness itself (e.g. run evaluate.py against golden/modexp_kernel.cpp during benchmark authoring) to catch this class of gcov/build misconfiguration before shipping.",
+    "Once gcov is fixed, re-verify mutation_score and check_activation to ensure SR1/SR2 actually discriminate the baseline's branchy multiply pattern as intended."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and vulnerable runs show PASS: FR1",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs show PASS: FR2",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs show PASS: FR3",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "gcov failure causes FR4 to FAIL for both golden and vulnerable submissions",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "gcov failure causes SR1 to FAIL for both golden and vulnerable submissions, so it cannot discriminate secure vs insecure code",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "gcov failure causes SR2 to FAIL for both golden and vulnerable submissions, so it cannot discriminate secure vs insecure code",
+      "requirement": "SR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs show PASS: SR3 (this check is expected to pass on both per its design)",
+      "requirement": "SR3",
+      "status": "pass"
+    }
+  ]
+}

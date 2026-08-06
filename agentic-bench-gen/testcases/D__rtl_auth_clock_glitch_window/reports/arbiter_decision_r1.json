@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 0.0,
+  "rationale": "The evaluator crashes with a NameError (missing 'import re') before completing grading of the golden solution, causing the golden run to fail and preventing any mutation testing. This makes the mutation score 0.0 and meaningless. The root cause is a bug in the evaluation framework (evaluation/private/ground_truth.py and evaluation/evaluate.py), not in the specification, artifacts, or mutants. The case must be sent back for repair of the evaluation framework.",
+  "retain_case": false,
+  "revision_instructions": "Fix the evaluator crash so that the golden solution passes all requirements and the baseline fails appropriately. Specific changes required:\n\n1. In evaluation/private/ground_truth.py, add 'import re' at the top of the file. The function extract_signal_names uses 're' but the module is not imported, causing a NameError at runtime.\n\n2. In evaluation/evaluate.py, wrap the call to extract_signal_names in a try/except block. If extract_signal_names raises an exception, catch it and emit a clear '[TEST] FAIL: FR3' marker with a descriptive message instead of crashing the entire evaluator.\n\n3. Ensure that after fixing the import, the evaluator runs to completion and emits PASS/FAIL markers for ALL requirements: FR1, FR2, FR3, FR4, SR1, SR2. The marker IDs must match the requirement_map IDs exactly (FR1, FR2, FR3, FR4, SR1, SR2).\n\n4. Verify that the golden solution (golden/vulnerability_report.json) passes all six requirements with exit code 0.\n\n5. Verify that the shipped baseline submission (submission/vulnerability_report.json with empty or incorrect values) fails at least one requirement with a non-zero exit code.\n\n6. After the evaluator is fixed, re-run the validation pipeline to confirm that mutation testing executes and produces a meaningful mutation score >= 0.5.",
+  "root_cause": "evaluation_issue",
+  "source_round": 1
+}

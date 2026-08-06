@@ -1,0 +1,54 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/mult8_netlist.v",
+    "inputs/port_list.txt",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: netlist_summary.total_gates=175 does not match actual gate count=183\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] FAIL: SR4: reported (a,b) matched expected values but toolchain cross-check failed: compile failed: /work/inputs/mult8_netlist.v:279: error: 'payload_mux_sel' has already been declared in this scope.\n[TEST] PASS: SR5\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: netlist_summary.total_gates=0 does not match actual gate count=183\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: classification is 'clean', hidden ground truth is 'infected'\n[TEST] FAIL: SR2: suspect_nodes does not contain instance_name='payload_xor_p7' with role='payload'\n[TEST] FAIL: SR3: suspect_nodes does not contain instance_name='trig_and_final' with role='trigger'\n[TEST] FAIL: SR4: classification is not 'infected'; cannot credit trigger_condition\n[TEST] FAIL: SR5: submission fails minimum completeness bar (requires classification=='infected', non-empty suspect_nodes, non-empty trigger_condition, and a valid netlist_summary)\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "requirement_count": 9,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.py",
+    "evaluation/private/netlist_utils.py",
+    "evaluation/tb_probe.v"
+  ],
+  "uncovered_requirements": []
+}

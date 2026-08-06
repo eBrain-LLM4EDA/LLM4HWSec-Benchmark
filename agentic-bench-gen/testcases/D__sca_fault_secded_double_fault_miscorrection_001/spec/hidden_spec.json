@@ -1,0 +1,39 @@
+{
+  "acceptance_criteria": [
+    "submission/vulnerability_report.json parses as valid JSON and satisfies FR1-FR4 field-presence/format checks.",
+    "The set of reported vulnerable_fault_ids matches the hidden ground-truth miscorrection set with at most 2 symmetric-difference elements.",
+    "For at least 90% of the ground-truth miscorrection set, the report's per-case data_out is verified (via iverilog simulation of secded_codec.v with fault_enum_tb.v-equivalent stimulus) to match the actually-corrupted value produced by the flawed RTL, not the true reference data.",
+    "The report explicitly names the missing overall_parity_error check as the root cause (SR1) and separately flags the zero-syndrome escape class (SR4).",
+    "A baseline empty/naive submission (empty fault_cases array or all-classification='no_error') fails FR2, FR3, SR2, and SR3."
+  ],
+  "cwe_ids": [
+    "CWE-354",
+    "CWE-345",
+    "CWE-1245",
+    "CWE-200"
+  ],
+  "ground_truth": "The flawed secded_codec.v decoder asserts correctable whenever syndrome != 0, without ever checking overall_parity_error to distinguish single-bit from double-bit errors (a correct SECDED decoder should report uncorrectable when syndrome!=0 AND overall_parity_error==0, since that combination signals an even number of errors, i.e. two-bit faults). Consequently, for a specific subset of the 78 two-bit fault cases (those two-bit flips where the resulting syndrome happens to collide with the syndrome pattern of some single Hamming bit position), the decoder computes a nonzero syndrome, sets correctable=1, uncorrectable=0, and applies correction_mask to flip a bit position that is NOT actually one of the two faulty bits -- silently corrupting data_out to a third, wrong value while reporting success. The remaining two-bit faults (those landing on syndrome=0 with overall_parity_error=1, i.e. flips of two data-bearing positions that cancel in the parity tree in specific ways, or flips involving bit 0 combined with another bit) may be classified variously by the flawed logic, but the security-relevant miscorrection set is exactly the two-bit cases where syndrome!=0 and overall_parity_error=1 (these are treated identically to single-bit errors by the flawed 'syndrome!=0 => correctable' rule) even though a correct implementation must treat syndrome!=0 with overall_parity_error=1 as double-error-detected (uncorrectable), not correctable. The report is correct only if it identifies this exact vulnerable subset (two-bit faults with nonzero syndrome and overall_parity_error=1, all misclassified as 'corrected' with a data_out differing from the true reference data) and does not confuse them with the double-bit faults that land on syndrome=0 (which the flawed decoder passes through as 'no_error', silently delivering corrupted data with zero detection -- also a distinct vulnerability class that must be separately flagged as detected_uncorrectable being absent).",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check that the report's hardening_suggestions or a dedicated finding field explicitly describes the missing conjunction of syndrome!=0 with overall_parity_error==0 as the gating condition for 'correctable', or equivalently flags that overall_parity_error is not used in the correctable/uncorrectable decision.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the decoder's correction decision is driven solely by 'syndrome != 0' without consulting overall_parity_error, i.e. must state/imply the missing double-error-detection check."
+    },
+    {
+      "detection_strategy": "Compare submitted vulnerable_fault_ids (as a set) against the precomputed hidden ground-truth set using set equality with tolerance for at most 2 missing/extra ids (partial credit thresholds), verified by simulating secded_codec.v via iverilog/vvp against fault_model.json using fault_enum_tb.v or an equivalent oracle script.",
+      "id": "SR2",
+      "requirement": "The report's vulnerable_fault_ids list must exactly match the hidden reference set of two-bit fault_ids for which syndrome!=0 and overall_parity_error=1 under the flawed decoder (the miscorrection set), computed against the fixed reference codeword in fault_model.json."
+    },
+    {
+      "detection_strategy": "For each fault_id in the intersection of submitted and ground-truth vulnerable sets, parse observed_outputs.data_out from the report and check it is present, well-formed, and not equal to the reference data value (cross-checked by running the RTL through iverilog+vvp on that specific codeword_in).",
+      "id": "SR3",
+      "requirement": "For every fault case in the miscorrection set, the report's per-case classification must be 'corrected' (matching the flawed decoder's actual behavior) AND observed_outputs.data_out for that case must differ from the true reference 8-bit data value, demonstrating the report captured the silent corruption rather than assuming correctness."
+    },
+    {
+      "detection_strategy": "Check that fault_cases entries whose ground-truth two-bit fault lands on syndrome==0 are classified as 'no_error' in the submission (matching flawed decoder behavior) and that hardening_suggestions or an additional finding explicitly calls out this zero-syndrome double-fault-escape scenario as a separate weakness from the miscorrection cases.",
+      "id": "SR4",
+      "requirement": "The report must separately identify (e.g. via a distinct field or explicit statement) the disjoint class of two-bit faults that produce syndrome==0 (passing through as 'no_error') as a separate, undetected data-corruption risk, distinguishing it from the syndrome!=0 miscorrection class."
+    }
+  ],
+  "threat_model": "An attacker with physical or electromagnetic fault-injection capability (e.g. clock/voltage glitching, laser fault injection on memory arrays protecting cryptographic key material or safety-critical state) induces two simultaneous bit flips in a stored ECC-protected codeword. Because the decoder's correction-enable logic checks only 'syndrome != 0' and never cross-checks the overall (extended) parity bit, a subset of two-bit faults is misclassified as single-bit-correctable: the decoder applies a corrective XOR to a bit that was never actually flipped, silently delivering a third, attacker-influenced wrong data value downstream while asserting 'correctable' status (correctable=1, uncorrectable=0). A relying system (e.g. a key-schedule register or safety interlock) that trusts the correctable/uncorrectable status flags rather than independently re-verifying data integrity will consume this silently corrupted value as if it were trustworthy, enabling fault-injection attacks such as differential fault analysis against cryptographic cores or unsafe actuation in safety systems."
+}

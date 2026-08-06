@@ -1,0 +1,28 @@
+{
+  "task_id": "sarlock_point_function_recovery",
+  "domain_id": "logic_deobfuscation_sat",
+  "input_artifacts": [
+    "locked_netlist.v",
+    "oracle_vectors.json",
+    "locking_scheme_description.md"
+  ],
+  "expected_output": {
+    "file": "submission/recovered_key.json",
+    "format": {
+      "recovered_key": "string of '0' and '1' characters (6 bits)",
+      "key_gate_nets": "array of hierarchical net name strings"
+    }
+  },
+  "metrics": [
+    {
+      "name": "key_recovery_rate",
+      "description": "The fraction of key bits correctly recovered. 1.0 indicates perfect recovery.",
+      "direction": "maximize"
+    },
+    {
+      "name": "key_gate_localization_accuracy",
+      "description": "The Jaccard index (intersection over union) between the submitted set of key gate nets and the ground truth set. 1.0 indicates perfect localization.",
+      "direction": "maximize"
+    }
+  ]
+}

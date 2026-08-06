@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs pass: mutation_score=1.0, coverage_score=1.0, validation_status=pass, baseline_exit_code=0, issue_count=0, analyzer_status=pass. The differential run confirms the golden solution is accepted (all [TEST] PASS) and the shipped insecure baseline is correctly rejected (FR2, FR3, SR1, SR2 fail as expected due to stale buffer leakage). Analyzer found no issues and confirmed no public leakage of hidden security intent, concrete and machine-checkable FR/SR requirements, and active behavioral triggering of the security scenario. Mutation score of 1.0 indicates all mutants were detected, confirming strong evaluator discrimination. No revision needed.",
+  "retain_case": true,
+  "revision_instructions": "No revision needed; case meets all retention criteria.",
+  "root_cause": "none"
+}

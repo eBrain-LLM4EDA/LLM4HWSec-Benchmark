@@ -1,0 +1,79 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/trojan_report.json) that should pass all checks. The golden run shows FAIL for SR1, SR2, SR3, and SR4, indicating the evaluator is buggy or over-strict and does not correctly grade a correct submission.",
+      "evidence": "Golden run stdout: [TEST] FAIL: SR1: counter_terminal not identified in counter.v; [TEST] FAIL: SR2: command_match not identified in command_decoder.v; [TEST] FAIL: SR3: sticky_error not identified in error_handler.v; [TEST] FAIL: SR4: payload mux (secret_reg[0] -> status_out) not described in top.v. Expected all PASS.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "No mutants were generated for any requirement (FR1-FR3, SR1-SR5), so the harness discrimination is unproven. The mutation score is 0.0, meaning the evaluator's ability to distinguish correct from incorrect submissions is not validated.",
+      "evidence": "Validation report: mutation_score: 0.0, untested_requirements: [FR1, FR2, FR3, SR1, SR2, SR3, SR4, SR5], dead_checks: [].",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/private/ground_truth.py",
+      "description": "The EXPECTED_PAYLOAD_KEYWORDS list is overly broad and includes generic terms like 'data', 'bit', 'output', 'drive', 'assign', '?', ':' which could cause false positives if a submission describes benign logic using these terms. This reduces the precision of the SR4 check.",
+      "evidence": "EXPECTED_PAYLOAD_KEYWORDS = ['secret_reg[0]', 'status_out', 'multiplexer', 'mux', 'conditional', 'select', 'leak', 'exfiltrat', 'secret', 'data', 'bit', 'output', 'drive', 'assign', 'ternary', '?', ':']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "submission/trojan_report.json",
+      "description": "The shipped baseline submission is an empty report with trojan_detected=false. While it correctly fails the evaluator, it does not test the evaluator's ability to reject partially correct but incomplete submissions (e.g., missing one trigger fragment).",
+      "evidence": "Baseline content: {'trojan_detected': false, 'findings': [], 'overall_confidence': 0.0}",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py to correctly grade the golden submission. The issue is likely in the finding_matches function or the SR4 keyword matching logic. Verify that the golden submission's findings match the expected module and signal names exactly as defined in ground_truth.py.",
+    "Add targeted mutants for each requirement (FR1-FR3, SR1-SR5) to validate the evaluator's discrimination ability. For example, create submissions with missing fields, wrong types, missing individual trigger fragments, wrong payload description, and wrong trojan_detected/confidence values.",
+    "Refine EXPECTED_PAYLOAD_KEYWORDS in ground_truth.py to be more specific and avoid false positives. Remove overly generic terms like 'data', 'bit', 'output', 'drive', 'assign', '?', ':' and keep only terms directly related to the payload mechanism.",
+    "Consider adding a more challenging baseline submission (e.g., one that identifies some but not all trigger fragments) to better test the evaluator's grading granularity.",
+    "Ensure the golden submission is placed in the correct location (golden/trojan_report.json) and that its content matches the expected format and values defined in the hidden spec."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and baseline runs show [TEST] PASS: FR1, indicating the JSON parsing check works.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and baseline runs show [TEST] PASS: FR2, indicating top-level field type checking works.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and baseline runs show [TEST] PASS: FR3, indicating findings array element field checking works.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows [TEST] FAIL: SR1 despite the golden submission containing the correct finding. The evaluator fails to recognize the correct trigger fragment identification.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows [TEST] FAIL: SR2 despite the golden submission containing the correct finding. The evaluator fails to recognize the correct trigger fragment identification.",
+      "requirement": "SR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows [TEST] FAIL: SR3 despite the golden submission containing the correct finding. The evaluator fails to recognize the correct trigger fragment identification.",
+      "requirement": "SR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows [TEST] FAIL: SR4 despite the golden submission describing the payload mechanism. The evaluator fails to recognize the correct payload description.",
+      "requirement": "SR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows [TEST] PASS: SR5, indicating the trojan_detected and overall_confidence check works for the golden submission. Baseline correctly fails SR5.",
+      "requirement": "SR5",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

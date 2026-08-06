@@ -1,0 +1,99 @@
+{
+  "domain_id": "hardware_reverse_engineering",
+  "evaluation": {
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of simulated clock cycles across all test vectors (duty sweep 0-15, reset sequences, enable-hold sequences) where submission pwm_hi and pwm_lo exactly match the independently generated reference design's outputs.",
+        "direction": "maximize",
+        "name": "cycle_accurate_match_rate"
+      },
+      {
+        "description": "Number of clock cycles observed during simulation where pwm_hi and pwm_lo are simultaneously high; must be zero for the submission to pass regardless of other scores.",
+        "direction": "minimize",
+        "name": "overlap_violation_count"
+      },
+      {
+        "description": "Sum of absolute differences between the observed dead-time gap length (in cycles) and the required 2-cycle gap, measured at both period-start and duty-boundary transitions across all tested duty values.",
+        "direction": "minimize",
+        "name": "deadtime_width_error"
+      },
+      {
+        "description": "Boolean pass/fail indicating whether the recovered RTL, when compiled and simulated, is behaviorally equivalent (bit-exact, cycle-exact) to the reference across the full FR1-FR4 and SR1-SR2 test suite.",
+        "direction": "maximize",
+        "name": "functional_equivalence"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "evaluate.py compiles submission/recovered_rtl.v together with a generated testbench and the independently authored reference design using iverilog, and runs vvp to capture waveforms.",
+      "All functional requirement checks (FR1-FR4) pass with zero mismatched cycles against the reference for the specified duty values and enable patterns.",
+      "SR1 (no-overlap invariant) holds with zero exceptions across the full duty=0..15 sweep with randomized en toggling over at least 3 periods each.",
+      "SR2 (exact 2-cycle dead time at both boundaries) holds for all tested duty values 3 through 13.",
+      "A submission that is empty, non-compiling, or a naive pass-through (e.g. pwm_hi=duty!=0, pwm_lo=~pwm_hi with no dead time) must be rejected by the harness."
+    ],
+    "cwe_ids": [
+      "CWE-696",
+      "CWE-1245"
+    ],
+    "ground_truth": "The golden design implements a 4-bit free-running counter (cnt) incrementing on every clock when en=1 and holding when en=0, synchronously reset to 0 with a one-cycle reset latency. pwm_hi is a registered (Moore) output that is high the cycle after cnt is in [2, duty-1] (i.e. the duty window minus the first two counts of the period, which are forced into dead time). pwm_lo is a registered output high the cycle after cnt is in [duty+2, 15] (i.e. starting two cycles after the duty boundary through the end of the period). This creates exactly two dead-time cycles after the period restart (cnt=0,1) before pwm_hi can assert, and exactly two dead-time cycles after pwm_hi's window closes (cnt=duty,duty+1) before pwm_lo can assert. For duty<=2, pwm_hi never asserts; for duty>=14, pwm_lo never asserts. Both outputs are mutually exclusive at every cycle for every duty value 0-15. The obfuscated RTL and gate netlist realize this same FSM/counter/comparator structure but with flattened logic, renamed nets (e.g. n1, n2, wire_23), and possibly gate-level primitives (AND/OR/XOR/DFF cells) requiring the participant to recognize the counter-comparator pattern and its dead-time offset logic rather than a naive single-comparator PWM.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Testbench asserts (pwm_hi & pwm_lo) == 0 on every clock edge across an exhaustive sweep of duty=0..15 combined with randomized en toggling, for at least 3 periods each; any observed overlap cycle fails the case immediately regardless of other passing metrics.",
+        "id": "SR1",
+        "requirement": "The recovered design must never allow pwm_hi and pwm_lo to be simultaneously high on the same cycle, for any duty value 0-15 and across enable toggling, matching the reference exactly with zero tolerance for overlap."
+      },
+      {
+        "detection_strategy": "For each duty in 3..13 the testbench measures the exact number of low cycles for both pwm_hi and pwm_lo between the intervals and compares the observed dead-time run lengths against the reference cycle-by-cycle waveform capture, failing on any cycle-count mismatch.",
+        "id": "SR2",
+        "requirement": "The dead-time gap must be exactly two clock cycles at both the low-to-high boundary (start of period) and the high-to-low boundary (duty transition), not one cycle, not zero cycles, and not more than two, since an insufficient gap reintroduces shoot-through risk and an excessive gap indicates a structurally different (non-equivalent) recovered design."
+      }
+    ],
+    "threat_model": "An engineer or auditor reverse engineering an undocumented gate-driver IP block (e.g. salvaged from a legacy motor controller or recovered from a third-party netlist with no documentation) must correctly recover the dead-time insertion logic. If the recovered RTL omits or miscounts the dead-time window, the resulting hardware description could be used to regenerate a controller that permits pwm_hi and pwm_lo to overlap (shoot-through), which in a real half-bridge driver would short the supply rail through both switches simultaneously, causing device failure or fire. A reverse-engineering agent that produces a 'close enough' waveform lacking dead-time margins, or with only one cycle of dead time instead of two, silently reintroduces this hazard when the recovered RTL is resynthesized and deployed."
+  },
+  "public_spec": {
+    "constraints": [
+      "The submission must be a single self-contained Verilog file at submission/recovered_rtl.v, compilable standalone with iverilog (no proprietary IP, no vendor primitives).",
+      "The module must exactly match the pinned port list and names: clk, rst, en, duty[3:0], pwm_hi, pwm_lo.",
+      "The design must use a 4-bit internal counter with a fixed period of 16 clock cycles as described in the interface section; no other period length is acceptable.",
+      "Synchronous active-high reset only; do not use asynchronous reset.",
+      "The gate_netlist.v and obfuscated_rtl.v inputs are provided purely for reverse-engineering reference; do not assume they can be synthesized directly as the answer -- they use renamed/flattened signals and must be functionally reconstructed at the word level."
+    ],
+    "expected_outputs": [
+      "submission/recovered_rtl.v containing a synthesizable Verilog module named pwm_deadtime_gen matching the pinned port list, that reproduces the reference cycle-accurate waveform for all duty values 0-15 under simulation with iverilog/vvp."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For duty=8, en=1 held high, and rst asserted for one cycle then released, the submission must produce pwm_hi high for exactly cycles corresponding to cnt=2..7 (6 cycles) and pwm_lo high for exactly cnt=10..15 (6 cycles) within each 16-cycle period, matching the reference cycle-for-cycle over at least 4 full periods."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For every duty value 0 through 15 (with en=1 held throughout), pwm_hi and pwm_lo must never be observed high on the same clock cycle (no overlap), verified over at least 2 full 16-cycle periods per duty value."
+      },
+      {
+        "id": "FR3",
+        "requirement": "When duty=15, pwm_lo must never assert (stays low for the entire period) and pwm_hi must assert for cnt=2..14 (13 cycles); when duty=0 or duty=1 or duty=2, pwm_hi must never assert for that period."
+      },
+      {
+        "id": "FR4",
+        "requirement": "When en is deasserted (en=0) for several consecutive cycles, the internal counter must hold its value (cnt does not increment) and both pwm_hi and pwm_lo must remain at whatever value corresponds to the held cnt/duty combination, verified by comparing against the reference over a held interval of at least 8 cycles."
+      }
+    ],
+    "input_artifacts": [
+      "gate_netlist.v",
+      "obfuscated_rtl.v",
+      "design_brief.md"
+    ],
+    "interface": "Module name: pwm_deadtime_gen. File: submission/recovered_rtl.v. Ports: input clk (rising-edge clock), input rst (synchronous, active-high reset), input en (active-high enable, sampled synchronously), input [3:0] duty (programmable duty value, 0-15, sampled synchronously, may change asynchronously to the design but only registered values matter), output reg pwm_hi (high-side complementary drive), output reg pwm_lo (low-side complementary drive). All ports are single-bit except duty which is [3:0]. TIMING CONTRACT: The design implements a free-running 4-bit cycle counter cnt[3:0] that increments every rising edge of clk when en=1, wrapping from 15 back to 0, and holding its value (not incrementing) when en=0. The period is exactly 16 clock cycles (cnt = 0..15). Both pwm_hi and pwm_lo are Moore outputs: registered on the rising edge of clk, and therefore change exactly ONE cycle after the internal condition (based on cnt and duty) that determines them is satisfied -- i.e. pwm_hi and pwm_lo at cycle N+1 are a registered function of cnt and duty as sampled at cycle N. Behavior as a function of the registered cnt value observed at each rising edge (defining cnt(t) as the counter value during cycle t, and outputs observed during cycle t+1 as pwm_hi(t+1), pwm_lo(t+1)): pwm_hi is high during cycle t+1 iff cnt(t) is in the range [0, duty-1] AND cnt(t) >= 2 (i.e. the high-side window is the first 'duty' counts of the period, but the first two counts of the period, cnt=0 and cnt=1, are forced to dead time/low regardless of duty, to insert two cycles of dead time after every low-to-high boundary at the top of the period). pwm_lo is high during cycle t+1 iff cnt(t) is in the range [duty+2, 15] AND cnt(t) >= duty+2 AND cnt(t) is at least 2 cycles past the pwm_hi falling edge (i.e. the low-side window starts exactly 2 cycles after cnt(t)=duty, the point where pwm_hi's window ends, and runs through cnt(t)=15). Concretely for duty=D (0<=D<=15): pwm_hi(t+1)=1 for cnt(t) in [2, D-1] only when D>=3 (if D<=2, pwm_hi never asserts that period); pwm_lo(t+1)=1 for cnt(t) in [D+2, 15] only when D<=13 (if D>=14, pwm_lo never asserts that period). For all other cnt(t) values (cnt(t) in [0,1], or cnt(t) in [D, D+1], or the boundary wrap region), both pwm_hi(t+1)=0 and pwm_lo(t+1)=0 (dead time). When en=0, cnt holds and both pwm_hi and pwm_lo continue to update each cycle as the registered function of the held cnt and duty (they do not freeze, they settle to whatever the held cnt/duty implies and stay there). Reset: synchronous, active-high. When rst=1 sampled at a rising edge, on the NEXT rising edge cnt becomes 0 and pwm_hi=0, pwm_lo=0 are registered (i.e. reset takes one cycle to propagate, standard synchronous reset latency); outputs are guaranteed 0 exactly one cycle after rst is sampled high, and remain 0 as long as rst stays high. duty may be changed on any cycle and takes effect on the next rising edge per the cnt(t)-based formula above; there is no separate load/latch signal.",
+    "objective": "You are given a gate-level netlist and an obfuscated RTL wrapper describing a synthesized digital block whose true function has been obscured by flattening and signal renaming. Reverse engineer the design and submit a clean, word-level Verilog module named pwm_deadtime_gen that reproduces the exact same cycle-accurate behavior. The block is a 4-bit-programmable complementary PWM generator with a fixed 16-clock period, used to drive a two-switch half-bridge gate driver, and it must insert a dead-time gap around every duty-cycle transition so the two outputs are never simultaneously high.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hre_pwm_deadtime_001",
+  "title": "Recover complementary PWM with dead-time insertion"
+}

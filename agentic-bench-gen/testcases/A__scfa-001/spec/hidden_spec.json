@@ -1,0 +1,30 @@
+{
+  "acceptance_criteria": [
+    "The submitted 'recombination_net' is exactly 'recombine_xor'.",
+    "The submitted 'recombination_register' is exactly 'recombined_sbox_q'.",
+    "The submitted 'leakage_type' describes a first-order switching or glitch-based leakage."
+  ],
+  "cwe_ids": [
+    "CWE-203",
+    "CWE-208"
+  ],
+  "ground_truth": "The labeled recombine_xor net and recombined_sbox_q register depend directly on the unmasked S-box value; isolated share registers are not primary first-order leakage points.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if the submitted 'recombination_net' field exactly matches the ground truth net name.",
+      "id": "SR1",
+      "requirement": "The analysis must correctly identify the recombine_xor net as the primary first-order leakage point."
+    },
+    {
+      "detection_strategy": "Check if the submitted 'recombination_register' field exactly matches the ground truth register name.",
+      "id": "SR2",
+      "requirement": "The analysis must correctly identify the recombined_sbox_q register as the storage element capturing the recombined value."
+    },
+    {
+      "detection_strategy": "Verify that the submitted identifiers do not correspond to any of the benign share registers.",
+      "id": "SR3",
+      "requirement": "The analysis must not flag any isolated share registers as primary leakage points."
+    }
+  ],
+  "threat_model": "A power observer exploits glitches or transitions where both shares meet to recover the unmasked sensitive intermediate."
+}

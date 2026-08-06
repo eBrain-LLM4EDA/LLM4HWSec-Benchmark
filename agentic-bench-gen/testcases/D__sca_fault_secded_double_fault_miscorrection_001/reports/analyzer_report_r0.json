@@ -1,0 +1,101 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluate.py file as delivered begins with a plain-English explanatory sentence ('The key fix: ...') followed by a markdown code fence before the actual Python script, making the file invalid Python syntax. This causes an immediate SyntaxError on line 1 for both the golden and vulnerable/baseline runs, per the differential harness results.",
+      "evidence": "stderr: File \"/work/evaluation/evaluate.py\", line 1 ... SyntaxError: invalid syntax",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.golden_run",
+      "description": "The golden expert submission (golden/vulnerability_report.json) is expected to PASS but the harness reports exit_code 1 / status fail due to the evaluate.py syntax error, meaning the evaluator rejects a correct submission.",
+      "evidence": "golden_run: {\"exit_code\": 1, \"expected\": \"pass\", \"ok\": false, \"status\": \"fail\"}",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.vulnerable_run",
+      "description": "The naive/baseline submission is expected to FAIL for a legitimate requirement-level reason (missing fault_cases, etc.), but instead it fails only because of the SETUP-level SyntaxError crash in evaluate.py, not because of the intended FR2/FR3/SR2/SR3 requirement checks. This is an invalid form of rejection per the validation report.",
+      "evidence": "vulnerable_run: {\"exit_code\": 1, \"expected\": \"fail\", \"ok\": false, \"status\": \"fail\"}; issue 'vulnerable_rejection_invalid': 'The baseline exited non-zero, but not as a valid requirement-level rejection (for example, setup or runtime failed)'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "No [TEST] PASS/FAIL markers for any of FR1-FR4/SR1-SR4 are emitted on the golden run, meaning the requirement_map's expected marker ids never actually get produced end-to-end, breaking machine-checkability of the whole requirement map.",
+      "evidence": "issue 'requirement_id_mismatch': \"evaluate.py never emitted [TEST] PASS/FAIL for ['FR1', 'FR2', 'FR3', 'FR4', 'SR1', 'SR2', 'SR3', 'SR4'] on the golden run\"",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/fault_model.json",
+      "description": "fault_model.json is authored as a Markdown document with prose plus a fenced JSON block rather than being a raw JSON file, despite the public README and public_spec describing it as a JSON array/object directly consumable as 'inputs/fault_model.json'. This mismatch between the stated format and actual file content is what forced the (broken) markdown-extraction workaround in evaluate.py, and it also contradicts the public constraint that fault_model.json 'must deterministically enumerate' cases as a JSON artifact.",
+      "evidence": "preflight attempt_history[0]: \"[TEST] FAIL: SETUP: failed to parse inputs/fault_model.json: Expecting value: line 1 column 1 (char 0)\"",
+      "severity": "medium"
+    },
+    {
+      "artifact": "validation report",
+      "description": "mutation_score is 0.0 and mutation_status is blocked_by_differential, and requirement_discrimination_coverage_score is 0.0, indicating none of the 8 requirements could be verified to actually discriminate between correct and incorrect submissions because the harness never got past the SETUP/syntax failure.",
+      "evidence": "\"mutation_score\": 0.0, \"mutation_status\": \"blocked_by_differential\", \"requirement_discrimination_coverage_score\": 0.0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluation/evaluate.py: remove the leading explanatory prose sentence and markdown code fence lines that precede the actual Python source, so the file is syntactically valid Python that can be executed directly by the harness.",
+    "Decide on one canonical format for inputs/fault_model.json: either make it strictly valid standalone JSON (recommended, since README.md and public_spec both describe it as a JSON file/array), or explicitly document in the public README that it is a Markdown file with an embedded JSON fence, and adjust the public artifact bundle's fault_model.json content to actually match that documented format consistently.",
+    "Re-run the full differential harness (golden run vs. baseline run) after fixing evaluate.py's syntax error and fault_model.json parsing to confirm: golden run exits 0 with [TEST] PASS for FR1-FR4/SR1-SR4, and the baseline run exits non-zero with explicit [TEST] FAIL markers on FR2/FR3/SR2/SR3 (not a SETUP crash).",
+    "Add a lightweight unit test or CI smoke check that simply imports/compiles evaluation/evaluate.py (e.g. py_compile) before packaging the task bundle, to catch this class of syntax-breaking authoring error (stray prose/markdown fences left in a .py file) prior to release.",
+    "After the fix, verify requirement_discrimination_coverage_score and mutation_score both rise above 0, confirming each FR/SR marker is actually emitted and meaningfully discriminates correct vs. incorrect submissions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py crashes before any requirement markers are emitted due to a syntax error in the file, so FR1 cannot be confirmed to execute correctly.",
+      "requirement": "FR1: valid JSON structural schema check",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same syntax-error blocker prevents verification; additionally fault_model.json itself is not valid standalone JSON, which likely also breaks load_fault_model even once the syntax error is fixed unless the markdown-extraction logic works reliably.",
+      "requirement": "FR2: fault_id set exactly matches fault_model.json's 91 entries",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by evaluate.py syntax error; oracle_tb.v looks structurally sound but was never exercised in the recorded differential run.",
+      "requirement": "FR3: single-bit cases classified corrected with correct data_out",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by evaluate.py syntax error before any test executes.",
+      "requirement": "FR4: summary counts sum to 91 and match tally",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by evaluate.py syntax error; keyword-matching logic itself appears reasonable in the private README description but was never actually run.",
+      "requirement": "SR1: report identifies missing overall_parity_error gating",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked; oracle-based set comparison never executed in the differential run.",
+      "requirement": "SR2: vulnerable_fault_ids matches ground-truth miscorrection set within tolerance 2",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by the same crash.",
+      "requirement": "SR3: >=90% of miscorrection set correctly shown as corrupted 'corrected' cases",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by the same crash.",
+      "requirement": "SR4: zero-syndrome escape class correctly classified and textually flagged separately",
+      "status": "unknown"
+    },
+    {
+      "evidence": "golden_run reports exit_code 1, status fail, ok false \u2014 the evaluator rejects the correct expert answer.",
+      "requirement": "Golden submission should PASS (exit 0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run also exits 1 but validation flags this as 'vulnerable_rejection_invalid' since the failure is a crash, not a requirement-level FAIL marker.",
+      "requirement": "Baseline/naive submission should FAIL for legitimate requirement reasons (not SETUP crash)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

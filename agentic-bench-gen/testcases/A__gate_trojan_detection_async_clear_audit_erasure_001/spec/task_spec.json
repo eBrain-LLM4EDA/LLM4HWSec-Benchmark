@@ -1,0 +1,107 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub reference detection scripts adapted for static structural netlist analysis",
+      "CASlab GAINESIS naive always-flag-nothing baseline (empty trojan_report.json declaring trojan_present: false)"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required security findings (SR1: correct altered_net, SR2: correct suspect_gates, SR3: correct trigger_condition, SR4: correct trojan_present label) that the submitted trojan_report.json satisfies, averaged per case.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported suspect_gates or altered_net entries that do not correspond to any gate/net actually involved in the malicious clear path (measures over-reporting/noise in the analysis).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time in seconds for evaluate.py to parse, structurally validate, and (optionally) simulate the netlist to grade the submitted report.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      },
+      {
+        "description": "Boolean/fraction indicating whether the submitted trojan_report.json satisfies all structural/format functional requirements (FR1-FR4) independent of substantive correctness.",
+        "direction": "maximize",
+        "name": "schema_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission is graded PASS only if trojan_present == true, altered_net satisfies SR1, suspect_gates satisfies SR2 (allowing for per-instance naming variance resolved via structural pattern match), and trigger_condition satisfies SR3 via truth-table equivalence check.",
+      "The shipped baseline/naive submission (trojan_present: false, empty arrays, empty strings) must FAIL under this grading.",
+      "Partial credit is not awarded for the primary PASS/FAIL verdict; the detection_rate metric aggregates SR1-SR4 satisfaction across a suite of case variants for scoring purposes."
+    ],
+    "cwe_ids": [
+      "CWE-1295",
+      "CWE-1274",
+      "CWE-693"
+    ],
+    "ground_truth": "The netlist contains an inserted 2-input AND gate, instance name u_maint_alarm_and, whose inputs are primary inputs maintenance_req and alarm and whose output net is maint_alarm_hit. This net feeds a second inserted gate, instance name u_audit_clr_or (an OR2 cell), whose other input is the legitimate synchronized reset net rst_sync. The output of u_audit_clr_or, net audit_clr, is wired to the asynchronous clear (CLR) pins of all 8 bits of the tamper_count_q[7:0] DFF_ASYNC_CLR register bank, replacing what should have been a direct connection from rst_sync alone. Consequently, whenever maintenance_req AND alarm are simultaneously asserted (regardless of rst_n/rst_sync), tamper_count_q is asynchronously cleared, erasing accumulated tamper-event evidence without a genuine reset ever occurring. The correct/non-trojan behavior would have rst_sync connected directly to the CLR pins of tamper_count_q with no OR gate in that path.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse the submitted altered_net name, resolve it against the netlist's net declarations and instance connections, and confirm via structural backward trace from tamper_count_q[*].CLR that this net is driven by a gate with more than one input source (i.e., not a direct fanout of the reset synchronizer alone).",
+        "id": "SR1",
+        "requirement": "The reported altered_net must correctly identify the net (or its structural equivalent) that drives the asynchronous CLR pins of the tamper_count_q register bank and that is NOT solely the legitimate synchronized reset signal, i.e. the participant must identify audit_clr (or the OR2 gate output net serving that role) rather than rst_sync or rst_n."
+      },
+      {
+        "detection_strategy": "Check submitted suspect_gates against the known ground-truth instance names (or, if names are randomized per artifact instance, against the gates identified by structural pattern matching: an AND2 with inputs exactly {maintenance_req, alarm}, and an OR2 whose inputs are that AND2's output and the reset synchronizer net, whose output feeds the counter CLR pins).",
+        "id": "SR2",
+        "requirement": "The reported suspect_gates must include the instance implementing the maintenance_req AND alarm condition (u_maint_alarm_and) and the instance merging that condition with reset before driving the counter clear (u_audit_clr_or), or functionally equivalent gates if the ground-truth netlist naming differs across artifact instances."
+      },
+      {
+        "detection_strategy": "Parse trigger_condition as a boolean expression over {clk, rst_n, maintenance_req, alarm, tamper_event}; evaluate truth-table equivalence against the reference expression (maintenance_req & alarm) across all input combinations; optionally cross-check via iverilog/vvp simulation of the netlist by driving maintenance_req=1, alarm=1, rst_n=1 and confirming tamper_count_q clears asynchronously.",
+        "id": "SR3",
+        "requirement": "The reported trigger_condition must be logically equivalent to (maintenance_req AND alarm), independent of rst_n/reset state, i.e. it must not require or mention rst_n as a necessary condition for the unauthorized clear."
+      },
+      {
+        "detection_strategy": "Direct boolean field check against the ground-truth label, which is always true for this artifact.",
+        "id": "SR4",
+        "requirement": "trojan_present must be reported as true; a submission reporting false (or omitting the finding) fails regardless of other field contents."
+      }
+    ],
+    "threat_model": "An attacker (malicious IP vendor, rogue design engineer, or compromised EDA flow) inserts two small combinational gates into an otherwise correct audit-counter reset path. The trojan is dormant under normal operation and only activates on the rare, attacker-controllable coincidence of a legitimate maintenance request together with an alarm condition, which an insider or attacker with physical/logical access to the maintenance interface can deliberately engineer. Activation silently zeroes the tamper_count register, destroying forensic evidence of prior tamper events, without ever asserting rst_n and without any other observable side effect, making it difficult to detect through normal functional testing or reset-focused verification."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist must be built only from explicit standard-cell-style primitives: DFF cells with an asynchronous active-high clear pin (e.g. DFF_ASYNC_CLR), 2-input AND gates (AND2), 2-input OR gates (OR2), inverters (INV), and buffers (BUF), all instantiated explicitly by name (no always-blocks or behavioral RTL).",
+      "The documented global reset tree (rst_n gated through the standard reset synchronizer/inverter chain) must remain fully intact and functionally correct on its own, independent of any other added logic.",
+      "The tamper_count register bank must be implemented as an explicit array of DFF_ASYNC_CLR instances with clearly readable instance names (e.g. tamper_count_q[0] .. tamper_count_q[7]).",
+      "All gate instance names and net names in the netlist must be human-readable identifiers (no hashed or obfuscated names), so structural analysis is feasible without a netlist-to-schematic tool.",
+      "The netlist file must be fully self-contained and synthesizable/simulatable standalone with iverilog given only the single file."
+    ],
+    "expected_outputs": [
+      "trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON parsable by a standard JSON parser and contain all six required top-level fields with the exact types specified in the interface (trojan_present: boolean, suspect_gates: array of strings, altered_net: string, affected_registers: array of strings, trigger_condition: string, justification: string)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Every instance name listed in suspect_gates and affected_registers, and the net name given in altered_net, must correspond to an actual gate instance or net declared in inputs/audit_module_netlist.v (verifiable by textual/structural lookup in the netlist)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If trojan_present is reported as true, trigger_condition must be a syntactically valid boolean expression referencing only the primary input ports declared on module audit_top (clk, rst_n, maintenance_req, alarm, tamper_event)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The justification field must be non-empty and must not exceed 2000 characters."
+      }
+    ],
+    "input_artifacts": [
+      "audit_module_netlist.v",
+      "design_brief.md",
+      "port_map.txt"
+    ],
+    "interface": "The netlist file inputs/audit_module_netlist.v defines module `audit_top` with ports: input clk, input rst_n (active-low global reset), input maintenance_req, input alarm, input tamper_event, output [7:0] tamper_count. All internal nets and cell instances use plain, non-obfuscated names. The participant's answer file MUST be submitted at submission/trojan_report.json and MUST be a single JSON object with exactly these top-level fields: {\"trojan_present\": <boolean>, \"suspect_gates\": [<string>, ...] (instance names of gate(s) implementing the malicious clear condition), \"altered_net\": <string> (name of the net that carries the unauthorized clear signal into the counter's asynchronous clear pin), \"affected_registers\": [<string>, ...] (instance names of the flip-flop bank(s) whose async clear pin is driven by altered_net), \"trigger_condition\": <string> (a boolean expression in terms of primary input port names describing when the unauthorized clear activates), \"justification\": <string> (free-text explanation, max 2000 characters)}. evaluate.py reads inputs/audit_module_netlist.v for reference and optionally cross-checks the reported trigger_condition by simulating the netlist with iverilog/vvp, but grading is performed against submission/trojan_report.json.",
+    "objective": "You are given a synthesized gate-level Verilog netlist of a tamper-monitoring audit subsystem that maintains a persistent tamper-event counter across a maintenance/alarm interface. Analyze the netlist structurally (and optionally simulate it with the provided toolchain) to determine whether any gate-level logic allows the tamper-event counter to be cleared through a path other than the documented synchronous/global reset, and report your findings as a structured JSON analysis. You must not modify any files under inputs/; submit your findings as a separate answer file.",
+    "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface. No other submission files are graded."
+  },
+  "task_id": "gate_trojan_detection_async_clear_audit_erasure_001",
+  "title": "Gate-Level Trojan Detection: Tamper-Counter Audit Module Netlist Review"
+}

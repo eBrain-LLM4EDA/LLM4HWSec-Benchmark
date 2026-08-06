@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"suspect_nodes\": [\n    {\n      \"node_name\": \"controller_netlist.u_trigger.dff_0\",\n      \"role\": \"state_register\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_trigger.dff_1\",\n      \"role\": \"state_register\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_trigger.dff_2\",\n      \"role\": \"state_register\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_trigger.dff_3\",\n      \"role\": \"state_register\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_trigger.gate_and_0\",\n      \"role\": \"trigger_logic\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_trigger.gate_and_1\",\n      \"role\": \"trigger_logic\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_trigger.gate_or_0\",\n      \"role\": \"trigger_logic\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_trigger.gate_inv_0\",\n      \"role\": \"trigger_logic\"\n    },\n    {\n      \"node_name\": \"controller_netlist.u_payload.gate_xor_0\",\n      \"role\": \"payload_gate\"\n    }\n  ]\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The golden submission answer file for the gate_sequential_fsm_trigger_001 task. Contains the exact hierarchical instance names of the four DFFs forming the 1101 sequence recognizer trigger (labeled 'state_register'), the XOR gate that corrupts data_out[2] (labeled 'payload_gate'), and any intermediate combinational logic nodes that implement the trigger's next-state and enable functions (labeled 'trigger_logic'). The node_name strings must match the netlist instance names character-for-character. The role strings must be exactly 'state_register', 'trigger_logic', or 'payload_gate' as required by SR3. The file must be valid JSON with the top-level key 'suspect_nodes' mapping to an array of objects, each with 'node_name' and 'role' string fields, satisfying FR1-FR3."
+    }
+  ]
+}

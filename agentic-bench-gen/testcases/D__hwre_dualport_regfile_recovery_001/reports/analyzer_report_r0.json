@@ -1,0 +1,78 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/tb_regfile.v",
+      "description": "The testbench declares stimulus arrays and the plusargs-loading initial block referencing stimfile_name before that reg is declared (stimfile_name is declared after the initial block that uses it), and more critically the golden/reference run shows FR1/FR3/FR4 failing with 'missing PROBE for cycle 0', indicating the PROBE lines are never emitted for early cycles or the file-loading/timing race between the $fscanf-loading initial block and the main stimulus-driving initial block causes stim arrays to be read as uninitialized (0) at time 0, desynchronizing cycle indexing against evaluate.py's expected reference sequence.",
+      "evidence": "differential.golden_run.stdout: '[TEST] FAIL: FR1: missing PROBE for cycle 0' / '[TEST] FAIL: FR3: missing PROBE for collision cycle 0' / '[TEST] FAIL: FR4: missing PROBE for cycle 0' even though golden solution is expected to PASS.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py + evaluation/tb_regfile.v",
+      "description": "The validation report's differential check shows the expert/golden correct solution (golden/recovered_rtl.v) is REJECTED by evaluate.py (exit_code 1, status fail) when it should PASS, directly violating the domain requirement that a correct submission must be accepted (exit 0). This was reproduced twice with identical failure signatures, confirming a persistent harness bug rather than a flaky timing issue.",
+      "evidence": "validation report: 'golden_run': {'exit_code':1,'expected':'pass','ok':false,'status':'fail', ...} and issues list contains 'golden_rejected': 'evaluate.py rejects the expert golden solution (PASS expected)'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.vulnerable_run",
+      "description": "The naive/vulnerable baseline is correctly rejected (status fail as expected), so the reject-baseline half of the contract works, but this alone cannot compensate for the golden acceptance failure \u2014 mutation_score is 0.0 and marked not meaningful, and requirement_discrimination_coverage_score is 0.0, meaning no requirement can be trusted to actually discriminate correct vs incorrect implementations given the current harness bug.",
+      "evidence": "validation report: 'mutation_score':0.0,'mutation_score_meaningful':false,'requirement_discrimination_coverage_score':0.0",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/tb_regfile.v",
+      "description": "Declaration-order issue: 'stimfile_name' reg is used inside an initial block via $value$plusargs before its own declaration appears later in the file; while Verilog module-level declarations are generally hoisted in simulation tools, combined with the observed cycle-0 PROBE loss this points to a genuine race between the two initial blocks (one loading the stimulus file, another driving DUT) that lack proper sequencing (no explicit wait/event synchronization beyond a bare #1), which is the most likely root cause of the missing PROBE-cycle-0 defect seen in the golden run.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluation/tb_regfile.v's stimulus-loading/drive synchronization: ensure the file-reading initial block reliably completes and populates stim_* arrays before the driving initial block begins driving cycle 0, e.g. by using a named event or by merging both into a single initial block with sequential blocking reads, rather than relying on a bare '#1' delay race between two separate initial blocks.",
+    "Re-run the differential check against the golden/recovered_rtl.v solution after the fix and confirm it now exits 0 with all seven requirements (FR1-FR4, SR1-SR3) reporting PASS.",
+    "Add explicit reporting/computation of the four named metrics (cycle_accurate_match_rate, word_recovery_rate, structural_match_accuracy, functional_equivalence) as numeric values in evaluate.py output, not just boolean PASS/FAIL per requirement id, to align the harness with the task's declared evaluation.metrics.",
+    "Move the 'reg [4095:0] stimfile_name;' declaration above the initial block that uses it in $value$plusargs for clarity and portability across simulators, even if iverilog tolerates hoisted declarations.",
+    "Once the golden-acceptance bug is fixed, re-verify mutation_score and requirement_discrimination_coverage_score are non-zero and meaningful, since both are currently invalidated by the golden_rejected failure."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.golden_run shows exit_code 1, status fail, with FR1/FR3/FR4 failing due to missing PROBE data for cycle 0 despite golden.expected == 'pass'.",
+      "requirement": "Evaluator accepts a correct (golden) submission with exit 0",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.vulnerable_run shows exit_code 1 (fail) as expected, with FR1/FR3/FR4/SR1 failing appropriately due to constant-zero outputs.",
+      "requirement": "Evaluator rejects the naive/baseline stub submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements per-requirement PASS/FAIL (FR1-4, SR1-3) and a static structural scan, but does not explicitly compute or report the named continuous metrics (cycle_accurate_match_rate, word_recovery_rate) as fractions; it only emits boolean PASS/FAIL per requirement id, so metric-level scoring fidelity to the task spec's metrics section is not verifiable from the artifacts given.",
+      "requirement": "Evaluator measures the four requested metrics (cycle_accurate_match_rate, word_recovery_rate, structural_match_accuracy, functional_equivalence)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type functional and SR1-SR3 as requirement_type security, each with distinct detection strategies and test files.",
+      "requirement": "Requirement map separately covers functional (FR1-4) and security (SR1-3) requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "tb_regfile.v drives forced periodic collisions (raddr0==waddr every 10 cycles, raddr1==waddr every 13), mid-cycle PROBE_MID address toggles for SR1, and a scripted reset-then-read sequence for SR3; static scans additionally target SR1/SR2 banned constructs by pattern.",
+      "requirement": "Security-relevant behaviors (SR1 zero-latency read, SR2 collision bypass mux, SR3 reset stale-data) are actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/design_brief.md contain only plain engineering description of timing contract; no mention of 'trojan', CWE ids, SR ids, or 'vulnerability' language per manifest purpose descriptions.",
+      "requirement": "No leakage of hidden CWE/SR ids or security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec.functional_requirements each specify concrete, testable conditions (write-then-read, reset-then-read-zero, same-address collision forwarding, dual-port independence) tied directly to the pinned port list.",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "gate_netlist.v declares all primitives locally (INV/AND2/OR2/AND3/MUX2/DFF_P), no external cell library dependency; obfuscated_wrapper.v only instantiates the local gate_netlist_regfile module.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

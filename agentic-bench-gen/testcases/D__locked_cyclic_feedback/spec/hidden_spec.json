@@ -1,0 +1,24 @@
+{
+  "acceptance_criteria": [
+    "The submitted key string exactly matches the ground truth key '10'.",
+    "The submitted key, when applied to the locked netlist, produces a circuit that is cycle-free and functionally matches the oracle on all 2^N input patterns (N = number of primary inputs).",
+    "A naive/empty submission (e.g., key of all zeros or empty string) must fail."
+  ],
+  "cwe_ids": [
+    "CWE-1274"
+  ],
+  "ground_truth": "Two labeled key MUXes close feedback edges when their bits are wrong; key 10 selects both forward functional paths and removes all combinational cycles.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare the submitted key against the ground truth key; partial matches may be scored via key_recovery_rate.",
+      "id": "SR1",
+      "requirement": "The key recovery method must correctly identify the key bits that control the feedback MUXes and distinguish them from non-security-critical gates."
+    },
+    {
+      "detection_strategy": "Check whether the submission includes a feedback_gates list that matches the hidden ground truth gates; this is a secondary metric (key_gate_localization_accuracy).",
+      "id": "SR2",
+      "requirement": "The method must not rely on structural hints that trivially label the feedback gates; it must work from the netlist and oracle alone."
+    }
+  ],
+  "threat_model": "Cyclic locking causes naive SAT unrolling to loop or admit spurious fixed points, obstructing key recovery."
+}

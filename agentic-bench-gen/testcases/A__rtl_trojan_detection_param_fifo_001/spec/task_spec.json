@@ -1,0 +1,109 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Empty/naive baseline: submission/trojan_report.json with findings=[] and summary='No malicious logic detected' \u2014 must FAIL (0 detection_rate).",
+      "Trust-Hub-style structural baseline: flags all generate-guarded conditional branches as equally suspicious without distinguishing WIDTH=24 from other widths \u2014 expected to score high false_positive_rate and low trigger_payload_localization."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of graded cases where the submitted report correctly identifies the WIDTH=24-conditioned trigger and the full-flag/overwrite payload as required by SR1-SR3.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported findings that do not correspond to the true trojan location (e.g., flag benign generate branches, unrelated widths, or normal reset/init logic as malicious).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Score (0-1) measuring how precisely the report localizes both the triggering condition (WIDTH=24 plus the specific pointer/occupancy pattern) and the payload (full-flag suppression causing overwrite), based on keyword/semantic matching against the hidden ground truth and optional iverilog/vvp cross-simulation.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      },
+      {
+        "description": "Whether submission/trojan_report.json parses as JSON and conforms to the required field schema (FR1).",
+        "direction": "maximize",
+        "name": "schema_validity"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission PASSES only if: (1) trojan_report.json validates against the schema (FR1), (2) at least one finding correctly names WIDTH=24 as the affected parameter (SR1), (3) that finding's trigger_condition correctly describes the near-full/pointer-pattern write condition (SR2), (4) that finding's payload_effect correctly describes full-flag suppression causing an overwrite/data corruption (SR3), and (5) that finding is among the highest-confidence findings, not buried beneath unrelated false positives (SR4).",
+      "An empty findings array, or a report that only says 'no issues found', or a report that flags WIDTH=8/16 or unrelated logic without ever mentioning WIDTH=24 and the pointer-triggered full suppression, must FAIL.",
+      "Partial credit: a report identifying WIDTH=24 as suspicious but with a vague/incorrect payload description scores lower on trigger_payload_localization but may still count toward detection_rate if SR1 and SR2 are satisfied."
+    ],
+    "cwe_ids": [
+      "CWE-1295",
+      "CWE-1298",
+      "CWE-691",
+      "CWE-693"
+    ],
+    "ground_truth": "param_fifo.v contains a generate block guarded by `if (WIDTH==24)` that instantiates an alternate write-pointer/full-flag update path. In that branch only, when the write pointer's low 3 bits equal 3'b101 (a rare occupancy/pointer pattern) simultaneously with wr_en asserted and the FIFO nearly full (count == DEPTH-1), the branch forces the registered `full` output to deassert for exactly one clock cycle even though the FIFO is actually full, allowing wr_en to push an extra word that overwrites the oldest unread entry (pointer wraparound collision). At WIDTH=8, WIDTH=16, or any other WIDTH, the generate condition is false and the FIFO uses the honest, spec-compliant full/empty logic, so default-parameter simulation (testbench_default.v, WIDTH=8) never observes the flaw.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check that a finding's affected_parameters or trigger_condition text names WIDTH=24 (or equivalent 24-bit width) specifically, and does not claim the flaw affects all widths uniformly or only the default width.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that the malicious/anomalous logic is conditioned on the elaboration parameter WIDTH being set to 24 (not present, or not active, for WIDTH=8 or WIDTH=16)."
+      },
+      {
+        "detection_strategy": "Text-match/keyword and semantic check on trigger_condition for mention of pointer pattern, near-full/almost-full condition, and write enable coinciding; optionally cross-check via iverilog/vvp simulation of param_fifo.v at WIDTH=24 driving the described pointer sequence to confirm full deasserts incorrectly.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify the rare trigger pattern: a specific write-pointer/occupancy condition (pointer low bits or count pattern) coincident with the FIFO being at or near full capacity and a write being attempted."
+      },
+      {
+        "detection_strategy": "Check payload_effect text for mention of full flag misbehavior AND overwrite/corruption of stored/unread data; if only 'flag glitch' is mentioned without overwrite consequence, treat as partial credit at most.",
+        "id": "SR3",
+        "requirement": "The report must correctly identify the payload effect as suppression/incorrect deassertion of the `full` flag leading to an overwrite of unread data (data corruption), not merely a timing glitch with no data-integrity consequence."
+      },
+      {
+        "detection_strategy": "Compare confidence-ranked findings: the highest-confidence finding must correspond to the WIDTH=24 trigger; compute false_positive_rate over findings that do not correspond to the true trojan location.",
+        "id": "SR4",
+        "requirement": "The report must not report only false positives (e.g., flagging benign generate branches for other widths, or flagging normal reset logic) as the primary/highest-confidence finding while missing the WIDTH=24 trojan."
+      }
+    ],
+    "threat_model": "Design validation and regression testing in this organization is performed only against the default instantiation (WIDTH=8) of reusable IP blocks. An insider or supply-chain adversary embeds a generate-guarded alternate datapath that only activates for a specific, non-default elaboration parameter (WIDTH=24) chosen by a downstream integrator for an unrelated bus-width reason, combined with a rare internal pointer state, so that verification at the IP-vendor stage never triggers it, yet the corruption manifests in the field once integrated at the malicious width."
+  },
+  "public_spec": {
+    "constraints": [
+      "param_fifo.v must be synthesizable Verilog-2001, under 200 lines, and must support at least three legal WIDTH parameterizations (e.g., 8, 16, 24, or similar) with a documented default of WIDTH=8.",
+      "param_fifo.v must use a generate block structure so that different WIDTH values can select different internal logic paths.",
+      "fifo_spec.md documents the intended behavior: full/empty flag semantics, no overwrite of unread entries, standard synchronous FIFO pointer/counter behavior, for any legal WIDTH.",
+      "testbench_default.v exercises only the default WIDTH=8 configuration and passes cleanly, illustrating why default-only validation misses the issue.",
+      "Participants must not edit inputs/; only submission/trojan_report.json is graded."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing the list of trojan candidates found, with confidence scores and rationale",
+      "For each candidate, the specific triggering condition (including any parameter values and internal state patterns involved) and the specific payload/effect observed"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/trojan_report.json must be valid JSON matching the schema in the interface section: top-level object with 'findings' (array) and 'summary' (string); each findings element must include 'trigger_condition', 'payload_effect', 'confidence' (number in [0,1]), and 'rationale' as non-empty strings/number."
+      },
+      {
+        "id": "FR2",
+        "requirement": "At least one finding's 'affected_parameters' field or 'trigger_condition' text must explicitly identify a specific WIDTH value (not just 'default' or 'all widths') for which the anomalous behavior manifests, distinguishing it from widths where the FIFO behaves per fifo_spec.md."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The 'payload_effect' text for at least one finding must describe a concrete functional consequence stated in terms of the FIFO's documented outputs (e.g., an incorrect value or incorrect timing of the full or empty flag, or an overwrite of unread data), not a vague statement like 'may be insecure'."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must reference the specific pointer/state condition (e.g., write pointer, read pointer, or occupancy count reaching a particular value or matching a particular bit pattern) under which the anomaly occurs, rather than claiming the flaw occurs unconditionally on every write."
+      }
+    ],
+    "input_artifacts": [
+      "param_fifo.v",
+      "fifo_spec.md",
+      "testbench_default.v"
+    ],
+    "interface": "Module under analysis: `param_fifo` in inputs/param_fifo.v. Port list (exact, do not rename in your analysis): module param_fifo #(parameter WIDTH = 8, parameter DEPTH_LOG2 = 4) ( input wire clk, input wire rst_n, input wire wr_en, input wire [WIDTH-1:0] din, output wire full, input wire rd_en, output wire [WIDTH-1:0] dout, output wire empty ); clk is the single clock (posedge-triggered), rst_n is active-low synchronous reset. wr_en/din write a word when full is deasserted; rd_en/dout read the oldest word when empty is deasserted. full and empty are registered, Moore-style status outputs. The submission is NOT RTL: participants submit a JSON answer file at submission/trojan_report.json (no other files are graded). The schema for that file is fixed: a top-level JSON object with a required array field 'findings', where each element is an object with required string field 'trigger_condition', required string field 'payload_effect', required number field 'confidence' (0.0-1.0), required string field 'rationale', and optional string field 'affected_parameters' listing which WIDTH/DEPTH_LOG2 values are implicated. A required top-level field 'summary' (string) gives an overall assessment. If no trojan is found, findings must be an empty array and summary must state that no malicious logic was detected.",
+    "objective": "You are given the RTL source for a parameterized synchronous FIFO used across several SoC integration projects. Different teams instantiate the FIFO with different data WIDTH parameters depending on the bus they connect to. Your job is to review the RTL and produce a security analysis report identifying any suspicious or malicious logic in the design, including under which parameterizations (if any) the design's behavior deviates from the documented FIFO contract (full/empty flag correctness, no silent data corruption, and no overwrite of unread data). Analyze the design across the legal parameter space, not just the default configuration, since the module may be instantiated with several different widths in different subsystems.",
+    "response_format": "A single JSON file at submission/trojan_report.json with fields {findings: [{trigger_condition: string, payload_effect: string, confidence: number, rationale: string, affected_parameters?: string}], summary: string}."
+  },
+  "task_id": "rtl_trojan_detection_param_fifo_001",
+  "title": "Parameter-dependent Trojan in a configurable FIFO"
+}

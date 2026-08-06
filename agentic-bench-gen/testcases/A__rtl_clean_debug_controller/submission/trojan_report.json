@@ -1,0 +1,12 @@
+{
+  "infected": true,
+  "trojan_candidates": [
+    {
+      "signal_path": "debug_enable",
+      "trigger_condition": "debug_enable asserted and data_in == 8'hDB",
+      "payload_effect": "Leaks internal state through status_out and triggers alert on rare counter value",
+      "confidence": 0.9
+    }
+  ],
+  "rationale": "The debug_enable signal gates a state machine that reads data_in, processes it with internal counter, and outputs status_out. The rare counter condition (16'hDEAD) triggers an alert, which could be a covert side-channel. This appears to be a hardware Trojan."
+}

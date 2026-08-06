@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden run failed. The golden submission was rejected due to FR3 failing on node names that do not match the netlist. The golden file uses 'payload_and_gate' and 'trigger_comparator_xnor_0', but design.v uses 'u_payload_and' and 'u_xnor0' etc. This is a mismatch between the golden solution and the evaluator's identifier extraction. Additionally, the evaluator does not compute the required metrics (detection_rate, false_positive_rate, node_identification_accuracy). The validation report also shows all 5 requirements are untested (no mutants), and the evaluator has multiple issues including brittle regex for identifier extraction. The root cause is the evaluation framework: the golden file must be corrected to use actual netlist node names, the evaluator must compute the specified metrics, and the identifier extraction must be robust. The case cannot be retained until the evaluator can accept a correct submission and measure the required metrics.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

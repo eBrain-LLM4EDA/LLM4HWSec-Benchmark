@@ -1,0 +1,88 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "empty_report.json"
+    ],
+    "metrics": [
+      {
+        "description": "Binary metric: 1.0 if the exact recombination net and register are correctly identified, 0.0 otherwise.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Binary metric: 1.0 if the report correctly identifies the flawed register without false positives on benign registers, 0.0 otherwise.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Binary metric: 1.0 if the report's suggested leakage type matches the ground truth (first-order switching), 0.0 otherwise.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted 'recombination_net' is exactly 'recombine_xor'.",
+      "The submitted 'recombination_register' is exactly 'recombined_sbox_q'.",
+      "The submitted 'leakage_type' describes a first-order switching or glitch-based leakage."
+    ],
+    "cwe_ids": [
+      "CWE-203",
+      "CWE-208"
+    ],
+    "ground_truth": "The labeled recombine_xor net and recombined_sbox_q register depend directly on the unmasked S-box value; isolated share registers are not primary first-order leakage points.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if the submitted 'recombination_net' field exactly matches the ground truth net name.",
+        "id": "SR1",
+        "requirement": "The analysis must correctly identify the recombine_xor net as the primary first-order leakage point."
+      },
+      {
+        "detection_strategy": "Check if the submitted 'recombination_register' field exactly matches the ground truth register name.",
+        "id": "SR2",
+        "requirement": "The analysis must correctly identify the recombined_sbox_q register as the storage element capturing the recombined value."
+      },
+      {
+        "detection_strategy": "Verify that the submitted identifiers do not correspond to any of the benign share registers.",
+        "id": "SR3",
+        "requirement": "The analysis must not flag any isolated share registers as primary leakage points."
+      }
+    ],
+    "threat_model": "A power observer exploits glitches or transitions where both shares meet to recover the unmasked sensitive intermediate."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL implements a first-order masked S-box with two random shares and registered nonlinear processing.",
+      "The design includes benign share registers and one flawed recombination register.",
+      "The leakage model is Hamming-distance based."
+    ],
+    "expected_outputs": [
+      "vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must contain the three required fields: \"recombination_net\", \"recombination_register\", and \"leakage_type\", each with a non-empty string value."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The values for \"recombination_net\" and \"recombination_register\" must be valid hierarchical identifiers present in the provided RTL netlist."
+      }
+    ],
+    "input_artifacts": [
+      "masked_sbox.v",
+      "leakage_model.txt"
+    ],
+    "interface": "The participant must submit a single JSON file at submission/vulnerability_report.json. The file must contain an object with the following required fields: \"recombination_net\" (string, the exact hierarchical name of the net where shares recombine), \"recombination_register\" (string, the exact hierarchical name of the register that captures the recombined value), and \"leakage_type\" (string, a brief description of the leakage mechanism, e.g., \"first-order switching leakage\").",
+    "objective": "Analyze the provided masked S-box RTL and identify the exact net and register where two individually masked shares are recombined in a single cycle, creating a first-order switching leakage point.",
+    "response_format": "A JSON object with keys: \"recombination_net\", \"recombination_register\", \"leakage_type\"."
+  },
+  "task_id": "scfa-001",
+  "title": "Recombination flaw in a first-order masked S-box"
+}

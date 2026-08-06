@@ -1,0 +1,84 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "A naive submission with an empty or incorrect report must fail."
+    ],
+    "metrics": [
+      {
+        "description": "Accuracy of identifying the correct common-mode vulnerability node.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Coverage of the reported failure mechanism against the known fault model.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Precision of the analysis in pinpointing the exact single point of failure.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted common_mode_node matches the exact hierarchical name of the shared enable signal.",
+      "The submitted failure_mechanism correctly describes the effect of the fault on the counters and the timeout logic."
+    ],
+    "cwe_ids": [
+      "CWE-1288"
+    ],
+    "ground_truth": "Faulting shared_count_en low stalls both counters identically, so their equality monitor remains satisfied while timeout never asserts; independently generated enables are required.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if the submitted report correctly identifies the shared enable signal as the common-mode node.",
+        "id": "SR1",
+        "requirement": "The design must not contain a single point of failure in the control path that can disable both redundant counters."
+      },
+      {
+        "detection_strategy": "Check if the submitted report's failure_mechanism description matches the ground truth explanation.",
+        "id": "SR2",
+        "requirement": "The failure mechanism must be correctly explained as a fault causing both counters to stall, preventing the timeout from being reached."
+      }
+    ],
+    "threat_model": "A single injected fault on common control defeats both redundant computations and suppresses a security timeout."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL includes two separate counter instances and a comparison logic block.",
+      "A single-bit transient fault model is defined for nets and registers.",
+      "The two counters share one enable-generation cone.",
+      "The timeout decision logic depends on both counters."
+    ],
+    "expected_outputs": [
+      "A valid vulnerability_report.json file in the submission directory.",
+      "The report must identify the common-mode node and explain the mechanism of failure."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The vulnerability_report.json file must be present at submission/vulnerability_report.json and must be valid JSON."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must contain a non-empty string for the 'common_mode_node' field."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must contain a non-empty string for the 'failure_mechanism' field."
+      }
+    ],
+    "input_artifacts": [
+      "timeout_module.v",
+      "fault_model.txt",
+      "design_brief.md"
+    ],
+    "interface": "The submission is a JSON report file at submission/vulnerability_report.json. The evaluator reads this file and grades its content against the hidden ground truth. The input artifacts under inputs/ are provided for reference and must not be modified.",
+    "objective": "Analyze the provided RTL design of a dual-counter timeout module. Determine why a single fault on a common control signal can defeat both counters simultaneously, and identify the specific net or register that represents this common-mode failure point.",
+    "response_format": "The submission must be a single JSON file named vulnerability_report.json with the following schema: {\"common_mode_node\": \"<string identifier of the net or register>\", \"failure_mechanism\": \"<string explanation of how faulting this node defeats both counters>\"}. Both fields are required. The common_mode_node must be a precise hierarchical name matching the RTL source."
+  },
+  "task_id": "rtl_redundant_counter_common_mode_fault",
+  "title": "Common-mode fault in duplicated security counters"
+}

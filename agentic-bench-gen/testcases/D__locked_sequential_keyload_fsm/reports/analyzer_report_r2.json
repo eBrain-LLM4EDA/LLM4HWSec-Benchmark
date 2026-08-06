@@ -1,0 +1,77 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the golden solution (golden_rejected). The FR3 check uses a regex that fails to match the hierarchical names 'top.lock_reg[0]' etc. in the netlist, causing the golden submission to fail FR3. Additionally, the SR2 simulation check fails for the golden key '0110' because the testbench loads the key LSB-first but the evaluator expects functional output on the last 4 cycles where data_in=1, which may not align with the testbench's toggle pattern. This means a correct submission cannot pass evaluation.",
+      "evidence": "Validation report shows golden_run exit_code=1 with FAIL on FR3 and SR2. FR3 regex '\\b\\w+(?:\\.\\w+(?:\\[\\d+\\])?)+' does not match 'top.lock_reg[0]' because the bracket pattern requires a dot before the brackets. SR2 trace check expects last 4 entries to be all 1s for functional, but the testbench drives data_in=0 on the last cycle, so the last 4 entries are [1,1,0,1] not [1,1,1,1].",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR1 fail-on-presence check is too strict and flags the golden netlist as vulnerable. The regex '(?:\\d+\\'[bB])?0110' matches the bit pattern in the comparison logic '!lock_reg[3] && lock_reg[2] && lock_reg[1] && !lock_reg[0]' because the individual bits appear in order 0,1,1,0 across the expression. This causes SR1 to FAIL for the golden netlist, contradicting the security requirement that the key should not appear as a contiguous constant.",
+      "evidence": "Validation report shows golden_run stdout: '[TEST] PASS: SR1' but the regex would match '0110' in the comment 'Pattern: lock_reg[3]==0, lock_reg[2]==1, lock_reg[1]==1, lock_reg[0]==0' if the comment contained the literal string. However, the actual netlist comment says 'Pattern: lock_reg[3]==0, lock_reg[2]==1, lock_reg[1]==1, lock_reg[0]==0' which does not contain '0110' as a contiguous substring. The regex is actually correct in not matching, but the validation report shows SR1 PASS for golden, so this is not the cause of golden rejection. The real issue is FR3 and SR2.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The SR2 behavioral cross-check uses a hardcoded expectation that the last 4 trace entries are all 1s for functional mode. This is fragile and depends on the exact testbench stimulus. The testbench toggles data_in in a specific pattern, and the last cycle drives data_in=0, so the last 4 entries are not all 1s even for the correct key. The check should compare against expected functional output derived from the testbench stimulus, not a hardcoded [1,1,1,1].",
+      "evidence": "Testbench drives: data_in=1,0,1,1,0,1,1,0. The last 4 cycles are 0,1,1,0. Functional output would be 0,1,1,0, not 1,1,1,1. The evaluator checks 'all(v == 1 for v in submitted_last4)' which will fail for the correct key.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 regex fails to match valid hierarchical names containing brackets without a preceding dot. The pattern '\\b\\w+(?:\\.\\w+(?:\\[\\d+\\])?)+' requires at least one dot before optional brackets. 'top.lock_reg[0]' has a dot before 'lock_reg' but the bracket is attached to 'lock_reg', so the regex group '(?:\\.\\w+(?:\\[\\d+\\])?)+' matches '.lock_reg[0]' correctly. However, the regex uses \\b which may fail if the name appears in certain contexts. Testing shows the regex actually does match 'top.lock_reg[0]' in the netlist. The golden rejection on FR3 may be due to the netlist using 'lock_reg' without the 'top.' prefix in some places, or the regex not matching because the hierarchical names in the golden submission include 'top.' but the netlist only declares 'lock_reg' as a local signal. The netlist has 'reg [3:0] lock_reg;' and references 'lock_reg[3]' etc. without 'top.' prefix. The golden submission uses 'top.lock_reg[0]' which is the hierarchical name when instantiated, but the regex searches the netlist text where only 'lock_reg[0]' appears. The regex requires a dot, so 'lock_reg[0]' alone won't match. This is a mismatch between the expected hierarchical names and what the regex can find in the netlist source.",
+      "evidence": "Netlist contains 'lock_reg[3]', 'lock_reg[2]', etc. without 'top.' prefix. Golden submission expects 'top.lock_reg[0]'. The regex '\\b\\w+(?:\\.\\w+(?:\\[\\d+\\])?)+' requires at least one dot, so 'lock_reg[0]' does not match. The evaluator should either strip the 'top.' prefix or search for both forms.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not compute the metrics specified in the task (key_recovery_rate and key_gate_localization_accuracy). It only performs pass/fail checks on individual requirements. The metrics are defined in metadata.json but never calculated or reported.",
+      "evidence": "evaluate.py emits only [TEST] PASS/FAIL lines. No metric scores are printed. The task specification lists metrics with descriptions and directions, but the harness ignores them.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/design_brief.md",
+      "description": "The design brief states 'the first bit after reset is loaded into the least-significant position', but the netlist shifts 'lock_reg <= {lock_reg[2:0], key_in}' which loads the first bit into lock_reg[0] (LSB) on the first cycle, then shifts left. This is consistent, but the oracle traces show key sequence 0,1,1,0 applied and the circuit entering functional mode. The brief's description matches the netlist behavior.",
+      "evidence": "Netlist: lock_reg <= {lock_reg[2:0], key_in} shifts left, loading key_in into LSB. After 4 cycles with key_in=0,1,1,0, lock_reg becomes 0,1,1,0 (lock_reg[3]=0, lock_reg[2]=1, lock_reg[1]=1, lock_reg[0]=0). The comparison checks !lock_reg[3] && lock_reg[2] && lock_reg[1] && !lock_reg[0] which matches 0,1,1,0. This is correct.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix FR3 regex to match hierarchical names both with and without the 'top.' prefix. Search for the base signal name 'lock_reg[0]' in addition to 'top.lock_reg[0]', or strip the instance prefix before checking.",
+    "Fix SR2 behavioral check to compare against the expected functional output derived from the testbench stimulus, not a hardcoded [1,1,1,1]. The testbench drives a known data_in pattern; compute expected data_out for functional mode (data_out = data_in) and compare the trace suffix.",
+    "Add metric computation to evaluate.py. After grading, compute key_recovery_rate (fraction of key bits matching ground truth) and key_gate_localization_accuracy (fraction of lock registers correctly identified and ordered) and print them.",
+    "Add targeted mutants for each requirement (FR1-FR3, SR1-SR2) to prove harness discrimination. For example, a mutant submission with invalid JSON for FR1, a mutant with 3-bit key for FR2, a mutant with wrong register names for FR3, a mutant netlist with the key as a constant for SR1, and a mutant netlist where decoy mode produces functional output for SR2.",
+    "Ensure the testbench stimulus and the evaluator's expected output are synchronized. The evaluator should either parse the testbench to derive expected outputs or the testbench should output expected values alongside actual values.",
+    "Consider making the SR1 check more robust by searching for the key bits in the netlist as individual constants that could be combined, rather than only as a contiguous string. The current check passes because the bits are distributed across the comparison expression."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "FR1 has no targeting mutant in the validation report. The requirement is listed as untested, meaning the harness cannot discriminate between a submission that passes FR1 and one that fails it. The check itself (file exists and is valid JSON) is simple and likely correct, but without a mutant that specifically breaks FR1, we cannot confirm the harness detects FR1 failures independently.",
+      "requirement": "FR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "FR2 has no targeting mutant. The check for key_sequence format is straightforward, but without a mutant that breaks only FR2, discrimination is unproven.",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "FR3 has no targeting mutant and the golden solution fails FR3 due to regex mismatch. The regex cannot find 'top.lock_reg[0]' in the netlist because the netlist uses 'lock_reg[0]' without the 'top.' prefix. This is a bug in the evaluator.",
+      "requirement": "FR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "SR1 has no targeting mutant. The fail-on-presence check passes for the golden netlist (the key '0110' does not appear as a contiguous constant), but the requirement is untested because no mutant specifically triggers an SR1 failure.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "SR2 has no targeting mutant and the golden solution fails SR2. The behavioral cross-check expects the last 4 trace entries to be all 1s, but the testbench drives data_in=0 on the last cycle, so functional output is 0, not 1. The check is incorrectly hardcoded.",
+      "requirement": "SR2",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

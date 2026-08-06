@@ -1,0 +1,5 @@
+{
+  "infected": false,
+  "trojan_candidates": [],
+  "rationale": "The design was analyzed for hardware Trojans by examining all rare-event logic and debug paths. The debug_enable input gates a set of low-activity counters and diagnostic outputs; this is documented functionality with no hidden trigger condition or malicious payload. All debug paths are transparently controlled by the debug_enable port, and no undocumented side-effects or secret data leaks were found. Therefore, the design is clean and contains no hardware Trojan."
+}

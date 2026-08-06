@@ -1,0 +1,54 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/modexp_kernel.cpp",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: FR4: run crashed/timed out: gcov failed: modexp_kernel.gcno:cannot open notes file\nmodexp_kernel.gcda:cannot open data file, assuming not executed\n[TEST] FAIL: SR1: run crashed/timed out: gcov failed: modexp_kernel.gcno:cannot open notes file\nmodexp_kernel.gcda:cannot open data file, assuming not executed\n[TEST] FAIL: SR2: run crashed/timed out: gcov failed: modexp_kernel.gcno:cannot open notes file\nmodexp_kernel.gcda:cannot open data file, assuming not executed\n[TEST] PASS: SR3\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: FR4: run crashed/timed out: gcov failed: modexp_kernel.gcno:cannot open notes file\nmodexp_kernel.gcda:cannot open data file, assuming not executed\n[TEST] FAIL: SR1: run crashed/timed out: gcov failed: modexp_kernel.gcno:cannot open notes file\nmodexp_kernel.gcda:cannot open data file, assuming not executed\n[TEST] FAIL: SR2: run crashed/timed out: gcov failed: modexp_kernel.gcno:cannot open notes file\nmodexp_kernel.gcda:cannot open data file, assuming not executed\n[TEST] PASS: SR3\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/modexp_kernel.cpp",
+    "golden/modexp_kernel_insecure.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "requirement_count": 7,
+  "status": "fail",
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp",
+    "evaluation/private/coverage_utils.py",
+    "evaluation/private/functional_checks.py",
+    "evaluation/private/security_checks.py"
+  ],
+  "uncovered_requirements": []
+}

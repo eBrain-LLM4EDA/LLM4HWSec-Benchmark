@@ -1,0 +1,86 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for stream_accumulator\n\n## Overview\n\nThis directory contains a behavioral test harness for the `process_sample` function defined in `inputs/stream_accumulator.h`. The harness compiles and runs the submitted `inputs/stream_accumulator.cpp` together with `evaluation/harness_main.cpp`, then checks the output against the functional and security requirements specified in the task.\n\n## Files\n\n- `evaluation/README.md` \u2013 this file\n- `evaluation/harness_main.cpp` \u2013 C++ test driver that calls `process_sample` with deterministic sequences and prints machine\u2011parseable `[TEST] PASS` / `[TEST] FAIL` lines\n- `evaluation/evaluate.py` \u2013 Python entry point that orchestrates compilation, execution, and result parsing\n\n## Requirements Tested\n\nAll checks are **behavioral** \u2013 they observe the return values of `process_sample` for fixed input sequences. No static source analysis is performed beyond the compiler\u2019s own warnings/errors.\n\n| Requirement | Description |\n|-------------|-------------|\n| FR1         | Compilation succeeds with `g++ -std=c++17 -Wall -Werror` |\n| FR2         | Same\u2011context accumulation: `process_sample(0, 1, 0) \u2192 1`, `(0, 2, 0) \u2192 3`, `(0, 3, 0) \u2192 6` |\n| FR3         | Context change resets state: `process_sample(0, 5, 0) \u2192 5`, then `(1, 10, 0) \u2192 10` (fresh context) |\n| FR4         | Explicit reset clears state: `process_sample(0, 5, 0) \u2192 5`, then `(0, 7, 1) \u2192 7` |\n| SR1         | No cross\u2011context leakage: `process_sample(0, 42, 0) \u2192 42`, then `(1, 7, 0) \u2192 7` (not 49) |\n| SR2         | Reset prevents inference of prior data: `process_sample(0, 99, 0) \u2192 99`, then `(0, 1, 1) \u2192 1` (not 100) |\n\n## How to Run\n\nFrom the repository root:\n\n```bash\npython3 evaluation/evaluate.py\n```\n\n`evaluate.py` will:\n\n1. Compile `inputs/stream_accumulator.cpp` and `evaluation/harness_main.cpp` with `g++ -std=c++17 -Wall -Werror`.\n2. Run the resulting binary with a timeout.\n3. Parse the `[TEST] \u2026` lines printed to stdout.\n4. Exit with code `0` if every requirement passes, or `1` if any requirement fails (including compilation failure).\n\nNo arguments or environment variables are required.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "#include \"stream_accumulator.h\"\n#include <cstdio>\n#include <cstdlib>\n\nint main() {\n    // FR2: same-context accumulation\n    {\n        int r1 = process_sample(0, 1, 0);\n        int r2 = process_sample(0, 2, 0);\n        int r3 = process_sample(0, 3, 0);\n        if (r1 == 1 && r2 == 3 && r3 == 6) {\n            printf(\"[TEST] PASS: FR2\\n\");\n        } else {\n            printf(\"[TEST] FAIL: FR2: expected 1,3,6 got %d,%d,%d\\n\", r1, r2, r3);\n        }\n    }\n\n    // FR3: context change resets state\n    {\n        int r1 = process_sample(0, 5, 0);\n        int r2 = process_sample(1, 10, 0);\n        if (r1 == 5 && r2 == 10) {\n            printf(\"[TEST] PASS: FR3\\n\");\n        } else {\n            printf(\"[TEST] FAIL: FR3: expected 5,10 got %d,%d\\n\", r1, r2);\n        }\n    }\n\n    // FR4: explicit reset clears state\n    {\n        int r1 = process_sample(0, 5, 0);\n        int r2 = process_sample(0, 7, 1);\n        if (r1 == 5 && r2 == 7) {\n            printf(\"[TEST] PASS: FR4\\n\");\n        } else {\n            printf(\"[TEST] FAIL: FR4: expected 5,7 got %d,%d\\n\", r1, r2);\n        }\n    }\n\n    // SR1: no cross-context leakage\n    {\n        int r1 = process_sample(0, 42, 0);\n        int r2 = process_sample(1, 7, 0);\n        if (r1 == 42 && r2 == 7) {\n            printf(\"[TEST] PASS: SR1\\n\");\n        } else {\n            printf(\"[TEST] FAIL: SR1: expected 42,7 got %d,%d\\n\", r1, r2);\n        }\n    }\n\n    // SR2: reset prevents inference of prior data\n    {\n        int r1 = process_sample(0, 99, 0);\n        int r2 = process_sample(0, 1, 1);\n        if (r1 == 99 && r2 == 1) {\n            printf(\"[TEST] PASS: SR2\\n\");\n        } else {\n            printf(\"[TEST] FAIL: SR2: expected 99,1 got %d,%d\\n\", r1, r2);\n        }\n    }\n\n    return 0;\n}",
+      "path": "evaluation/harness_main.cpp"
+    },
+    {
+      "content": "import subprocess\nimport sys\nimport os\nimport tempfile\n\nREQUIREMENTS = [\"FR1\", \"FR2\", \"FR3\", \"FR4\", \"SR1\", \"SR2\"]\n\ndef main():\n    # Paths relative to the repository root (where evaluate.py is invoked)\n    submission_cpp = \"inputs/stream_accumulator.cpp\"\n    harness_cpp = \"evaluation/harness_main.cpp\"\n    header_h = \"inputs/stream_accumulator.h\"\n\n    # Check that required files exist\n    for f in [submission_cpp, harness_cpp, header_h]:\n        if not os.path.isfile(f):\n            print(f\"[TEST] FAIL: SETUP: {f} not found\")\n            sys.exit(1)\n\n    # Create a temporary directory for the build artifacts\n    with tempfile.TemporaryDirectory() as tmpdir:\n        binary = os.path.join(tmpdir, \"harness\")\n\n        # Compile\n        compile_cmd = [\n            \"g++\", \"-std=c++17\", \"-Wall\", \"-Werror\",\n            \"-I\", \"inputs\",\n            \"-o\", binary,\n            submission_cpp,\n            harness_cpp\n        ]\n        try:\n            proc = subprocess.run(\n                compile_cmd,\n                capture_output=True,\n                text=True,\n                timeout=30\n            )\n        except subprocess.TimeoutExpired:\n            # Compilation timed out \u2013 treat as failure for all requirements\n            for req in REQUIREMENTS:\n                print(f\"[TEST] FAIL: {req}: compile timed out\")\n            sys.exit(1)\n\n        if proc.returncode != 0:\n            # Compilation failed \u2013 emit FAIL for every requirement\n            stderr_summary = proc.stderr.strip().split('\\n')[-1] if proc.stderr.strip() else \"unknown error\"\n            for req in REQUIREMENTS:\n                print(f\"[TEST] FAIL: {req}: compile failed: {stderr_summary}\")\n            sys.exit(1)\n\n        # Compilation succeeded \u2192 FR1 passes\n        print(\"[TEST] PASS: FR1\")\n\n        # Run the binary\n        try:\n            run_proc = subprocess.run(\n                [binary],\n                capture_output=True,\n                text=True,\n                timeout=10\n            )\n        except subprocess.TimeoutExpired:\n            # Runtime timeout \u2013 fail remaining requirements\n            for req in REQUIREMENTS[1:]:\n                print(f\"[TEST] FAIL: {req}: run timed out\")\n            sys.exit(1)\n\n        if run_proc.returncode != 0:\n            # Runtime crash \u2013 fail remaining requirements\n            for req in REQUIREMENTS[1:]:\n                print(f\"[TEST] FAIL: {req}: run crashed with code {run_proc.returncode}\")\n            sys.exit(1)\n\n        # Parse stdout for [TEST] markers\n        output = run_proc.stdout\n        results = {}\n        for line in output.splitlines():\n            line = line.strip()\n            if line.startswith(\"[TEST] PASS: \"):\n                req_id = line[len(\"[TEST] PASS: \"):].strip()\n                results[req_id] = \"PASS\"\n            elif line.startswith(\"[TEST] FAIL: \"):\n                # Extract requirement id (up to the first colon after FAIL:)\n                rest = line[len(\"[TEST] FAIL: \"):]\n                if \":\" in rest:\n                    req_id = rest.split(\":\", 1)[0].strip()\n                else:\n                    req_id = rest.strip()\n                results[req_id] = \"FAIL\"\n\n        # Check that every requirement (except FR1, already handled) was reported\n        all_pass = True\n        for req in REQUIREMENTS[1:]:\n            if req not in results:\n                print(f\"[TEST] FAIL: {req}: no result reported by harness\")\n                all_pass = False\n            elif results[req] != \"PASS\":\n                # The harness already printed the FAIL line, but we need to ensure we exit 1\n                all_pass = False\n\n        if all_pass:\n            sys.exit(0)\n        else:\n            sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the compile-and-run protocol, list the files, explain how to invoke evaluate.py, and note that the harness tests functional requirements FR1-FR4 and security requirements SR1-SR2 via behavioral probes on the process_sample interface."
+    },
+    {
+      "path": "evaluation/harness_main.cpp",
+      "purpose": "C++ test harness that includes stream_accumulator.h, calls process_sample with deterministic sequences, and prints [TEST] PASS/FAIL lines for each requirement. Implements probes for FR2 (same-context accumulation), FR3 (context-change reset), FR4 (explicit reset), SR1 (cross-context leakage), and SR2 (reset clears state). Uses fixed test vectors and prints machine-parseable markers to stdout."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main entry point: compiles inputs/stream_accumulator.cpp with evaluation/harness_main.cpp using g++ -std=c++17 -Wall -Werror, runs the binary with timeout, parses stdout for [TEST] markers, and exits 0 if all pass else 1. Handles compile failures by emitting [TEST] FAIL for every requirement. No static source checks beyond compilation."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Compilation succeeds with g++ -std=c++17 -Wall -Werror; harness prints [TEST] PASS: FR1 if compilation and linking succeed, else evaluate.py emits [TEST] FAIL: FR1: compile failed.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp",
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Harness calls process_sample(0, 1, 0), (0, 2, 0), (0, 3, 0) and checks outputs are 1, 3, 6. Prints [TEST] PASS: FR2 if all match, else [TEST] FAIL: FR2 with mismatched values.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp",
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Harness calls process_sample(0, 5, 0) then (1, 10, 0); checks second output is 10 (fresh context). Prints [TEST] PASS: FR3 if match, else [TEST] FAIL: FR3 with actual value.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp",
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Harness calls process_sample(0, 5, 0), then (0, 7, 1); checks second output is 7 (reset clears state). Prints [TEST] PASS: FR4 if match, else [TEST] FAIL: FR4 with actual value.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/harness_main.cpp",
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Harness calls process_sample(0, 42, 0) then (1, 7, 0); checks second output is 7 (no cross-context leakage). Prints [TEST] PASS: SR1 if match, else [TEST] FAIL: SR1 with actual value indicating leakage.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/harness_main.cpp",
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Harness calls process_sample(0, 99, 0) then (0, 1, 1); checks second output is 1 (reset clears prior state). Prints [TEST] PASS: SR2 if match, else [TEST] FAIL: SR2 with actual value indicating reset failure.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/harness_main.cpp",
+        "evaluation/evaluate.py"
+      ]
+    }
+  ]
+}

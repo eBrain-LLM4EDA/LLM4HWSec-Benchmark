@@ -1,0 +1,45 @@
+{
+  "task_id": "hls_key_indexed_lookup_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Fixed-pattern lookup for a key-indexed table",
+  "input_artifacts": [
+    "inputs/lookup_kernel.cpp",
+    "inputs/design_brief.md"
+  ],
+  "interface": {
+    "signature": "uint8_t lookup(uint8_t value, uint8_t key);",
+    "notes": "Function signature must remain unchanged. `value` is a public input byte, `key` is an input byte, return value is the substituted output byte."
+  },
+  "constants": {
+    "table_name": "table",
+    "table_size": 16,
+    "table_element_type": "uint8_t",
+    "trace_macro_name": "TRACE_ACCESS"
+  },
+  "constraints_summary": [
+    "Only fixed-trip-count for-loops allowed",
+    "No dynamic memory allocation, STL containers, recursion, or exceptions",
+    "No control-flow branch dependent on value or key",
+    "Every table read must be logged via TRACE_ACCESS(idx) with the literal index read"
+  ],
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize",
+      "description": "Fraction of hidden security checks violated by the submission under instrumented compile-and-run testing."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Score indicating whether the table-access trace (index sequence and count) is fully invariant across all sampled key and value combinations."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Fraction of functional requirements that pass compilation and behavioral execution against the test harness, including output correctness and access-count checks."
+    }
+  ],
+  "expected_output_summary": "A hardened inputs/lookup_kernel.cpp that compiles cleanly standalone with g++ at -O0 and -O2, produces byte-identical outputs to an independently computed reference for all (value, key) input pairs, and whose instrumented table-access trace touches all 16 table entries in the same fixed order and count on every single invocation, regardless of the values of value or key.",
+  "evaluation_mode": "compile_and_run",
+  "submission_kind": "hardened_artifact"
+}

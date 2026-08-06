@@ -1,0 +1,71 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/lookup_kernel.cpp vs evaluation/harness_main.cpp",
+      "description": "The differential validation shows the golden/expert hardened solution is REJECTED by evaluate.py: FR1 and SR4 report 65536/65536 mismatches against the harness's hardcoded reference_table. This indicates either the golden solution's table contents differ from the reference_table baked into harness_main.cpp, or the golden implementation's constant-time selection logic is broken. Either way, the evaluator does not accept a correct submission, violating the core acceptance contract.",
+      "evidence": "golden_run stdout: '[TEST] FAIL: FR1: found 65536 mismatches over 65536 pairs against independent reference table (e.g. FR1_MISMATCH 0 0 62)' and '[TEST] FAIL: SR4: ...' while exit_code=1, expected pass.",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report mutation_score",
+      "description": "Mutation/discrimination testing shows mutation_score of 0.0 with all 8 requirements (FR1-FR4, SR1-SR4) marked as untested_requirement, meaning no targeted mutants were run to prove each check actually discriminates correct vs incorrect behavior for that specific requirement. Combined with the golden rejection, this means the benchmark's pass/fail signal is currently unverified and unreliable.",
+      "evidence": "\"mutation_score\": 0.0, \"mutation_score_meaningful\": false, \"untested_requirements\": [\"FR1\",\"FR2\",\"FR3\",\"FR4\",\"SR1\",\"SR2\",\"SR3\",\"SR4\"]",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.vulnerable_run",
+      "description": "The shipped insecure baseline is correctly rejected (FR3/SR1/SR2/SR3 all fail as expected), showing the trace-based discrimination logic itself is sound for the security requirements when FR1/SR4 are set aside. However overall status for the vulnerable run is still 'fail' as expected, so this part is working, but it doesn't offset the golden-rejection defect.",
+      "evidence": "vulnerable_run stdout shows FR3/SR3/SR1/SR2 FAIL as intended, ok:true, but overall differential.status is 'fail' because golden_run also fails.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the reference_table constant in evaluation/harness_main.cpp (and evaluation/oracle.py) so it exactly matches the canonical table used by the golden/expert hardened solution \u2014 the current FR1/SR4 mismatch (65536/65536) strongly suggests a byte-order or value transcription bug in reference_table vs the golden solution's table array.",
+    "Re-run the differential validation after fixing the reference table to confirm the golden solution now PASSes all 8 requirements (FR1-FR4, SR1-SR4) with exit code 0.",
+    "Add targeted mutants for each requirement (e.g., a mutant that flips one table byte for FR1/SR4, a mutant with a data-dependent branch for FR4, a mutant with a non-fixed loop trip count for FR2, a mutant with 15 or 17 trace accesses for FR3/SR3, a mutant with key-dependent early exit for SR1/SR2) and confirm mutation_score improves from 0.0 to reflect real discriminative power.",
+    "Explicitly wire evaluate.py's PASS/FAIL requirement outcomes into the three declared metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate) so the evaluation contract's metrics are computably derived from harness results, not just implicit via exit code."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run exit_code=1, FR1 and SR4 FAIL with 65536 mismatches; expected pass but ok=false",
+      "requirement": "Golden/correct hardened submission should PASS all FR1-FR4, SR1-SR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run shows FR3/SR3/SR1/SR2 all FAIL as expected, ok=true",
+      "requirement": "Insecure baseline should FAIL SR1/SR2/SR3 (and FR3)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md use plain engineering language ('uniform access pattern', 'shared memory block') with no CWE/SR ids or explicit vulnerability framing",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md states 4 constraints mapping to FR1 (output correctness), FR2 (compile cleanliness/synthesizable subset), FR3 (16-read canonical trace), FR4 (no secret-dependent branch), all checkable via compiled harness",
+      "requirement": "Public FR1-FR4 are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py emits PASS/FAIL per requirement but does not appear to directly compute or output the three named metrics as such; mapping is implicit via requirement pass/fail counts only",
+      "requirement": "Evaluator measures the requested metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional_requirement type and SR1-SR4 as security_requirement type with distinct trace-based vs exhaustive-comparison detection strategies",
+      "requirement": "Requirement map separates functional (FR1-FR4) and security (SR1-SR4) checks with distinct detection strategies",
+      "status": "pass"
+    },
+    {
+      "evidence": "Harness sweeps key over 256 values, value over 256 values, and 500 random joint pairs to actively trigger and record access-trace differences (SR1/SR2/SR3), not merely inspecting source",
+      "requirement": "Security-relevant behaviors actively triggered (not just generically checked)",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced files (README.md, metadata.json, inputs/lookup_kernel.cpp, inputs/design_brief.md, evaluation/*) are present and consistent in file paths and interface signature",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    }
+  ]
+}

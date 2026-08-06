@@ -1,0 +1,70 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the golden (correct) submission due to a Verilog syntax error in the generated testbench. The template uses 'assign key = 2'b{key_val};' which is not valid Verilog syntax for variable substitution. This causes iverilog compilation to fail, preventing FR3 from passing even for the correct key.",
+      "evidence": "Validation report shows golden_run exit_code=1 with stderr containing 'syntax error' at the key assignment line. The golden key '10' should produce a valid testbench but the template syntax is broken.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_check.v",
+      "description": "The testbench template contains invalid Verilog syntax for key assignment. The line 'assign key = 2'b{key_val};' uses curly braces as a placeholder but Verilog interprets this as a concatenation operator with an undefined identifier {key_val}, causing a compile error.",
+      "evidence": "Validation report: 'iverilog compile failed: /tmp/.../tb_check.v:10: syntax error ... Syntax error in continuous assignment'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 check is coupled to FR2 result in a way that prevents independent verification. If FR2 fails (e.g., wrong key length), FR3 still attempts to run but uses a dummy key, which may mask issues or produce misleading failures.",
+      "evidence": "Code shows sim_key defaults to '0'*key_width when key is invalid, but the testbench still compiles and runs, potentially wasting resources on a known-bad submission.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not compute or report the metrics specified in the task specification (key_recovery_rate, key_gate_localization_accuracy, sat_iteration_reduction). It only performs binary pass/fail checks.",
+      "evidence": "evaluate.py only emits [TEST] PASS/FAIL markers for requirements; no metric computation or output is present.",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/README.md",
+      "description": "The evaluation harness documentation mentions 'analysis_report' submission contract but the task specification and public README describe a standard file-submission contract. This inconsistency may confuse participants.",
+      "evidence": "evaluation/README.md states 'This task follows an analysis_report submission contract' while the public README simply says 'Place your answer file at submission/recovered_key.json'.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the Verilog testbench template (evaluation/tb_check.v) to use valid syntax for key assignment. Replace 'assign key = 2'b{key_val};' with a parameter-based approach: add 'parameter [1:0] KEY_VAL = 2'b00;' at the module level and use 'assign key = KEY_VAL;', then have evaluate.py replace the parameter value instead of the placeholder string.",
+    "Update evaluate.py to substitute the key value into the testbench using a parameter definition rather than string replacement in an assignment statement.",
+    "Add metric computation to evaluate.py to report key_recovery_rate, key_gate_localization_accuracy, and sat_iteration_reduction as specified in the task requirements.",
+    "Harmonize the submission contract description between evaluation/README.md and the public README.md to avoid confusion.",
+    "Consider decoupling FR3 from FR2 by always using the submitted key for simulation (even if invalid) and letting the simulation fail naturally, rather than substituting a dummy key."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py correctly checks for file existence and valid JSON parsing. Golden submission passes this check.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py correctly validates key field presence, string type, length matching hints.txt (2 bits), and character set (0/1 only). Golden submission passes.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden submission fails FR3 because the testbench template has a syntax error. The line 'assign key = 2'b{key_val};' is not valid Verilog; it should use a parameter or generate block for substitution. This prevents any submission from passing FR3.",
+      "requirement": "FR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py correctly compares submitted key against hidden ground truth '10'. Golden submission passes.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py correctly checks optional feedback_gates field against hidden ground truth ['mux_fb1','mux_fb2']. Golden submission passes (field absent is acceptable).",
+      "requirement": "SR2",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

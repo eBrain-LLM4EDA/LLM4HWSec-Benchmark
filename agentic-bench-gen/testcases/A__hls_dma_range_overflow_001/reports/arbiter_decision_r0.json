@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs are clean: mutation_score=1.0, coverage_score=1.0, validation_status=pass, baseline_exit_code=0, issue_count=0, analyzer_status=pass. The baseline run (golden) passes all FR/SR checks, the differential run confirms the insecure baseline fails FR4 and SR1-SR4 as expected, and the analyzer found no leakage, coherent public/hidden spec alignment, concrete FRs, and properly separated functional/security requirements. No missing_interface, golden_rejected, vulnerable_accepted, dead_check, or public_security_leak issues are present. The case meets all retention criteria.",
+  "retain_case": true,
+  "revision_instructions": "No revision needed. The benchmark case is coherent, achieves full mutation kill rate and coverage, and the analyzer/validator report no defects.",
+  "root_cause": "none"
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected because the testbench fails to produce [TEST] markers for FR1, FR2, FR3. The evaluator also does not compute the three required metrics (word_recovery_rate, structural_match_accuracy, functional_equivalence). Mutation score is 0.0 and not meaningful because the baseline/golden run failed. The primary issue is in the evaluation framework: the testbench must correctly produce markers and the evaluator must compute the specified metrics.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

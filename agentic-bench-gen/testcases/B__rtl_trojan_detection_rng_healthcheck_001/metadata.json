@@ -1,0 +1,61 @@
+{
+  "task_id": "rtl_trojan_detection_rng_healthcheck_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Always-on RNG bias with a forged health monitor",
+  "description": "Review a third-party RTL implementation of an 8-bit LFSR-based random number generator with an output-valid handshake and a built-in repetition-count health monitor. Compare the implementation against its design brief and report any structural discrepancies, including their location, nature, and confidence that each represents an intentional, security-relevant defect.",
+  "input_artifacts": [
+    "inputs/lfsr_rng.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_stub.v"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "response_format": {
+    "file": "submission/trojan_report.json",
+    "top_level_keys": [
+      "findings",
+      "summary",
+      "tool_version"
+    ],
+    "finding_keys": [
+      "id",
+      "location",
+      "description",
+      "confidence"
+    ]
+  },
+  "expected_outputs": "A JSON report identifying structural discrepancies between inputs/lfsr_rng.v and inputs/design_brief.md, each with an RTL location reference, a description of the discrepancy, and a confidence score in [0,1]; a summary including any numeric observations such as an observed/computed cycle period for rand_out; and a tool_version string.",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of hidden security requirements satisfied by the submitted trojan_report.json."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported findings that do not correspond to any real structural discrepancy between the RTL and the design brief."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Accuracy of the reported RTL locations for the feedback-tap defect and the health-monitor suppression logic."
+    },
+    {
+      "name": "period_estimate_error",
+      "direction": "minimize",
+      "description": "Absolute difference between the reported numeric period and the ground-truth period, as confirmed by simulation."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "constraints": [
+    "Participants must not modify any files under inputs/.",
+    "Only submission/trojan_report.json is graded.",
+    "Submission must be valid JSON matching the required schema."
+  ]
+}

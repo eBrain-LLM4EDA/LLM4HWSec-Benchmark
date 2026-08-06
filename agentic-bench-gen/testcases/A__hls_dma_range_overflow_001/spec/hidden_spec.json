@@ -1,0 +1,39 @@
+{
+  "acceptance_criteria": [
+    "Binary compiled from the submitted dma_validate.cpp against the hidden test harness must produce PASS on all known-answer functional vectors (FR1-FR4).",
+    "Binary must return 0 for all overflow-exploit vectors defined in SR1 and SR2 (fail-closed under integer overflow attempts).",
+    "Binary must return 0 for all zero-length and partial-containment vectors defined in SR3 and SR4.",
+    "The reference/ground-truth implementation using 64-bit widened arithmetic must pass all vectors; the shipped insecure baseline (32-bit-only arithmetic, no zero-length check) must fail at least the SR1, SR2, and SR3 vectors."
+  ],
+  "cwe_ids": [
+    "CWE-190",
+    "CWE-191",
+    "CWE-680",
+    "CWE-125",
+    "CWE-787"
+  ],
+  "ground_truth": "Correct behavior: validate_dma returns 1 if and only if length != 0 AND base >= region_start AND (uint64_t)base + (uint64_t)length <= (uint64_t)region_start + (uint64_t)region_size, where the addition is performed widened to 64 bits (or otherwise proven not to wrap in 32-bit arithmetic) to avoid the case where base + length overflows uint32_t and wraps to a small value that spuriously appears <= region_start + region_size. All other input combinations must return 0. In particular the classic exploit is base = region_start + region_size - 1 (or similar) with length chosen such that base + length overflows past 0xFFFFFFFF and wraps to a value less than region_start + region_size when computed in native 32-bit arithmetic, making a naive 32-bit-only check (base + length <= region_start + region_size) incorrectly return 1 for a transfer that actually extends far outside the region (or wraps around the entire address space).",
+  "security_requirements": [
+    {
+      "detection_strategy": "Harness calls validate_dma with base = 0xFFFFFFF0, length = 0x20, region_start = 0x00000000, region_size = 0xFFFFFFFF (or similar wrap-inducing values) and asserts the return value is 0, since base+length exceeds the 32-bit address space and cannot be a valid physical transfer within the stated region bounds.",
+      "id": "SR1",
+      "requirement": "validate_dma must reject any (base, length) pair where base + length, computed as true unbounded integers, exceeds UINT32_MAX, even if 32-bit wraparound would make a naive check pass."
+    },
+    {
+      "detection_strategy": "Harness constructs region_start/region_size pairs near the top of the 32-bit range and picks base/length so that base+length overflows 32 bits and wraps below region_start+region_size; asserts return value is 0. A vulnerable naive implementation using pure uint32_t addition without widening will incorrectly return 1.",
+      "id": "SR2",
+      "requirement": "validate_dma must reject any request where base + length would overflow uint32_t arithmetic and wrap to a value that is spuriously <= region_start + region_size, when the true (non-wrapped) end address lies outside the region."
+    },
+    {
+      "detection_strategy": "Harness calls validate_dma with length = 0 for multiple base/region combinations including base == region_start, and asserts return value is always 0.",
+      "id": "SR3",
+      "requirement": "validate_dma must reject zero-length transfers unconditionally, regardless of base/region alignment."
+    },
+    {
+      "detection_strategy": "Harness tests base < region_start with base+length landing inside the region, base within the region but base+length exceeding region_start+region_size, and region_size chosen so region_start+region_size overflows 32 bits (e.g. region_start=0xF0000000, region_size=0x20000000); asserts all such cases return 0 unless the interval is truly fully contained under exact (non-wrapping) arithmetic.",
+      "id": "SR4",
+      "requirement": "validate_dma must reject ranges that are only partially inside the region (either the start or the end address falls outside [region_start, region_start+region_size)), including the case where region_start + region_size itself overflows uint32_t."
+    }
+  ],
+  "threat_model": "A malicious or buggy DMA descriptor generator supplies attacker-influenced base and length values to a checker that gates access to a bounded memory region (e.g. a device's DMA buffer). If the checker computes base + length using 32-bit-only arithmetic and compares against region_start + region_size without checking for overflow, an attacker can choose base near UINT32_MAX and length large enough that base + length wraps around to a small value, causing the check to pass even though the actual (unwrapped, real-world) transfer would read/write far outside the allowed region -- e.g. into adjacent kernel memory or other DMA buffers. This is a classic integer-overflow-based bounds-check bypass in memory-mapped I/O validation logic."
+}

@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The submitted file must define exactly one module named reg_file_recovered with the port list given in the interface section, synthesizable with iverilog/yosys.",
+    "Internal storage must be modeled as explicit clocked registers (e.g. a reg [7:0] array of 4 entries updated in an always @(posedge clk) block), not as latches or combinational feedback loops.",
+    "Read ports must be implemented as purely combinational multiplexers over the register array (assign or always @(*) blocks), introducing no additional pipeline registers or clock-cycle delays.",
+    "The module must not include any $stop, $finish, or non-synthesizable simulation-only constructs that would prevent it from running in a testbench.",
+    "Do not instantiate or depend on any external module other than standard Verilog primitives; the recovered RTL must be fully self-contained in the single submitted file."
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v containing a synthesizable Verilog module named reg_file_recovered with the exact port list given in the interface section"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "Given a sequence of writes to distinct addresses with we=1, subsequent combinational reads (raddr0/raddr1) of those addresses must return the exact written byte values with zero cycles of extra latency, for all 4 addresses (0..3) and representative data values including 0x00, 0xFF, 0xA5, 0x3C."
+    },
+    {
+      "id": "FR2",
+      "requirement": "When rst=1 is asserted for one or more rising edges, all four entries must read back as 0x00 on both read ports immediately after the first such edge, regardless of prior contents, and remain 0x00 until a subsequent write occurs."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For same-address read/write collisions (raddr0==waddr or raddr1==waddr with we=1 on the same rising edge), the read data on that port must equal the NEW data value from the cycle immediately following the edge onward, not the previous stored value."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The two read ports must operate fully independently: driving raddr0 and raddr1 to different addresses in the same cycle must return the correct, independent contents of each addressed entry simultaneously, with no interference between ports."
+    }
+  ],
+  "input_artifacts": [
+    "gate_netlist.v",
+    "obfuscated_wrapper.v",
+    "design_brief.md"
+  ],
+  "interface": "Module name: reg_file_recovered. File: submission/recovered_rtl.v. Ports (all synchronous to clk unless noted): input clk; input rst (synchronous, active-high); input we (write enable, active-high); input [1:0] waddr (write address, 4 entries); input [7:0] wdata (write data); input [1:0] raddr0 (read port 0 address, combinational); input [1:0] raddr1 (read port 1 address, combinational); output [7:0] rdata0 (read port 0 data); output [7:0] rdata1 (read port 1 data). TIMING CONTRACT: (1) Write behavior: on each rising edge of clk where rst=0 and we=1, the 8-bit entry at waddr is updated to wdata; this is the ONLY write mechanism, exactly one write per enabled edge, no other addresses change. (2) Reset: synchronous, active-high. When rst=1 at a rising edge, all four internal storage entries are cleared to 8'h00 on that edge (rdata0/rdata1 reflect all-zero entries starting from the NEXT rising edge after rst was sampled high, i.e. reset is Moore-timed exactly like a write). While rst=1 is held, we is ignored (no write occurs even if asserted). (3) Read ports are Mealy/combinational: rdata0 and rdata1 at any simulation time equal the CURRENT contents of the internal storage array indexed by raddr0 and raddr1 respectively, with zero clock cycles of latency -- they change immediately (same delta-cycle) whenever the addressed entry's stored value changes, and also immediately track address changes with no clock edge required. (4) Write-forwarding / collision rule: if a read address (raddr0 or raddr1) equals waddr during a cycle in which a write commits on the rising edge, the read data for that port must show the OLD value up until and including the moment just before the edge, and must show the NEWLY WRITTEN value starting immediately after that same rising edge (i.e. read ports observe the post-edge, updated register state with zero extra cycles of delay -- there is no one-cycle-old read-after-write hazard). (5) No other latency: rdata0/rdata1 must never lag the internal state by any clock cycle; they are pure combinational reads of the current registers, only the registers themselves are clocked.",
+  "objective": "You are given a flattened gate-level netlist and a partially obfuscated RTL wrapper describing a small four-entry by eight-bit storage block with one synchronous write port and two independent combinational read ports. The original word-level intent has been lost during flattening (individual DFFs, address decoders, and output multiplexers were expanded into primitive gates). Recover a clean, word-level Verilog implementation of this block that reproduces its exact input/output timing behavior, including how a read port behaves when it targets the same address that is being written on the same clock edge.",
+  "response_format": "A single Verilog file at submission/recovered_rtl.v containing exactly one module named reg_file_recovered matching the pinned port list, synthesizable and simulatable with iverilog."
+}

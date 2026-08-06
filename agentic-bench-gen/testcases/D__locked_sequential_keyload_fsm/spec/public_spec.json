@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The locked_fsm.v netlist is a small sequential circuit with a single clock and an active-low asynchronous reset.",
+    "The circuit has a 1-bit key input, a 1-bit data input, and a 1-bit data output.",
+    "Oracle traces are provided as a text file showing sequences of (key_in, data_in, reset) and the corresponding data_out over multiple clock cycles.",
+    "The circuit enters a functional mode only after a specific 4-cycle key sequence is applied while reset is de-asserted.",
+    "Incorrect key sequences cause the circuit to enter a deterministic, non-functional decoy state."
+  ],
+  "expected_outputs": [
+    "A valid recovered_key.json file placed at submission/recovered_key.json containing the correct key sequence and the hierarchical names of the lock DFFs.",
+    "The key sequence must be a string of '0' and '1' characters of length 4.",
+    "The lock DFF names must be a list of strings, each a valid hierarchical path from the top-level module."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted recovered_key.json file must be valid JSON and parse successfully."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The \"key_sequence\" field must be a string consisting of exactly four characters, each being either '0' or '1'."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The \"lock_registers\" field must be a list of exactly four strings, each representing a valid hierarchical signal name present in the provided locked_fsm.v netlist."
+    }
+  ],
+  "input_artifacts": [
+    "locked_fsm.v",
+    "oracle_traces.txt",
+    "design_brief.md"
+  ],
+  "interface": "The submission is a single JSON file at submission/recovered_key.json. The file must contain a JSON object with two keys: \"key_sequence\" (a string of exactly four bits, e.g., \"0110\") and \"lock_registers\" (a list of strings, each being the hierarchical name of a D-type flip-flop in the netlist that forms the key-load shift register, e.g., [\"top.lock_reg[0]\", \"top.lock_reg[1]\", \"top.lock_reg[2]\", \"top.lock_reg[3]\"]). The order of the lock_registers list must correspond to the serial loading order (first bit loaded into the first register in the list).",
+  "objective": "Analyze the provided locked sequential netlist and oracle traces to determine the multi-cycle key sequence and the locations of the lock registers that must be initialized for the circuit to enter its functional mode.",
+  "response_format": "A single JSON file named recovered_key.json with the following schema: {\"key_sequence\": \"<4-bit string>\", \"lock_registers\": [\"<string>\", \"<string>\", \"<string>\", \"<string>\"]}"
+}

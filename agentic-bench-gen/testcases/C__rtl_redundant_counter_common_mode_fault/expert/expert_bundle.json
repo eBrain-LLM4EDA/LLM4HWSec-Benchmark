@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"common_mode_node\": \"timeout_module.shared_count_en\",\n  \"failure_mechanism\": \"Faulting shared_count_en low stalls both counters identically, so their equality monitor remains satisfied while timeout never asserts; independently generated enables are required.\"\n}",
+      "path": "golden/vulnerability_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/vulnerability_report.json",
+      "purpose": "The golden answer file for the analysis_report submission. Contains the exact hierarchical name of the shared enable signal (common_mode_node) and a precise description of the failure mechanism (failure_mechanism) that matches the ground truth: faulting shared_count_en low stalls both counters identically, so their equality monitor remains satisfied while timeout never asserts. This file is placed at golden/vulnerability_report.json and will be overlaid onto submission/vulnerability_report.json during grading. The evaluator reads this file and compares its content against the hidden acceptance criteria."
+    }
+  ]
+}

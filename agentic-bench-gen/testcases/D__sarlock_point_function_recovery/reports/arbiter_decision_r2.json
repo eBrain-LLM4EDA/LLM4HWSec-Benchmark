@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected by evaluate.py due to a bug in the net-name extraction logic (FR3 fails). This causes the baseline run to fail, making the mutation score of 0.0 not meaningful. The evaluator must be fixed to correctly parse hierarchical net names from the netlist so that the golden submission passes. Additionally, the evaluator does not compute the specified metrics (key_recovery_rate, key_gate_localization_accuracy), and no mutants were generated to test requirement discrimination. The oracle vectors may also be insufficient, but the immediate blocking issue is the evaluator bug.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

@@ -1,0 +1,64 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for Dual-Counter Timeout Module Vulnerability Analysis\n\n## Directory Layout\n\n```\n.\n\u251c\u2500\u2500 inputs/                  # Provided design artifacts (read-only)\n\u2502   \u251c\u2500\u2500 timeout_module.v     # RTL source of the dual-counter timeout module\n\u2502   \u251c\u2500\u2500 fault_model.txt      # Description of the single-bit transient fault model\n\u2502   \u2514\u2500\u2500 design_brief.md      # Functional specification and architecture overview\n\u251c\u2500\u2500 submission/              # Participant submission directory\n\u2502   \u2514\u2500\u2500 vulnerability_report.json   # Answer file to be graded\n\u2514\u2500\u2500 evaluation/              # Evaluation harness (this directory)\n    \u251c\u2500\u2500 README.md            # This file\n    \u2514\u2500\u2500 evaluate.py          # Main grading script\n```\n\n## Submission Contract\n\nThe participant must analyze the provided RTL design and fault model, then produce a single answer file:\n\n- **Path:** `submission/vulnerability_report.json`\n- **Format:** Valid JSON with the following schema:\n  ```json\n  {\n    \"common_mode_node\": \"<string identifier of the net or register>\",\n    \"failure_mechanism\": \"<string explanation of how faulting this node defeats both counters>\"\n  }\n  ```\n- Both fields are required and must be non-empty strings.\n- The `common_mode_node` must be a precise hierarchical name matching the RTL source.\n- The participant does **not** modify any files under `inputs/`.\n\n## Evaluation Contract\n\n`evaluate.py` grades the submitted answer file against hidden ground truth. It does **not** execute or simulate the RTL; it only inspects the content of `submission/vulnerability_report.json`.\n\nThe script:\n1. Checks that the submission file exists and is valid JSON.\n2. Verifies that required fields are present and non-empty.\n3. Compares the reported `common_mode_node` against the expected shared enable signal (accepting both bare and hierarchical names).\n4. Assesses the `failure_mechanism` description for semantic correctness.\n\nEach check produces a deterministic `[TEST] PASS` or `[TEST] FAIL` marker on stdout. The script exits with code 0 only if all checks pass.\n\n## Toolchain\n\n- **Python 3** (standard library only) \u2013 no external packages required.\n- No RTL simulation or synthesis tools are invoked during grading.\n\n## Requirements\n\n| ID   | Type       | Description (summary) |\n|------|------------|------------------------|\n| FR1  | Functional | Submission file exists and is valid JSON. |\n| FR2  | Functional | `common_mode_node` field is present and non-empty. |\n| FR3  | Functional | `failure_mechanism` field is present and non-empty. |\n| SR1  | Security   | `common_mode_node` matches the shared enable signal (bare or hierarchical name). |\n| SR2  | Security   | `failure_mechanism` correctly explains how a fault on the shared enable defeats both counters and prevents timeout. |\n\n*Note: The exact expected values for SR1 and SR2 are not disclosed here; they are derived from the hidden ground truth.*",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport sys\nimport os\n\n# Hidden ground truth\nEXPECTED_COMMON_MODE_NODE = \"shared_count_en\"\nEXPECTED_FAILURE_KEYWORDS = [\n    \"both counters stall\",\n    \"counters remain equal\",\n    \"timeout prevented\",\n    \"timeout never asserts\",\n    \"equality monitor remains satisfied\"\n]\n\ndef check_fr1(submission_path):\n    \"\"\"FR1: submission/vulnerability_report.json exists and is valid JSON.\"\"\"\n    if not os.path.isfile(submission_path):\n        print(\"[TEST] FAIL: FR1: submission/vulnerability_report.json not found\")\n        return False, None\n    try:\n        with open(submission_path, 'r') as f:\n            data = json.load(f)\n        print(\"[TEST] PASS: FR1\")\n        return True, data\n    except json.JSONDecodeError as e:\n        print(f\"[TEST] FAIL: FR1: invalid JSON: {e}\")\n        return False, None\n    except Exception as e:\n        print(f\"[TEST] FAIL: FR1: could not read file: {e}\")\n        return False, None\n\ndef check_fr2(data):\n    \"\"\"FR2: common_mode_node field is present and non-empty string.\"\"\"\n    if data is None:\n        return False\n    node = data.get(\"common_mode_node\")\n    if isinstance(node, str) and node.strip():\n        print(\"[TEST] PASS: FR2\")\n        return True\n    else:\n        print(\"[TEST] FAIL: FR2: common_mode_node missing, null, or empty\")\n        return False\n\ndef check_fr3(data):\n    \"\"\"FR3: failure_mechanism field is present and non-empty string.\"\"\"\n    if data is None:\n        return False\n    mech = data.get(\"failure_mechanism\")\n    if isinstance(mech, str) and mech.strip():\n        print(\"[TEST] PASS: FR3\")\n        return True\n    else:\n        print(\"[TEST] FAIL: FR3: failure_mechanism missing, null, or empty\")\n        return False\n\ndef check_sr1(data):\n    \"\"\"SR1: common_mode_node matches shared enable signal (bare or hierarchical).\"\"\"\n    if data is None:\n        return False\n    node = data.get(\"common_mode_node\", \"\").strip()\n    # Accept bare name or any hierarchical name ending with .shared_count_en\n    if node == EXPECTED_COMMON_MODE_NODE or node.endswith(\".\" + EXPECTED_COMMON_MODE_NODE):\n        print(\"[TEST] PASS: SR1\")\n        return True\n    else:\n        print(f\"[TEST] FAIL: SR1: expected '{EXPECTED_COMMON_MODE_NODE}' or hierarchical name ending with '.{EXPECTED_COMMON_MODE_NODE}', got '{node}'\")\n        return False\n\ndef check_sr2(data):\n    \"\"\"SR2: failure_mechanism describes fault stalling both counters and preventing timeout.\"\"\"\n    if data is None:\n        return False\n    mech = data.get(\"failure_mechanism\", \"\").lower()\n    # Check for presence of at least one key phrase\n    found_keywords = [kw for kw in EXPECTED_FAILURE_KEYWORDS if kw in mech]\n    if len(found_keywords) >= 1:\n        print(\"[TEST] PASS: SR2\")\n        return True\n    else:\n        print(f\"[TEST] FAIL: SR2: failure_mechanism does not adequately describe the fault effect (found keywords: {found_keywords})\")\n        return False\n\ndef main():\n    submission_path = \"submission/vulnerability_report.json\"\n    \n    # FR1 must pass to continue with content checks\n    fr1_ok, data = check_fr1(submission_path)\n    if not fr1_ok:\n        # If FR1 fails, we cannot check other requirements meaningfully,\n        # but we still emit FAIL markers for them to ensure baseline fails.\n        print(\"[TEST] FAIL: FR2: cannot check due to FR1 failure\")\n        print(\"[TEST] FAIL: FR3: cannot check due to FR1 failure\")\n        print(\"[TEST] FAIL: SR1: cannot check due to FR1 failure\")\n        print(\"[TEST] FAIL: SR2: cannot check due to FR1 failure\")\n        sys.exit(1)\n    \n    results = []\n    results.append(check_fr2(data))\n    results.append(check_fr3(data))\n    results.append(check_sr1(data))\n    results.append(check_sr2(data))\n    \n    if all(results):\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: directory layout (inputs/, submission/, evaluation/), submission contract (participant places vulnerability_report.json under submission/ with common_mode_node and failure_mechanism fields), evaluation contract (evaluate.py grades the report against hidden ground truth using Python 3 stdlib only), and requirement summary table (FR1-FR3 functional, SR1-SR2 security) without revealing ground-truth values."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading script. Reads submission/vulnerability_report.json and grades it against hidden ground truth. Implements: FR1 (file exists, valid JSON), FR2 (common_mode_node non-empty string), FR3 (failure_mechanism non-empty string), SR1 (common_mode_node matches shared enable signal \u2014 accepts both bare name 'shared_count_en' and hierarchical names ending with '.shared_count_en'), SR2 (failure_mechanism semantically describes fault stalling both counters and preventing timeout \u2014 checks for presence of at least one key phrase from a broader set including 'both counters stall', 'counters remain equal', 'timeout prevented', 'timeout never asserts', 'equality monitor remains satisfied'). Emits [TEST] PASS/FAIL per requirement. Exits 0 on all-pass, 1 on any failure. Uses only Python stdlib."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Check that submission/vulnerability_report.json exists and parses as valid JSON. PASS if present and valid; FAIL if missing or malformed.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the parsed JSON contains a non-empty string for the 'common_mode_node' field. PASS if present and non-empty; FAIL if missing, null, or empty.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the parsed JSON contains a non-empty string for the 'failure_mechanism' field. PASS if present and non-empty; FAIL if missing, null, or empty.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the submitted common_mode_node string matches the shared enable signal. Accept both the bare net name 'shared_count_en' and any hierarchical name ending with '.shared_count_en' (e.g., 'timeout_module.shared_count_en'). PASS on match; FAIL on any other value.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the submitted failure_mechanism string semantically describes the fault effect: a fault on the shared enable stalls both counters identically, so the equality monitor remains satisfied and the timeout never asserts. PASS if the description contains at least one key phrase from a broader set ('both counters stall', 'counters remain equal', 'timeout prevented', 'timeout never asserts', 'equality monitor remains satisfied'); FAIL if none are present.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    }
+  ]
+}

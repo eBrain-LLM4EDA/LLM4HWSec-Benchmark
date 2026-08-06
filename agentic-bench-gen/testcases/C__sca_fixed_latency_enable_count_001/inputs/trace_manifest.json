@@ -1,0 +1,51 @@
+{
+  "description": "Structural metadata for traces.csv, describing how the trace data set was organized and captured.",
+  "source_module": "inputs/mult_ctrl.v",
+  "capture_reference": "inputs/fault_model.md",
+  "total_trials": 18,
+  "note_on_trial_count": "This manifest describes the compact representative sample of trials actually shipped in inputs/traces.csv, not the full 64-trial sweep referenced in the original data-collection run. The shipped sample was selected to cover a variety of Hamming weights and bit positions while keeping the file small.",
+  "public_operand": {
+    "hex": "0xAA",
+    "decimal": 170,
+    "note": "Held constant across every trial in traces.csv."
+  },
+  "cycle_index_range": {
+    "min": 0,
+    "max": 9,
+    "description": "Each trial records 10 consecutive cycles relative to the cycle 'start' was sampled (cycle_index 0), covering the full 8-cycle active sequence (cycle_index 1-8) plus one idle cycle before and after."
+  },
+  "secret_operand_sampling": {
+    "range": "0x00 to 0xFF",
+    "description": "Sampled secret_operand values were selected from the full 8-bit range to represent a variety of bit patterns and Hamming weights, rather than an exhaustive sweep of all 256 possible byte values. The full reference data-collection run covers 64 of 256 possible values at a fixed stride; this manifest accompanies a smaller representative subset of those trials shipped in traces.csv for compactness."
+  },
+  "fields": [
+    {
+      "name": "trial_id",
+      "type": "integer",
+      "description": "Identifier for the transaction this row belongs to. All rows sharing a trial_id belong to the same trial and the same secret_operand value."
+    },
+    {
+      "name": "secret_operand",
+      "type": "string (hex byte, e.g. \"0x3F\")",
+      "description": "The 8-bit multiplicand value used for this trial. Constant across all rows of the same trial."
+    },
+    {
+      "name": "cycle_index",
+      "type": "integer",
+      "range": "0-9",
+      "description": "Cycle position relative to the cycle on which 'start' was sampled for this trial."
+    },
+    {
+      "name": "mul_en",
+      "type": "integer (0 or 1)",
+      "description": "Value of the mul_en output observed on this cycle."
+    },
+    {
+      "name": "done",
+      "type": "integer (0 or 1)",
+      "description": "Value of the done output observed on this cycle."
+    }
+  ],
+  "rows_per_trial": 10,
+  "file_format": "CSV with header row: trial_id,secret_operand,cycle_index,mul_en,done"
+}

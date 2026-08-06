@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Instrumented harness fixes value and varies key across all 256 values; because idx = (value^key)&0x0F changes with key, the loop now exits early once i==idx, so the TRACE_ACCESS sequence length and content vary with key (e.g. key producing idx=0 yields a 1-access trace, key producing idx=15 yields a 16-access trace). This makes the recorded access-index sequences differ across key values, violating SR1's requirement that the access pattern be independent of key. It also collaterally breaks SR3 (non-constant access count) but the essential defect targeted here is the key-dependent early-exit that leaks the table-access shape.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC4, 0x5D, 0x92, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        result |= table[i] & mask;\n        if (i == idx) {\n            // Early exit once the matching entry has been found: this\n            // makes the number and sequence of TRACE_ACCESS calls depend\n            // on idx, which is derived from the secret key.\n            break;\n        }\n    }\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_SR1_domain_specific_shortcut_scan",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "SR2 detection: harness fixes key and varies value across all 256 possibilities (and cross-checks with random (value,key) pairs), recording TRACE_ACCESS sequences. Because the mutant special-cases value==0 to skip the scan and directly index table with a secret-dependent address (bypassing the fixed 0..15 scan), the recorded access sequence for value==0 will differ (length 1, single non-canonical index) from the canonical [0,1,...,15] sequence produced for all other values, revealing value-dependent (and key-dependent) memory trace variation and failing SR2 (and likely SR1/SR3 as well).",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC4, 0x5D, 0x92, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n\n    // Fast-path shortcut: when value happens to be zero, skip the\n    // constant-time scan entirely and index the table directly using\n    // the secret-derived index. This reintroduces a value/key-dependent\n    // memory access pattern for this branch.\n    if (value != 1) {\n        TRACE_ACCESS(idx);\n        return table[idx];\n    }\n\n    uint8_t result = 0;\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        result |= table[i] & mask;\n    }\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_SR2_condition_negation_direct_index_shortcut",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Instrumented harness counts TRACE_ACCESS invocations per call across randomized (value,key) pairs; this mutant breaks out of the scan loop as soon as the matching index is found, so calls where idx is small (e.g. idx==0) produce far fewer than 16 TRACE_ACCESS calls while idx==15 produces 16, revealing a secret-dependent instruction/read count and violating the constant-work-per-call requirement.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\n// Fixed 16-entry substitution table shared across sessions.\n// Do not change the size or contents of this table.\nstatic const uint8_t table[16] = {\n    0x3A, 0xC5, 0x0F, 0x91,\n    0x6D, 0x2E, 0xB8, 0x74,\n    0x1C, 0xF0, 0x5B, 0xA9,\n    0x82, 0x4D, 0xE6, 0x37\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        result |= table[i] & mask;\n        if (i == idx) {\n            // Early exit once the matching entry has been folded in;\n            // saves work but makes the number of TRACE_ACCESS calls\n            // depend on the secret-derived index.\n            break;\n        }\n    }\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_SR3_domain_specific_early_exit_on_match",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Exhaustive comparison of lookup(value,key) against reference oracle table[(value^key)&0x0F] over all 65536 (value,key) pairs (SR4) will reveal mismatches: with the mask inverted, result accumulates bitwise OR of all 15 non-matching table entries' bits instead of the single matching entry, producing incorrect output for the vast majority of input pairs while still performing the fixed 16-read access pattern (SR1-SR3 still pass), isolating the defect specifically to output correctness.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC4, 0x5D, 0x92, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i != idx));\n        result |= table[i] & mask;\n    }\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_SR4_constant_change_wrong_mask_polarity",
+      "operator": "constant_change",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "Exhaustive FR1 test over all 256x256 (value,key) pairs comparing lookup(value,key) against reference oracle table[(value^key)&0x0F] will detect mismatches whenever idx==3 or idx==5, since table[3] and table[5] have been altered from the golden values, producing wrong outputs for many input combinations.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC5, 0x5D, 0x93, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        result |= table[i] & mask;\n    }\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_FR1_constant_change_wrong_table_value",
+      "operator": "constant_change",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Compilation/static-check harness for FR2 must reject this submission because it introduces heap allocation (new[]) inside the kernel body, violating the 'no dynamic memory allocation' constraint even though the code compiles with g++ -O0/-O2 without warnings; a requirement-aware check inspecting for forbidden constructs (new/malloc) or the build policy disallowing heap use in synthesizable HLS code must flag it as failing FR2.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC4, 0x5D, 0x92, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    // Dynamically allocate a scratch buffer to hold intermediate masks.\n    // This violates the synthesizable, allocation-free requirement (FR2)\n    // while still compiling and running correctly.\n    uint8_t* scratch = new uint8_t[16];\n\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        scratch[i] = table[i] & mask;\n        result |= scratch[i];\n    }\n\n    delete[] scratch;\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_FR2_domain_specific_dynamic_alloc",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Instrumented harness counts TRACE_ACCESS invocations per call; this mutant only performs 15 accesses (loop bound changed from i < 16 to i < 15), so index 15 is never touched via TRACE_ACCESS. The per-call access count is 15 instead of the required fixed 16, and lookup(value,key) returns wrong output whenever idx==15, failing both the access-count check (FR3) and functional correctness (FR1/FR4).",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC4, 0x5D, 0x92, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    for (int i = 0; i < 15; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        result |= table[i] & mask;\n    }\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_FR3_operator_swap_skip_last_index",
+      "operator": "operator_swap",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Static/behavioral check for FR4 must detect that the kernel body contains a data-dependent conditional (if (idx == 0) ...) keyed on a value derived from the secret key and public value, which alters control flow (an early, differently-shaped return path) depending on secret-derived data. This also produces a shortened/altered access trace for the idx==0 case, which should also be catchable by SR1-SR3 trace-invariance and count checks, but the primary defect is the introduced branch violating FR4's static-control-flow requirement.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC4, 0x5D, 0x92, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    if (idx == 0) {\n        TRACE_ACCESS(0);\n        return table[0];\n    }\n\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        result |= table[i] & mask;\n    }\n\n    return result;\n}",
+          "path": "inputs/lookup_kernel.cpp"
+        }
+      ],
+      "mutant_id": "mutant_FR4_stuck_at_signal_data_dependent_shortcut_branch",
+      "operator": "stuck_at_signal",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

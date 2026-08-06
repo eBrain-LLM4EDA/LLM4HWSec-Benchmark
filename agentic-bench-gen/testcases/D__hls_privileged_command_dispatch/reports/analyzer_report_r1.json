@@ -1,0 +1,107 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden_rejected) and accepts the known-insecure baseline (vulnerable_accepted). The compile command in evaluate.py is missing the -Iinputs/ flag, causing the harness to fail to find dispatcher.h and emit [TEST] FAIL for all requirements. This makes the evaluator non-functional for grading any submission.",
+      "evidence": "Validation report shows golden_run exit_code=1 with compile error 'CMD_READ_STATUS was not declared in this scope' and vulnerable_run exit_code=1 with empty stdout. The differential status is 'fail' with failure_class 'multiple'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not correctly implement the submission contract for hardened_artifact domains. It should ACCEPT a correct hardened submission (exit 0) and REJECT the shipped insecure baseline (exit non-zero with [TEST] FAIL markers). Instead, it fails to compile both, producing identical failure output for all requirements.",
+      "evidence": "Both golden_run and vulnerable_run produce exit_code=1. Golden expected 'pass' but got 'fail'; vulnerable expected 'fail' but got 'fail' with empty stdout, not the expected [TEST] FAIL markers for security requirements.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/harness_main.cpp",
+      "description": "The harness includes dispatcher.h but the evaluator compile command lacks the -Iinputs/ include path, causing compilation failure. This prevents any requirement from being tested.",
+      "evidence": "Compile error: 'CMD_READ_STATUS was not declared in this scope' in harness_main.cpp line 20. The include directive #include \"dispatcher.h\" cannot resolve because -Iinputs/ is missing from the g++ command in evaluate.py.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator emits [TEST] FAIL markers for all requirements when compilation fails, but the format duplicates the requirement ID in the message body, potentially confusing parsers. The error message includes the full compiler stderr truncated to 200 chars, which may contain newlines and break line-based parsing.",
+      "evidence": "stdout shows: '[TEST] FAIL: FR1: compile failed: evaluation/harness_main.cpp: In function...' repeated for each requirement. The stderr snippet contains embedded newlines from the compiler output.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/private/security_checks.cpp",
+      "description": "Security checks SR1-SR4 are implemented but never executed because the harness fails to compile. The private/ directory placement is appropriate for hiding security intent, but the checks are unreachable in the current evaluator state.",
+      "evidence": "Validation report shows all SR requirements as 'untested_requirements' with mutation_score 0.0 and requirement_discrimination_coverage_score 0.0.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The public README does not leak CWE IDs, SR requirement identifiers, or threat model details. It presents the task as a plain engineering assignment to add privilege checks. No security-specific terminology beyond 'harden' and 'unauthorized' is used.",
+      "evidence": "README content reviewed: mentions 'hardening requirement' and privilege-based restrictions but no CWE-862, CWE-863, SR1-SR4, or threat model language.",
+      "severity": "low"
+    },
+    {
+      "artifact": "metadata.json",
+      "description": "Metadata includes metric names (cwe_violation_rate, information_flow_correctness) that hint at security evaluation but does not expose specific CWE IDs or SR requirements. The metric descriptions are generic enough to not reveal the exact security checks.",
+      "evidence": "Metadata shows: 'cwe_violation_rate' and 'information_flow_correctness' metric names. These suggest security testing but do not detail the specific privilege-check requirements.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py to include -Iinputs/ in the g++ compile command so that dispatcher.h is found. The current command is: ['g++', '-std=c++11', '-O0', '-o', binary, submission_cpp, harness_cpp, security_cpp]. It should be: ['g++', '-std=c++11', '-O0', '-Iinputs/', '-o', binary, submission_cpp, harness_cpp, security_cpp].",
+    "Add metric computation to evaluate.py. After parsing [TEST] markers, compute cwe_violation_rate as the proportion of SR tests that failed, information_flow_correctness as 1.0 if all SR tests pass else 0.0, and synthesis_pass_rate as 1.0 if compilation succeeded else 0.0. Output these metrics in a structured format (e.g., JSON) alongside the pass/fail markers.",
+    "Improve error handling in evaluate.py when compilation fails. Instead of emitting [TEST] FAIL for every requirement with truncated compiler stderr, emit a single [TEST] FAIL: COMPILE marker and exit. This prevents parser confusion from duplicated requirement IDs and embedded newlines.",
+    "Add mutation testing to validate that each requirement's test actually discriminates between correct and incorrect implementations. The validation report shows mutation_score 0.0 and all requirements as untested, indicating no mutants were generated or tested.",
+    "Consider adding a Makefile or build script to standardize the compilation process and ensure include paths are consistently applied across different execution environments."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Public inputs (dispatcher.cpp, dispatcher.h) define the interface and baseline behavior. Hidden spec defines SR1-SR4 security requirements that map to privilege checks on WRITE_CONFIG_LO/HI. Expected outputs describe a hardened dispatcher that enforces these checks. The mapping is coherent.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "Validation report shows golden_run (correct solution) fails with exit_code=1 due to missing -Iinputs/ compile flag. Vulnerable_run also fails with exit_code=1 but with empty stdout, not the expected [TEST] FAIL markers. The evaluator cannot distinguish between correct and incorrect submissions.",
+      "requirement": "Evaluator accepts correct submission and rejects insecure baseline",
+      "status": "fail"
+    },
+    {
+      "evidence": "Metrics cwe_violation_rate, information_flow_correctness, and synthesis_pass_rate are defined in metadata but the evaluator does not compute or report them. It only emits [TEST] PASS/FAIL markers per requirement. No metric aggregation is performed.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "fail"
+    },
+    {
+      "evidence": "Requirement_map in tester bundle lists FR1-FR4 as functional and SR1-SR4 as security, each with distinct detection strategies and test file assignments. Functional checks are in harness_main.cpp; security checks are in private/security_checks.cpp.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "Security checks in private/security_checks.cpp actively call dispatch() with privilege=0 for WRITE_CONFIG_LO/HI (SR1, SR2) and privilege=1 (SR3, SR4), verifying return values, status codes, and state mutations. These are specific behavioral probes, not generic checks.",
+      "requirement": "Security-relevant behaviors are actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are C++ source, headers, Python scripts, and markdown documentation. No external network calls, no dynamic code execution beyond compilation and running the harness binary. The harness runs with a 10-second timeout.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task involves hardening an HLS command dispatcher with privilege-based access control for configuration registers. It uses fixed-width scalar types, a pinned dispatch interface, and hardware-accelerator terminology (opcodes, state word, configuration registers). This is domain-specific, not generic filler.",
+      "requirement": "Benchmark is adapted to HLS security codegen domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "The evaluator cannot compile any submission due to the missing -Iinputs/ flag. This makes all results unverifiable. Additionally, metrics are not computed, only pass/fail markers are emitted.",
+      "requirement": "No gaps making results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md describes the task as adding privilege checks without mentioning CWE-862, CWE-863, SR1-SR4, or threat models. Metadata.json mentions cwe_violation_rate but does not expose specific CWE IDs or SR requirements. Input files contain no comments flagging the baseline as intentionally vulnerable.",
+      "requirement": "No leakage of hidden security intent in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are specific: FR1 requires exact function signature and g++ compilation; FR2 specifies READ_STATUS behavior with return value, status, and state invariants; FR3 specifies NOOP behavior; FR4 specifies unknown command rejection. Each is verifiable through the pinned dispatch interface with concrete input/output assertions.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

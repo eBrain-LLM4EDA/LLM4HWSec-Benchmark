@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "Preserve the exact function name, parameter order, and parameter types of validate_dma as pinned in the interface.",
+    "Use only fixed-width types from <cstdint> (uint32_t, uint64_t, etc.) for all arithmetic involved in the bounds check.",
+    "The file must compile standalone with `g++ -std=c++17 -c dma_validate.cpp` without requiring any proprietary or vendor-specific HLS headers.",
+    "Do not add any file I/O, dynamic memory allocation, or actual memory access (no dereferencing of base/length/region_start/region_size as addresses) inside validate_dma.",
+    "The function must terminate for all 32-bit input combinations without undefined behavior (no unsigned overflow relied upon for correctness without explicit, intentional wraparound-safe arithmetic)."
+  ],
+  "expected_outputs": [
+    "A modified inputs/dma_validate.cpp that compiles standalone with g++ and implements validate_dma with correct boundary arithmetic for all 32-bit input combinations."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "validate_dma(0x1000, 0x100, 0x1000, 0x200) must return 1 (fully contained, starts at region start)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "validate_dma(0x1000, 0x300, 0x1000, 0x200) must return 0 (requested length exceeds region size)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "validate_dma(0x0FF0, 0x20, 0x1000, 0x200) must return 0 (base starts before region_start)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "validate_dma(0x1100, 0x0, 0x1000, 0x200) must return 0 (zero-length requests are always rejected regardless of base)."
+    }
+  ],
+  "input_artifacts": [
+    "dma_validate.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/dma_validate.cpp. Required entry point: `extern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size);` (also declared identically in a companion header dma_validate.h if you add one, but the .cpp definition is what is graded). All parameters are public (non-secret) 32-bit unsigned integers using <cstdint> types. Semantics: base = starting address of the requested transfer; length = number of bytes requested; region_start = starting address of the allowed region; region_size = size in bytes of the allowed region. Return value: exactly 1 (int) if the requested half-open byte range [base, base+length) is entirely contained within the half-open allowed range [region_start, region_start+region_size), and exactly 0 otherwise. The function must not dereference base, length, region_start, or region_size as pointers, must not loop over the range, and must return within O(1) fixed arithmetic operations. No global state, no I/O, no exceptions may escape the function.",
+  "objective": "The file inputs/dma_validate.cpp contains a DMA descriptor range checker used in an HLS memory-mapped I/O subsystem. Your task is to harden the implementation of validate_dma so that it correctly and robustly determines whether a requested transfer window lies fully within an allowed memory region, for every possible combination of 32-bit inputs, without ever performing the actual memory access. The function must be purely computational (no reads/writes to the described memory) and must return a boolean-like result usable by a caller before any transfer is issued.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

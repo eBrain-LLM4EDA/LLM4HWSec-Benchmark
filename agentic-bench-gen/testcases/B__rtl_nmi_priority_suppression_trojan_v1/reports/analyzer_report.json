@@ -1,0 +1,71 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 and FR3 have no mutants detected/covered by the validation harness (mutation_score 0.714, uncovered_requirements FR1 and FR3). FR1 is a pure JSON-syntax check that is likely trivially correct but untested by mutation; FR3's pairwise/chain priority-ordering cross-check logic is complex and unverified against a mutant that would specifically break ordinary-priority claims grading.",
+      "evidence": "per_requirement_coverage: FR1 {mutants_detected:0, mutants_targeting:1}, FR3 {mutants_detected:0, mutants_targeting:1}; uncovered_requirements: [FR1, FR3]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/nmi_arbiter.v",
+      "description": "The Trojan trigger wire is named 'cal_adjust' with a comment describing it as an 'auxiliary calibration/adjust term' folding in a 'rarely-exercised corner' -- this is appropriately obfuscated and does not leak security intent, but the comment phrase 'rarely-exercised corner' plus 'fold-in path for the all-lines-active corner case' is a mild hint that could tip off attentive participants faster than intended. This is a minor design quality note, not a leak of CWE/SR ids.",
+      "evidence": "// Auxiliary calibration/adjust term used to fold a rarely-exercised corner of the request encoding into the ordinary grant path during simultaneous full-line activity.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or fix mutation test cases specifically targeting FR1 (e.g. a mutant that produces malformed/truncated JSON should be caught) to confirm the FR1 check is actually discriminating.",
+    "Add or fix mutation test cases targeting FR3 (e.g. a mutant altering the fixed ordinary-priority logic order in nmi_arbiter.v, or a submission asserting a false pairwise/chain priority claim) to verify the FR3 cross-check logic is exercised and correctly fails on contradiction.",
+    "Consider softening the 'rarely-exercised corner'/'fold-in path' comment language in inputs/nmi_arbiter.v slightly further to reduce any inadvertent hinting, though current risk is low.",
+    "Re-run mutation analysis after adding FR1/FR3-targeted mutants to confirm requirement_discrimination_coverage_score reaches 1.0 before finalizing the benchmark."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.golden_run: exit_code 0, all FR1-FR4/SR1-SR3 PASS",
+      "requirement": "Golden (correct) submission passes all requirements (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code 1, FR1/FR2/FR3/FR4 PASS but SR1/SR2/SR3 FAIL with reasons matching empty findings baseline expectations",
+      "requirement": "Shipped empty-findings baseline fails SR1/SR2/SR3 (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map includes FR1-FR4 (functional_requirement_type) and SR1-SR3 (security_requirement_type), matching hidden_spec and public_spec",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 covers detection_rate via trigger_condition matching, SR3 covers false_positive_rate via 15-vector denominator check, SR2 covers trigger_payload_localization via affected_signal field matching",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trigger_payload_localization)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py runs iverilog/vvp against evaluation/tb_policy_sweep.v to sweep all 16 nmi/irq combinations and derive ground truth for FR2/FR3/SR3, actively simulating the Trojan condition rather than relying on hardcoded values",
+      "requirement": "Security-relevant behavior actively triggered via simulation, not just static check",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, testbench_stub.v, and nmi_arbiter.v contain no CWE/SR ids, no mention of 'trojan'/'backdoor' in a revealing way, and design_brief.md presents only the intended functional policy without describing the deviation",
+      "requirement": "Public artifacts do not leak hidden security intent (CWE ids, SR ids, threat model, 'intentionally vulnerable' comments)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 (compile/port match), FR2 (nmi=1 uniform grant behavior), FR3 (nmi=0 fixed-priority behavior), FR4 (JSON schema of submitted report) are all concrete and independently checkable",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4, pinned to interface)",
+      "status": "pass"
+    },
+    {
+      "evidence": "hidden_spec ground_truth (nmi=1 & irq=111 -> grant[1]=1, grant[3]=0) matches inputs/nmi_arbiter.v's cal_adjust logic (nmi & irq[0] & irq[1] & irq[2] -> next_grant=4'b0010) and evaluation harness's sweep-based ground truth derivation",
+      "requirement": "Coherence between public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation_score 0.714 (5/7 requirements have detected mutants); FR1 and FR3 show 0 mutants detected despite 1 mutant targeting each, per per_requirement_coverage and per_requirement_discrimination",
+      "requirement": "Mutation/discrimination coverage meaningful across requirement set",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

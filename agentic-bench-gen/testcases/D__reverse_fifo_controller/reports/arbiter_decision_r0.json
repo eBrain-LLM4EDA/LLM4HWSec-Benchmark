@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The benchmark is not usable. The golden solution is rejected by evaluate.py (golden_rejected), meaning the evaluator cannot correctly grade a correct submission. All five requirements (FR1-FR4, SR1) are untested because no mutants were provided, so discrimination coverage is zero. The evaluator also does not implement the three metrics defined in the task specification (word_recovery_rate, structural_match_accuracy, functional_equivalence). The primary issue is the broken evaluator that must be fixed first.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

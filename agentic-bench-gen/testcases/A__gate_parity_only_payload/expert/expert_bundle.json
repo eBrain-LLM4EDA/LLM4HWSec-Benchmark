@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"label\": \"Trojan\",\n  \"suspect_nodes\": [\n    \"u_payload_and\",\n    \"u_xnor0\"\n  ]\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The golden submission answer file for the gate_trojan_detection domain. Contains the correct label 'Trojan' and a suspect_nodes list that includes the hierarchical name of the final AND gate driving parity_error (the payload) and at least one gate from the trigger comparator cone. Must satisfy all acceptance criteria: label is 'Trojan', suspect_nodes contains the payload AND gate, and suspect_nodes contains at least one trigger comparator gate. The exact node names must match identifiers present in the input netlist design.v. This file is the only artifact graded by evaluate.py. The previous version used placeholder names ('payload_and_gate', 'trigger_comparator_xnor_0') that did not match the actual netlist identifiers; this version will use the correct instance names from design.v (e.g., 'u_payload_and', 'u_xnor0')."
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_enum_tb.v",
+    "inputs/fault_model.json",
+    "inputs/secded_codec.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "da198393c705dd73107824a1f3b3a75bfab5c4200646bcd62525ec4c28b159be",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: FR2: skipped due to FR1 failure: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: FR3: skipped due to FR1 failure: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: FR4: skipped due to FR1 failure: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: SR1: skipped due to FR1 failure: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: SR2: skipped due to FR1 failure: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: SR3: skipped due to FR1 failure: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: SR4: skipped due to FR1 failure: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: fault_id set mismatch vs fault_model.json (missing=91, extra=0); examples missing=['double_b0_b1', 'double_b0_b10', 'double_b0_b11', 'double_b0_b12', 'double_b0_b2'] extra=[]\n[TEST] FAIL: FR3: single-bit fault case violations (showing up to 5 of 13): ['single_b5: missing from submission', 'single_b2: missing from submission', 'single_b8: missing from submission', 'single_b7: missing from submission', 'single_b3: missing from submission']\n[TEST] FAIL: FR4: summary counts sum to 0, expected 91\n[TEST] FAIL: SR1: report does not substantively state that the decoder's correctable/uncorrectable decision omits checking overall_parity_error (missing double-error-detection gating)\n[TEST] PASS: SR2\n[TEST] FAIL: SR3: ground-truth miscorrection set is empty; cannot evaluate (unexpected RTL/oracle result)\n[TEST] FAIL: SR4: ground-truth zero-syndrome escape set is empty; cannot evaluate (unexpected RTL/oracle result)\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: FR1: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)",
+        "failure_class": "golden_rejected",
+        "failure_signature": "7fd32020347193bbf8b88df84ae26ec336c39a84302c730e1ca244e342dac1c9"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: FR1: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)",
+        "failure_class": "golden_rejected",
+        "failure_signature": "1013e33d62d29f6faca417d73e77da81b9cc46f2f8f94b7d06ca6ddf07106fae"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "7fd32020347193bbf8b88df84ae26ec336c39a84302c730e1ca244e342dac1c9",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "47e7e8b9ae90f624a8ad3492ebb2b0e4faf9a9d4e6c0d76fe13c155baa2fbe30",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "e510c659f0864a61ccb0241d538b3c6ca3f80c93f170c5cddeb9e25a27c617ff",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/oracle_tb.v",
+    "evaluation/private/README.md"
+  ],
+  "uncovered_requirements": []
+}

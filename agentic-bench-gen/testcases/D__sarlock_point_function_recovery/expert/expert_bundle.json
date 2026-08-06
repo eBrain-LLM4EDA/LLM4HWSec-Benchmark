@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"recovered_key\": \"101101\",\n  \"key_gate_nets\": [\n    \"lock_comp/xor_0\",\n    \"lock_comp/xor_1\",\n    \"lock_comp/xor_2\",\n    \"lock_comp/xor_3\",\n    \"lock_comp/xor_4\",\n    \"lock_comp/xor_5\",\n    \"lock_comp/and_stage1_0\",\n    \"lock_comp/and_stage1_1\",\n    \"lock_comp/and_stage2\",\n    \"lock_comp/corrupt_xor\"\n  ]\n}",
+      "path": "golden/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_key.json",
+      "purpose": "The golden answer file for the analysis_report submission. Contains the exact ground-truth key '101101' and the full set of key gate nets: ['lock_comp/xor_0', 'lock_comp/xor_1', 'lock_comp/xor_2', 'lock_comp/xor_3', 'lock_comp/xor_4', 'lock_comp/xor_5', 'lock_comp/and_stage1_0', 'lock_comp/and_stage1_1', 'lock_comp/and_stage2', 'lock_comp/corrupt_xor']. This file must be valid JSON with fields 'recovered_key' (string) and 'key_gate_nets' (array of strings). It satisfies FR1 (valid JSON), FR2 (non-empty binary string), FR3 (valid net names), SR1 (exact key match), and SR2 (all ground-truth nets present)."
+    }
+  ]
+}

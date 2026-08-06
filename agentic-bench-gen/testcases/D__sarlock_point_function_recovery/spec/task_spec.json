@@ -1,0 +1,79 @@
+{
+  "domain_id": "logic_deobfuscation_sat",
+  "evaluation": {
+    "baselines": [
+      "A naive submission with an empty key and empty net list.",
+      "A submission with a random key guess and no net list."
+    ],
+    "metrics": [
+      {
+        "description": "The fraction of key bits correctly recovered. 1.0 indicates perfect recovery.",
+        "direction": "maximize",
+        "name": "key_recovery_rate"
+      },
+      {
+        "description": "The Jaccard index (intersection over union) between the submitted set of key gate nets and the ground truth set. 1.0 indicates perfect localization.",
+        "direction": "maximize",
+        "name": "key_gate_localization_accuracy"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted recovered_key exactly matches '101101'.",
+      "The submitted key_gate_nets array contains all nets listed in the ground truth."
+    ],
+    "cwe_ids": [
+      "CWE-200"
+    ],
+    "ground_truth": "The labeled XNOR-and comparator detects input equal to key 101101; its output XORs result[0], and that protected cube is the correct recovered key. The key gate nets are [\"lock_comp/xor_0\", \"lock_comp/xor_1\", \"lock_comp/xor_2\", \"lock_comp/xor_3\", \"lock_comp/xor_4\", \"lock_comp/xor_5\", \"lock_comp/and_stage1_0\", \"lock_comp/and_stage1_1\", \"lock_comp/and_stage2\", \"lock_comp/corrupt_xor\"].",
+    "security_requirements": [
+      {
+        "detection_strategy": "Exact string comparison of the submitted recovered_key against the ground truth key.",
+        "id": "SR1",
+        "requirement": "The recovered key must exactly match the hidden key '101101'."
+      },
+      {
+        "detection_strategy": "Compare the submitted array of net names against the ground truth set of key gate nets. The submission must contain at least all ground truth nets; extra non-key nets are tolerated but may indicate imprecise localization.",
+        "id": "SR2",
+        "requirement": "The set of submitted key gate nets must contain all nets in the comparator cone that directly implement the key comparison and corruption logic."
+      }
+    ],
+    "threat_model": "A point-function lock minimizes discriminating inputs, making ordinary oracle-guided SAT iterations ineffective. The attacker must analyze the netlist structure and use the provided oracle vectors to deduce the protected input pattern."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist is a small combinational circuit.",
+      "The locking scheme uses a key comparator whose output corrupts one functional output on a single protected input pattern.",
+      "The key width and a set of sparse oracle vectors are provided publicly.",
+      "The comparator nodes and the correct key value are hidden and must be recovered."
+    ],
+    "expected_outputs": [
+      "A JSON file containing the recovered key bits and the list of key-gate net names."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted recovered_key.json file must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The \"recovered_key\" field must be a non-empty string consisting only of the characters '0' and '1'."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The \"key_gate_nets\" field must be an array of strings, where each string is a valid net name present in the provided locked_netlist.v file."
+      }
+    ],
+    "input_artifacts": [
+      "locked_netlist.v",
+      "oracle_vectors.json",
+      "locking_scheme_description.md"
+    ],
+    "interface": "The participant does not modify the input artifacts. The evaluation script reads the submission/submitted_key.json file and grades its content against the hidden ground truth. The input artifacts under inputs/ are available for reference and optional cross-checking using the provided toolchain (yosys, iverilog, vvp).",
+    "objective": "Analyze the provided logic-locked netlist and oracle vectors to localize the key comparator cone and recover the protected input pattern that corrupts a functional output.",
+    "response_format": "The submission must be a single JSON file named recovered_key.json placed in the submission/ directory. The file must contain a JSON object with the following fields: \"recovered_key\" (a string of '0' and '1' characters representing the key bits, e.g., \"101101\"), and \"key_gate_nets\" (an array of strings, each being the hierarchical name of a net in the netlist that is part of the key comparator logic, e.g., [\"top.key_xor_0\", \"top.key_and_out\"])."
+  },
+  "task_id": "sarlock_point_function_recovery",
+  "title": "SARLock point-function key recovery"
+}

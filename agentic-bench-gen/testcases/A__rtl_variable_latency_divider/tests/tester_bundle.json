@@ -1,0 +1,82 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for RTL Variable-Latency Divider\n\n## Overview\n\nThis directory contains the evaluation harness for the side-channel analysis task. The participant submits a vulnerability report in JSON format, and the harness grades it against hidden ground truth criteria.\n\n## Submission Contract\n\nThe participant must submit a single file:\n\n```\nsubmission/vulnerability_report.json\n```\n\nThis file must be a valid JSON object with exactly three top-level keys:\n\n- `vulnerability_found` (boolean)\n- `vulnerable_component` (string)\n- `recommended_fix` (string)\n\nThe participant does **not** modify the input artifacts (`inputs/divider.v`, `inputs/timing_traces.txt`). The harness reads those artifacts for reference only.\n\n## Evaluation Contract\n\nThe evaluation is **report grading**: `evaluate.py` opens the submitted JSON file and checks its structure and content against the requirements. The toolchain (`iverilog`, `vvp`, `yosys`) is available for optional cross-checks on the input artifacts, but the PASS/FAIL verdicts are based solely on the submitted report.\n\n## Requirements\n\n### Functional Requirements (FR)\n\n| ID   | Description |\n|------|-------------|\n| FR1  | The submission file is valid JSON and contains the top-level keys `vulnerability_found`, `vulnerable_component`, and `recommended_fix`. |\n| FR2  | The `vulnerability_found` field is a boolean. |\n| FR3  | The `vulnerable_component` field is a non-empty string. |\n| FR4  | The `recommended_fix` field is a non-empty string. |\n\n### Security Requirements (SR)\n\n| ID   | Description |\n|------|-------------|\n| SR1  | The `vulnerable_component` string correctly identifies the `early_done` signal or the comparator that generates it as the source of variable latency. |\n| SR2  | The `recommended_fix` string describes removing the early-termination condition and forcing the divider to run for a fixed number of cycles equal to the data width. |\n\n## How to Run\n\n```bash\npython3 evaluation/evaluate.py\n```\n\nThe script exits with code 0 if all requirements pass, and non-zero otherwise. Each requirement produces a `[TEST] PASS` or `[TEST] FAIL` marker on stdout.\n\n## Hidden Ground Truth\n\nThe private ground truth constants and helper functions used for SR checks are located in `evaluation/private/ground_truth.py`. This file is not visible to participants.\n\n## Input Artifacts\n\nThe following files are provided in `inputs/` and may be used for optional cross-validation:\n\n- `divider.v` \u2014 Iterative unsigned divider with early termination\n- `timing_traces.txt` \u2014 Timing observation model and measured cycle counts",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"evaluate.py \u2013 Grade the submitted vulnerability_report.json for the RTL variable-latency divider task.\"\"\"\n\nimport json\nimport os\nimport sys\n\n# ---------------------------------------------------------------------------\n# Private ground truth (inlined to keep the bundle self-contained)\n# ---------------------------------------------------------------------------\n# SR1: vulnerable_component must mention the early-termination logic.\nSR1_KEYWORDS = [\n    \"early_done\",\n    \"comparator\",\n    \"a_reg == 0\",\n    \"a_reg == {WIDTH{1'b0}}\",\n    \"early termination\",\n    \"early-termination\",\n    \"variable latency\",\n    \"variable-latency\",\n]\n\n# SR2: recommended_fix must describe a fixed-latency design change.\nSR2_KEYWORDS = [\n    \"remove early_done\",\n    \"remove early done\",\n    \"fixed latency\",\n    \"fixed-latency\",\n    \"all iterations\",\n    \"run all iterations\",\n    \"counter runs to width\",\n    \"WIDTH cycles\",\n    \"always run WIDTH\",\n    \"disable early termination\",\n    \"eliminate early termination\",\n    \"constant time\",\n    \"constant-time\",\n    \"fixed number of cycles\",\n    \"run for WIDTH\",\n    \"complete all WIDTH\",\n    \"no early exit\",\n    \"no early termination\",\n    \"run to completion\",\n    \"full WIDTH iterations\",\n]\n\n# ---------------------------------------------------------------------------\n# Helpers\n# ---------------------------------------------------------------------------\ndef emit(pass_: bool, req_id: str, reason: str = \"\") -> None:\n    \"\"\"Print a standardised [TEST] marker.\"\"\"\n    if pass_:\n        print(f\"[TEST] PASS: {req_id}\")\n    else:\n        msg = f\"[TEST] FAIL: {req_id}\"\n        if reason:\n            msg += f\": {reason}\"\n        print(msg)\n\ndef check_keywords(text: str, keywords: list[str]) -> bool:\n    \"\"\"Return True if *any* keyword appears as a case-insensitive substring.\"\"\"\n    lower = text.lower()\n    return any(kw.lower() in lower for kw in keywords)\n\n# ---------------------------------------------------------------------------\n# Main\n# ---------------------------------------------------------------------------\ndef main() -> int:\n    submission_path = os.path.join(\"submission\", \"vulnerability_report.json\")\n\n    # --- FR1: file exists and is valid JSON with required keys ------------\n    if not os.path.isfile(submission_path):\n        emit(False, \"FR1\", f\"{submission_path} not found\")\n        # Cannot continue without the file \u2013 fail remaining requirements\n        for rid in (\"FR2\", \"FR3\", \"FR4\", \"SR1\", \"SR2\"):\n            emit(False, rid, \"submission file missing\")\n        return 1\n\n    try:\n        with open(submission_path, \"r\", encoding=\"utf-8\") as fh:\n            data = json.load(fh)\n    except (json.JSONDecodeError, UnicodeDecodeError) as exc:\n        emit(False, \"FR1\", f\"invalid JSON: {exc}\")\n        for rid in (\"FR2\", \"FR3\", \"FR4\", \"SR1\", \"SR2\"):\n            emit(False, rid, \"submission file not valid JSON\")\n        return 1\n\n    required_keys = {\"vulnerability_found\", \"vulnerable_component\", \"recommended_fix\"}\n    missing = required_keys - set(data.keys())\n    if missing:\n        emit(False, \"FR1\", f\"missing top-level keys: {sorted(missing)}\")\n        # Still try to check the keys that *are* present for FR2-FR4,\n        # but SR checks will fail because the required data is absent.\n    else:\n        emit(True, \"FR1\")\n\n    # --- FR2: vulnerability_found is a boolean ----------------------------\n    vf = data.get(\"vulnerability_found\")\n    if isinstance(vf, bool):\n        emit(True, \"FR2\")\n    else:\n        emit(False, \"FR2\", f\"expected bool, got {type(vf).__name__}\")\n\n    # --- FR3: vulnerable_component is a non-empty string -------------------\n    vc = data.get(\"vulnerable_component\")\n    if isinstance(vc, str) and len(vc) > 0:\n        emit(True, \"FR3\")\n    else:\n        emit(False, \"FR3\", \"must be a non-empty string\")\n\n    # --- FR4: recommended_fix is a non-empty string -----------------------\n    rf = data.get(\"recommended_fix\")\n    if isinstance(rf, str) and len(rf) > 0:\n        emit(True, \"FR4\")\n    else:\n        emit(False, \"FR4\", \"must be a non-empty string\")\n\n    # --- SR1 & SR2: substantive correctness -------------------------------\n    # Only check if vulnerability_found is True; otherwise fail.\n    if vf is not True:\n        emit(False, \"SR1\", \"vulnerability_found is not true\")\n        emit(False, \"SR2\", \"vulnerability_found is not true\")\n    else:\n        # SR1\n        if isinstance(vc, str) and check_keywords(vc, SR1_KEYWORDS):\n            emit(True, \"SR1\")\n        else:\n            emit(False, \"SR1\", \"vulnerable_component does not identify early-termination logic\")\n\n        # SR2\n        if isinstance(rf, str) and check_keywords(rf, SR2_KEYWORDS):\n            emit(True, \"SR2\")\n        else:\n            emit(False, \"SR2\", \"recommended_fix does not describe a fixed-latency design change\")\n\n    # Determine overall exit code\n    # Re-read stdout? Simpler: track failures ourselves.\n    # We'll just re-check the conditions used above.\n    failures = []\n\n    # FR1\n    if not os.path.isfile(submission_path):\n        failures.append(\"FR1\")\n    else:\n        try:\n            with open(submission_path, \"r\", encoding=\"utf-8\") as fh:\n                data2 = json.load(fh)\n            if missing := required_keys - set(data2.keys()):\n                failures.append(\"FR1\")\n        except Exception:\n            failures.append(\"FR1\")\n\n    # FR2\n    if not isinstance(vf, bool):\n        failures.append(\"FR2\")\n\n    # FR3\n    if not (isinstance(vc, str) and len(vc) > 0):\n        failures.append(\"FR3\")\n\n    # FR4\n    if not (isinstance(rf, str) and len(rf) > 0):\n        failures.append(\"FR4\")\n\n    # SR1\n    if vf is not True or not (isinstance(vc, str) and check_keywords(vc, SR1_KEYWORDS)):\n        failures.append(\"SR1\")\n\n    # SR2\n    if vf is not True or not (isinstance(rf, str) and check_keywords(rf, SR2_KEYWORDS)):\n        failures.append(\"SR2\")\n\n    if failures:\n        return 1\n    return 0\n\nif __name__ == \"__main__\":\n    sys.exit(main())",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# evaluation/private/ground_truth.py\n\"\"\"Hidden ground truth constants and helper functions for SR checks.\n\nThis module is NOT visible to participants. It defines the expected keywords\nthat a correct vulnerability report must contain in the 'vulnerable_component'\nand 'recommended_fix' fields.\n\"\"\"\n\n# ---------------------------------------------------------------------------\n# SR1: vulnerable_component must mention the early-termination logic.\n# ---------------------------------------------------------------------------\nSR1_KEYWORDS = [\n    \"early_done\",\n    \"comparator\",\n    \"a_reg == 0\",\n    \"a_reg == {WIDTH{1'b0}}\",\n    \"early termination\",\n    \"early-termination\",\n    \"variable latency\",\n    \"variable-latency\",\n]\n\n# ---------------------------------------------------------------------------\n# SR2: recommended_fix must describe a fixed-latency design change.\n# ---------------------------------------------------------------------------\nSR2_KEYWORDS = [\n    \"remove early_done\",\n    \"remove early done\",\n    \"fixed latency\",\n    \"fixed-latency\",\n    \"all iterations\",\n    \"run all iterations\",\n    \"counter runs to width\",\n    \"WIDTH cycles\",\n    \"always run WIDTH\",\n    \"disable early termination\",\n    \"eliminate early termination\",\n    \"constant time\",\n    \"constant-time\",\n    \"fixed number of cycles\",\n    \"run for WIDTH\",\n    \"complete all WIDTH\",\n    \"no early exit\",\n    \"no early termination\",\n    \"run to completion\",\n    \"full WIDTH iterations\",\n]\n\n# ---------------------------------------------------------------------------\n# Helper\n# ---------------------------------------------------------------------------\ndef check_keywords(text: str, keywords: list[str]) -> bool:\n    \"\"\"Return True if *any* keyword appears as a case-insensitive substring.\"\"\"\n    lower = text.lower()\n    return any(kw.lower() in lower for kw in keywords)",
+      "path": "evaluation/private/ground_truth.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the report-grading contract, list the requirement IDs (FR1-FR4, SR1-SR2), explain that evaluate.py grades submission/vulnerability_report.json against hidden ground truth, and note that the toolchain (iverilog, vvp, yosys) is available for optional cross-checks on inputs/divider.v and inputs/timing_traces.txt."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Opens submission/vulnerability_report.json, validates JSON structure and field presence/type (FR1-FR4), then checks substantive correctness of vulnerable_component and recommended_fix against hidden ground truth (SR1-SR2). Emits [TEST] PASS/FAIL markers per requirement. Exits 0 on all-pass, non-zero on any failure. Uses Python stdlib only; no subprocess calls needed for report grading, but may optionally invoke iverilog/vvp for cross-validation of the input artifacts."
+    },
+    {
+      "path": "evaluation/private/ground_truth.py",
+      "purpose": "Hidden ground truth constants and helper functions for SR checks. Contains the expected vulnerable_component keywords (e.g., 'early_done', 'comparator') and recommended_fix keywords (e.g., 'remove early_done', 'fixed latency', 'all iterations', 'counter runs to width'). Provides functions to check whether a submitted string matches the ground truth criteria. Not visible to participants."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Check that submission/vulnerability_report.json is valid JSON and contains the top-level keys 'vulnerability_found', 'vulnerable_component', 'recommended_fix'. PASS if all three keys present and JSON is valid; FAIL otherwise.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the 'vulnerability_found' field is a boolean (True or False in Python after JSON load). PASS if boolean; FAIL if missing, wrong type, or not a boolean.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that 'vulnerable_component' is a non-empty string. PASS if string with length > 0; FAIL if missing, empty, or wrong type.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that 'recommended_fix' is a non-empty string. PASS if string with length > 0; FAIL if missing, empty, or wrong type.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that 'vulnerable_component' string contains keywords identifying the early_done signal or the comparator that generates it (e.g., 'early_done', 'comparator', 'a_reg == 0'). Case-insensitive substring match against ground truth keywords. PASS if any keyword found; FAIL if none found or vulnerability_found is false.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that 'recommended_fix' string contains keywords describing removal of early-termination and fixed-latency design (e.g., 'remove early_done', 'fixed latency', 'all iterations', 'counter runs to width', 'WIDTH cycles'). Case-insensitive substring match. PASS if any keyword found; FAIL if none found or vulnerability_found is false.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation report shows status=pass, mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, baseline_exit_code=0, and zero issues. Analyzer report shows overall_status=pass with zero issues. All requirements are coherent, evaluator correctly accepts golden and rejects baseline, metrics are measured, requirement map covers FRs and SRs separately, security behaviors are triggered, artifacts are safe and domain-appropriate, no hidden intent leaks, and functional requirements are concrete and machine-checkable. The case meets all retention criteria with perfect scores and no defects.",
+  "retain_case": true,
+  "revision_instructions": "",
+  "root_cause": "none",
+  "source_round": 0
+}

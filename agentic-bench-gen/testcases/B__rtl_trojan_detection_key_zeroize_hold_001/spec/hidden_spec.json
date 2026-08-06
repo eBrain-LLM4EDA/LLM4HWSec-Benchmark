@@ -1,0 +1,38 @@
+{
+  "acceptance_criteria": [
+    "A report is graded PASS only if FR1-FR4 all hold AND SR1-SR4 all hold.",
+    "The shipped baseline empty/naive submission (empty candidates array or generic 'no issues found' summary) must fail FR1/FR3 and thus receive FAIL.",
+    "A report that flags an unrelated signal (e.g. rst_n glitches) as the top candidate while omitting the zeroize/bus_busy coincidence entirely must FAIL SR1 and SR3.",
+    "A report that correctly identifies zeroize+bus_busy coincidence but attributes it to the wrong root cause (e.g. blames a reset synchronizer) must FAIL SR2."
+  ],
+  "cwe_ids": [
+    "CWE-1265",
+    "CWE-670",
+    "CWE-693",
+    "CWE-1298"
+  ],
+  "ground_truth": "In key_loader_ctrl.v, the always block computing the next value of key_q contains a labeled expression (zeroize_block) of the form: wire zeroize_mask = zeroize & ~bus_busy; ... key_q_next = zeroize_mask ? 32'b0 : (bus_wr ? bus_data : key_q); This masks the zeroize command whenever bus_busy is simultaneously high, causing key_q to hold its previous value (via the key_q branch) instead of being cleared. An attacker who asserts zeroize while a bus transaction is in flight (bus_busy=1) prevents the key register from being erased, allowing later recovery of stale key material once bus_busy deasserts, even though the module's documented contract states zeroize always clears key_q on the next clock edge.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse trigger_condition text of the top candidate(s) for conjunction of a zeroize-asserted term and a bus_busy/bus-transaction-in-progress term; reject reports that only mention one signal or describe an unrelated condition (e.g. reset, power-on).",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the vulnerability is triggered by the specific coincidence of zeroize=1 AND bus_busy=1 (not by zeroize alone, and not by bus_busy alone), distinguishing this from a generic 'zeroize sometimes fails' claim."
+    },
+    {
+      "detection_strategy": "Check location_hint / summary text for reference to an AND/mask term combining zeroize with an inverted or negated bus_busy-derived condition, and to key_q being selected as its own next value (self-hold) in that branch; optionally cross-check by simulating inputs/key_loader_ctrl.v with iverilog/vvp driving zeroize=1, bus_busy=1 (via a sustained bus_wr) and confirming key_q does not clear, then confirming it does clear when bus_busy=0.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify that the root cause is combinational masking/gating of the zeroize signal (the zeroize_mask-equivalent term) feeding the next-state selection for key_q, and that the faulty branch selects key_q's own current value rather than 32'b0."
+    },
+    {
+      "detection_strategy": "Sort candidates by confidence descending; verify the top entry satisfies SR1 and SR2 criteria and has confidence >= 0.6.",
+      "id": "SR3",
+      "requirement": "The report's highest-confidence candidate (by numeric confidence field) must be the zeroize/bus_busy coincidence issue, not a decoy or unrelated finding, and confidence must be >= 0.6."
+    },
+    {
+      "detection_strategy": "Fuzzy-match location_hint string against known label tokens present in inputs/key_loader_ctrl.v (e.g. 'zeroize_block', 'zeroize_mask', or the actual always-block name); accept case-insensitive substring or line-number-range matches within a small tolerance of the real construct's line span.",
+      "id": "SR4",
+      "requirement": "The report must not merely assert the presence of a trojan without actionable localization; it must identify the specific label/construct name or line range in the RTL closely matching the actual hidden zeroize_block/zeroize_mask construct, enabling localization for remediation."
+    }
+  ],
+  "threat_model": "An attacker with control over bus transaction timing (e.g. a malicious peripheral or compromised bus arbiter) deliberately keeps bus_busy asserted (e.g. by initiating a long or stalled bus_wr transaction) at the moment a legitimate emergency zeroize command is issued (e.g. by a tamper-detection circuit or software emergency-erase routine). Because of the hidden zeroize_mask logic, the key register silently ignores the zeroize command during that window and retains the old key value in key_q. The attacker can then read out or otherwise exfiltrate the un-erased key material after the bus transaction completes, defeating the emergency erase security control entirely while all functional tests that check zeroize under idle-bus conditions pass normally."
+}

@@ -1,0 +1,79 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Differential test shows the golden/expert submission (golden/vulnerability_report.json) is REJECTED by evaluate.py: FR1 fails with 'submission is not valid JSON: Expecting value: line 1 column 1 (char 0)'. This indicates evaluate.py is either reading the wrong path, the golden file is not actually placed at submission/vulnerability_report.json during the golden run, or load_submission()/JSON parsing is broken for the expert answer. This is a hard blocker: a correct submission cannot pass.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR1: submission is not valid JSON: Expecting value: line 1 column 1 (char 0)' followed by all downstream FR2-FR4,SR1-SR4 skipped due to FR1 failure; golden_run.expected='pass' but status='fail', ok=false.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Vulnerable/baseline run also produces unexpected results inconsistent with the hidden ground truth: SR2 unexpectedly PASSES (vulnerable_fault_ids empty matches an apparently empty ground-truth miscorrection set), and SR3/SR4 report the ground-truth miscorrection/escape sets as EMPTY ('ground-truth miscorrection set is empty; cannot evaluate (unexpected RTL/oracle result)'). Per the hidden_spec, the flawed decoder should produce a non-empty miscorrection set (two-bit faults with syndrome!=0 and overall_parity_error=1) and a non-empty zero-syndrome escape set. An empty ground truth for both classes strongly suggests the oracle_tb.v simulation or the RTL fault application logic is not producing the intended flaw behavior, or the oracle/fault_model cross-referencing is broken.",
+      "evidence": "vulnerable_run.stdout: '[TEST] PASS: SR2' plus '[TEST] FAIL: SR3: ground-truth miscorrection set is empty...' and '[TEST] FAIL: SR4: ground-truth zero-syndrome escape set is empty...'",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report differential",
+      "description": "The differential harness explicitly flags failure_class 'golden_rejected', meaning the case fails the fundamental coherence check: the evaluator does not accept a correct answer. mutation_status is blocked_by_differential and mutation_score_meaningful is false, so no meaningful security-discrimination signal could even be computed.",
+      "evidence": "validation report: 'differential.status':'fail', 'differential.failure_class':'golden_rejected', 'mutation_status':'blocked_by_differential', 'requirement_discrimination_coverage_score':0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "submission_invariants",
+      "description": "submission_invariants section shows the golden file target mapping exists and 'changed':true relative to baseline, but this does not resolve the FR1 parse failure seen in the golden_run \u2014 suggesting either a path/staging bug in the test harness invocation of evaluate.py against the golden fixture, or a genuine bug in evaluate.py's load_submission() (e.g., wrong path constant, encoding issue, or an unhandled BOM/whitespace edge case) that manifests even though the file itself parses fine as JSON.",
+      "evidence": "submission_invariants.mappings[0]: golden='golden/vulnerability_report.json', target='submission/vulnerability_report.json', changed=true, golden_sha256 present and differs from baseline_sha256, yet evaluate.py's FR1 check reports a JSON parse error at char 0.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py's load_submission()/JSON parsing so that it correctly parses the golden/expert vulnerability_report.json \u2014 investigate whether the test harness is placing golden/vulnerability_report.json at the expected submission/vulnerability_report.json path before invoking evaluate.py, or whether load_submission() has a path/encoding bug (e.g., reading an empty/wrong file, BOM handling, or the golden fixture not being copied into the submission directory during the differential run).",
+    "Investigate why the oracle simulation (evaluation/oracle_tb.v cross-referenced via evaluate.py) yields an EMPTY ground-truth miscorrection set and EMPTY zero-syndrome escape set for the two-bit fault cases \u2014 per the hidden_spec these should be non-empty (a meaningful subset of the 78 two-bit faults). Check the FAULTID regex parsing, the bit_positions cross-referencing logic in build_oracle_map, and confirm oracle_tb.v actually compiles/runs against secded_codec.v and produces the expected flawed 'syndrome!=0 => correctable' behavior.",
+    "Re-run the full differential (golden expected-pass, baseline expected-fail) end-to-end after fixing the above, and confirm all 8 requirement markers (FR1-FR4, SR1-SR4) emit PASS for the golden submission and that FR2/FR3/SR2/SR3 (at minimum) correctly FAIL for the naive baseline.",
+    "Add a regression/smoke test in the evaluation harness that fails fast if the oracle-derived ground-truth miscorrection or escape sets are empty, since an empty set signals a broken oracle rather than a genuine finding, and currently causes SR3/SR4 to hard-fail uninformatively even for a perfect submission.",
+    "Once evaluate.py is fixed, re-verify the requirement_discrimination_coverage_score and mutation_score, since both are currently 0.0/not meaningful due to the blocked differential."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run fails FR1 with a JSON parse error, indicating the evaluator cannot correctly validate even a well-formed expert submission.",
+      "requirement": "FR1 (structural validity of vulnerability_report.json)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run: FR2 skipped due to FR1 failure. Baseline run: FR2 correctly fails with missing=91 (expected baseline rejection works), but this can't be confirmed as meaningful given FR1 is broken for golden.",
+      "requirement": "FR2 (fault_id coverage of all 91 cases)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run: FR3 skipped due to FR1 failure; cannot confirm pass criteria are achievable.",
+      "requirement": "FR3 (single-bit cases corrected with correct data_out)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run: FR4 skipped due to FR1 failure.",
+      "requirement": "FR4 (summary counts sum to 91 and match tally)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run: SR1 skipped due to FR1 failure; baseline run SR1 correctly fails as expected, but golden path is broken.",
+      "requirement": "SR1 (missing overall_parity_error gating identified)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run: SR2 skipped due to FR1 failure. Baseline run: SR2 unexpectedly PASSES because ground-truth miscorrection set appears empty ('ground-truth miscorrection set is empty'), which should not happen per hidden_spec (78 two-bit faults should yield a non-trivial nonzero-syndrome/parity=1 subset). This indicates the oracle computation or fault enumeration is broken, undermining SR2/SR3 discrimination entirely.",
+      "requirement": "SR2 (vulnerable_fault_ids matches ground-truth miscorrection set within tolerance 2)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both golden and baseline runs report the ground-truth miscorrection set is empty or skipped; SR3 cannot be verified as functioning.",
+      "requirement": "SR3 (per-case corrected classification + differing data_out for miscorrection set)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both runs report the ground-truth zero-syndrome escape set as empty or skipped due to FR1 failure; SR4 cannot be verified as functioning.",
+      "requirement": "SR4 (zero-syndrome escape class separately identified)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

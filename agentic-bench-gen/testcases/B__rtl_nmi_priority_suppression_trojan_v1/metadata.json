@@ -1,0 +1,59 @@
+{
+  "task_id": "rtl_nmi_priority_suppression_trojan_v1",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Simultaneous-interrupt NMI suppression Trojan",
+  "objective": "Review the supplied RTL implementation of a compact four-source interrupt arbiter (one non-maskable interrupt input plus three ordinary IRQ lines) and produce an analysis report identifying any logic whose behavior deviates from the documented priority policy, including the exact triggering input combination, the affected output signal(s), and a confidence score for each finding.",
+  "submission_kind": "analysis_report",
+  "input_artifacts": [
+    "inputs/nmi_arbiter.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_stub.v"
+  ],
+  "expected_outputs": [
+    {
+      "path": "submission/trojan_report.json",
+      "description": "A single JSON file containing a top-level 'findings' array. Each finding must include 'location', 'trigger_condition', 'affected_signal', 'confidence' (0-1), and 'rationale'. An empty or missing findings array is treated as a no-detection submission and will fail grading."
+    }
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "response_format": {
+    "file": "submission/trojan_report.json",
+    "schema": {
+      "findings": [
+        {
+          "location": "string",
+          "trigger_condition": "string",
+          "affected_signal": "string",
+          "confidence": "number in [0,1]",
+          "rationale": "string"
+        }
+      ]
+    }
+  },
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "evaluation_mode": "report_grading",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of the hidden ground-truth Trojan trigger condition correctly identified in the submitted findings, matched against trigger_condition and affected_signal fields with confidence >= 0.5."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of submitted high-confidence (>=0.5) findings that do not correspond to the true anomaly, measured against the other verified-correct input combinations."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Accuracy of the reported affected_signal and trigger_condition in pinpointing the exact anomalous grant behavior, scored via string/logic matching against the hidden ground truth."
+    }
+  ],
+  "notes": "Participants must not modify any file under inputs/. Only submission/trojan_report.json is graded. A shipped baseline with an empty findings array is provided at submission/trojan_report.json and is expected to fail grading; replace it with your own analysis."
+}

@@ -1,0 +1,42 @@
+{
+  "acceptance_criteria": [
+    "trojan_detected is true.",
+    "At least three findings correctly identify the trigger fragments (counter_terminal, command_match, sticky_error) in their respective modules.",
+    "At least one finding identifies the payload mechanism (mux selecting secret_reg[0] onto status_out).",
+    "overall_confidence >= 0.7."
+  ],
+  "cwe_ids": [
+    "CWE-1233",
+    "CWE-1245",
+    "CWE-1274"
+  ],
+  "ground_truth": "The design contains a hardware Trojan distributed across three modules. The counter module (counter.v) contains a terminal count comparator that asserts when count reaches a specific value. The command decoder module (command_decoder.v) contains a comparator that asserts when a specific command is received. The error handler module (error_handler.v) contains a sticky error flag that latches high on any error. In the top module (top.v), these three signals are combined with an AND gate. When all three are true, a multiplexer selects secret_reg[0] and drives it onto the status_out port, leaking one bit of secret data. The hidden trigger fragments are: counter_terminal in counter.v, command_match in command_decoder.v, and sticky_error in error_handler.v. The payload is the mux selecting secret_reg[0] in top.v.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if the submitted report lists counter_terminal in counter.v as a suspicious signal with a rationale explaining its role in a potential trigger condition.",
+      "id": "SR1",
+      "requirement": "The analysis must identify the counter_terminal signal in counter.v as a potential trigger fragment."
+    },
+    {
+      "detection_strategy": "Check if the submitted report lists command_match in command_decoder.v as a suspicious signal with a rationale explaining its role in a potential trigger condition.",
+      "id": "SR2",
+      "requirement": "The analysis must identify the command_match signal in command_decoder.v as a potential trigger fragment."
+    },
+    {
+      "detection_strategy": "Check if the submitted report lists sticky_error in error_handler.v as a suspicious signal with a rationale explaining its role in a potential trigger condition.",
+      "id": "SR3",
+      "requirement": "The analysis must identify the sticky_error signal in error_handler.v as a potential trigger fragment."
+    },
+    {
+      "detection_strategy": "Check if the submitted report describes a multiplexer or conditional assignment in top.v that drives secret_reg[0] to status_out based on a combination of signals from the submodules.",
+      "id": "SR4",
+      "requirement": "The analysis must identify the payload mechanism in top.v that selects secret_reg[0] onto status_out when the combined trigger is active."
+    },
+    {
+      "detection_strategy": "Check if trojan_detected is true and overall_confidence is above a threshold (e.g., 0.7).",
+      "id": "SR5",
+      "requirement": "The analysis must correctly conclude that a Trojan is present (trojan_detected = true) with high confidence."
+    }
+  ],
+  "threat_model": "A malicious designer has inserted a Trojan whose trigger predicates are split across three small RTL modules. Each fragment appears benign in isolation (a counter terminal count, a command decoder match, an error latch), but when combined at the top level, they form a rare-event trigger that leaks a secret bit. A modular review that examines each submodule independently will miss the malicious behavior because the cross-module signal flow must be reconstructed to see the full trigger."
+}

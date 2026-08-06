@@ -1,0 +1,109 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/recovered_rtl.v) with exit code 1 and reports FAIL for FR1, FR2, FR3 despite the golden being correct. This indicates a bug in the evaluation harness that prevents any correct submission from passing.",
+      "evidence": "Validation report shows golden_run exit_code=1, stdout: '[TEST] PASS: FR4\\n[TEST] FAIL: FR1: no marker found in simulation output\\n[TEST] FAIL: FR2: no marker found in simulation output\\n[TEST] FAIL: FR3: no marker found in simulation output\\n[TEST] PASS: SR1'. Expected pass but got fail.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench fails to produce [TEST] markers for FR1, FR2, FR3 when the golden solution is simulated, causing evaluate.py to report 'no marker found'. This suggests the testbench has a bug in its marker output logic or the golden solution triggers an unexpected simulation path.",
+      "evidence": "Golden run stdout shows only FR4 and SR1 markers present; FR1, FR2, FR3 markers are missing. The vulnerable (baseline) run also shows missing markers for FR1, FR2, FR3, and additionally SR1.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench instantiates a reference model that implements the correct CRC-16/CCITT-FALSE algorithm, but the reference model is not used to check the DUT for FR1, FR2, FR3. Instead, the testbench uses hardcoded expected values. If the reference model is correct, the DUT should be compared against it cycle by cycle for all requirements, not just SR1.",
+      "evidence": "In tb_crc16.v, FR1 checks crc_out_dut !== 16'hFFFF, FR2 checks crc_out_dut !== expected (hardcoded 16'hC0A7), FR3 checks crc_out_dut !== expected (hardcoded 16'hDFB3). The reference model (crc_out_ref) is only used in SR1 comparison.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "evaluate.py does not check for simulation errors (stderr) from vvp. If the simulation crashes or produces warnings, these are silently ignored, potentially masking failures.",
+      "evidence": "In evaluate.py, sim_stderr is captured but never examined. Only sim_stdout is parsed for markers.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/tb_crc16.v",
+      "description": "The testbench uses #1 delays after clock edges to sample outputs, which may cause race conditions or sampling issues depending on the DUT's timing. This could lead to intermittent failures or mismatches between simulation runs.",
+      "evidence": "Multiple instances of '@(posedge clk); #1;' in tb_crc16.v initial block for checking crc_out_dut.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/private/tb_sr1_vectors.v",
+      "description": "The private test vectors file uses a large flattened array (sr1_messages[0:5119]) with manual indexing (vec*256 + byte_offset). This is error-prone and could cause off-by-one errors in vector access.",
+      "evidence": "sr1_messages array declared as reg [7:0] sr1_messages [0:5119] and accessed as sr1_messages[vec * 256 + byte_idx].",
+      "severity": "low"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The README hints at the polynomial and bit-ordering convention by mentioning 'feedback taps', 'seed', 'MSB or LSB side', and 'reflection'. While not explicit, these hints reduce the reverse-engineering challenge.",
+      "evidence": "README.md: 'Study the XOR/DFF connectivity... to identify the feedback taps. These taps encode the CRC polynomial.' and 'Observe the reset value of each flip-flop to determine the seed.' and 'Trace the data path to understand whether the input bit is shifted in from the MSB or LSB side, and whether any bit reversal (reflection) is applied.'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the evaluation harness so that the golden solution passes all requirements. Investigate why the testbench fails to produce [TEST] markers for FR1, FR2, FR3 when the golden solution is simulated. Possible causes: the golden solution's timing behavior differs from the testbench's expectations, or the testbench has a bug in its marker output logic.",
+    "Modify the testbench to compare the DUT against the reference model (crc_out_ref) for ALL requirements (FR1, FR2, FR3, SR1) rather than using hardcoded expected values. This ensures consistency and reduces the chance of hardcoded value errors.",
+    "Remove the #1 delays in the testbench and use proper synchronous sampling (sample at the clock edge or immediately after) to avoid race conditions.",
+    "Add stderr checking in evaluate.py to detect simulation crashes or errors that may not produce [TEST] markers.",
+    "Implement quantitative metric reporting in evaluate.py: compute word_recovery_rate (fraction of SR1 vectors with correct final crc_out), structural_match_accuracy (could be checked by comparing the DUT's internal structure or by verifying against known polynomial properties), and functional_equivalence (cycle-accurate match across all time steps).",
+    "Consider simplifying the private vector storage format to avoid manual index arithmetic and reduce the risk of off-by-one errors.",
+    "Reduce the hint level in README.md to make the reverse-engineering challenge more authentic. Remove explicit mentions of 'feedback taps', 'seed', 'MSB or LSB', and 'reflection'."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "The public spec (FR1-FR4) matches the hidden ground truth (CRC-16/CCITT-FALSE, polynomial 0x1021, seed 0xFFFF, MSB-first, no reflection, no final XOR). The expected outputs in FR2 (0x31 -> 0xC0A7) and FR3 (0x1234 -> 0xDFB3) are correct for this CRC variant. The netlist (crc16_netlist.v) implements the same algorithm.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "Validation report shows golden_run exit_code=1 (expected pass) with FAIL for FR1, FR2, FR3. The evaluator rejects the correct golden solution. The vulnerable_run also fails as expected, but the golden rejection means the harness is broken.",
+      "requirement": "evaluate.py accepts correct submission and rejects baseline",
+      "status": "fail"
+    },
+    {
+      "evidence": "The evaluation metrics (word_recovery_rate, structural_match_accuracy, functional_equivalence) are declared in metadata.json but evaluate.py only checks pass/fail per requirement (FR1-FR4, SR1). It does not compute or report the quantitative metrics (e.g., fraction of test vectors correct, structural match boolean, cycle-accurate match boolean). The metrics are not measured.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "fail"
+    },
+    {
+      "evidence": "The requirement_map in the harness bundle separates FR1-FR4 (functional) from SR1 (security). FR1-FR4 test specific behaviors (reset, known answers, compilability). SR1 tests functional equivalence over private vectors.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 is tested with 20 private test vectors of varying lengths (0-17 bytes) including edge cases (empty message, all zeros, all ones, alternating patterns). The testbench compares DUT output against the reference model cycle by cycle, actively triggering the security-relevant behavior (correct CRC computation for arbitrary inputs).",
+      "requirement": "Security-relevant behaviors actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are standard Verilog, Python, and text. No external dependencies beyond iverilog and Python 3. No network access, no privileged operations. The netlist and testbench are synthesizable/subset of Verilog.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task requires reverse-engineering a flattened gate-level netlist (XOR/DFF) to recover a CRC-16 polynomial, seed, and bit-ordering convention. This is a genuine hardware reverse-engineering problem, not a generic coding exercise. The domain_id is hardware_reverse_engineering and the baselines (HAL, ISCAS'85, ITC'99) are relevant.",
+      "requirement": "Benchmark adapted to hardware_reverse_engineering domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "The golden solution is rejected by the evaluator, making it impossible to verify that a correct submission would pass. The evaluation harness is broken, so any results from this benchmark would be unverifiable.",
+      "requirement": "No gaps making results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "The public README.md, metadata.json, and inputs/crc16_netlist.v do not mention CWE IDs, SR1, threat model, or security requirements. The README describes the task as a plain reverse-engineering assignment. The netlist is uncommented. The hidden_spec (SR1, threat_model, acceptance_criteria) is not present in any public file.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1: crc_out must equal 16'hFFFF when rst_n=0 at rising edge. FR2: After shifting 0x31 MSB-first, crc_out must equal 16'hC0A7. FR3: After shifting 0x1234 MSB-first, crc_out must equal 16'hDFB3. FR4: Must compile with iverilog. All are concrete, verifiable through the pinned interface (clk, rst_n, enable, data_in, crc_out).",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

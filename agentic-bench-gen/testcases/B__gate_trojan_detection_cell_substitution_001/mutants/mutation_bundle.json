@@ -1,0 +1,112 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "evaluate.py checks that verdict == 'trojan_detected'; this mutant sets verdict to 'trojan_free' while still listing the correct suspect instance, cell-type mismatch, and mismatching inputs, which is an internally inconsistent report that must FAIL per SR1 (false negative on the injected polarity fault).",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_free\",\n  \"suspect_instances\": [\n    \"u_eq2\"\n  ],\n  \"justification\": \"Instance u_eq2 in inputs/netlist.v is instantiated as an XOR2 primitive cell ('XOR2 u_eq2 (.A(id_in[2]), .B(id_auth[2]), .Y(eq[2]));'), whereas the design brief and the surrounding topology (u_eq0, u_eq1, u_eq3 are all XNOR2) require every per-bit equality cell to be XNOR2. However, after further review this deviation is considered within normal synthesis variance and the netlist is deemed functionally faithful to the intended 4-bit equality check, so no trojan is reported.\",\n  \"mismatching_inputs\": [\n    \"0000\",\n    \"0100\"\n  ],\n  \"cell_type_analysis\": {\n    \"u_eq2\": {\n      \"found\": \"XOR2\",\n      \"expected\": \"XNOR2\"\n    }\n  }\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_SR1_condition_negation",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "evaluate.py cross-checks suspect_instances against the ground-truth instance name (u_eq2) recorded at artifact build time, and against netlist.v instance declarations; u_and_hi does not correspond to the XOR2/XNOR2 mismatch and is a downstream AND2 gate with correct type binding, so the localization is wrong and the report should fail SR2 (and consequently FR4/SR3 consistency checks since cell_type_analysis would not match an actual mismatch at u_and_hi).",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"u_and_hi\"\n  ],\n  \"justification\": \"Instance u_and_hi in inputs/netlist.v is the suspect gate responsible for the permission-check discrepancy. Analysis of the AND-reduction tree shows that the intermediate high-pair term produced by u_and_hi does not correctly combine eq[2] and eq[3], causing grant to deviate from the expected 4-bit equality comparator behavior for several id_in values, including cases where id_in matches id_auth exactly and cases where id_in differs only at bit index 2. All other instances (u_eq0, u_eq1, u_eq2, u_eq3, u_and_lo, u_and_final) retain their correct, brief-specified primitive bindings and connectivity; only the u_and_hi cell-type binding deviates from design intent, consistent with a synthesis/ECO-stage library-cell substitution trojan that is invisible to structural/topological diffing since instance count, net count, and the AND-reduction tree shape are unchanged.\",\n  \"mismatching_inputs\": [\n    \"0000\",\n    \"0100\"\n  ],\n  \"cell_type_analysis\": {\n    \"u_and_hi\": {\n      \"found\": \"XOR2\",\n      \"expected\": \"XNOR2\"\n    }\n  }\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_SR2_constant_change",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "evaluate.py string-compares cell_type_analysis[u_eq2].found and .expected against ground truth extracted from inputs/netlist.v and design_brief.md; here found/expected are swapped (found=XNOR2, expected=XOR2), which contradicts the actual instantiated primitive (XOR2) found in netlist.v for u_eq2, so the cell-type discrepancy is misattributed/inverted and the check must fail even though verdict, suspect_instances, and mismatching_inputs remain plausible.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"u_eq2\"\n  ],\n  \"justification\": \"Instance u_eq2 in inputs/netlist.v is instantiated as an XOR2 primitive cell ('XOR2 u_eq2 (.A(id_in[2]), .B(id_auth[2]), .Y(eq[2]));'), whereas the design brief and the surrounding topology (u_eq0, u_eq1, u_eq3 are all XNOR2) require every per-bit equality cell to be XNOR2, since bitwise equality of two single-bit signals is computed by XNOR, not XOR. This single-cell substitution inverts the polarity of eq[2] relative to a correct implementation: eq[2] now equals (id_in[2] ^ id_auth[2]) instead of ~(id_in[2] ^ id_auth[2]). Because grant is the AND-reduction of eq[0..3] through u_and_lo, u_and_hi, and u_and_final with no other change to structure, connectivity, or gate count, this fault produces two classes of behavioral deviation from a correct 4-bit equality comparator against the same fixed id_auth tie-off: (1) the true authorized identifier (id_in == id_auth) now incorrectly produces grant=0, because eq[2] evaluates to 0 for a true bit-2 match instead of 1, turning an authorized presenter into a rejected one; and (2) any id_in that matches id_auth on bits 0, 1, and 3 but differs on bit 2 now incorrectly produces grant=1, because eq[2] evaluates to 1 for a genuine bit-2 mismatch, granting access to an unauthorized identifier. All other instances (u_eq0, u_eq1, u_eq3, u_and_lo, u_and_hi, u_and_final) retain their correct, brief-specified primitive bindings and connectivity; only the u_eq2 cell-type binding deviates from design intent, consistent with a synthesis/ECO-stage library-cell substitution trojan (XNOR2 swapped for XOR2) that is invisible to structural/topological diffing since instance count, net count, and the AND-reduction tree are unchanged.\",\n  \"mismatching_inputs\": [\n    \"0000\",\n    \"0100\"\n  ],\n  \"cell_type_analysis\": {\n    \"u_eq2\": {\n      \"found\": \"XNOR2\",\n      \"expected\": \"XOR2\"\n    }\n  }\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_SR3_operator_swap",
+      "operator": "operator_swap",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "evaluate.py dynamically simulates inputs/netlist.v via iverilog/vvp for each claimed mismatching_inputs value ('1111' and '1011') against the fixed id_auth and the golden XNOR-based reference model. Since bit 2 of id_auth is 0, an input differing only at bit 2 from an all-mismatched-elsewhere pattern like '1111' or '1011' does not correspond to any actual grant discrepancy at those specific vectors (they do not isolate the true single-bit-2-mismatch or true-match trigger cases), so simulation will show netlist.v grant behavior does not deviate from the golden model at these reported vectors, and no reported mismatching_inputs entry can be dynamically confirmed, causing SR4 to fail.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"u_eq2\"\n  ],\n  \"justification\": \"Instance u_eq2 in inputs/netlist.v is instantiated as an XOR2 primitive cell ('XOR2 u_eq2 (.A(id_in[2]), .B(id_auth[2]), .Y(eq[2]));'), whereas the design brief and the surrounding topology (u_eq0, u_eq1, u_eq3 are all XNOR2) require every per-bit equality cell to be XNOR2, since bitwise equality of two single-bit signals is computed by XNOR, not XOR. This single-cell substitution inverts the polarity of eq[2] relative to a correct implementation: eq[2] now equals (id_in[2] ^ id_auth[2]) instead of ~(id_in[2] ^ id_auth[2]). Because grant is the AND-reduction of eq[0..3] through u_and_lo, u_and_hi, and u_and_final with no other change to structure, connectivity, or gate count, this fault produces two classes of behavioral deviation from a correct 4-bit equality comparator against the same fixed id_auth tie-off: (1) the true authorized identifier (id_in == id_auth) now incorrectly produces grant=0, because eq[2] evaluates to 0 for a true bit-2 match instead of 1, turning an authorized presenter into a rejected one; and (2) any id_in that matches id_auth on bits 0, 1, and 3 but differs on bit 2 now incorrectly produces grant=1, because eq[2] evaluates to 1 for a genuine bit-2 mismatch, granting access to an unauthorized identifier. All other instances (u_eq0, u_eq1, u_eq3, u_and_lo, u_and_hi, u_and_final) retain their correct, brief-specified primitive bindings and connectivity; only the u_eq2 cell-type binding deviates from design intent, consistent with a synthesis/ECO-stage library-cell substitution trojan (XNOR2 swapped for XOR2) that is invisible to structural/topological diffing since instance count, net count, and the AND-reduction tree are unchanged.\",\n  \"mismatching_inputs\": [\n    \"1111\",\n    \"1011\"\n  ],\n  \"cell_type_analysis\": {\n    \"u_eq2\": {\n      \"found\": \"XOR2\",\n      \"expected\": \"XNOR2\"\n    }\n  }\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_SR4_stuck_at_signal",
+      "operator": "stuck_at_signal",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "evaluate.py should FAIL this submission because suspect_instances references a nonexistent instance name ('u_eq2_reg') that is not literally present in inputs/netlist.v (violating FR3), and the removed/placeholder cell_type_analysis and mismatching_inputs evidence cannot be dynamically confirmed via iverilog/vvp simulation, so the naive-guess safeguard (SR5) correctly rejects a report that lacks verifiable evidence tying the verdict to the real ground-truth fault.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"u_eq2_reg\"\n  ],\n  \"justification\": \"The netlist appears to contain a polarity fault somewhere in the equality stage, likely affecting bit 2 of the comparison, so we flag the design as compromised out of caution.\",\n  \"mismatching_inputs\": [],\n  \"cell_type_analysis\": {}\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_SR5_assignment_removal",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR5"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "evaluate.py should FAIL this submission because verdict is 'trojan_detected' but the required 'mismatching_inputs' field (FR2) is absent entirely, violating the requirement that trojan_detected verdicts must include at least one mismatching input pattern; a compliant evaluator must reject reports missing this field rather than passing them on the strength of a correct verdict/instance/cell_type_analysis alone.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"u_eq2\"\n  ],\n  \"justification\": \"Instance u_eq2 in inputs/netlist.v is instantiated as an XOR2 primitive cell ('XOR2 u_eq2 (.A(id_in[2]), .B(id_auth[2]), .Y(eq[2]));'), whereas the design brief and the surrounding topology (u_eq0, u_eq1, u_eq3 are all XNOR2) require every per-bit equality cell to be XNOR2, since bitwise equality of two single-bit signals is computed by XNOR, not XOR. This single-cell substitution inverts the polarity of eq[2] relative to a correct implementation. Because grant is the AND-reduction of eq[0..3] through u_and_lo, u_and_hi, and u_and_final with no other change to structure, connectivity, or gate count, this fault produces two classes of behavioral deviation from a correct 4-bit equality comparator against the same fixed id_auth tie-off: the true authorized identifier now incorrectly produces grant=0, and any id_in that matches id_auth on bits 0, 1, and 3 but differs on bit 2 now incorrectly produces grant=1. All other instances retain their correct, brief-specified primitive bindings and connectivity; only the u_eq2 cell-type binding deviates from design intent.\",\n  \"cell_type_analysis\": {\n    \"u_eq2\": {\n      \"found\": \"XOR2\",\n      \"expected\": \"XNOR2\"\n    }\n  }\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_FR2_assignment_removal",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py checks that each listed suspect instance name is a substring match against a Verilog instance declaration in inputs/netlist.v; 'u_eq2_bad' does not appear anywhere in netlist.v (only 'u_eq2' does), so FR3's instance-existence check fails and the submission must be rejected even though verdict/justification/cell_type_analysis otherwise look plausible.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"u_eq2_bad\"\n  ],\n  \"justification\": \"Instance u_eq2 in inputs/netlist.v is instantiated as an XOR2 primitive cell ('XOR2 u_eq2 (.A(id_in[2]), .B(id_auth[2]), .Y(eq[2]));'), whereas the design brief and the surrounding topology (u_eq0, u_eq1, u_eq3 are all XNOR2) require every per-bit equality cell to be XNOR2, since bitwise equality of two single-bit signals is computed by XNOR, not XOR. This single-cell substitution inverts the polarity of eq[2] relative to a correct implementation: eq[2] now equals (id_in[2] ^ id_auth[2]) instead of ~(id_in[2] ^ id_auth[2]). Because grant is the AND-reduction of eq[0..3] through u_and_lo, u_and_hi, and u_and_final with no other change to structure, connectivity, or gate count, this fault produces two classes of behavioral deviation from a correct 4-bit equality comparator against the same fixed id_auth tie-off: (1) the true authorized identifier (id_in == id_auth) now incorrectly produces grant=0, because eq[2] evaluates to 0 for a true bit-2 match instead of 1, turning an authorized presenter into a rejected one; and (2) any id_in that matches id_auth on bits 0, 1, and 3 but differs on bit 2 now incorrectly produces grant=1, because eq[2] evaluates to 1 for a genuine bit-2 mismatch, granting access to an unauthorized identifier. All other instances (u_eq0, u_eq1, u_eq3, u_and_lo, u_and_hi, u_and_final) retain their correct, brief-specified primitive bindings and connectivity; only the u_eq2 cell-type binding deviates from design intent, consistent with a synthesis/ECO-stage library-cell substitution trojan (XNOR2 swapped for XOR2) that is invisible to structural/topological diffing since instance count, net count, and the AND-reduction tree are unchanged.\",\n  \"mismatching_inputs\": [\n    \"0000\",\n    \"0100\"\n  ],\n  \"cell_type_analysis\": {\n    \"u_eq2_bad\": {\n      \"found\": \"XOR2\",\n      \"expected\": \"XNOR2\"\n    }\n  }\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_FR3_constant_change",
+      "operator": "constant_change",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "evaluate.py checks cell_type_analysis[u_eq2].found and .expected against ground truth extracted from inputs/netlist.v; this mutant removes the cell_type_analysis object entirely (violating FR4's requirement that the report include this mapping when verdict is trojan_detected), so the evaluator should FAIL the submission for missing required field despite a correct verdict, suspect_instances, and mismatching_inputs.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"u_eq2\"\n  ],\n  \"justification\": \"Instance u_eq2 in inputs/netlist.v is instantiated as an XOR2 primitive cell ('XOR2 u_eq2 (.A(id_in[2]), .B(id_auth[2]), .Y(eq[2]));'), whereas the design brief and the surrounding topology (u_eq0, u_eq1, u_eq3 are all XNOR2) require every per-bit equality cell to be XNOR2, since bitwise equality of two single-bit signals is computed by XNOR, not XOR. This single-cell substitution inverts the polarity of eq[2] relative to a correct implementation: eq[2] now equals (id_in[2] ^ id_auth[2]) instead of ~(id_in[2] ^ id_auth[2]). Because grant is the AND-reduction of eq[0..3] through u_and_lo, u_and_hi, and u_and_final with no other change to structure, connectivity, or gate count, this fault produces two classes of behavioral deviation from a correct 4-bit equality comparator against the same fixed id_auth tie-off: (1) the true authorized identifier (id_in == id_auth) now incorrectly produces grant=0; and (2) any id_in that matches id_auth on bits 0, 1, and 3 but differs on bit 2 now incorrectly produces grant=1. All other instances retain their correct, brief-specified primitive bindings and connectivity; only the u_eq2 cell-type binding deviates from design intent.\",\n  \"mismatching_inputs\": [\n    \"0000\",\n    \"0100\"\n  ]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_cell_substitution_001_FR4_domain_specific",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

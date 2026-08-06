@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The netlist is a flat or single-level hierarchical Verilog file using only primitive gates (and, or, not, nand, nor, xor, xnor, buf).",
+    "The design implements a simple data path with a parity generator and a parity error output.",
+    "The participant must not modify the input artifacts; only the submission/trojan_report.json file is graded.",
+    "A naive or empty report (e.g., label 'Trojan-Free' with an empty suspect_nodes list) will fail evaluation."
+  ],
+  "expected_outputs": [
+    "A valid trojan_report.json file in the submission directory.",
+    "The report must contain a top-level 'label' field (string) and a 'suspect_nodes' field (list of strings).",
+    "The 'label' must be either 'Trojan' or 'Trojan-Free'.",
+    "The 'suspect_nodes' list must contain hierarchical net names from the netlist."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json must be parseable as valid JSON and contain exactly the two top-level keys 'label' and 'suspect_nodes'."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The 'label' field must be a string equal to either 'Trojan' or 'Trojan-Free'."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The 'suspect_nodes' field must be an array of strings, where each string is a valid identifier present in the provided design.v netlist."
+    }
+  ],
+  "input_artifacts": [
+    "design.v",
+    "design_tb.v",
+    "design_brief.md"
+  ],
+  "interface": "SUBMISSION INTERFACE (analysis_report): The participant must produce a single file at submission/trojan_report.json. The file must be valid JSON with the following schema: { \"label\": \"Trojan\" | \"Trojan-Free\", \"suspect_nodes\": [\"string\", ...] }. Each string in suspect_nodes must match a wire or gate instance name present in the input netlist design.v. The evaluator will parse this file and compare its contents against the hidden ground truth.",
+  "objective": "Analyze the provided gate-level netlist and identify any suspicious logic that could interfere with the parity error output signal. Submit a report listing suspect nodes and a detection label.",
+  "response_format": "A JSON object with two required fields: 'label' (string, either 'Trojan' or 'Trojan-Free') and 'suspect_nodes' (array of strings, each a hierarchical node name from the netlist). Example: { \"label\": \"Trojan\", \"suspect_nodes\": [\"top.trigger_gate\", \"top.payload_gate\"] }."
+}

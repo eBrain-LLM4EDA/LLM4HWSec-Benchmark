@@ -173,7 +173,9 @@ _PLAN_INSTRUCTIONS = (
     "its own full budget). NEVER write file bodies or code in the plan — not as a "
     "`files` property (the schema forbids it) and not inside `purpose` strings; each file's "
     "full content is requested separately, one file at a time, right after this plan. "
-    "Do not include markdown fences."
+    "Do not include markdown fences. HARD SIZE LIMIT: no planned file may require more than "
+    "300 lines. Use compact behavioral or modest structural hardware examples; never plan a "
+    "fully flattened design with thousands of repeated wires or gates."
 )
 
 # The plan is a manifest, not the bundle: it never legitimately needs the
@@ -216,6 +218,55 @@ class FileBundleAgent(JsonAgent):
     def __init__(self, llm: OpenRouterLLM, config: AgentConfig):
         super().__init__(llm, config)
         self.plan_schema = _plan_schema(self.schema)
+
+    def _emit_file(
+        self,
+        prompt: str,
+        plan: dict[str, Any],
+        context: list[dict[str, str]],
+        entry: dict[str, Any],
+    ) -> str:
+        path = str(entry.get("path", ""))
+        request = _file_request(plan, context, entry)
+        kwargs = {
+            "model": self.config.model,
+            "messages": [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": request},
+            ],
+            "label": f"{self.config.name}:{path}",
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+            "reasoning": self.config.reasoning,
+            # A file that cannot fit the configured per-file budget should be
+            # redesigned, not blindly retried at the global 64K ceiling.
+            "escalation_cap": self.config.max_tokens,
+        }
+        try:
+            return self.llm.complete_text(**kwargs)
+        except RuntimeError as exc:
+            if "output is too large" not in str(exc):
+                raise
+            compact_budget = min(self.config.max_tokens, 16000)
+            console.print(
+                f"  [yellow]{self.config.name}:{path} exceeded its file budget; "
+                "retrying once as a compact replacement under 300 lines.[/yellow]"
+            )
+            kwargs.update({
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": request + (
+                        "\n\nCOMPACT REPLACEMENT REQUIRED: the previous response was too large. "
+                        "Redesign this file to stay under 300 lines and 12,000 output tokens. "
+                        "Preserve the required interface and behavior, but use loops, arrays, "
+                        "generate constructs, helper functions, or behavioral RTL instead of "
+                        "enumerating repeated wires/gates."
+                    )},
+                ],
+                "max_tokens": compact_budget,
+                "escalation_cap": compact_budget,
+            })
+            return self.llm.complete_text(**kwargs)
 
     def run(self, variables: dict[str, Any]) -> dict[str, Any]:
         prompt = self._render(variables)
@@ -280,18 +331,41 @@ class FileBundleAgent(JsonAgent):
             path = str(entry.get("path", "")).strip()
             if not path:
                 raise ValueError(f"{self.config.name}: manifest entry without a path.")
-            content = self.llm.complete_text(
-                model=self.config.model,
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": _file_request(plan, files, entry)},
-                ],
-                label=f"{self.config.name}:{path}",
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-                reasoning=self.config.reasoning,
-            )
+            content = self._emit_file(prompt, plan, files, entry)
             files.append({"path": path, "content": content})
+        bundle = {**plan, "files": files}
+        validate_or_raise(bundle, self.schema)
+        return bundle
+
+    def repair_files(
+        self,
+        variables: dict[str, Any],
+        previous_bundle: dict[str, Any],
+        paths: list[str],
+    ) -> dict[str, Any]:
+        """Regenerate selected files without paying for a new plan or unrelated files."""
+        wanted = set(paths)
+        manifest = previous_bundle.get("manifest") or []
+        by_path = {str(entry.get("path", "")): entry for entry in manifest}
+        entries = [by_path[path] for path in paths if path in wanted and path in by_path]
+        if not entries:
+            raise ValueError(f"{self.config.name}: no requested repair paths exist in the manifest.")
+
+        prompt = self._render(variables)
+        plan = {key: deepcopy(value) for key, value in previous_bundle.items() if key != "files"}
+        original_files = previous_bundle.get("files") or []
+        repaired: dict[str, str] = {}
+        context = [deepcopy(item) for item in original_files if str(item.get("path", "")) not in wanted]
+        for entry in entries:
+            path = str(entry["path"])
+            content = self._emit_file(prompt, plan, context, entry)
+            repaired[path] = content
+            context.append({"path": path, "content": content})
+
+        files = [
+            {**item, "content": repaired.get(str(item.get("path", "")), item.get("content", ""))}
+            for item in original_files
+        ]
         bundle = {**plan, "files": files}
         validate_or_raise(bundle, self.schema)
         return bundle

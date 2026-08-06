@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected by evaluate.py, causing mutation_score=0.0 and making the score meaningless. The validation report shows golden_run exit_code=1 with result/result_valid mismatches, and no [TEST] PASS/FAIL markers for any requirement. The analyzer confirms evaluate.py is buggy and must be fixed to correctly grade the golden submission. Additionally, no targeting mutants were provided, so harness discrimination is unproven. The primary fix is to repair evaluate.py so it compiles and runs the golden submission and emits proper [TEST] PASS/FAIL markers for all requirements. The testbench syntax error in tb_mac_top.v is secondary but should also be corrected.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

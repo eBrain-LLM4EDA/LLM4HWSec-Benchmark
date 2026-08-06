@@ -1,0 +1,25 @@
+Power Leakage Model
+====================
+
+This analysis assumes a Hamming-distance based power leakage model.
+The power consumption of a digital circuit is correlated with the
+number of bit transitions occurring in registers and on combinatorial
+nets.
+
+For registers (flip-flops), the leakage in a clock cycle is proportional
+to the Hamming distance between the current stored value and the next
+value to be stored:
+
+    leakage_register = HW(current_value XOR next_value)
+
+where HW denotes the Hamming weight (number of 1-bits).
+
+For combinatorial nets, glitches can cause multiple intermediate
+transitions before the signal settles. The leakage contribution of a
+glitch-prone net is approximated by the Hamming weight of its final
+stable value:
+
+    leakage_net = HW(net_value)
+
+This model captures both the data-dependent switching activity of
+registers and the additional leakage from glitchy combinatorial logic.

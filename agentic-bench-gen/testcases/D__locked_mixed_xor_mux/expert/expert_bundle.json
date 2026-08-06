@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"lock_gates\": [\n    {\n      \"gate_label\": \"lock_xor\",\n      \"classification\": \"XOR\",\n      \"key_bit\": 0\n    },\n    {\n      \"gate_label\": \"lock_xnor\",\n      \"classification\": \"XNOR\",\n      \"key_bit\": 1\n    },\n    {\n      \"gate_label\": \"lock_mux0\",\n      \"classification\": \"MUX_0\",\n      \"key_bit\": 0\n    },\n    {\n      \"gate_label\": \"lock_mux1\",\n      \"classification\": \"MUX_1\",\n      \"key_bit\": 1\n    }\n  ],\n  \"recovered_key\": \"0101\"\n}",
+      "path": "golden/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_key.json",
+      "purpose": "The golden answer file for the analysis_report submission contract. Contains the exact ground truth: four lock_gates with gate_labels matching the original netlist labels (lock_xor, lock_xnor, lock_mux0, lock_mux1), correct classifications (XOR, XNOR, MUX_0, MUX_1), and key_bits (0,1,0,1). The recovered_key string is '0101'. This file is overlaid onto submission/recovered_key.json during grading and must pass all acceptance criteria: correct gate identification, correct classification, exact key recovery, and valid JSON schema."
+    }
+  ]
+}

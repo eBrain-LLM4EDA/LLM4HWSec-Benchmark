@@ -1,0 +1,37 @@
+{
+  "task_id": "gate_clock_enable_payload",
+  "domain_id": "gate_trojan_detection",
+  "title": "Clock-enable suppression Trojan",
+  "input_artifacts": [
+    "design.v",
+    "cells.lib"
+  ],
+  "expected_output": {
+    "submission_file": "submission/trojan_report.json",
+    "schema": {
+      "trojan_detected": "boolean",
+      "suspect_nodes": "list of strings"
+    }
+  },
+  "evaluation_metrics": [
+    {
+      "name": "detection_rate",
+      "description": "The proportion of Trojan nodes correctly identified out of the total number of Trojan nodes in the ground truth.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "The proportion of reported suspect nodes that are not part of the Trojan logic.",
+      "direction": "minimize"
+    },
+    {
+      "name": "inference_latency",
+      "description": "The wall-clock time taken by the analysis script to produce the report, measured in seconds.",
+      "direction": "minimize"
+    }
+  ],
+  "baseline_sources": [
+    "Trust-Hub",
+    "CASlab GAINESIS"
+  ]
+}

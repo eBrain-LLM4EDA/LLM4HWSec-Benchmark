@@ -1,0 +1,64 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "The mutant report describes the trigger pattern as 1101 instead of 1011, which is factually incorrect. The evaluator's ground-truth comparison for trigger_condition should detect this discrepancy and reject the submission.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"trigger_condition\": \"The trigger activates when a 4-bit shift register (hist_reg[3:0]) that records the history of the valid-ready handshake (valid && ready) on each cycle matches the pattern 1101 (MSB first, meaning the most recent four cycles had handshake outcomes: valid-ready, valid-ready, no-transfer, valid-ready).\",\n  \"payload_effect\": \"When the trigger condition is met, the payload logic forces the m_valid output low for exactly one cycle by gating it with an AND gate (payload_gate), thereby suppressing a single otherwise-valid transfer.\",\n  \"trigger_signals\": [\n    \"hist_reg[0]\",\n    \"hist_reg[1]\",\n    \"hist_reg[2]\",\n    \"hist_reg[3]\"\n  ],\n  \"payload_signals\": [\n    \"payload_gate\"\n  ],\n  \"confidence\": 1.0\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "SR1_trigger_condition_wrong_pattern",
+      "operator": "constant_change",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The mutant incorrectly reports the payload signal as 'out_valid' instead of 'payload_gate', violating SR2 which requires identifying the gate that corrupts the output valid signal. The evaluator should detect this because the payload_signals array does not include the actual payload gate signal.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"trigger_condition\": \"The trigger activates when a 4-bit shift register (hist_reg[3:0]) that records the history of the valid-ready handshake (valid && ready) on each cycle matches the pattern 1011 (MSB first, meaning the most recent four cycles had handshake outcomes: valid-ready, no-transfer, valid-ready, valid-ready).\",\n  \"payload_effect\": \"When the trigger condition is met, the payload logic forces the m_valid output low for exactly one cycle by gating it with an AND gate (payload_gate), thereby suppressing a single otherwise-valid transfer.\",\n  \"trigger_signals\": [\n    \"hist_reg[0]\",\n    \"hist_reg[1]\",\n    \"hist_reg[2]\",\n    \"hist_reg[3]\"\n  ],\n  \"payload_signals\": [\n    \"out_valid\"\n  ],\n  \"confidence\": 1.0\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "SR2_payload_signals_wrong_gate",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The evaluator's JSON parser will reject the submission because the file contains a trailing comma after the last element of the trigger_signals array, making it invalid JSON. This directly violates FR1 which requires the report to be valid JSON and parseable by a standard JSON parser.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"trigger_condition\": \"The trigger activates when a 4-bit shift register (hist_reg[3:0]) that records the history of the valid-ready handshake (valid && ready) on each cycle matches the pattern 1011 (MSB first, meaning the most recent four cycles had handshake outcomes: valid-ready, no-transfer, valid-ready, valid-ready).\",\n  \"payload_effect\": \"When the trigger condition is met, the payload logic forces the m_valid output low for exactly one cycle by gating it with an AND gate (payload_gate), thereby suppressing a single otherwise-valid transfer.\",\n  \"trigger_signals\": [\n    \"hist_reg[0]\",\n    \"hist_reg[1]\",\n    \"hist_reg[2]\",\n    \"hist_reg[3]\",\n  ],\n  \"payload_signals\": [\n    \"payload_gate\"\n  ],\n  \"confidence\": 1.0\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "FR1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "The evaluator should reject this submission because it is missing the required field 'payload_effect', violating FR2 which mandates all required fields be present.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"trigger_condition\": \"The trigger activates when a 4-bit shift register (hist_reg[3:0]) that records the history of the valid-ready handshake (valid && ready) on each cycle matches the pattern 1011 (MSB first, meaning the most recent four cycles had handshake outcomes: valid-ready, no-transfer, valid-ready, valid-ready).\",\n  \"trigger_signals\": [\n    \"hist_reg[0]\",\n    \"hist_reg[1]\",\n    \"hist_reg[2]\",\n    \"hist_reg[3]\"\n  ],\n  \"payload_signals\": [\n    \"payload_gate\"\n  ],\n  \"confidence\": 1.0\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "FR2_missing_required_field",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The evaluator should reject this submission because the confidence field is 1.5, which is outside the required range of 0.0 to 1.0 inclusive, violating FR3.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"trigger_condition\": \"The trigger activates when a 4-bit shift register (hist_reg[3:0]) that records the history of the valid-ready handshake (valid && ready) on each cycle matches the pattern 1011 (MSB first, meaning the most recent four cycles had handshake outcomes: valid-ready, no-transfer, valid-ready, valid-ready).\",\n  \"payload_effect\": \"When the trigger condition is met, the payload logic forces the m_valid output low for exactly one cycle by gating it with an AND gate (payload_gate), thereby suppressing a single otherwise-valid transfer.\",\n  \"trigger_signals\": [\n    \"hist_reg[0]\",\n    \"hist_reg[1]\",\n    \"hist_reg[2]\",\n    \"hist_reg[3]\"\n  ],\n  \"payload_signals\": [\n    \"payload_gate\"\n  ],\n  \"confidence\": 1.5\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "FR3_confidence_out_of_range",
+      "operator": "constant_change",
+      "target_requirement_id": "FR3"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs meet the retention bar: validation_status=pass, mutation_score=1.0 (>=0.5 threshold), mapping_coverage=1.0, discrimination_coverage=1.0, analyzer_status=pass with zero issues, and baseline_exit_code=0. The differential run shows golden accepted (all FR1-4/SR1-4 PASS) and the shipped vulnerable/empty baseline correctly rejected (FR3 FAIL cascading to FR4/SR1-4). No missing_interface, golden_rejected, vulnerable_accepted, requirement_id_mismatch, dead_check, uncovered_requirement, public_security_leak, or missing_functional_requirements issues are present. The case is well-formed, the evaluation harness discriminates correctly across all mutants, and public/hidden spec separation is coherent with no leakage.",
+  "retain_case": true,
+  "revision_instructions": "No revision needed; case meets all retention criteria.",
+  "root_cause": "none",
+  "source_round": 1
+}

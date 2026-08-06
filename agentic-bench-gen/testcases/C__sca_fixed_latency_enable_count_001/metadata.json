@@ -1,0 +1,43 @@
+{
+  "task_id": "sca_fixed_latency_enable_count_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Fixed-Latency Multiplier Controller: Activity Trace Analysis",
+  "evaluation_mode": "report_grading",
+  "submission_kind": "analysis_report",
+  "input_artifacts": [
+    "inputs/mult_ctrl.v",
+    "inputs/fault_model.md",
+    "inputs/trace_manifest.json",
+    "inputs/traces.csv",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize",
+      "description": "Fraction of analyzed secret_operand trials for which the report's enable_count correctly equals popcount(secret_operand) as verified against inputs/traces.csv (and optionally via iverilog/vvp simulation of mult_ctrl.v)."
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize",
+      "description": "Proportion of required report fields and distinct secret_operand values (>=16 per FR3) correctly populated and cross-checked, measuring completeness of the activity analysis relative to the full trace manifest."
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize",
+      "description": "Fraction of submitted hardening_recommendations that specifically target switching-activity equalization (per SR3) rather than ineffective timing-only countermeasures, out of all recommendations submitted."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "notes": "Participants must not modify any file under inputs/. Only submission/vulnerability_report.json is graded. A naive/placeholder answer is shipped at that path and is expected to fail grading."
+}

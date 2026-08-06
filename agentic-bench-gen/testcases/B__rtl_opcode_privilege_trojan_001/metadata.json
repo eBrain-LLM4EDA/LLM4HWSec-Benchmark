@@ -1,0 +1,79 @@
+{
+  "task_id": "rtl_opcode_privilege_trojan_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Cheat-code opcode Trojan in a simple processor decode stage",
+  "description": "Analyze the RTL source for decode_ctrl, a small instruction-decode control unit, along with its design documentation and documented opcode table. Identify any suspicious or undocumented logic that could allow unauthorized assertion of control signals, and report findings with confidence scores and evidence-based rationale.",
+  "input_artifacts": [
+    "inputs/decode_ctrl.v",
+    "inputs/design_brief.md",
+    "inputs/opcode_map.txt"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "constraints": [
+    "Participants must not modify any file under inputs/.",
+    "All analysis output must be delivered as submission/trojan_report.json.",
+    "The toolchain (iverilog, vvp, yosys) is optional and available for self-verification only."
+  ],
+  "expected_outputs": {
+    "path": "submission/trojan_report.json",
+    "schema": {
+      "candidates": [
+        {
+          "trigger_opcode": "string (8-bit hex value or description of triggering condition)",
+          "payload_signal": "string (exact RTL net/output name asserted by the payload)",
+          "confidence": "number in [0,1]",
+          "rationale": "string (evidence-based explanation)"
+        }
+      ],
+      "summary": "optional string"
+    }
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of ground-truth trojan trigger/payload pairs correctly identified in submitted candidates."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of submitted candidates that reference documented opcodes or unrelated/non-payload signals as trojan findings, relative to total candidates submitted."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Accuracy of the exact reported opcode value and payload net name against hidden ground truth, scored as exact-match or normalized-equivalent match."
+    },
+    {
+      "name": "confidence_calibration",
+      "direction": "maximize",
+      "description": "Alignment between reported confidence scores and correctness of the finding."
+    },
+    {
+      "name": "schema_validity",
+      "direction": "maximize",
+      "description": "Whether submission/trojan_report.json parses as valid JSON and conforms to the required schema."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "interface": {
+    "module": "decode_ctrl",
+    "file": "inputs/decode_ctrl.v",
+    "ports": [
+      { "name": "opcode", "direction": "input", "width": 8 },
+      { "name": "clk", "direction": "input", "width": 1 },
+      { "name": "rst_n", "direction": "input", "width": 1 },
+      { "name": "write_enable", "direction": "output reg", "width": 1 },
+      { "name": "privilege_ok", "direction": "output reg", "width": 1 },
+      { "name": "alu_op", "direction": "output reg", "width": 3 },
+      { "name": "valid", "direction": "output reg", "width": 1 }
+    ],
+    "timing": "Registered outputs, 1-cycle latency, synchronous active-low reset (rst_n) clears all outputs."
+  }
+}

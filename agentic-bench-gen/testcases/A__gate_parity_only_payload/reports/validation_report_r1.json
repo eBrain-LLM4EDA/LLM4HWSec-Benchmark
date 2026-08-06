@@ -1,0 +1,119 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/design.v",
+    "inputs/design_brief.md",
+    "inputs/design_tb.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "19520c93d309a6174e7cffca05d6ff946aab36c5c80aaa70cfb0773a43c551ec",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: invalid identifiers: payload_and_gate, trigger_comparator_xnor_0\n[TEST] FAIL: SR1: missing required payload gate 'u_payload_and'\n[TEST] FAIL: SR2: no trigger cone gate found in suspect_nodes\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: SR1: missing required payload gate 'u_payload_and'\n[TEST] FAIL: SR2: no trigger cone gate found in suspect_nodes\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "19520c93d309a6174e7cffca05d6ff946aab36c5c80aaa70cfb0773a43c551ec",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true
+  },
+  "requirement_count": 5,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "b47d7ffecdc5212e7efe100b48049d82f38d058951ff5494146ac7637804a98a",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "b41bcf9a186340fb9372d7a4a0abeab0be5ea40c964fdeb31cf6f74e92f6c7d9",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.json",
+    "evaluation/tests/check_fr1.py",
+    "evaluation/tests/check_fr2.py",
+    "evaluation/tests/check_fr3.py",
+    "evaluation/tests/private/check_sr1.py",
+    "evaluation/tests/private/check_sr2.py"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "SR1",
+    "SR2"
+  ]
+}

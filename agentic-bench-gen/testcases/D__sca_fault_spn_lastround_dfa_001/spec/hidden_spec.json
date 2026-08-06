@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [
+    "PASS requires exact match on vulnerable_register == 'state_q', vulnerable_cycle_offset == 1, affected_nibble_index == 0, recovered_subkey_nibble_index == 0, recovered_subkey_nibble_value == '9' (case-insensitive hex), plus at least 2 valid hardening recommendations and a non-trivial analysis_method description referencing the trace data.",
+    "A naive/empty baseline submission (missing fields, placeholder values, or wrong register/nibble/key value) must FAIL all SR checks and at least one FR check.",
+    "Partial credit is not awarded on the binary PASS/FAIL security checks; hardening_detection_precision and other metrics may still report partial/graded scores for analysis quality."
+  ],
+  "cwe_ids": [
+    "CWE-1254",
+    "CWE-1247",
+    "CWE-203"
+  ],
+  "ground_truth": "Faulting state_q[3:0] (nibble index 0) exactly one clock cycle before the final output (vulnerable_cycle_offset = 1) causes a differential propagation through only the final S-box application to that nibble's contribution to the ciphertext's nibble 0. Performing a differential fault analysis (DFA) over the provided correct/faulty ciphertext pairs by testing each of the 16 candidate values for final_key[3:0] and checking which candidate produces, for every trace pair, an S-box input difference consistent with the observed output difference through the inverse S-box, uniquely narrows the surviving candidate to final_key[3:0] = 4'h9. All other 15 candidates are eliminated by at least one trace pair. recovered_subkey_nibble_index must be 0 and recovered_subkey_nibble_value must be '9'.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String/exact-match comparison of 'vulnerable_register' against the ground-truth identifier 'state_q' (case-sensitive match against the actual signal name declared in spn_core.v).",
+      "id": "SR1",
+      "requirement": "The report must correctly identify state_q as the exploitable register (not an unrelated register such as the key register or plaintext input register)."
+    },
+    {
+      "detection_strategy": "Exact integer match of 'vulnerable_cycle_offset' == 1 and 'affected_nibble_index' == 0 against hidden ground truth; optional cross-check by re-simulating spn_top.v with iverilog/vvp, injecting the reported fault at the reported location/cycle, and confirming the simulated faulty ciphertexts reproduce the differential pattern in trace_pairs.json.",
+      "id": "SR2",
+      "requirement": "The report must correctly localize the fault to one clock cycle before the final output and to nibble index 0 of the register."
+    },
+    {
+      "detection_strategy": "Exact match of recovered_subkey_nibble_index == 0 and recovered_subkey_nibble_value == '9'; evaluator independently re-derives the surviving candidate set by brute-forcing all 16 nibble values against trace_pairs.json through the documented inverse S-box and checks the submitted value is the unique survivor.",
+      "id": "SR3",
+      "requirement": "The report must correctly recover the final-round subkey nibble consistent with all provided differential trace pairs, not merely assert a plausible-looking but unverified value."
+    },
+    {
+      "detection_strategy": "Keyword/semantic check that at least 2 of the submitted hardening_recommendations entries reference concrete fault-hardening techniques (TMR, redundancy, parity/ECC, duplicate-and-compare, sensor-based glitch detection, randomized timing/delay) applied to the identified register; entries that only discuss algorithmic/cryptographic strength are not credited.",
+      "id": "SR4",
+      "requirement": "Hardening recommendations must be technically applicable to a register-level transient fault vulnerability (e.g. redundancy, error-detection coding, temporal/spatial redundancy) rather than generic or irrelevant advice (e.g. 'use a stronger cipher', 'increase key length')."
+    }
+  ],
+  "threat_model": "An attacker with physical or logical access to the device can inject a localized transient fault (e.g. via voltage glitch, laser, or clock glitch) that flips or corrupts exactly one 4-bit nibble of an internal register during a chosen clock cycle near the end of encryption, and can obtain both the resulting faulty ciphertext and a corresponding fault-free ciphertext for the same plaintext/key. The attacker does not have read access to internal registers or the key directly; all information is inferred purely from comparing correct and faulty output pairs (classic differential fault analysis, Biham-Shamir style)."
+}

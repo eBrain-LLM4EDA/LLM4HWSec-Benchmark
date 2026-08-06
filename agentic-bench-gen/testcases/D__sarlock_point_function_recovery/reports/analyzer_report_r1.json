@@ -1,0 +1,96 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the golden (correct) submission because its net-name extraction logic fails to recognize hierarchical net names like 'lock_comp/xor_0' that are present in the netlist. This causes FR3 to fail for a perfectly correct answer, making the benchmark unusable.",
+      "evidence": "Golden run stdout: '[TEST] FAIL: FR3: net 'lock_comp/xor_0' not found in locked_netlist.v'. The netlist contains 'wire xor_0;' inside module lock_comp, and the instance is 'lock_comp comp(...)'. The extraction regex does not build hierarchical paths correctly.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator fails to reject the naive baseline submission on FR3 because the empty key_gate_nets array trivially passes the 'all elements are valid net names' check (vacuously true). This means the baseline is not properly rejected on all requirements.",
+      "evidence": "Vulnerable run stdout: '[TEST] PASS: FR3'. The baseline submission has 'key_gate_nets': [], which contains no invalid net names, so the loop never finds a failure.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not compute or report the two metrics defined in the task specification (key_recovery_rate and key_gate_localization_accuracy). It only emits PASS/FAIL per requirement, making metric tracking impossible.",
+      "evidence": "The evaluate.py script contains no code that calculates a fraction of correct key bits or a Jaccard index. It only does exact-match comparisons for SR1 and SR2.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The requirement map lists 5 requirements (FR1-FR3, SR1-SR2) but the validation report shows 0 mutants were generated for any of them, meaning the harness's ability to discriminate correct from incorrect behavior is completely unproven.",
+      "evidence": "Validation report: 'mutation_score': 0.0, 'untested_requirements': ['FR1','FR2','FR3','SR1','SR2'].",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/oracle_vectors.json",
+      "description": "The oracle vectors file contains only 8 entries with identical input/output pairs (e.g., input '00' -> output '00'), which do not demonstrate any corruption. The protected input pattern that triggers the lock is not included, making the oracle useless for the intended attack.",
+      "evidence": "All vectors show output = input (e.g., '11' -> '02' is actually 0x11 -> 0x02, which is 1+1=2, correct). No vector shows a corrupted output where the LSB is flipped.",
+      "severity": "low"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The README hints that 'the oracle vectors include the protected input pattern', but the actual oracle_vectors.json does not contain any corrupted output. This misleads participants.",
+      "evidence": "README.md: 'The oracle vectors include the protected input pattern \u2013 look for the one output that differs from the expected functional behavior.' Actual oracle_vectors.json has no such entry.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py's extract_net_names() to correctly build hierarchical net names by parsing module instance port connections and prepending the instance name with a '/' separator. For example, when encountering 'lock_comp comp(.in(...), .out(lock_out))', the internal nets of lock_comp should be accessible as 'lock_comp/xor_0', etc.",
+    "Update the oracle_vectors.json to include at least one input pattern that triggers the lock (e.g., the concatenation of a and b that matches the hidden key bits mapped to inputs in[5:0]) and shows the corrupted output (LSB flipped).",
+    "Add metric computation to evaluate.py: calculate key_recovery_rate as the fraction of bits in recovered_key matching CORRECT_KEY, and key_gate_localization_accuracy as |intersection| / |union| of submitted and ground-truth net sets. Report these alongside PASS/FAIL.",
+    "Generate mutation tests for each requirement to prove the harness can discriminate between correct and incorrect submissions. At minimum, create mutants that violate FR2 (invalid key characters), FR3 (non-existent net name), SR1 (wrong key), and SR2 (missing net).",
+    "Fix the FR3 check so that an empty key_gate_nets array is treated as a failure when the ground truth expects non-empty nets, or add an explicit check that the array is non-empty for this task."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "The golden submission (correct key '101101' and correct net list) is rejected by evaluate.py due to a bug in net-name extraction. The hidden ground truth nets use hierarchical names (lock_comp/xor_0) that the evaluator cannot find in the netlist.",
+      "requirement": "Coherence: public inputs, hidden ground truth, and expected outputs are consistent",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run exits 1 (FAIL) on FR3. Vulnerable run exits 1 but passes FR3 vacuously. The evaluator does not correctly discriminate: it rejects the correct answer and fails to properly reject the baseline on all requirements.",
+      "requirement": "Evaluator accepts correct submission (exit 0) and rejects naive baseline (exit non-zero)",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py only performs exact-match checks and emits PASS/FAIL. No code computes the fraction of correct key bits or the Jaccard index as specified in the task's evaluation.metrics.",
+      "requirement": "Evaluator measures the requested metrics (key_recovery_rate, key_gate_localization_accuracy)",
+      "status": "fail"
+    },
+    {
+      "evidence": "The requirement_map in the harness bundle lists FR1-FR3 as functional and SR1-SR2 as security, with distinct detection strategies for each.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 and SR2 compare against hidden ground truth, which is appropriate. However, the oracle vectors do not contain the protected input pattern, so the security scenario cannot be meaningfully exercised by participants.",
+      "requirement": "Security-relevant behaviors are actively triggered rather than only checked generically",
+      "status": "unknown"
+    },
+    {
+      "evidence": "All files are plain text (Verilog, JSON, Markdown, Python). No binaries, no network access, no unsafe operations. The netlist is a small combinational circuit with no malicious code.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task involves a SARLock-style point-function lock with a key comparator, XNOR/AND tree, and corruption XOR. This is a well-known hardware security benchmark scenario specific to the domain.",
+      "requirement": "Benchmark is adapted to the logic_deobfuscation_sat domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/ files describe the locking scheme generically without revealing CWE-200, SR1/SR2 IDs, the hidden key value, or ground-truth net names. The threat model is described in locking_scheme_description.md at a high level appropriate for the task.",
+      "requirement": "No leakage of hidden security intent in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 (valid JSON), FR2 (non-empty binary string), and FR3 (valid net names) are all concrete and checked programmatically in evaluate.py.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

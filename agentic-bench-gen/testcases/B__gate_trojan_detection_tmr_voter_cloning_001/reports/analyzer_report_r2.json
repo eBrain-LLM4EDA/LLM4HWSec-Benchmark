@@ -1,0 +1,80 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR1 is not covered by any distinguishing mutant in the mutation testing run (mutation_score_meaningful=true, per_requirement_coverage.SR1.covered=false). The validation report explicitly flags SR1 as an uncovered_requirement, indicating the SR1-targeting mutant (root_cause reframed as internal logic bug while nets/instances remain correct) was not detected by the check as implemented, despite the code appearing to implement this logic. This suggests either the mutant construction or the keyword/pattern matching in SR1 has a gap that lets a mischaracterized-as-logic-bug submission still pass.",
+      "evidence": "per_requirement_coverage.SR1: {\"covered\": false, \"mutants_detected\": 0, \"mutants_targeting\": 1}; issues: [{\"issue\": \"uncovered_requirement\", \"detail\": \"SR1 has no targeting mutant detected by its own check\"}]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR1's keyword-based classification of 'wiring/duplication' vs 'logic bug' narrative is heuristic and may be brittle to phrasing not anticipated by the keyword lists (e.g. synonyms not in either list would default to passing since misdescribed requires logic_bug_evidence to be true), which could allow false passes or false fails depending on wording nuance.",
+      "evidence": "duplication_keywords and logic_bug_keywords lists in evaluate.py SR1 block; misdescribed = logic_bug_evidence and not duplication_evidence",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why the SR1-targeting mutant was not detected by the SR1 check -- inspect the specific mutant diff used in mutation testing to confirm it actually alters root_cause phrasing in a way that should trigger the 'misdescribed' branch (logic_bug_evidence true, duplication_evidence false) but currently doesn't, possibly due to overlapping keywords or the mutant not changing root_cause text at all.",
+    "Consider strengthening SR1's classification robustness by expanding the logic_bug_keywords/duplication_keywords lists or restructuring the check to require explicit wiring/duplication language rather than relying on absence of logic-bug language as the sole trigger for failure.",
+    "Add an additional SR1-specific mutant (e.g. a submission that keeps correct suspect_nets/instances but rewrites root_cause using an out-of-list synonym for 'logic bug' such as 'malfunction in the boolean expression') to validate the detection boundary more thoroughly during mutation testing before finalizing the benchmark."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline (naive) run PASSes FR1 since it is valid JSON with correct types; mutation coverage shows FR1 mutant detected 1/1.",
+      "requirement": "FR1 schema validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage FR2 detected 1/1; vacuously passes when trojan_present=false as in baseline.",
+      "requirement": "FR2 suspect_instances validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage FR3 detected 1/1; vacuously passes when trojan_present=false as in baseline.",
+      "requirement": "FR3 suspect_nets validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable/naive run shows FR4 FAIL correctly for empty affected_output; mutation coverage 1/1.",
+      "requirement": "FR4 affected_output matches real output",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR1.covered=false with 0/1 mutants detected despite 1 targeting mutant; flagged explicitly as uncovered_requirement in validation report.",
+      "requirement": "SR1 wiring/connectivity defect classification",
+      "status": "fail"
+    },
+    {
+      "evidence": "Mutation coverage SR2 detected 1/1.",
+      "requirement": "SR2 names cloning instance",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage SR3 detected 1/1.",
+      "requirement": "SR3 flags dangling net_repb_out",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage SR4 detected 1/1; vulnerable run correctly FAILs SR4 with trojan_present=false.",
+      "requirement": "SR4 correct affected_output and trojan_present",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.status=pass; golden_run exit_code=0 all PASS; vulnerable_run (naive baseline) exit_code=1 with FR4/SR1/SR2/SR3/SR4 all FAIL as expected.",
+      "requirement": "Golden submission passes, naive baseline fails",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and netlist use ordinary RTL naming (u_buf1, wire_tap, net_repb_out) with no mention of 'trojan', 'clone', 'malicious', CWE ids, or SR ids; design_brief.md states the wiring invariant without revealing it is violated.",
+      "requirement": "No hidden-intent leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are each independently verifiable against the pinned interface (JSON schema, instance name matching, net name matching, output port matching), not a single generic restatement.",
+      "requirement": "Public FRs are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

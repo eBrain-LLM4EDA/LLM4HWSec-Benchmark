@@ -1,0 +1,16 @@
+{
+  "acceptance_criteria": [
+    "The submitted recovered_rtl.v produces a crc_out waveform that matches the reference CRC-16/CCITT-FALSE implementation cycle by cycle for all test vectors.",
+    "The submission correctly identifies the polynomial 0x1021, initial value 0xFFFF, MSB-first bit order, no input reflection, no output reflection, and no final XOR."
+  ],
+  "cwe_ids": [],
+  "ground_truth": "The circuit implements CRC-16/CCITT-FALSE polynomial 0x1021, seed 0xffff, MSB-first input, no reflection, and no final XOR.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Requirement-level private harness.",
+      "id": "SR1",
+      "requirement": "The submitted artifact satisfies the hidden domain-specific security property."
+    }
+  ],
+  "threat_model": "An undocumented integrity block cannot be interoperated with until its polynomial and bit-processing convention are recovered."
+}

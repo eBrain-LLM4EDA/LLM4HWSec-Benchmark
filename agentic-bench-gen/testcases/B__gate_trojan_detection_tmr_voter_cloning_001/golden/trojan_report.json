@@ -1,0 +1,8 @@
+{
+  "trojan_present": true,
+  "suspect_instances": ["u_buf1"],
+  "suspect_nets": ["net_buf1_out", "voter_b", "net_repb_out"],
+  "affected_output": "voted_out",
+  "root_cause": "Instance u_buf1 (a wire_tap) taps net_repa_out, the output of u_replica_a, and drives net_buf1_out, which feeds voter_b instead of net_repb_out. This means both voter_a and voter_b originate from u_replica_a's output, while net_repb_out, the genuine output of u_replica_b, is declared and driven but left dangling/unused. A single stuck-at fault on u_replica_a now propagates to 2 of 3 voter inputs, defeating majority-vote fault masking and corrupting voted_out.",
+  "confidence": 0.95
+}

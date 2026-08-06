@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs meet retention thresholds: mutation_score=1.0, coverage_score=1.0, validation_status=pass, baseline_exit_code=0, issue_count=0, analyzer_status=pass. The differential harness confirms the golden submission passes all FR/SR checks and the baseline (naive over-sensitive detector) fails on SR1/SR2/SR3 as intended. All seven requirements (FR1-FR4, SR1-SR3) are covered by mutants with no dead checks or uncovered requirements. The two analyzer-flagged issues are both low severity and non-blocking: the SR2 keyword breadth theoretical over-flagging risk only affects malformed infected=true reports (not the correct clean submission path), and the SR3 simulation corroboration branch being non-decisive is a documented design choice that doesn't currently cause false accepts or rejects. No public security leakage was found, and the functional requirements are concrete and machine-checkable. The case meets all retention criteria.",
+  "retain_case": true,
+  "revision_instructions": "No revision required. Optional low-priority hardening for a future iteration: consider narrowing the SR2 spurious-keyword list (or requiring co-occurrence with malicious-sounding language) to reduce theoretical over-flagging risk on nuanced infected=true reports that legitimately discuss the watchdog counter in an unrelated finding, and consider adding a mutant RTL variant with a genuine debug_enable bypass path to empirically demonstrate that the simulation-corroboration branch in the SR3 check can detect a real gating violation when the rationale text alone is ambiguous.",
+  "root_cause": "none"
+}

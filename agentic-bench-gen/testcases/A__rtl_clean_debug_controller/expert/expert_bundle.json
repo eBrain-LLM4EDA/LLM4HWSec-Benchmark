@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"infected\": false,\n  \"trojan_candidates\": [],\n  \"rationale\": \"The design was analyzed for hardware Trojans by examining all rare-event logic and debug paths. The debug_enable input gates a set of low-activity counters and diagnostic outputs; this is documented functionality with no hidden trigger condition or malicious payload. All debug paths are transparently controlled by the debug_enable port, and no undocumented side-effects or secret data leaks were found. Therefore, the design is clean and contains no hardware Trojan.\"\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The golden submission answer file for the analysis_report domain. Contains the correct classification: infected=false, trojan_candidates=[], and a rationale explaining that the debug_enable-gated paths are legitimate, documented functionality with no secret trigger or payload. Must satisfy FR1-FR4 (valid JSON, required fields, non-empty rationale) and SR1-SR2 (no false positive on debug paths, correct clean classification)."
+    }
+  ]
+}

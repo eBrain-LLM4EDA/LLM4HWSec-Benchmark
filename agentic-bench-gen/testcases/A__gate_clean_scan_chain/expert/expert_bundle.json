@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"infected\": false,\n  \"trigger_nodes\": [],\n  \"payload_nodes\": []\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The correct submission answer for the clean scan-chain netlist. Contains infected=false, trigger_nodes=[], payload_nodes=[]. This file is the golden reference that evaluate.py grades against; it must pass all functional requirements (FR1-FR4) and security requirements (SR1-SR2) by correctly declaring the netlist clean despite the presence of legitimate scan-control logic with low switching activity."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "1ed8eaff803164b7fea761be18823eaf12cb8eb038ff84c461c96d79bbad2afc",
+    "expert/expert_bundle.json": "c4627b16057de9cf3368a6fbe4ed1dedcfafe6ca47028a2e36a77b46d6f2ca7d",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "f955c1beefbe9deb53c3166c3f04dd0ab7b58a04ecfa1071e1beec563b5f3c54",
+    "reports/quality_report.json": "698d09dc3153721c0584a3881034e0024a46af609816ddc2e96c7cbec892cd62",
+    "reports/validation_report.json": "09981603728275d6240343b0bb2ed2c107be8acaa1ac4dc89ae4897406af2c7f",
+    "spec/task_spec.json": "6139861bbd2625a25eaa1b47054ea8d891addabe8870478416ef5e1868e9145a",
+    "tests/tester_bundle.json": "c5fde3cd062a28669922d099e6377ca7cefdb6995eb3ebefa1ce1144284acb34"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "quality_failed",
+  "task_id": "sfa_rom_addr_leak_001"
+}

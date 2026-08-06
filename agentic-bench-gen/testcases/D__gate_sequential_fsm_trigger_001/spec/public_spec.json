@@ -1,0 +1,32 @@
+{
+  "constraints": [
+    "The netlist is a flat, synthesized gate-level Verilog file.",
+    "The design contains a finite state machine implemented with standard cells and D-type flip-flops.",
+    "The analysis must be performed on the provided netlist without modification."
+  ],
+  "expected_outputs": [
+    "A valid trojan_report.json file in the submission directory.",
+    "The report must contain a list of suspect nodes with associated labels.",
+    "The report must be parseable JSON conforming to the specified schema."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json file must be syntactically valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must contain the top-level key \"suspect_nodes\" with a value that is an array."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Each element in the \"suspect_nodes\" array must be an object containing exactly two keys, \"node_name\" and \"role\", both with string values."
+    }
+  ],
+  "input_artifacts": [
+    "controller_netlist.v"
+  ],
+  "interface": "The participant must produce a single file named trojan_report.json inside the submission/ directory. The file must be valid JSON with the following structure: an object containing a key \"suspect_nodes\" which maps to an array of objects. Each object in the array must have two string fields: \"node_name\" (the exact hierarchical name of a net or cell instance from the netlist) and \"role\" (a short label describing its suspected function, e.g., \"trigger_logic\", \"payload_gate\", \"state_register\").",
+  "objective": "Analyze the provided gate-level netlist and identify any suspicious sequential logic structures and their downstream effects. Submit a report listing all suspect nodes and their roles.",
+  "response_format": "A JSON file named trojan_report.json with the following schema: {\"suspect_nodes\": [{\"node_name\": \"string\", \"role\": \"string\"}]}"
+}

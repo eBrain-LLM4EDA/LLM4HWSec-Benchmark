@@ -1,0 +1,28 @@
+{
+  "acceptance_criteria": [
+    "infected is false",
+    "trigger_nodes is an empty array",
+    "payload_nodes is an empty array"
+  ],
+  "cwe_ids": [
+    "CWE-1269"
+  ],
+  "evidence_policy": {
+    "kind": "security_trigger_simulation",
+    "required": false
+  },
+  "ground_truth": "The netlist is clean. All scan-related nodes are reachable only through the documented test_mode and affect only scan shifting. The correct report has infected=false, trigger_nodes=[], payload_nodes=[].",
+  "security_requirements": [
+    {
+      "detection_strategy": "Simulate the netlist with test_mode=0 and verify that scan-control nodes do not affect functional outputs. Confirm that scan shifting only occurs when test_mode=1.",
+      "id": "SR1",
+      "requirement": "The detection method must not flag legitimate scan-chain control logic (test_mode, scan_enable, scan multiplexers) as Trojan trigger nodes."
+    },
+    {
+      "detection_strategy": "Trace all paths from any candidate payload node to primary outputs and verify no unauthorized data leakage or corruption path exists under functional mode.",
+      "id": "SR2",
+      "requirement": "The detection method must correctly identify the absence of any payload nodes that leak or corrupt functional data."
+    }
+  ],
+  "threat_model": "Rare-net heuristics misclassify legitimate design-for-test structures as Trojans and produce costly false alarms."
+}

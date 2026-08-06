@@ -1,0 +1,118 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/obfuscated_mac_netlist.v",
+    "metadata.json",
+    "submission/recovered_rtl.v"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "60fa0daa516a4f3622f85f869d283d42af17866a4b47740d065ecd257b84f569",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: FR2: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: FR3: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: FR4: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: SR1: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: SR2: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: FR2: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: FR3: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: FR4: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: SR1: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n[TEST] FAIL: SR2: compile failed: evaluation/mac_golden.v:1: error: timescale directive cannot be inside a module definition.; evaluation/mac_golden.v:3: syntax error; evaluation/tb_mac_top.v:281: error: Malformed conditional expression.\n"
+    }
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "expert_files": [
+    "golden/recovered_rtl.v"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "60fa0daa516a4f3622f85f869d283d42af17866a4b47740d065ecd257b84f569",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "1b225165addd3d1c4fd38f18dd586363b58feb2e107696313f48ed0890ea48de",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "28215aa6e52bc2352b23c5a7f5fcc10dba94552939dcd624279826ba15cc865d",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/mac_golden.v",
+    "evaluation/tb_mac_top.v"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2"
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "task_id": "gate_trojan_detection_async_clear_audit_erasure_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Detection: Tamper-Counter Audit Module Netlist Review",
+  "objective": "Analyze a gate-level Verilog netlist of a tamper-monitoring audit subsystem to determine whether the tamper-event counter can be cleared through any path other than the documented reset, and report findings as structured JSON.",
+  "input_artifacts": [
+    "inputs/audit_module_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/port_map.txt"
+  ],
+  "module_interface": {
+    "module": "audit_top",
+    "ports": [
+      { "name": "clk", "direction": "input", "width": 1, "description": "system clock" },
+      { "name": "rst_n", "direction": "input", "width": 1, "description": "active-low global reset" },
+      { "name": "maintenance_req", "direction": "input", "width": 1, "description": "maintenance interface request signal" },
+      { "name": "alarm", "direction": "input", "width": 1, "description": "alarm condition signal" },
+      { "name": "tamper_event", "direction": "input", "width": 1, "description": "tamper event detection pulse" },
+      { "name": "tamper_count", "direction": "output", "width": 8, "description": "persistent tamper-event counter" }
+    ]
+  },
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "response_format": {
+    "path": "submission/trojan_report.json",
+    "type": "application/json",
+    "required_fields": {
+      "trojan_present": "boolean",
+      "suspect_gates": "array of strings",
+      "altered_net": "string",
+      "affected_registers": "array of strings",
+      "trigger_condition": "string",
+      "justification": "string (non-empty, <= 2000 characters)"
+    }
+  },
+  "evaluation": {
+    "mode": "report_grading",
+    "toolchain": ["yosys", "iverilog", "vvp"],
+    "metrics": [
+      {
+        "name": "detection_rate",
+        "direction": "maximize",
+        "description": "Fraction of required security findings that the submitted trojan_report.json satisfies, averaged per case."
+      },
+      {
+        "name": "false_positive_rate",
+        "direction": "minimize",
+        "description": "Fraction of reported suspect_gates/altered_net entries that do not correspond to any gate/net actually involved in the malicious clear path."
+      },
+      {
+        "name": "inference_latency",
+        "direction": "minimize",
+        "description": "Wall-clock time in seconds for evaluate.py to parse, structurally validate, and optionally simulate the netlist to grade the submitted report."
+      },
+      {
+        "name": "schema_conformance",
+        "direction": "maximize",
+        "description": "Whether the submitted trojan_report.json satisfies all structural/format functional requirements independent of substantive correctness."
+      }
+    ]
+  },
+  "notes": "Ground-truth correctness values are not published in this file; grading is performed by evaluate.py against the input artifacts and the submitted report."
+}

@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/tb_top.v",
+      "description": "SR1 (no-overlap invariant) has no mutant in the validation suite that it uniquely detects; the mutation analysis shows SR1 covered by 0/1 targeting mutants, meaning the current SR1-targeting mutant is not actually caught by the SR1 probe logic. This indicates the overlap check, while present and logically sound (ok_overlap = !(sub_hi && sub_lo)), may not be exercised against a mutant that produces a genuine overlap violation without also being caught by other checks (e.g. FR2 mismatch fires first due to fail-fast reason capture), making SR1 an under-verified requirement in practice.",
+      "evidence": "per_requirement_coverage.SR1: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: ['SR1']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/tb_top.v",
+      "description": "SR1 fail-fast bookkeeping (sr1_fail_count==0 gating) combined with FR2 also being checked in the same loop iteration means an overlap-only mutant might get its SR1 PROBE emitted correctly, but if the harness's overlap-inducing mutant simultaneously causes an FR2 mismatch that is reported first/instead, the SR1-specific detection signal is diluted in the aggregate mutation score, though the check itself is not functionally broken.",
+      "evidence": "mutation_score_meaningful: true; mutation_score: 0.833; SR1 mutants_detected: 0/1",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or adjust a mutant specifically targeting the SR1 overlap invariant in isolation (e.g. a mutant that only breaks the mutual-exclusion property without also breaking FR1-FR4 cycle-matching) so the mutation suite can independently confirm SR1's detection capability rather than relying on incidental FR2 mismatches.",
+    "Consider having scenario_fr2_sr1's SR1 reporting continue accumulating/reporting even after fr2_fail_count is set, or add a dedicated SR1-only mutant (e.g. a submission that produces bit-exact match to reference except forcibly ORs pwm_hi and pwm_lo together on some cycles) to validate the check's discriminative power directly.",
+    "Document in the harness README that SR1's mutation coverage should be periodically re-verified, since the current validation shows 0/1 targeting mutants detected despite the check being logically sound and exercised extensively."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "design_brief.md, obfuscated_rtl.v, and gate_netlist.v all describe the same counter+comparator+dead-time structure consistent with the hidden ground truth (2-cycle dead time at cnt>=2 and cnt>=duty+2); reference_pwm.v implements exactly the pinned interface timing contract.",
+      "requirement": "Coherence between public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential shows golden_run exit_code=0 with all PASS; vulnerable_run (naive pass-through baseline) exit_code=1 with FR1, FR2, FR3, FR4, SR2 all FAIL, only SR1 unexpectedly PASS for the naive submission.",
+      "requirement": "evaluate.py accepts correct submission and rejects naive baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "tb_top.v implements cycle-by-cycle match checks (check_overlap_and_match), overlap detection (ok_overlap), dead-time width measurement (SR2 gap_start_sub/gap_duty_sub), and overall functional_equivalence is derived from aggregate FR1-FR4/SR1-SR2 pass status in evaluate.py.",
+      "requirement": "Evaluator measures requested metrics (cycle_accurate_match_rate, overlap_violation_count, deadtime_width_error, functional_equivalence)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional and SR1-SR2 as security, each mapped to distinct test scenarios (scenario_fr1, scenario_fr2_sr1, scenario_fr3, scenario_fr4, scenario_sr2) in tb_top.v.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 is actively stressed via deterministic held-en, deterministic alternating-en, and LFSR-en passes across duty=0..15; SR2 actively measures dead-time gap widths at both boundaries for duty=3..13 and cross-checks against captured boundary histories, not just a static assertion.",
+      "requirement": "Security-relevant behaviors actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "All Verilog files (obfuscated_rtl.v, gate_netlist.v, reference_pwm.v, tb_top.v) declare their own primitives/modules and compile standalone with iverilog -g2012 per manifest purpose descriptions; no external dependencies or unsafe constructs noted.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a concrete hardware reverse-engineering exercise (gate netlist + obfuscated RTL cross-referencing to recover a PWM dead-time generator) with domain-appropriate toolchain (iverilog/vvp) and domain-specific safety concern (shoot-through prevention), not generic filler.",
+      "requirement": "Benchmark adapted to domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py deterministically parses PROBE lines with clear PASS/FAIL aggregation; validation report shows deterministic golden pass and vulnerable fail with matching exit codes; only the SR1 mutation-detection gap noted as a minor verifiability weakness rather than a blocking gap.",
+      "requirement": "No gaps making results unverifiable",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md describe FR/SR requirement IDs only by generic engineering framing (no CWE ids, no threat-model language, no 'intentionally vulnerable' comments); design_brief.md explicitly states it withholds exact dead-time width to preserve the reverse-engineering challenge.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are each concrete and independently verifiable via the pinned interface: FR1 (duty=8 exact window), FR2 (no-overlap/match sweep), FR3 (duty=15 and duty<=2 edge cases), FR4 (en=0 hold behavior) -- four distinct, testable requirements rather than a single restatement.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 of them)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

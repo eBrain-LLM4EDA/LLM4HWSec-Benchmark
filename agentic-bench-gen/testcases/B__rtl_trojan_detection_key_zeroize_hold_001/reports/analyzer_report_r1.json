@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 has no dedicated mutant that is only detected by FR3's own check (uncovered_requirement per mutation analysis) \u2014 FR3's logic is likely subsumed/always co-detected alongside SR1, so its independent discriminative power is unverified.",
+      "evidence": "per_requirement_coverage.FR3: {covered:false, mutants_detected:0, mutants_targeting:1}; uncovered_requirements:['FR3']",
+      "severity": "low"
+    },
+    {
+      "artifact": "inputs/key_loader_ctrl.v manifest / evaluation private notes",
+      "description": "The manifest purpose text and private grading notes explicitly describe the hidden defect construct and naming (zeroize_mask, zeroize_block) in maintainer-facing files, but this is appropriately confined to evaluation/private/ and manifest metadata not shipped to participants; README.md and metadata.json do not leak this, so risk is low but worth flagging for hygiene.",
+      "evidence": "evaluation/private/golden_report_reference.md fully documents ground truth; manifest.json 'purpose' fields for inputs/key_loader_ctrl.v also describe the exact defect pattern \u2014 ensure these manifest purposes are never surfaced to participants.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or strengthen a mutant that isolates FR3 from SR1 (e.g., a report whose trigger_condition mentions zeroize and bus_busy but with confidence low/non-top, verifying FR3 passes independent of SR1/SR3 status) to close the FR3 coverage gap flagged in mutation analysis.",
+    "Consider having evaluate.py emit the three declared metrics (detection_rate, false_positive_rate, trigger_payload_localization) as explicit numeric outputs (e.g., to a results.json) rather than only pass/fail requirement gating, to better align the harness with the evaluation.metrics section of the task spec.",
+    "Double check that manifest.json 'purpose' fields describing the exact hidden defect pattern for inputs/key_loader_ctrl.v are never exposed to participants at runtime (only used for benchmark construction/review), since they are more detailed than what appears in the shipped README/metadata."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "key_loader_ctrl.v contains exactly the zeroize_mask = zeroize & ~bus_busy construct inside zeroize_block as described in hidden_spec.ground_truth; design_brief.md documents the unconditional zeroize contract without revealing the defect; interface matches exactly.",
+      "requirement": "Public inputs, hidden ground truth, and expected outputs coherent",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential harness shows golden_run exit_code 0 (expected pass, ok) and vulnerable_run (naive empty baseline) exit_code 1 with FR1 FAIL cascading to all others; baseline_run and mutation_baseline_run both pass cleanly for a correct report.",
+      "requirement": "evaluate.py accepts a correct submission and rejects baseline/naive submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements PASS/FAIL gating for FR1-4/SR1-4 corresponding to detection_rate and localization concepts, but there is no explicit computed false_positive_rate metric output (no aggregation over noisy candidates beyond top-candidate scoping); metrics appear to be aspirational/summary-level rather than directly emitted by evaluate.py's per-case run.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trigger_payload_localization)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map explicitly separates requirement_type 'functional' (FR1-FR4) and 'security' (SR1-SR4), each with detection description and test_files evaluation/evaluate.py.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1/SR2 checks require conjunctive zeroize+bus_busy trigger text and specific root-cause narrative (masking/gating + self-hold), not merely generic keyword presence; SR2/FR4 use scoped per-candidate text extraction to prevent whole-document keyword leakage, and README notes optional simulation with iverilog/vvp is available for participants to actively verify via inputs/key_loader_ctrl.v with directed zeroize/bus_busy vectors.",
+      "requirement": "Security-relevant behaviors actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced files (README.md, metadata.json, inputs/key_loader_ctrl.v, inputs/design_brief.md, submission/trojan_report.json, evaluation/evaluate.py, evaluation/README.md) are present in bundles; no external dependencies beyond stdlib Python and standard toolchain (iverilog/vvp/yosys).",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a domain-specific RTL security review exercise with realistic Verilog module, port-accurate interface, and a plausible hardware Trojan (zeroize masking) grounded in CWE-1265/670/693/1298 threat model.",
+      "requirement": "Benchmark adapted to selected domain (rtl_trojan_detection) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four distinct, machine-checkable requirements (JSON schema validity, per-candidate field typing, conjunctive trigger_condition content, and top-candidate expected-value claim) each independently verified by evaluate.py.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4), not a single generic restatement",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md and metadata.json describe FR1-FR4 in plain engineering language without mentioning CWE ids, SR ids, or the specific zeroize_mask/zeroize_block defect location; design_brief.md states only intended behavior, consistent with hardened_artifact leak-avoidance requirements.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential and mutation analyses confirm deterministic PASS for golden and FAIL for naive baseline; mutation_score 0.875 with only FR3 flagged as an uncovered/non-discriminative check, a minor gap rather than a correctness-invalidating one.",
+      "requirement": "No unverifiable gaps in results",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

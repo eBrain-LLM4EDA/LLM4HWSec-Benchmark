@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "param_fifo.v must be synthesizable Verilog-2001, under 200 lines, and must support at least three legal WIDTH parameterizations (e.g., 8, 16, 24, or similar) with a documented default of WIDTH=8.",
+    "param_fifo.v must use a generate block structure so that different WIDTH values can select different internal logic paths.",
+    "fifo_spec.md documents the intended behavior: full/empty flag semantics, no overwrite of unread entries, standard synchronous FIFO pointer/counter behavior, for any legal WIDTH.",
+    "testbench_default.v exercises only the default WIDTH=8 configuration and passes cleanly, illustrating why default-only validation misses the issue.",
+    "Participants must not edit inputs/; only submission/trojan_report.json is graded."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing the list of trojan candidates found, with confidence scores and rationale",
+    "For each candidate, the specific triggering condition (including any parameter values and internal state patterns involved) and the specific payload/effect observed"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json must be valid JSON matching the schema in the interface section: top-level object with 'findings' (array) and 'summary' (string); each findings element must include 'trigger_condition', 'payload_effect', 'confidence' (number in [0,1]), and 'rationale' as non-empty strings/number."
+    },
+    {
+      "id": "FR2",
+      "requirement": "At least one finding's 'affected_parameters' field or 'trigger_condition' text must explicitly identify a specific WIDTH value (not just 'default' or 'all widths') for which the anomalous behavior manifests, distinguishing it from widths where the FIFO behaves per fifo_spec.md."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The 'payload_effect' text for at least one finding must describe a concrete functional consequence stated in terms of the FIFO's documented outputs (e.g., an incorrect value or incorrect timing of the full or empty flag, or an overwrite of unread data), not a vague statement like 'may be insecure'."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must reference the specific pointer/state condition (e.g., write pointer, read pointer, or occupancy count reaching a particular value or matching a particular bit pattern) under which the anomaly occurs, rather than claiming the flaw occurs unconditionally on every write."
+    }
+  ],
+  "input_artifacts": [
+    "param_fifo.v",
+    "fifo_spec.md",
+    "testbench_default.v"
+  ],
+  "interface": "Module under analysis: `param_fifo` in inputs/param_fifo.v. Port list (exact, do not rename in your analysis): module param_fifo #(parameter WIDTH = 8, parameter DEPTH_LOG2 = 4) ( input wire clk, input wire rst_n, input wire wr_en, input wire [WIDTH-1:0] din, output wire full, input wire rd_en, output wire [WIDTH-1:0] dout, output wire empty ); clk is the single clock (posedge-triggered), rst_n is active-low synchronous reset. wr_en/din write a word when full is deasserted; rd_en/dout read the oldest word when empty is deasserted. full and empty are registered, Moore-style status outputs. The submission is NOT RTL: participants submit a JSON answer file at submission/trojan_report.json (no other files are graded). The schema for that file is fixed: a top-level JSON object with a required array field 'findings', where each element is an object with required string field 'trigger_condition', required string field 'payload_effect', required number field 'confidence' (0.0-1.0), required string field 'rationale', and optional string field 'affected_parameters' listing which WIDTH/DEPTH_LOG2 values are implicated. A required top-level field 'summary' (string) gives an overall assessment. If no trojan is found, findings must be an empty array and summary must state that no malicious logic was detected.",
+  "objective": "You are given the RTL source for a parameterized synchronous FIFO used across several SoC integration projects. Different teams instantiate the FIFO with different data WIDTH parameters depending on the bus they connect to. Your job is to review the RTL and produce a security analysis report identifying any suspicious or malicious logic in the design, including under which parameterizations (if any) the design's behavior deviates from the documented FIFO contract (full/empty flag correctness, no silent data corruption, and no overwrite of unread data). Analyze the design across the legal parameter space, not just the default configuration, since the module may be instantiated with several different widths in different subsystems.",
+  "response_format": "A single JSON file at submission/trojan_report.json with fields {findings: [{trigger_condition: string, payload_effect: string, confidence: number, rationale: string, affected_parameters?: string}], summary: string}."
+}

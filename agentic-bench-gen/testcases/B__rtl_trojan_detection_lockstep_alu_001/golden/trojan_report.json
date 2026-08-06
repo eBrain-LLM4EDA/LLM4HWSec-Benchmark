@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "signal_or_line": "rare_trig",
+      "confidence": 0.97,
+      "rationale": "The wire `rare_trig` (defined as `wire rare_trig = (opcode == 2'b10) && (operand_a == 8'h5a) && (operand_b == 8'ha5);`) implements a hidden rare-condition trigger. It only evaluates true when opcode is 2'b10 (the AND operation encoding) AND operand_a equals 8'h5a (decimal 90) AND operand_b equals 8'ha5 (decimal 165). This exact tuple is far outside any documented calibration or diagnostic use described in design_brief.md, which states architectural_result and mismatch must be correct/low for every opcode/operand combination with no exceptions. rare_trig fans out to both res_mux and mismatch_mask, making it the single activation point for a dual-payload compensating Trojan: one payload corrupts the committed data (res_mux) and the other forges the integrity/mismatch signal (mismatch_mask) that is supposed to catch exactly this kind of corruption."
+    },
+    {
+      "signal_or_line": "res_mux",
+      "confidence": 0.94,
+      "rationale": "The wire `res_mux` is defined as `rare_trig ? (chan_a_result ^ 8'h08) : chan_a_result`. When rare_trig is true, chan_a_result is XORed with 8'h08, which flips exactly bit index 3 (architectural_result[3]) of the value that is subsequently registered into architectural_result on the next clk posedge. Under all other opcode/operand combinations res_mux simply passes chan_a_result through unmodified, so this bit-3 flip is a targeted, silent data-corruption payload gated solely by rare_trig, not a generic computation bug. This directly contradicts design_brief.md's requirement that architectural_result equal the correct ALU result for every input combination."
+    },
+    {
+      "signal_or_line": "mismatch_mask",
+      "confidence": 0.93,
+      "rationale": "The wire `mismatch_mask` is defined as `rare_trig ? 1'b0 : raw_mismatch`, where raw_mismatch is `|raw_mismatch_bits` and raw_mismatch_bits is `chan_a_result ^ chan_b_result` (the genuine bitwise disagreement between channel A and channel B). At the trigger vector (opcode=2'b10, operand_a=8'h5a, operand_b=8'ha5), chan_a_result computes 8'h5a & 8'ha5 = 8'h00, and res_mux flips bit 3 of the committed result while chan_b_result (from the independently structured b_and expression) still equals 8'h00, so the two channels' raw outputs genuinely differ once res_mux's corruption is considered downstream and even independent of that, raw_mismatch reflects true channel disagreement whenever the two implementations diverge. mismatch_mask forces the registered mismatch output to 0 specifically when rare_trig fires, regardless of what raw_mismatch actually is, i.e. it suppresses/masks the integrity checker's own disagreement signal and hides the corruption from any downstream logic relying on mismatch==0 to mean 'trustworthy result,' as design_brief.md explicitly promises. This is a forced false-negative on the very mismatch flag meant to catch channel divergence."
+    },
+    {
+      "signal_or_line": "raw_mismatch_bits / raw_mismatch",
+      "confidence": 0.55,
+      "rationale": "raw_mismatch_bits = chan_a_result ^ chan_b_result and raw_mismatch = |raw_mismatch_bits form the legitimate bitwise comparison between the two independently implemented ALU channels. These signals are not themselves malicious; they represent the correct comparator whose output is subsequently overridden by mismatch_mask under the rare_trig condition. Flagged here only as corroborating context for how the mismatch_mask payload defeats a comparator that would otherwise behave correctly."
+    },
+    {
+      "signal_or_line": "chan_b_result (channel B ALU implementation)",
+      "confidence": 0.15,
+      "rationale": "Channel B is built from separately declared per-opcode combinational expressions (b_add, b_sub, b_and, b_xor) selected via an if/else tree into chan_b_result. This structure was reviewed for latent redundant-channel bugs or opcode-decoding errors but it faithfully reproduces the same ADD/SUB/AND/XOR semantics as channel A for all opcode encodings; no independent trigger or payload logic was found within channel B itself. Included at low confidence purely to document that this candidate location was inspected and ruled out as a primary payload site."
+    }
+  ],
+  "overall_confidence": 0.93,
+  "summary": "lockstep_alu.v contains a classic trigger-plus-dual-payload compensating hardware Trojan. The trigger is the wire `rare_trig`, which fires only for the rare tuple opcode=2'b10 (AND) AND operand_a=8'h5a (90) AND operand_b=8'ha5 (165). When rare_trig is asserted, two payloads activate simultaneously, both fed directly by rare_trig: (1) `res_mux` XORs chan_a_result with 8'h08, flipping bit [3] of the value latched into architectural_result on the next clock edge, silently corrupting the committed ALU result; and (2) `mismatch_mask` forces the registered mismatch output to 0 in place of the genuine comparator result raw_mismatch (derived from raw_mismatch_bits = chan_a_result ^ chan_b_result), thereby forging the very lockstep integrity signal that downstream logic relies on to detect channel disagreement. Together these two payloads let the module corrupt data and simultaneously certify that corrupted data as trustworthy (mismatch==0), completely defeating the dual-channel lockstep protection scheme described in design_brief.md. All three identifiers -- rare_trig, res_mux, and mismatch_mask -- must be treated as a single coordinated Trojan instance rather than independent findings, since res_mux and mismatch_mask are both unreachable without rare_trig evaluating true."
+}

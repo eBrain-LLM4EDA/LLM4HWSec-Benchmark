@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "11e98911473b63657de6e7fa4ceb96644b34182ece2f96ac892e3d4a67021e80",
+    "expert/expert_bundle.json": "70c6bf65e74d85248016c7e460f8e053148cebc9a1a8a7cd4d2187dd470a29f1",
+    "mutants/mutation_bundle.json": "d6fd74709a1ba5196f3a61571466b939d50324e8513058787e99304652537776",
+    "reports/analyzer_report.json": "471aa9294d0b223cee857f6714b9d193728793b858df64eb53661039eba82b78",
+    "reports/quality_report.json": "29a5f66d0e500a29359c1c1479418d7a9b14ee2b95747986b94218863c1830d5",
+    "reports/validation_report.json": "d1980e4ea6c2665d29d5aaae1042251040255a97fb9ce6373be489c9a8f0add3",
+    "spec/task_spec.json": "4f472d9cc13b44b0c8b0194a366a7e87d5702383a5132c921bdfe51c488a30a0",
+    "tests/tester_bundle.json": "0ebe09b1f94d97dfff60d8629308181633fef04e5f60c13219f575d4bddfecd9"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 0,
+  "quality_status": "pass",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "rtl_variable_latency_divider"
+}

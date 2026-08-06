@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The submission must be a single self-contained Verilog-2001 (or SystemVerilog) file with no dependence on external libraries or proprietary IP.",
+    "The submission must not instantiate or reference the original flattened netlist module; it must be an independently written, human-readable RTL description.",
+    "Internal signal names in the recovered RTL are implementation freedom and are not graded; only the observable outputs at the pinned interface are graded.",
+    "The module must be purely combinational: no always @(posedge ...) blocks, no internal registers, no clocks.",
+    "All 128 input codewords (7'b0000000 through 7'b1111111) must be exercised by the grading testbench and must match cycle-for-cycle (delta-cycle) with the reference."
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v containing a synthesizable Verilog module named recovered_decoder with the pinned port list, implementing the same combinational input/output mapping as the reference for all 128 codeword values"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For all 128 possible 7-bit values of codeword, data[3:0], corrected_codeword[6:0], and error_detected must exactly match the behavior of the reference netlist when both are simulated combinationally with the same input value and a #5 settling delay."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For every codeword that is a valid (error-free) codeword of the underlying code, error_detected must be 0 and corrected_codeword must equal codeword unchanged."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For every codeword containing exactly one flipped bit relative to a valid codeword, error_detected must be 1 and corrected_codeword must equal the corresponding valid codeword (i.e., the single erroneous bit is flipped back)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The submitted file must contain exactly one module named recovered_decoder with the exact port list given in the interface section, and must compile cleanly under iverilog without errors."
+    }
+  ],
+  "input_artifacts": [
+    "flattened_netlist.v",
+    "design_brief.md"
+  ],
+  "interface": "The submission file submission/recovered_rtl.v MUST define exactly one module with this literal declaration:\n\nmodule recovered_decoder (\n  input  [6:0] codeword,\n  output [3:0] data,\n  output [6:0] corrected_codeword,\n  output       error_detected\n);\n\nThis is a PURELY COMBINATIONAL module (no clock, no reset, no internal state). Timing discipline: every output is a Mealy-style combinational function of the current value of `codeword` only, with zero clock-cycle latency -- outputs must settle to their final values within the same delta cycle as any change to `codeword` (the evaluation testbench applies a codeword value, waits a fixed settling delay of #5 simulation time units with no clock involved, then samples data, corrected_codeword, and error_detected). There is no handshake, no valid/ready signal, and no sequencing across cycles: each of the 128 codeword values is tested independently and outputs must be purely a function of the present input value at sample time. Bit ordering: codeword[6:0] and corrected_codeword[6:0] use the same bit ordering (bit 0 is the first transmitted/stored bit position, bit 6 is the last); data[3:0] carries the four recovered data bits, MSB-first as data[3]=bit corresponding to the highest-order recovered data position and data[0] the lowest, consistent with whatever data-bit extraction order the reference netlist uses. error_detected is asserted (1) if and only if the input codeword contains exactly one bit in error relative to a valid codeword of the underlying code (i.e., the syndrome is nonzero), and corrected_codeword equals codeword with that single erroneous bit flipped (or equal to codeword unchanged if no error was detected).",
+  "objective": "You are given a flattened, obfuscated gate-level netlist of a combinational decoder module extracted from an undocumented storage controller. The netlist implements a 7-bit codeword decoder that detects and corrects a single-bit error and outputs the recovered 4-bit data word. All internal signal names have been replaced with generic labels (e.g. n1, n2, _T_3) and the structure has been flattened so that no parity-position or syndrome-bit naming survives. Your job is to analyze the netlist's behavior, recover the intended word-level function, and submit clean, readable RTL that is behaviorally identical to the original design for every one of the 128 possible input codewords.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

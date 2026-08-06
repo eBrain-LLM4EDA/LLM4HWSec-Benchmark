@@ -1,0 +1,5 @@
+{
+  "infected": true,
+  "trigger_nodes": ["test_mode", "scan_enable"],
+  "payload_nodes": ["scan_mux_out[0]", "scan_mux_out[1]", "scan_mux_out[2]", "scan_mux_out[3]"]
+}

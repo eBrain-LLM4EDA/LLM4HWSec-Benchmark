@@ -1,0 +1,62 @@
+{
+  "files": [
+    {
+      "content": "# RTL Hardware Trojan Detection\n\n## Objective\n\nAnalyze the provided RTL design and identify any suspicious logic that could leak internal state or cause unintended behavior. Submit a report detailing all findings.\n\n## Input Artifacts\n\nThe design consists of four Verilog files located in the `inputs/` directory:\n\n- `top.v` \u2013 Top-level module\n- `counter.v` \u2013 Counter submodule\n- `command_decoder.v` \u2013 Command decoder submodule\n- `error_handler.v` \u2013 Error handler submodule\n\nAll modules are synthesizable with `iverilog -g2012` and the total design is under 250 lines of Verilog.\n\n## Constraints\n\n- Do **not** modify the input RTL files.\n- Submit only the analysis report.\n\n## Submission\n\nPlace your analysis report at `submission/trojan_report.json`. The file must be valid JSON and conform to the following schema:\n\n```json\n{\n  \"trojan_detected\": true | false,\n  \"findings\": [\n    {\n      \"module\": \"string\",\n      \"signal\": \"string\",\n      \"rationale\": \"string\",\n      \"confidence\": 0.0 .. 1.0\n    }\n  ],\n  \"overall_confidence\": 0.0 .. 1.0\n}\n```\n\n- `trojan_detected` (boolean): `true` if any malicious or suspicious logic is found, `false` otherwise.\n- `findings` (array of objects): a list of identified suspicious logic blocks. Each object must have:\n  - `module` (string): the name of the module containing the finding.\n  - `signal` (string): the specific signal or logic path identified.\n  - `rationale` (string): a detailed explanation of why this logic is suspicious, including its potential impact.\n  - `confidence` (number): a score between 0.0 and 1.0 indicating confidence in the finding.\n- `overall_confidence` (number): a score between 0.0 and 1.0 indicating overall confidence in the analysis.",
+      "path": "README.md"
+    },
+    {
+      "content": "{\n  \"task_id\": \"rtl_distributed_trigger_exfiltration\",\n  \"domain_id\": \"rtl_trojan_detection\",\n  \"input_artifacts\": [\n    \"top.v\",\n    \"counter.v\",\n    \"command_decoder.v\",\n    \"error_handler.v\"\n  ],\n  \"expected_output\": \"submission/trojan_report.json\",\n  \"metrics\": [\n    {\n      \"name\": \"detection_rate\",\n      \"description\": \"Proportion of hidden Trojan components (trigger fragments and payload) correctly identified in the report.\",\n      \"direction\": \"maximize\"\n    },\n    {\n      \"name\": \"false_positive_rate\",\n      \"description\": \"Proportion of reported findings that do not correspond to actual Trojan components.\",\n      \"direction\": \"minimize\"\n    },\n    {\n      \"name\": \"trigger_payload_localization\",\n      \"description\": \"Binary metric indicating whether the report correctly identifies both the trigger mechanism and the payload data path.\",\n      \"direction\": \"maximize\"\n    }\n  ]\n}",
+      "path": "metadata.json"
+    },
+    {
+      "content": "module top (\n    input wire clk,\n    input wire rst_n,\n    input wire [7:0] data_in,\n    output wire [7:0] data_out,\n    input wire [3:0] command,\n    output wire [7:0] status_out,\n    input wire error_in\n);\n\n    // Internal signals\n    wire counter_terminal;\n    wire command_match;\n    wire sticky_error;\n    wire trigger_condition;\n\n    // Secret register (internal state)\n    reg [7:0] secret_reg;\n\n    // Normal data path\n    reg [7:0] data_reg;\n    assign data_out = data_reg;\n\n    // Instantiate submodules\n    counter u_counter (\n        .clk(clk),\n        .rst_n(rst_n),\n        .enable(1'b1),\n        .terminal_count(counter_terminal)\n    );\n\n    command_decoder u_cmd_dec (\n        .command(command),\n        .match(command_match)\n    );\n\n    error_handler u_err_hdlr (\n        .clk(clk),\n        .rst_n(rst_n),\n        .error_in(error_in),\n        .sticky_error(sticky_error)\n    );\n\n    // Combine trigger fragments\n    assign trigger_condition = counter_terminal && command_match && sticky_error;\n\n    // Status output selection\n    assign status_out = trigger_condition ? {7'b0, secret_reg[0]} : 8'h00;\n\n    // Sequential logic\n    always @(posedge clk or negedge rst_n) begin\n        if (!rst_n) begin\n            data_reg <= 8'h00;\n            secret_reg <= 8'hA5; // initial secret value\n        end else begin\n            data_reg <= data_in;\n            // secret_reg is updated elsewhere or remains static\n        end\n    end\n\nendmodule",
+      "path": "inputs/top.v"
+    },
+    {
+      "content": "module counter (\n    input wire clk,\n    input wire rst_n,\n    input wire enable,\n    output wire terminal_count\n);\n\n    reg [7:0] count;\n\n    always @(posedge clk or negedge rst_n) begin\n        if (!rst_n) begin\n            count <= 8'h00;\n        end else if (enable) begin\n            count <= count + 1;\n        end\n    end\n\n    assign terminal_count = (count == 8'hFF);\n\nendmodule",
+      "path": "inputs/counter.v"
+    },
+    {
+      "content": "module command_decoder (\n    input wire [3:0] command,\n    output wire match,\n    output wire [3:0] decoded\n);\n\n    assign match = (command == 4'b1010);\n    assign decoded = command;\n\nendmodule",
+      "path": "inputs/command_decoder.v"
+    },
+    {
+      "content": "module error_handler (\n    input wire clk,\n    input wire rst_n,\n    input wire error_in,\n    output reg sticky_error\n);\n\n    always @(posedge clk or negedge rst_n) begin\n        if (!rst_n) begin\n            sticky_error <= 1'b0;\n        end else if (error_in) begin\n            sticky_error <= 1'b1;\n        end\n    end\n\nendmodule",
+      "path": "inputs/error_handler.v"
+    },
+    {
+      "content": "{\n  \"trojan_detected\": false,\n  \"findings\": [],\n  \"overall_confidence\": 0.0\n}",
+      "path": "submission/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "README.md",
+      "purpose": "Participant-facing instructions for the RTL Trojan detection task. Describes the objective: analyze four Verilog files (top.v, counter.v, command_decoder.v, error_handler.v) and submit a trojan_report.json identifying any suspicious logic that could leak internal state. Lists the input artifacts, the submission path (submission/trojan_report.json), the required JSON schema fields (trojan_detected boolean, findings array with module/signal/rationale/confidence, overall_confidence number), and constraints (do not modify RTL, design is synthesizable with iverilog -g2012, under 250 lines total). Does NOT mention CWE IDs, security requirements, threat model, or ground truth."
+    },
+    {
+      "path": "metadata.json",
+      "purpose": "Machine-readable task metadata: task_id 'rtl_distributed_trigger_exfiltration', domain_id 'rtl_trojan_detection', list of input artifacts ['top.v','counter.v','command_decoder.v','error_handler.v'], expected output summary referencing trojan_report.json, and the three evaluation metrics (detection_rate, false_positive_rate, trigger_payload_localization) with their directions. Does NOT include hidden_spec, ground_truth, security requirements, or CWE IDs."
+    },
+    {
+      "path": "inputs/top.v",
+      "purpose": "Top-level Verilog module instantiating counter, command_decoder, and error_handler submodules. Contains a secret_reg (8-bit), a status_out port, and logic that combines three internal trigger signals (counter_terminal, command_match, sticky_error) via an AND gate to control a multiplexer selecting secret_reg[0] onto status_out. Also includes normal functional paths (data_in, data_out, command bus, error input). Synthesizable with iverilog -g2012, under 80 lines. The Trojan payload (mux driving secret_reg[0]) is embedded here but appears as ordinary conditional assignment; no comments or identifiers hint at malicious intent."
+    },
+    {
+      "path": "inputs/counter.v",
+      "purpose": "A simple 8-bit up-counter module with enable, reset, and a terminal-count output (counter_terminal) that asserts when count reaches a specific hardcoded value (e.g., 8'hFF). The terminal count appears as a normal status flag for a counter module. Synthesizable, under 40 lines. The counter_terminal signal is one fragment of the distributed trigger; no comments or identifiers reveal this role."
+    },
+    {
+      "path": "inputs/command_decoder.v",
+      "purpose": "A command decoder module that takes a 4-bit command input and asserts a command_match output when the command equals a specific opcode (e.g., 4'b1010). Also drives other decoded outputs for normal operation. Synthesizable, under 40 lines. The command_match signal is the second trigger fragment; appears as a standard decoder output."
+    },
+    {
+      "path": "inputs/error_handler.v",
+      "purpose": "An error handler module with an error input and a sticky_error output that latches high on any error assertion and stays high until reset. Implements a simple SR latch behavior. Synthesizable, under 30 lines. The sticky_error signal is the third trigger fragment; appears as a standard error-flagging mechanism."
+    },
+    {
+      "path": "submission/trojan_report.json",
+      "purpose": "Naive baseline submission that MUST fail evaluation. Contains trojan_detected: false, an empty findings array, and overall_confidence: 0.0. This represents a participant who found nothing suspicious. The evaluator will reject this because the ground truth requires trojan_detected: true and specific findings identifying the three trigger fragments and the payload mechanism."
+    }
+  ]
+}

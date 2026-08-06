@@ -1,0 +1,83 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The golden/expert submission is rejected by the evaluator, which is the core blocking defect. The differential harness shows the golden run fails FR4 and SR5 due to overly aggressive regex-based address-mention scanning of the free-text 'evidence' field. The heuristic in find_address_mentions_in_text (matching any bare 3-digit 0/1 sequence via the fallback regex, plus sentence splitting on '.', ';', '\\n') picks up incidental binary-looking substrings or address enumerations in the evidence prose (e.g. describing the full 8-address sweep or bit-width values) and misclassifies them as blanket/fabricated anomaly claims, even though the golden report correctly scopes trojan_present, trigger_condition, affected_outputs, and suspect_nets to address 011 only.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR4: evidence text appears to claim anomalous/Trojan-affected behavior at address(es) other than the reported trigger address 011: [000, 001, 010, 100, 101, 110, 111]' and '[TEST] FAIL: SR5: evidence text claims anomalous behavior at address(es) [010, 100, 111] ... only [011] is anomalous'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Because the golden solution fails, mutation_score is 0.0 and requirement_discrimination_coverage_score is 0.0 per the validation report; the benchmark cannot currently distinguish correct from incorrect submissions reliably for FR4/SR5, undermining the entire grading pipeline despite otherwise reasonable vulnerable-run behavior (correctly rejects the naive baseline).",
+      "evidence": "validation report: 'mutation_score': 0.0, 'mutation_status': 'blocked_by_differential', 'requirement_discrimination_coverage_score': 0.0, issue 'golden_rejected': 'evaluate.py rejects the expert golden solution (PASS expected)'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evidence-text address-mention heuristic (find_address_mentions_in_text) uses an overly broad bare-triplet regex fallback that will false-positive on any coincidental 3-digit 0/1 substring appearing anywhere in free text near an anomaly keyword within the same sentence, making FR4 and SR5 fragile and prone to rejecting legitimate, well-scoped evidence descriptions in general (not just in this one golden instance).",
+      "evidence": "regex: r'(?<![01])([01]{3})(?![01])' applied to arbitrary evidence prose, combined with naive sentence splitting and keyword co-occurrence in the same sentence",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix or remove the overly broad bare-triplet fallback regex in find_address_mentions_in_text (r'(?<![01])([01]{3})(?![01])') that spuriously matches incidental 3-character 0/1 substrings in free-text evidence; restrict address-mention detection to more explicit forms like 3'b011, addr=011, or quoted \"011\" tokens to avoid false positives.",
+    "Re-tune the FR4/SR5 sentence-level anomaly-keyword co-occurrence heuristic so it does not trigger on the golden report's evidence text; validate against the actual golden trojan_report.json evidence field content before finalizing the check.",
+    "Re-run the differential harness after the regex fix to confirm the golden submission now exits 0 with all 9 requirement ids PASS, and that the naive baseline still fails on SR1-SR4 as shown.",
+    "Consider adding a golden-submission regression test to the evaluator's own test suite so future changes to the evidence-text heuristics cannot silently regress golden acceptance again.",
+    "Once the golden-acceptance defect is fixed, re-verify mutation_score and requirement_discrimination_coverage_score to ensure they rise above the current blocked/zero state."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and vulnerable runs both show FR1 PASS; naive baseline is schema-valid so FR1 alone does not discriminate correctness, as intended (FR1 checks structure only).",
+      "requirement": "FR1 schema structural validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both PASS FR2; correctly checks literal string and 3-char binary format independent of content correctness.",
+      "requirement": "FR2 design_under_test literal + address format",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both PASS FR3 structurally.",
+      "requirement": "FR3 affected_outputs validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILs FR4 due to evidence-text heuristic false-positiving on incidental address-like substrings, per differential report; this is a grader defect, not a fault of the golden submission.",
+      "requirement": "FR4 single-address scoping",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden PASS, vulnerable/naive baseline FAILs with 'trojan_present must be true (got False)' \u2014 correct discrimination.",
+      "requirement": "SR1 trojan_present true",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden PASS, naive baseline FAILs with address '000' \u2014 correct discrimination, cross-checked via simulation.",
+      "requirement": "SR2 trigger_condition address=011,write_en=1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden PASS, naive baseline FAILs with empty affected_outputs \u2014 correct discrimination.",
+      "requirement": "SR3 affected_outputs == {bank0_we,bank2_we}",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden PASS (structural alias-candidate matching found for golden's named net/instance); naive baseline FAILs with empty suspect_nets \u2014 correct discrimination for this requirement in isolation.",
+      "requirement": "SR4 suspect_nets identifies alias-specific bridging gate",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILs SR5 due to the same evidence-text heuristic incorrectly flagging incidental address mentions (010, 100, 111) as fabricated anomaly claims, despite the structured fields (trigger_condition, affected_outputs, suspect_nets) all being correct \u2014 grader bug causes false rejection of a correct submission.",
+      "requirement": "SR5 no false-positive anomalies beyond addr=011",
+      "status": "fail"
+    },
+    {
+      "evidence": "Validation report differential.status='fail', failure_class='golden_rejected'; golden_run.ok=false while expected='pass'. Naive/vulnerable run correctly produces expected='fail' with ok=true, so only the golden-acceptance side of the contract is broken.",
+      "requirement": "Overall differential (golden must pass, naive baseline must fail)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

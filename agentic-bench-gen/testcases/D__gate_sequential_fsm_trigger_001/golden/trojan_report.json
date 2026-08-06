@@ -1,0 +1,40 @@
+{
+  "suspect_nodes": [
+    {
+      "node_name": "controller_netlist.u_trigger.dff_0",
+      "role": "state_register"
+    },
+    {
+      "node_name": "controller_netlist.u_trigger.dff_1",
+      "role": "state_register"
+    },
+    {
+      "node_name": "controller_netlist.u_trigger.dff_2",
+      "role": "state_register"
+    },
+    {
+      "node_name": "controller_netlist.u_trigger.dff_3",
+      "role": "state_register"
+    },
+    {
+      "node_name": "controller_netlist.u_trigger.gate_and_0",
+      "role": "trigger_logic"
+    },
+    {
+      "node_name": "controller_netlist.u_trigger.gate_and_1",
+      "role": "trigger_logic"
+    },
+    {
+      "node_name": "controller_netlist.u_trigger.gate_or_0",
+      "role": "trigger_logic"
+    },
+    {
+      "node_name": "controller_netlist.u_trigger.gate_inv_0",
+      "role": "trigger_logic"
+    },
+    {
+      "node_name": "controller_netlist.u_payload.gate_xor_0",
+      "role": "payload_gate"
+    }
+  ]
+}

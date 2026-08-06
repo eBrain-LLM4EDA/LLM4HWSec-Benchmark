@@ -1,0 +1,65 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (SR4)",
+      "description": "Mutation testing shows SR4's dedicated mutant is not detected by its own check, indicating a coverage gap in the dynamic-verification requirement. The mutation_score is 0.889 with SR4 flagged as uncovered/undiscriminated, meaning a mutant specifically targeting SR4 behavior passes when it should fail.",
+      "evidence": "per_requirement_coverage.SR4: {covered: false, mutants_detected: 0, mutants_targeting: 1}; issues: [{issue: uncovered_requirement, detail: 'SR4 has no targeting mutant detected by its own check'}]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/design_brief.md",
+      "description": "The design brief explicitly states that per-bit equality must use XNOR2 and that XOR2 computes inequality and is inappropriate, which is legitimate design-intent documentation but comes close to hinting at the exact fault class (XOR vs XNOR) that was injected. This is arguably acceptable since it's needed for the task to be solvable via the public spec, but it slightly narrows the search space beyond a purely neutral engineering brief.",
+      "evidence": "inputs/design_brief.md: 'an XOR, for instance, computes the *inequality* of the two bits and is not appropriate for this role.'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate and strengthen the SR4 mutant that is not being detected \nsunderstand what mutation was applied (likely a submission that claims a mismatching_inputs value not actually confirmable, or one that fabricates a 'confirmed' deviation) and adjust the SR4 check logic or add a more targeted test case to ensure it discriminates correctly.",
+    "Consider adding an explicit trojan-free control netlist variant to the eval suite so false_positive_rate can actually be measured as specified in the task's evaluation.metrics section, since only one netlist variant (the trojaned one) is present in this bundle.",
+    "Review design_brief.md wording around XOR vs XNOR appropriateness; consider softening the language to avoid overly narrowing the hypothesis space for participants, while still preserving enough specification detail for solvability."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.vulnerable_run: exit_code=1, SR1/SR2/SR3/SR4/SR5 all FAIL as expected; baseline_run also shows overall fail behavior in validation report's differential section.",
+      "requirement": "Baseline (naive) submission must FAIL",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code=0, all 9 checks PASS; baseline_run (mislabeled key, actually golden) also shows exit_code 0 with all PASS.",
+      "requirement": "Golden/correct submission must PASS",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 checks JSON validity/required fields, FR2 checks mismatching_inputs format, FR3 checks instance names exist in netlist.v, FR4 checks cell_type_analysis structure and valid primitive names -- all directly verifiable via evaluate.py parsing inputs/netlist.v.",
+      "requirement": "FR1-FR4 functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR2/SR3 cross-check against parsed netlist ground truth; SR4 performs actual iverilog/vvp simulation sweep of 256 combinations and compares against golden Python reference model grant_ref(), an active dynamic trigger.",
+      "requirement": "SR1-SR5 security requirements actively trigger dynamic checks, not just generic pattern checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type=functional and SR1-SR5 as requirement_type=security, each with distinct expected_detection criteria.",
+      "requirement": "Requirement map separates functional and security requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md contain no CWE ids, no SR ids, no mention of u_eq2 or the specific fault; ground truth constants (GT_INSTANCE, GT_FOUND, GT_EXPECTED) are confined to evaluation/evaluate.py which is the private harness.",
+      "requirement": "No leakage of hidden ground truth, CWE ids, or security-intent framing in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py produces per-check PASS/FAIL results (SR1/SR2 map to detection_rate and localization via SR3, SR4 covers dynamic latency-relevant simulation); however no explicit false_positive_rate control/trojan-free netlist variant is included in this single-instance bundle -- metric measurement would require running evaluate.py across multiple seeded variants not present here.",
+      "requirement": "Metrics requested in task spec (detection_rate, false_positive_rate, localization_accuracy, inference_latency) are measurable by the evaluator",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation_baseline_run and per_requirement_coverage show SR4 covered=false with 0/1 mutants detected, meaning the harness's SR4 dynamic check did not catch its targeted mutant, undermining confidence that SR4 correctly discriminates faulty dynamic-verification submissions.",
+      "requirement": "SR4 dynamic requirement is discriminative (mutation-tested)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

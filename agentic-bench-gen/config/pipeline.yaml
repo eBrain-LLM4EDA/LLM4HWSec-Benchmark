@@ -36,11 +36,13 @@ agent_max_tokens:
 pipeline:
   expand_seeds: false
   max_repair_rounds: 2
+  max_llm_calls_per_case: 80
+  max_total_tokens_per_case: 2000000
   # After the Tester emits an evaluator, the golden/baseline differential gate
   # runs immediately; on failure the Tester is retried with the evaluator's
   # runtime output (never the golden source) up to this many times. Each retry
   # is re-checked and the best bundle is kept.
-  tester_preflight_retries: 2
+  tester_preflight_retries: 1
   generate_mutants: true
   mutants_per_case: 5
 

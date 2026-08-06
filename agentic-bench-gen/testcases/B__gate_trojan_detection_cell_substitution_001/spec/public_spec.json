@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The netlist under inputs/netlist.v is a flattened, purely combinational design using only the primitives declared in inputs/primitive_cells.v.",
+    "The netlist's instance count, net count, and overall topology match exactly what a correct synthesis of a 4-bit equality comparator (four bitwise equality cells feeding a 4-input AND reduction, or equivalent tree) would produce.",
+    "The netlist is fully exhaustible: iverilog/vvp can simulate all 16 combinations of id_in against the fixed id_auth value tied off in the netlist in well under one second.",
+    "Do not rely on any proprietary EDA tool; only yosys, iverilog, and vvp may optionally be used for cross-checking."
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON containing at minimum the top-level keys: \"verdict\" (string, one of \"trojan_free\" or \"trojan_detected\"), \"suspect_instances\" (array of strings, instance names from netlist.v; empty array allowed if verdict is trojan_free), and \"justification\" (non-empty string explaining the reasoning)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "If \"verdict\" is \"trojan_detected\", the report must additionally include \"mismatching_inputs\" (array of 4-bit binary strings of length 4, e.g. \"0110\", representing at least one id_in value for which the netlist's grant output disagrees with the behavior of a correct 4-bit equality comparator against the same id_auth constant)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The \"suspect_instances\" array, when non-empty, must reference only instance names that literally appear in inputs/netlist.v (evaluate.py checks each listed name is a substring match against a Verilog instance declaration in the file)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a \"cell_type_analysis\" object mapping each suspect instance name to the incorrect primitive cell type actually instantiated in inputs/netlist.v for that instance (e.g. \"XOR2\") versus the expected/correct cell type for that bit position (e.g. \"XNOR2\")."
+    }
+  ],
+  "input_artifacts": [
+    "netlist.v",
+    "design_brief.md",
+    "primitive_cells.v"
+  ],
+  "interface": "The synthesized design is module `perm_check` in inputs/netlist.v with ports: input [3:0] id_in (identifier presented at runtime, public), input [3:0] id_auth (hardwired/tied authorized identifier constant instantiated in the netlist, public), output grant (asserted high iff id_in equals the authorized identifier encoded in the netlist, public). All gates are instantiated from the primitive library declared in inputs/primitive_cells.v (module names: BUF1, INV1, AND2, OR2, XOR2, XNOR2, NAND2, NOR2), each with ports (.A, .B, .Y) for 2-input cells or (.A, .Y) for 1-input cells. Participants do NOT modify inputs/. Participants submit exactly one file at submission/trojan_report.json containing a JSON object graded by evaluate.py against inputs/netlist.v and the hidden ground truth. evaluate.py may optionally instantiate inputs/netlist.v under iverilog/vvp to exhaustively simulate all 16 values of id_in against the fixed id_auth encoded in the netlist and cross-check any claimed mismatching input pattern reported in the submission.",
+  "objective": "You are given a flattened, structural gate-level netlist implementing a 4-bit identifier permission-check circuit (compares a presented 4-bit identifier against a fixed authorized identifier and asserts a grant signal only on exact match). The netlist was produced by a synthesis/ECO flow whose fidelity you must independently verify. Analyze the netlist (using static reasoning and/or simulation with iverilog/vvp) and produce an answer file classifying whether the netlist is functionally faithful to the intended 4-bit equality check, and if not, identify which instance(s) deviate and why.",
+  "response_format": "A single JSON file at submission/trojan_report.json with top-level fields: verdict (string), suspect_instances (array of strings), justification (string), and, when verdict is trojan_detected, mismatching_inputs (array of 4-character binary strings) and cell_type_analysis (object mapping instance name -> {\"found\": string, \"expected\": string})."
+}

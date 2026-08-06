@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "metadata.json / public_spec.input_artifacts",
+      "description": "input_artifacts entries are listed as plain filenames ('traces.csv') rather than paths relative to inputs/, as flagged by the validation report's issue 'input_artifact_not_filename'. This is a schema/consistency nit rather than a functional defect, but should be normalized.",
+      "evidence": "\"input_artifacts\": [\"mult_ctrl.v\", \"fault_model.md\", \"trace_manifest.json\", \"traces.csv\", \"design_brief.md\"]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/traces.csv (bundle manifest note)",
+      "description": "The bundle manifest for the public artifact set describes traces.csv as containing prose/derivation text ('Let me derive each trial mechanically...') embedded above the actual CSV block, which is tolerated by evaluate.py's lenient parser. This works correctly per the differential run, but is a slightly unusual authoring pattern for a 'read-only reference' file presented to participants as clean data; recommend shipping a clean CSV without derivation narrative to avoid look-alike leakage of the analysis approach.",
+      "evidence": "traces.csv file content includes: 'Let me derive each trial mechanically from the rule: mul_en=1 on cycle k (1..8) iff bit(8-k) of secret_operand is set.' followed by a markdown code fence with the actual CSV rows.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Normalize public_spec.input_artifacts entries to be path-qualified (e.g., 'inputs/traces.csv') to resolve the 'input_artifact_not_filename' validation issue, even though it does not affect grading correctness.",
+    "Consider shipping a clean, prose-free inputs/traces.csv (moving the derivation narrative/manual-computation walkthrough to a separate internal-only scratch file) since the lenient CSV extraction logic, while functioning correctly per the differential test, is a slightly fragile pattern to rely on for a participant-facing 'read-only reference' artifact and could be seen as accidentally exposing the intended manual-derivation approach.",
+    "No functional blocking issues found; the differential and mutation results confirm the harness correctly discriminates golden vs. baseline submissions across all FR/SR requirements."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "mult_ctrl.v RTL matches the design_brief.md and fault_model.md descriptions; traces.csv rows are consistent with the bit-scan rule (mul_en asserted on cycle k iff bit(8-k) of secret_operand set) and done asserted only at cycle_index 8; hidden_spec ground_truth matches this exactly.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential run: golden_run exit_code 0 status pass (all FR/SR PASS); vulnerable_run (shipped baseline submission/vulnerability_report.json) exit_code 1 status fail, with FAIL on FR3, SR1, SR2, SR3 exactly as specified in acceptance_criteria ('baseline empty/naive submission ... must fail FR3, SR1, and SR2').",
+      "requirement": "evaluate.py accepts a correct submission (golden) and rejects the baseline/naive submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr3_and_sr1 computes exact enable_count vs popcount match (leakage_detection_accuracy proxy via SR1/FR3), FR3 dedup/coverage check enforces >=16 distinct operands (fault_coverage proxy), check_sr3 keyword-based classification of hardening_recommendations directly operationalizes hardening_precision.",
+      "requirement": "Evaluator measures the requested metrics (leakage_detection_accuracy, fault_coverage, hardening_precision)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type 'functional' and SR1-SR3 as requirement_type 'security', each with distinct expected_detection logic and mapped to evaluate.py; per_requirement_coverage and per_requirement_discrimination in the validation report show all 7 requirements covered with mutants detected 1/1 each.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 requires exact enable_count==popcount(secret_operand) cross-checked against traces.csv per operand (not just generic text search); SR2 requires specific keyword co-occurrence (constant-latency term + negation-of-prevention term + leakage term) in summary/timing_analysis; SR3 requires specific equalization-vs-timing-only keyword classification of hardening_recommendations text -- these actively probe the actual leakage mechanism (Hamming-weight-correlated mul_en activity) rather than superficial checks.",
+      "requirement": "Security-relevant behaviors are actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced input files (mult_ctrl.v, design_brief.md, fault_model.md, trace_manifest.json, traces.csv) are present in the bundle; evaluation harness (evaluate.py, README.md, tb_mult_ctrl_check.v) is self-contained Python stdlib + optional iverilog testbench; no network access or unsafe operations required.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically about power/EM side-channel leakage via switching-activity (mul_en) correlated with Hamming weight of a secret operand despite constant timing latency -- a concrete, domain-appropriate side-channel scenario with RTL, trace data, and activity-equalization hardening requirements distinct from generic vulnerability analysis.",
+      "requirement": "Benchmark adapted to domain (side_channel_fault_analysis) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py deterministically parses traces.csv and recomputes ground truth (enable_count, hamming_weight, done-cycle set) independently from the submission, then cross-checks every submitted activity_analysis entry; no reliance on unpinned external state; mutation_score 1.0 and coverage_score 1.0 in validation report confirm discriminative power of each check.",
+      "requirement": "No gaps that would make results unverifiable",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, fault_model.md, and trace_manifest.json use neutral engineering language (constant-latency scheduling convenience, debug/observability signal) with no mention of CWE ids, SR1/SR2/SR3 labels, or explicit statements that the design is intentionally vulnerable; hidden_spec fields (threat_model, security_requirements, ground_truth) are absent from all public/participant-facing files.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model docs) in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four distinct, concretely machine-checkable requirements: FR1 (JSON structural/type validation), FR2 (exact latency value/constancy check against traces.csv), FR3 (>=16 distinct operands with exact enable_count match), FR4 (>=2 non-empty hardening recommendation strings) -- each implemented as a discrete check in evaluate.py rather than a single restatement of the objective.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 FRs distinct from objective restatement)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

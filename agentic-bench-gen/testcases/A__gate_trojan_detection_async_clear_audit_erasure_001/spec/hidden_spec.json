@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [
+    "A submission is graded PASS only if trojan_present == true, altered_net satisfies SR1, suspect_gates satisfies SR2 (allowing for per-instance naming variance resolved via structural pattern match), and trigger_condition satisfies SR3 via truth-table equivalence check.",
+    "The shipped baseline/naive submission (trojan_present: false, empty arrays, empty strings) must FAIL under this grading.",
+    "Partial credit is not awarded for the primary PASS/FAIL verdict; the detection_rate metric aggregates SR1-SR4 satisfaction across a suite of case variants for scoring purposes."
+  ],
+  "cwe_ids": [
+    "CWE-1295",
+    "CWE-1274",
+    "CWE-693"
+  ],
+  "ground_truth": "The netlist contains an inserted 2-input AND gate, instance name u_maint_alarm_and, whose inputs are primary inputs maintenance_req and alarm and whose output net is maint_alarm_hit. This net feeds a second inserted gate, instance name u_audit_clr_or (an OR2 cell), whose other input is the legitimate synchronized reset net rst_sync. The output of u_audit_clr_or, net audit_clr, is wired to the asynchronous clear (CLR) pins of all 8 bits of the tamper_count_q[7:0] DFF_ASYNC_CLR register bank, replacing what should have been a direct connection from rst_sync alone. Consequently, whenever maintenance_req AND alarm are simultaneously asserted (regardless of rst_n/rst_sync), tamper_count_q is asynchronously cleared, erasing accumulated tamper-event evidence without a genuine reset ever occurring. The correct/non-trojan behavior would have rst_sync connected directly to the CLR pins of tamper_count_q with no OR gate in that path.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse the submitted altered_net name, resolve it against the netlist's net declarations and instance connections, and confirm via structural backward trace from tamper_count_q[*].CLR that this net is driven by a gate with more than one input source (i.e., not a direct fanout of the reset synchronizer alone).",
+      "id": "SR1",
+      "requirement": "The reported altered_net must correctly identify the net (or its structural equivalent) that drives the asynchronous CLR pins of the tamper_count_q register bank and that is NOT solely the legitimate synchronized reset signal, i.e. the participant must identify audit_clr (or the OR2 gate output net serving that role) rather than rst_sync or rst_n."
+    },
+    {
+      "detection_strategy": "Check submitted suspect_gates against the known ground-truth instance names (or, if names are randomized per artifact instance, against the gates identified by structural pattern matching: an AND2 with inputs exactly {maintenance_req, alarm}, and an OR2 whose inputs are that AND2's output and the reset synchronizer net, whose output feeds the counter CLR pins).",
+      "id": "SR2",
+      "requirement": "The reported suspect_gates must include the instance implementing the maintenance_req AND alarm condition (u_maint_alarm_and) and the instance merging that condition with reset before driving the counter clear (u_audit_clr_or), or functionally equivalent gates if the ground-truth netlist naming differs across artifact instances."
+    },
+    {
+      "detection_strategy": "Parse trigger_condition as a boolean expression over {clk, rst_n, maintenance_req, alarm, tamper_event}; evaluate truth-table equivalence against the reference expression (maintenance_req & alarm) across all input combinations; optionally cross-check via iverilog/vvp simulation of the netlist by driving maintenance_req=1, alarm=1, rst_n=1 and confirming tamper_count_q clears asynchronously.",
+      "id": "SR3",
+      "requirement": "The reported trigger_condition must be logically equivalent to (maintenance_req AND alarm), independent of rst_n/reset state, i.e. it must not require or mention rst_n as a necessary condition for the unauthorized clear."
+    },
+    {
+      "detection_strategy": "Direct boolean field check against the ground-truth label, which is always true for this artifact.",
+      "id": "SR4",
+      "requirement": "trojan_present must be reported as true; a submission reporting false (or omitting the finding) fails regardless of other field contents."
+    }
+  ],
+  "threat_model": "An attacker (malicious IP vendor, rogue design engineer, or compromised EDA flow) inserts two small combinational gates into an otherwise correct audit-counter reset path. The trojan is dormant under normal operation and only activates on the rare, attacker-controllable coincidence of a legitimate maintenance request together with an alarm condition, which an insider or attacker with physical/logical access to the maintenance interface can deliberately engineer. Activation silently zeroes the tamper_count register, destroying forensic evidence of prior tamper events, without ever asserting rst_n and without any other observable side effect, making it difficult to detect through normal functional testing or reset-focused verification."
+}

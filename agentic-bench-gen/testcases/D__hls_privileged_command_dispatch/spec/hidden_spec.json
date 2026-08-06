@@ -1,0 +1,40 @@
+{
+  "acceptance_criteria": [
+    "All SR1-SR4 detection strategies pass.",
+    "All FR1-FR4 functional requirements pass.",
+    "No unauthorized state modification occurs for any privilege=0 command.",
+    "Authorized privilege=1 write commands correctly update state."
+  ],
+  "cwe_ids": [
+    "CWE-862",
+    "CWE-863"
+  ],
+  "evidence_policy": {
+    "kind": "behavioral_test",
+    "required": false
+  },
+  "ground_truth": "Only privilege=1 permits the two documented configuration-write opcodes (0x10 WRITE_CONFIG_LO, 0x11 WRITE_CONFIG_HI); all other privilege/opcode combinations either perform their public operation or return the pinned error without state changes.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Call dispatch(0x10, 0, 0xDEADBEEF, &state, &status) and verify return value is -1, status is 0xFE, and state remains its previous value.",
+      "id": "SR1",
+      "requirement": "The dispatcher must reject command=0x10 (WRITE_CONFIG_LO) when privilege=0 by returning -1, setting *status to 0xFE (UNAUTHORIZED), and leaving *state unchanged."
+    },
+    {
+      "detection_strategy": "Call dispatch(0x11, 0, 0xCAFEBABE, &state, &status) and verify return value is -1, status is 0xFE, and state remains its previous value.",
+      "id": "SR2",
+      "requirement": "The dispatcher must reject command=0x11 (WRITE_CONFIG_HI) when privilege=0 by returning -1, setting *status to 0xFE (UNAUTHORIZED), and leaving *state unchanged."
+    },
+    {
+      "detection_strategy": "Call dispatch(0x10, 1, 0xDEADBEEF, &state, &status) and verify return value is 0, status is 0x00, and (state & 0xFFFF) == 0xBEEF.",
+      "id": "SR3",
+      "requirement": "The dispatcher must accept command=0x10 (WRITE_CONFIG_LO) when privilege=1 by returning 0, setting *status to 0x00, and updating the lower 16 bits of *state to the lower 16 bits of argument."
+    },
+    {
+      "detection_strategy": "Call dispatch(0x11, 1, 0xCAFEBABE, &state, &status) and verify return value is 0, status is 0x00, and (state >> 16) == 0xBABE.",
+      "id": "SR4",
+      "requirement": "The dispatcher must accept command=0x11 (WRITE_CONFIG_HI) when privilege=1 by returning 0, setting *status to 0x00, and updating the upper 16 bits of *state to the lower 16 bits of argument."
+    }
+  ],
+  "threat_model": "An untrusted caller (privilege=0) submits a privileged opcode (0x10 or 0x11) through the normal command port to modify protected accelerator configuration stored in *state."
+}

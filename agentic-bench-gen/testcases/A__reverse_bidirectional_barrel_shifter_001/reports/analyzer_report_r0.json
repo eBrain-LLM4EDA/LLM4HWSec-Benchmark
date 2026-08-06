@@ -1,0 +1,67 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + evaluation/tb_top.v (SR2 check)",
+      "description": "SR2 is a dead check: the validation report shows mutation_score_meaningful with SR2 uncovered \u2014 no mutant targeting SR2 (sign-extension on mode=01 left shift) is detected by the SR2_MISMATCHES tally, and the baseline/golden runs both PASS SR2 trivially. The differential run shows the vulnerable_run does emit FAIL: SR2, but per_requirement_coverage explicitly marks SR2 covered:false with mutants_detected:0 out of mutants_targeting:1, indicating the dedicated SR2-targeting mutant is not caught by the SR2-specific logic in isolation from the global FR4 mismatch. This means the requirement-specific discrimination for SR2 is unverified/dead despite the metric key existing.",
+      "evidence": "per_requirement_coverage.SR2: {\"covered\": false, \"mutants_detected\": 0, \"mutants_targeting\": 1}; dead_checks: [\"SR2\"]; issues: [{\"issue\":\"dead_check\",...},{\"issue\":\"uncovered_requirement\",...}]; mutation_score: 0.833",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/net_shifter_flat.v comments",
+      "description": "The netlist file contains an inline comment block explicitly explaining the mode=11 don't-care resolution mechanism ('the mode=11 leg of that row's mode[0]-select was don't-care-filled ... pulled from the logical-shift datapath') which essentially hands the analyst the exact answer to the core reverse-engineering challenge (SR1) directly in the artifact under inspection. This significantly reduces the intended difficulty of the reverse-engineering task, though it does not leak CWE ids, SR ids, or explicit security-framing language.",
+      "evidence": "\"Because mode[1]=1 row was only characterized for mode=10 (rotate) during synthesis, the mode=11 leg of that row's mode[0]-select was don't-care-filled by the synthesis tool with the same driver as its sibling leg, which happened to be pulled from the logical-shift datapath already present at that fanout point.\"",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Strengthen or add a dedicated SR2-targeting check/mutant so that per_requirement_coverage for SR2 shows mutants_detected>=1; currently SR2 is flagged dead_check/uncovered_requirement in the validation report, meaning its discriminative power is unverified even though the requirement text and testbench subset (mode=01,direction=0,data_in[7]=1) are conceptually present.",
+    "Consider whether the SR2 tally should be computed independently of the global FR4 mismatch path so that a submission which fails ONLY SR2 (e.g., correct everywhere except mode=01 left-shift sign extension) is guaranteed to be caught by a mutation targeting exactly that behavior; regenerate or adjust the mutant used for SR2 coverage measurement.",
+    "Remove or soften the inline comment in inputs/net_shifter_flat.v that explicitly explains how mode=11 was 'don't-care-filled ... pulled from the logical-shift datapath', since this materially reduces the reverse-engineering difficulty of the SR1 challenge by directly stating the answer in the artifact under analysis.",
+    "Reconcile the 8192 vs 16384 vector-count discrepancy noted in the differential run output (README/tb_top.v state 8192 combinations = 2^13, but the vulnerable_run differential reports TOTAL out of 16384) to ensure documentation and actual harness behavior are consistent.",
+    "Clarify/fix the top-level 'baseline_run' entry in the validation report, which currently shows the shipped naive stub passing all checks (exit 0) \u2014 this appears inconsistent with the shipped submission/recovered_rtl.v stub which should fail; confirm which artifact was actually used to produce that baseline_run result."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Global exhaustive MISMATCHES==0 required; golden run passes FR1, vulnerable/baseline stub run fails FR1 with 14223/16384 mismatches (note: harness uses 16384 in differential vs 8192 documented in README/tb_top comments \u2014 discrepancy noted but check itself functions).",
+      "requirement": "FR1 (logical shift mode=00)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Same global MISMATCHES==0 gate; golden passes, vulnerable fails with reported first mismatch vector.",
+      "requirement": "FR2 (arithmetic shift mode=01)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Same global gate; golden passes, vulnerable fails.",
+      "requirement": "FR3 (rotate mode=10)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Directly the global exhaustive result; mutation_score_meaningful and per_requirement_coverage show FR4 covered:true, mutants_detected 1/1.",
+      "requirement": "FR4 (bit-exact equivalence all modes)",
+      "status": "pass"
+    },
+    {
+      "evidence": "MODE11_MISMATCHES gate plus static x-literal scan; per_requirement_coverage SR1 covered:true, mutants_detected 1/1; baseline_run and golden_run both PASS SR1, vulnerable_run FAILS SR1 (3570/4096 mismatches).",
+      "requirement": "SR1 (mode=11 don't-care resolution)",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR2 covered:false, mutants_detected:0/1; flagged explicitly as a dead_check and uncovered_requirement in the validation report despite the vulnerable_run stdout showing an SR2 FAIL line \u2014 indicating the dedicated SR2 mutant used for coverage measurement was not caught by this check in isolation, so SR2's discriminative power is unverified.",
+      "requirement": "SR2 (no sign-extension on mode=01 left shift)",
+      "status": "fail"
+    },
+    {
+      "evidence": "baseline_run (naive stub) exits 1 conceptually per differential.vulnerable_run (exit_code 1, all FAIL markers); golden_run/differential.golden_run exits 0 with all PASS markers. Note: the top-level 'baseline_run' field in the report shows exit_code 0 with all PASS \u2014 this appears to be evaluating the golden/correct file rather than the shipped naive submission/recovered_rtl.v stub, which is a labeling inconsistency in the validation report itself, though the differential section clarifies the intended vulnerable-vs-golden behavior correctly.",
+      "requirement": "Baseline stub must FAIL; correct submission must PASS",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md do not mention CWE ids, SR1/SR2 identifiers, or explicit 'intentionally vulnerable' framing; they present the mode=11 gap as an ordinary legacy documentation gap. However inputs/net_shifter_flat.v itself contains an explanatory comment that reveals the resolution mechanism (see issues).",
+      "requirement": "No hidden-spec leakage in public artifacts (CWE/SR ids, threat framing)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

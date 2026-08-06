@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected by evaluate.py on all substantive security requirements (SR1-SR4), and the SR5 behavior is inverted relative to expectations. The mutation score is 0.0 and not meaningful because the baseline/golden run failed. No mutants were provided, so all requirements are untested. The evaluator must be fixed to correctly grade the golden submission before any other issues can be addressed.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

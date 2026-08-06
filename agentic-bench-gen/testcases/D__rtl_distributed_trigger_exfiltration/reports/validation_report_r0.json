@@ -1,0 +1,130 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/command_decoder.v",
+    "inputs/counter.v",
+    "inputs/error_handler.v",
+    "inputs/top.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "64719e8824fbe78dfd2c94c622fd294e3d1a5b7c734fe8858eedb8737a5614d9",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: SR1: counter_terminal not identified in counter.v\n[TEST] FAIL: SR2: command_match not identified in command_decoder.v\n[TEST] FAIL: SR3: sticky_error not identified in error_handler.v\n[TEST] FAIL: SR4: payload mux (secret_reg[0] -> status_out) not described in top.v\n[TEST] PASS: SR5\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: SR1: counter_terminal not identified in counter.v\n[TEST] FAIL: SR2: command_match not identified in command_decoder.v\n[TEST] FAIL: SR3: sticky_error not identified in error_handler.v\n[TEST] FAIL: SR4: payload mux (secret_reg[0] -> status_out) not described in top.v\n[TEST] FAIL: SR5: trojan_detected must be true and overall_confidence >= 0.7\n"
+    }
+  },
+  "domain_id": "rtl_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR5 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "64719e8824fbe78dfd2c94c622fd294e3d1a5b7c734fe8858eedb8737a5614d9",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "eecb27d1c8f3f33d9efdafc2dc37c48dfc2c71685d52d0a766c27e218dadd8d4",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "ddd94297bf30a803191042d96e0efa5f3d014a440fabc36e31b4bdb16ab85655",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.py"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4",
+    "SR5"
+  ]
+}

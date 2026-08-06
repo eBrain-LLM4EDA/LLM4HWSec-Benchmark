@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The netlist uses only structural gate-level Verilog primitives: and, or, nand, nor, not, xor, xnor, buf.",
+    "No always blocks, no behavioral arithmetic operators (+, *, etc.) appear in the netlist file.",
+    "The netlist is self-contained in a single file with one top module named mult8_top with ports a[7:0], b[7:0], p[15:0].",
+    "All internal wires and gate instances are explicitly declared and named."
+  ],
+  "expected_outputs": [
+    "trojan_report.json containing a top-level classification label and a list of suspect gate instance names with roles"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json must be valid JSON containing top-level string field 'classification' with value exactly 'clean' or 'infected', matching the required schema in response_format."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must include a field 'netlist_summary' with integer fields 'total_gates', 'gate_type_counts' (object mapping gate primitive name to count) that match the actual counts found in inputs/mult8_netlist.v exactly."
+    },
+    {
+      "id": "FR3",
+      "requirement": "If classification is 'infected', the report must include a field 'suspect_nodes' which is a non-empty array of objects, each with fields 'instance_name' (string, must exactly match a gate instance name present in inputs/mult8_netlist.v) and 'role' (string, one of 'trigger' or 'payload')."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a field 'trigger_condition' (string) describing, in terms of named primary input bits of the netlist (e.g. 'a[3]=1,a[5]=1,b[2]=0,...'), the specific rare input assignment(s) under which the reported trigger nets are all satisfied simultaneously; this must be consistent with simulating the reported suspect trigger gates against inputs/mult8_netlist.v using the provided toolchain."
+    }
+  ],
+  "input_artifacts": [
+    "mult8_netlist.v",
+    "port_list.txt",
+    "design_brief.md"
+  ],
+  "interface": "Submission file: submission/trojan_report.json (JSON object). Required top-level fields: 'classification' (string: 'clean'|'infected'), 'netlist_summary' (object: {'total_gates': int, 'gate_type_counts': object<string,int>}), 'suspect_nodes' (array, required and non-empty only if classification=='infected'; each element: {'instance_name': string, 'role': string in ['trigger','payload']}), 'trigger_condition' (string, required only if classification=='infected'). The evaluator reads inputs/mult8_netlist.v for reference and may invoke iverilog/vvp/yosys to simulate reported suspect nodes against declared trigger_condition to cross-check consistency, but PASS/FAIL is determined by grading the submitted JSON fields against hidden ground truth.",
+  "objective": "You are given a gate-level Verilog netlist implementing an 8x8 unsigned combinational multiplier, synthesized down to simple gate primitives (and, or, nand, nor, not, xor, xnor, buf). Analyze the netlist structurally and functionally, then submit an analysis report describing the design's gate composition and any anomalous logic structures you can identify by tracing signal fan-in/fan-out, node naming, and rarity of activation conditions. Your report must classify the overall netlist as either 'clean' or 'infected' and, if infected, list the specific suspect gate instance names that form any anomalous rarely-activated combinational structure and the gate(s) it drives.",
+  "response_format": "A single JSON file at submission/trojan_report.json with exactly the fields described in 'interface'. No additional wrapping, no markdown, valid JSON only."
+}

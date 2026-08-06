@@ -1,0 +1,10 @@
+Fault Model: Single-Bit Transient Fault
+
+For the purpose of this analysis, assume the following fault model:
+
+- A fault can be injected on any net or register in the design.
+- The fault forces the target to a stuck-at-0 or stuck-at-1 value.
+- The fault persists for exactly one clock cycle (transient).
+- After the fault cycle, the target resumes normal operation.
+- The analysis should focus on nets and registers that are part of the control path (e.g., enable signals, control state registers) rather than purely data-path elements.
+- The attacker can choose the exact cycle of injection and the stuck-at value (0 or 1).

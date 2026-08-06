@@ -1,0 +1,26 @@
+{
+  "task_id": "scfa-001",
+  "domain_id": "side_channel_fault_analysis",
+  "input_artifacts": [
+    "masked_sbox.v",
+    "leakage_model.txt"
+  ],
+  "expected_output": "vulnerability_report.json",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Binary metric: 1.0 if the exact recombination net and register are correctly identified, 0.0 otherwise.",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Binary metric: 1.0 if the report correctly identifies the flawed register without false positives on benign registers, 0.0 otherwise.",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Binary metric: 1.0 if the report's suggested leakage type matches the ground truth (first-order switching), 0.0 otherwise.",
+      "direction": "maximize"
+    }
+  ]
+}

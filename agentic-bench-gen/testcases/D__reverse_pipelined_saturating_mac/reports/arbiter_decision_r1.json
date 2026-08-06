@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden/baseline run failed. The validation report shows 'golden_rejected' \u2014 the evaluator rejected the correct golden solution due to compilation errors in the evaluation harness itself (mac_golden.v and tb_mac_top.v have syntax errors). Additionally, the testbench file is truncated. The analyzer confirms these issues. The root cause is evaluation_issue: the evaluation framework (evaluate.py and its supporting files) is broken and must be fixed before any meaningful scoring can occur. The specification and case artifacts are otherwise well-formed.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

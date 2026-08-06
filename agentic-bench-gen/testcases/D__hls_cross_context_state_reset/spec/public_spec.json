@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "Keep the pinned process_sample(int context_id, int input, int reset) interface and deterministic reset semantics.",
+    "A context change must clear state before the current input is incorporated; repeated calls in one context retain the documented state.",
+    "Use only static fixed-width state and synthesizable control flow."
+  ],
+  "expected_outputs": [
+    "stream_accumulator.cpp compiles with g++ -std=c++17 -Wall -Werror",
+    "For a sequence of calls with context_id=0 and inputs [1,2,3], the output sequence is [1,3,6] (running sum).",
+    "For a sequence of calls with context_id=0, input 5, then context_id=1, input 10, the output for context_id=1 is 10 (fresh accumulation, not 15).",
+    "For a sequence context_id=0, input 5, then context_id=0, input 7, the output for the second call is 12 (accumulation preserved).",
+    "After a reset event (reset=1 for one call), the next call with any context_id produces output equal to that call's input (state cleared)."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The function process_sample must compile with g++ -std=c++17 -Wall -Werror without warnings or errors."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For a sequence of calls with the same context_id and reset=0, the returned value must equal the sum of all inputs supplied so far in that context session."
+    },
+    {
+      "id": "FR3",
+      "requirement": "When context_id changes between consecutive calls with reset=0, the first call with the new context_id must return a value equal to its input (i.e., the accumulation for the new context starts fresh)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "When reset is non-zero, the call must return a value equal to its input, and subsequent calls with any context_id must behave as if starting a new context session."
+    }
+  ],
+  "input_artifacts": [
+    "stream_accumulator.cpp",
+    "stream_accumulator.h"
+  ],
+  "interface": "File: stream_accumulator.h\nFunction signature:\nint process_sample(int context_id, int input, int reset);\n\nParameters:\n- context_id: integer caller context identifier (0 to 255).\n- input: integer sample value to process.\n- reset: when non-zero, clears all internal state for all contexts before processing the current input.\n\nReturns:\n- int: the accumulated output value for the given context_id after incorporating the current input.\n\nAccumulation rule: output = sum of all inputs received so far in the current context session. A context session begins after a reset or the first call with a new context_id since the last reset or context change.",
+  "objective": "Modify the provided streaming kernel so that a change in the caller-supplied context identifier clears all accumulated internal state before processing the new input sample. Repeated calls with the same context identifier must preserve the documented running accumulation behavior.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

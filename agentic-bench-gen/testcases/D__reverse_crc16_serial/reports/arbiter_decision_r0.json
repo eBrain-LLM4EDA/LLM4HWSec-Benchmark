@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected because the testbench simulation produces no [TEST] markers for FR1-FR3 and SR1. The validation report shows golden_rejected with 'no marker found in simulation output' for all behavioral requirements. The analyzer confirms the testbench includes a private vector file (tb_sr1_vectors.v) that uses large initial blocks and flattened 2D array indexing which likely causes iverilog simulation to fail silently, preventing any markers from being emitted. Additionally, evaluate.py does not compute the three declared metrics (word_recovery_rate, structural_match_accuracy, functional_equivalence) as numeric scores \u2014 it only produces binary PASS/FAIL. The mutation score is 0.0 and not meaningful because the baseline/golden run failed. All five requirements are untested. The root cause is in the evaluation framework: the testbench simulation is broken and the evaluator lacks metric computation.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

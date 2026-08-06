@@ -1,0 +1,23 @@
+{
+  "acceptance_criteria": [
+    "The submitted common_mode_node matches the exact hierarchical name of the shared enable signal.",
+    "The submitted failure_mechanism correctly describes the effect of the fault on the counters and the timeout logic."
+  ],
+  "cwe_ids": [
+    "CWE-1288"
+  ],
+  "ground_truth": "Faulting shared_count_en low stalls both counters identically, so their equality monitor remains satisfied while timeout never asserts; independently generated enables are required.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if the submitted report correctly identifies the shared enable signal as the common-mode node.",
+      "id": "SR1",
+      "requirement": "The design must not contain a single point of failure in the control path that can disable both redundant counters."
+    },
+    {
+      "detection_strategy": "Check if the submitted report's failure_mechanism description matches the ground truth explanation.",
+      "id": "SR2",
+      "requirement": "The failure mechanism must be correctly explained as a fault causing both counters to stall, preventing the timeout from being reached."
+    }
+  ],
+  "threat_model": "A single injected fault on common control defeats both redundant computations and suppresses a security timeout."
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected by evaluate.py due to two concrete bugs: (1) the FR3 regex fails to match hierarchical names containing brackets like 'top.lock_reg[0]', causing a false FAIL for the correct lock_registers list; (2) the SR2 behavioral cross-check uses a flawed expected-output logic (expects all-1s in the last 4 trace entries) that does not match the actual testbench stimulus, causing a false FAIL for the correct key. Additionally, the evaluator does not compute or report the required metrics (key_recovery_rate, key_gate_localization_accuracy), and the evaluate.py file appears truncated/incomplete. These issues make the benchmark unusable (mutation_score=0.0, golden_rejected). The root cause is evaluation_issue \u2014 the evaluator must be fixed to correctly grade the golden answer and compute metrics.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import os
 import re
 import shutil
 import tempfile
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +15,7 @@ from .agents import AgentConfig, FileBundleAgent, JsonAgent
 from .domains import get_domain_profile, profile_as_prompt_context, submission_paths
 from .llm import OpenRouterLLM
 from .runner import DockerConfig, EvaluationRunner
-from .utils import read_yaml, slugify
+from .utils import read_json, read_yaml, slugify, write_json
 from .validator import _CODE_EXTS, _CWE_ID_RE, _SR_ID_RE, _compute_differential_validation, quality_report, validate_benchmark_case
 from .workspace import Workspace, is_safe_relative_path
 from .logio import console
@@ -168,29 +172,80 @@ class BenchGenOrchestrator:
         )
         max_repair = int(self.pipeline_cfg.get("pipeline", {}).get("max_repair_rounds", 2))
         expand = bool(self.pipeline_cfg.get("pipeline", {}).get("expand_seeds", True))
-        # TODO: Check why we are expanding a single idea into multiple when idea is quite specific
-        # either changes in examples or this expendiation is needed
         generated: list[Path] = []
         failed: list[str] = []
-        for raw_seed in seeds:
-            ideas = self._expand_seed(raw_seed) if expand and "idea_generator" in self.agents else [raw_seed]
-            for idea in ideas:
-                label = str(idea.get("task_id") or idea.get("seed_id") or idea.get("title") or "unnamed_idea")
-                try:
-                    generated.append(self._generate_one(idea, out_root, max_repair))
-                except Exception as exc:
-                    # One idea's failure must not cost the rest of the run: log it
-                    # (its partial workspace stays on disk for inspection) and
-                    # continue with the remaining ideas and seeds.
-                    failed.append(label)
-                    console.print(f"[red]Case generation FAILED for {label!r}:[/red] {exc}")
+        quality_failed: list[str] = []
+        manifest_path = out_root / "run_manifest.json"
+        manifest: dict[str, Any] = {
+            "schema_version": 1,
+            "run_id": uuid.uuid4().hex,
+            "status": "running",
+            "seed_path": str(Path(seed_path).resolve()),
+            "config_path": str(self.config_path),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": None,
+            "cases": [],
+        }
+        write_json(manifest_path, manifest)
+        interrupted: BaseException | None = None
+        try:
+            for raw_seed in seeds:
+                ideas = self._expand_seed(raw_seed) if expand and "idea_generator" in self.agents else [raw_seed]
+                for idea in ideas:
+                    label = str(idea.get("task_id") or idea.get("seed_id") or idea.get("title") or "unnamed_idea")
+                    case_entry: dict[str, Any] = {
+                        "label": label,
+                        "status": "running",
+                        "published_path": None,
+                        "quality_status": None,
+                        "error": None,
+                    }
+                    manifest["cases"].append(case_entry)
+                    write_json(manifest_path, manifest)
+                    try:
+                        path = self._generate_one(idea, out_root, max_repair)
+                        generated.append(path)
+                        quality = read_json(path / "reports" / "quality_report.json")
+                        selection = read_json(path / "reports" / "selection.json")
+                        quality_status = quality.get("overall_status")
+                        if quality_status != "pass":
+                            quality_failed.append(label)
+                        case_entry.update({
+                            "status": "published" if quality_status == "pass" else "published_quality_failed",
+                            "published_path": str(path),
+                            "quality_status": quality_status,
+                            "source_round": selection.get("source_round"),
+                            "final_attempted_round": selection.get("final_attempted_round"),
+                        })
+                    except Exception as exc:
+                        failed.append(label)
+                        case_entry.update({"status": "failed", "error": str(exc)})
+                        console.print(f"[red]Case generation FAILED for {label!r}:[/red] {exc}")
+                    write_json(manifest_path, manifest)
+        except BaseException as exc:
+            interrupted = exc
+            for case_entry in manifest["cases"]:
+                if case_entry["status"] == "running":
+                    case_entry.update({"status": "interrupted", "error": type(exc).__name__})
+        finally:
+            manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
+            if interrupted is not None:
+                manifest["status"] = "interrupted"
+            elif (failed and generated) or quality_failed:
+                manifest["status"] = "partial"
+            elif failed:
+                manifest["status"] = "failed"
+            else:
+                manifest["status"] = "complete"
+            write_json(manifest_path, manifest)
+            console.detach_log_file()
+        if interrupted is not None:
+            raise interrupted
         if failed:
-            console.print(
-                f"[red]{len(failed)} case(s) failed:[/red] " + ", ".join(failed)
-            )
+            console.print(f"[red]{len(failed)} case(s) failed:[/red] " + ", ".join(failed))
             if not generated:
                 raise RuntimeError(
-                    f"All {len(failed)} case generation attempt(s) failed; see errors above."
+                    f"All {len(failed)} case generation attempt(s) failed; see run_manifest.json."
                 )
         return generated
 
@@ -208,6 +263,11 @@ class BenchGenOrchestrator:
             return [raw_seed]
 
     def _generate_one(self, idea: dict[str, Any], out_root: Path, max_repair: int) -> Path:
+        totals = getattr(self.llm, "usage_totals", {}) or {}
+        self._active_case_usage_start = {
+            "calls": int(totals.get("calls", 0)),
+            "tokens": int(totals.get("prompt_tokens", 0)) + int(totals.get("completion_tokens", 0)),
+        }
         repair_notes = ""
         task_spec: dict[str, Any] | None = None
         artifact_bundle: dict[str, Any] | None = None
@@ -221,6 +281,7 @@ class BenchGenOrchestrator:
         # reads its flagged-requirement lists.
         validation: dict[str, Any] | None = None
         ws_path: Path | None = None
+        publish_path: Path | None = None
         generate_mutants = bool(self.pipeline_cfg.get("pipeline", {}).get("generate_mutants", True))
 
         # Keep-best / no-regression tracking: a repair round can regress an
@@ -234,8 +295,10 @@ class BenchGenOrchestrator:
         last_round = 0
 
         for round_idx in range(max_repair + 1):
+            self._enforce_case_budget()
             last_round = round_idx
             evaluator_ok = True
+            preflight_meta: dict[str, Any] = {}
             try:
                 artifact_to_fix = arbiter_decision["artifact_to_revise"] if arbiter_decision else "none"
                 domain_id = str(idea.get("domain_id", "hls_security_codegen"))
@@ -243,6 +306,7 @@ class BenchGenOrchestrator:
 
                 if round_idx == 0 or artifact_to_fix == "specification":
                     console.print(f"[bold]Architect (round {round_idx}):[/bold] {domain_id}")
+                    self._enforce_case_budget()
                     task_spec = self.agents["architect"].run({
                         "seed_yaml": idea,
                         "domain_profile_json": domain_context,
@@ -257,7 +321,8 @@ class BenchGenOrchestrator:
 
                 task_id = str(task_spec["task_id"])
                 if ws_path is None:
-                    ws_path = _unique_workspace(out_root, task_id)
+                    publish_path = _unique_workspace(out_root, task_id)
+                    ws_path = out_root / f".{publish_path.name}.staging-{uuid.uuid4().hex[:12]}"
                 ws = Workspace(ws_path)
                 ws.write_json("spec/task_spec.json", task_spec)
                 ws.write_json("spec/public_spec.json", task_spec["public_spec"])
@@ -265,6 +330,7 @@ class BenchGenOrchestrator:
 
                 if round_idx == 0 or artifact_to_fix in {"specification", "case_artifacts"}:
                     console.print(f"[bold]ArtifactBuilder (round {round_idx}):[/bold] {task_id}")
+                    self._enforce_case_budget()
                     artifact_bundle = self.agents["artifact_builder"].run({
                         "task_spec_json": task_spec,
                         "domain_profile_json": domain_context,
@@ -293,10 +359,12 @@ class BenchGenOrchestrator:
 
                 if round_idx == 0 or artifact_to_fix in {"specification", "case_artifacts"}:
                     console.print(f"[bold]Expert (round {round_idx}):[/bold] golden reference for {task_id}")
+                    self._enforce_case_budget()
                     expert_bundle = self.agents["expert"].run({
                         "task_spec_json": task_spec,
                         "domain_profile_json": domain_context,
                         "submission_contract": domain_context.get("submission_contract", ""),
+                        "artifact_bundle_json": _slim_artifact_for_prompt(artifact_bundle),
                         "repair_notes": repair_notes,
                         "previous_bundle_json": expert_bundle or "",
                     })
@@ -317,13 +385,16 @@ class BenchGenOrchestrator:
                         "artifact_bundle_json": _slim_artifact_for_prompt(artifact_bundle),
                         "previous_bundle_json": tester_bundle or "",
                     }
+                    self._enforce_case_budget()
                     tester_bundle = self.agents["tester"].run(tester_vars)
                     _write_tester_bundle(ws, tester_bundle)
                     # Deterministic pre-flight: run the differential gate now and, if
                     # the evaluator mis-grades golden/baseline, retry the Tester once
                     # with the run output — one LLM call instead of a full
                     # Analyzer+Arbiter repair round for the common regex/filename bugs.
-                    tester_bundle, evaluator_ok = self._tester_preflight(ws, task_spec, expert_bundle, tester_bundle, tester_vars)
+                    tester_bundle, evaluator_ok, preflight_meta = self._tester_preflight(
+                        ws, task_spec, expert_bundle, tester_bundle, tester_vars,
+                    )
                     if not evaluator_ok:
                         # A known-broken evaluator grades every mutant meaninglessly
                         # (validation reports mutation_score_meaningful=false), so
@@ -377,9 +448,21 @@ class BenchGenOrchestrator:
                     ))
                     for m_idx, required_target in enumerate(targets):
                         console.print(f"  -> generating mutant {m_idx + 1}/{len(targets)} (target {required_target})...")
+                        fallback = _deterministic_report_mutant(
+                            task_spec, required_target, allowed_mutant_paths,
+                        )
+                        if fallback is not None and (fallback["operator"], required_target) not in used_pairs:
+                            console.print(
+                                f"  -> [cyan]using deterministic malformed-report mutant "
+                                f"for {required_target}.[/cyan]"
+                            )
+                            mutation_bundle["mutants"].append(fallback)
+                            used_pairs.add((fallback["operator"], required_target))
+                            continue
                         slot_error = "mutator returned no mutants"
                         for attempt in range(3):
                             try:
+                                self._enforce_case_budget()
                                 m_bundle = self.agents["mutator"].run({
                                     "task_spec_json": task_spec,
                                     "submission_contract": domain_context.get("submission_contract", ""),
@@ -443,9 +526,7 @@ class BenchGenOrchestrator:
                             # All attempts failed: the requirement loses its
                             # targeting mutant, so its check's discrimination goes
                             # unproven this round. Record the gap in the bundle so
-                            # it is auditable (and visible to the Analyzer via the
-                            # validation report's untested_requirements) instead of
-                            # vanishing from the run.
+                            # it is auditable instead of vanishing from the run.
                             console.print(
                                 f"  -> [red]giving up on the mutant targeting {required_target} "
                                 f"after 3 attempts; recording the gap.[/red]"
@@ -458,6 +539,15 @@ class BenchGenOrchestrator:
                     ws.write_json("mutants/mutation_bundle.json", mutation_bundle)
 
                 validation = validate_benchmark_case(task_spec, artifact_bundle, tester_bundle, expert_bundle, mutation_bundle, ws, runner=self.runner)
+                validation["source_round"] = round_idx
+                if preflight_meta:
+                    validation["preflight"] = preflight_meta
+                    if preflight_meta.get("repeated_signature"):
+                        validation["issues"].append({
+                            "issue": "repeated_preflight_failure",
+                            "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+                        })
+                        validation["status"] = "fail"
                 ws.write_json("reports/validation_report.json", validation)
                 # Round-stamped copy: the canonical file is overwritten every
                 # round (and replaced wholesale by a keep-best restore), so the
@@ -466,6 +556,7 @@ class BenchGenOrchestrator:
 
                 console.print(f"[bold]Analyzer (round {round_idx}):[/bold] {task_id}")
                 try:
+                    self._enforce_case_budget()
                     analyzer_report = self.agents["analyzer"].run({
                         "task_spec_json": task_spec,
                         "submission_contract": domain_context.get("submission_contract", ""),
@@ -496,6 +587,7 @@ class BenchGenOrchestrator:
                         "requirement_results": [],
                         "recommendations": ["Retry the Analyzer coherence review before publication."],
                     }
+                analyzer_report["source_round"] = round_idx
                 ws.write_json("reports/analyzer_report.json", analyzer_report)
                 ws.write_json(f"reports/analyzer_report_r{round_idx}.json", analyzer_report)
 
@@ -505,15 +597,19 @@ class BenchGenOrchestrator:
                     " (NOT MEANINGFUL — the golden/baseline run failed; fix that first)"
                 _validation_summary = (
                     f"mutation_score={validation['mutation_score']}{_ms_note} | "
-                    f"coverage_score={validation['coverage_score']} | "
+                    f"mapping_coverage={validation['requirement_mapping_coverage_score']} | "
+                    f"discrimination_coverage={validation['requirement_discrimination_coverage_score']} | "
                     f"validation_status={validation['status']} | "
                     f"baseline_exit_code={_baseline.get('exit_code', 'n/a')} | "
-                    f"issue_count={len(validation.get('issues', []))} | "
+                    f"validation_issue_count={len(validation.get('issues', []))} | "
+                    f"analyzer_issue_count={len(analyzer_report.get('issues', []))} | "
+                    f"total_issue_count={len(validation.get('issues', [])) + len(analyzer_report.get('issues', []))} | "
                     f"analyzer_status={analyzer_report.get('overall_status', 'unknown')}"
                 )
                 _min_ms = float(self.pipeline_cfg.get("validation", {}).get("min_mutation_score", 0.50))
                 _min_cs = float(self.pipeline_cfg.get("validation", {}).get("min_coverage_score", 0.80))
                 try:
+                    self._enforce_case_budget()
                     arbiter_decision = self.agents["arbiter"].run({
                         "task_spec_json": task_spec,
                         "submission_contract": domain_context.get("submission_contract", ""),
@@ -575,12 +671,29 @@ class BenchGenOrchestrator:
                     ).strip()
                     console.print(f"  [yellow]{correction}[/yellow]")
 
+                generation_failures = (mutation_bundle or {}).get("generation_failures", []) or []
+                if (validation.get("differential") or {}).get("status") == "pass" and generation_failures:
+                    failed_targets = sorted({
+                        str(item.get("target_requirement_id", "")) for item in generation_failures
+                    })
+                    arbiter_decision.update({
+                        "retain_case": False,
+                        "artifact_to_revise": "mutants",
+                        "root_cause": "mutation_issue",
+                        "revision_instructions": (
+                            f"Regenerate only the missing mutants for requirements {failed_targets}; "
+                            "the golden/baseline differential already passes, so do not rewrite the evaluator."
+                        ),
+                    })
+
+                arbiter_decision["source_round"] = round_idx
+
                 ws.write_json(f"reports/arbiter_decision_r{round_idx}.json", arbiter_decision)
 
                 # Snapshot this round if it is the best seen so far, so a later
                 # regressing round cannot cost us a strictly better candidate.
                 round_key = _round_quality_key(validation, analyzer_report)
-                if best_key is None or round_key > best_key:
+                if best_key is None or round_key >= best_key:
                     best_snapshot = _snapshot_workspace(ws.root, best_snapshot)
                     best_key = round_key
                     best_round = round_idx
@@ -628,12 +741,23 @@ class BenchGenOrchestrator:
                             "restored_round. Per-round history is in the *_r<N>.json reports.",
                 })
 
+            source_round = best_round if best_round >= 0 else last_round
+            selection = {
+                "source_round": source_round,
+                "best_round": source_round,
+                "final_attempted_round": last_round,
+                "restored": best_snapshot is not None and best_round != last_round,
+            }
+            ws.write_json("reports/selection.json", selection)
             ws.write_json("reports/quality_report.json", quality_report(
                 best_validation if best_validation is not None else ws_read_json(ws, "reports/validation_report.json"),
                 best_analyzer or analyzer_report or {"overall_status": "fail", "issues": []},
                 min_coverage_score=float(self.pipeline_cfg.get("validation", {}).get("min_coverage_score", 0.80)),
                 min_mutation_score=float(self.pipeline_cfg.get("validation", {}).get("min_mutation_score", 0.50)),
+                source_round=source_round,
+                final_attempted_round=last_round,
             ))
+            ws.write_json("case_manifest.json", _build_case_manifest(ws, task_spec, selection))
         finally:
             if best_snapshot is not None:
                 shutil.rmtree(best_snapshot.parent, ignore_errors=True)
@@ -644,7 +768,27 @@ class BenchGenOrchestrator:
                 f"out={totals['completion_tokens']} reasoning={totals['reasoning_tokens']} "
                 f"calls={totals['calls']}[/dim]"
             )
-        return ws.root
+        if publish_path is None:
+            raise RuntimeError("Case generation completed without a publication path.")
+        final_path = _publish_staged_case(ws.root, publish_path)
+        return final_path
+
+    def _enforce_case_budget(self) -> None:
+        """Stop a runaway case before it consumes the rest of a run's budget."""
+        totals = getattr(getattr(self, "llm", None), "usage_totals", {}) or {}
+        start = getattr(self, "_active_case_usage_start", {"calls": 0, "tokens": 0})
+        calls = int(totals.get("calls", 0)) - int(start.get("calls", 0))
+        tokens = (
+            int(totals.get("prompt_tokens", 0)) + int(totals.get("completion_tokens", 0))
+            - int(start.get("tokens", 0))
+        )
+        pipeline = self.pipeline_cfg.get("pipeline", {})
+        max_calls = int(pipeline.get("max_llm_calls_per_case", 80))
+        max_tokens = int(pipeline.get("max_total_tokens_per_case", 2_000_000))
+        if calls >= max_calls:
+            raise RuntimeError(f"Per-case LLM call budget exceeded ({calls}/{max_calls}).")
+        if tokens >= max_tokens:
+            raise RuntimeError(f"Per-case token budget exceeded ({tokens}/{max_tokens}).")
 
     def _tester_preflight(
         self,
@@ -653,7 +797,7 @@ class BenchGenOrchestrator:
         expert_bundle: dict[str, Any] | None,
         tester_bundle: dict[str, Any],
         tester_vars: dict[str, Any],
-    ) -> tuple[dict[str, Any], bool]:
+    ) -> tuple[dict[str, Any], bool, dict[str, Any]]:
         """Run the differential gate right after the Tester and, while the
         evaluator mis-grades the golden solution or the insecure baseline, retry
         the Tester with the actual evaluator output (runtime evidence only — the
@@ -666,23 +810,61 @@ class BenchGenOrchestrator:
         fails after all retries, so downstream mutation scoring is meaningless."""
         diff = _compute_differential_validation(task_spec, expert_bundle or {}, ws, self.runner)
         if diff.get("status") != "fail":
-            return tester_bundle, True
+            return tester_bundle, True, {}
+        failure_class = str(diff.get("failure_class") or "unknown")
+        initial_signature = str(diff.get("failure_signature") or "")
+        meta = {
+            "failure_class": failure_class,
+            "failure_signature": initial_signature,
+            "repeated_signature": False,
+            "attempts": 0,
+            "selected_attempt": 0,
+            "attempt_history": [{
+                "attempt": 0,
+                "failure_class": failure_class,
+                "failure_signature": initial_signature,
+                "diagnostic": _preflight_diagnostic(diff),
+            }],
+        }
+        console.print(
+            f"  [yellow]Tester pre-flight failed ({failure_class}): "
+            f"{_preflight_diagnostic(diff)}[/yellow]"
+        )
+        if failure_class in {"submission_invariant", "runner_error"}:
+            console.print(
+                f"  [yellow]Tester pre-flight classified as {failure_class}; "
+                "not retrying the Tester for a non-Tester-repairable failure.[/yellow]"
+            )
+            return tester_bundle, False, meta
         retries = int(self.pipeline_cfg.get("pipeline", {}).get("tester_preflight_retries", 1))
-        best_bundle, best_key = tester_bundle, _preflight_key(diff)
+        best_bundle, best_key, best_diff, best_attempt = tester_bundle, _preflight_key(diff), diff, 0
         notes_base = tester_vars.get("repair_notes") or ""
         # Each retry repairs the attempt whose evaluator output is in the notes,
         # not a blank slate — the previous bundle travels with the request.
         previous = tester_bundle
+        prior_signature = initial_signature
         for attempt in range(1, retries + 1):
+            self._enforce_case_budget()
+            meta["attempts"] = attempt
             console.print(
                 f"  [yellow]Tester pre-flight failed; retrying Tester "
                 f"({attempt}/{retries}) with evaluator output.[/yellow]"
             )
             notes = (notes_base + "\n\n" if notes_base else "") + _preflight_notes(diff)
             try:
-                candidate = self.agents["tester"].run({
+                repair_vars = {
                     **tester_vars, "repair_notes": notes, "previous_bundle_json": previous,
-                })
+                }
+                repair_paths = _tester_repair_paths(diff, previous)
+                meta["repair_paths"] = repair_paths
+                repair_files = getattr(self.agents["tester"], "repair_files", None)
+                if callable(repair_files) and repair_paths:
+                    console.print(
+                        f"  [dim]Targeted Tester repair: {', '.join(repair_paths)}[/dim]"
+                    )
+                    candidate = repair_files(repair_vars, previous, repair_paths)
+                else:
+                    candidate = self.agents["tester"].run(repair_vars)
             except Exception as exc:
                 console.print(f"  [yellow]Pre-flight Tester retry failed ({exc}).[/yellow]")
                 break
@@ -691,13 +873,43 @@ class BenchGenOrchestrator:
             diff = _compute_differential_validation(task_spec, expert_bundle or {}, ws, self.runner)
             key = _preflight_key(diff)
             if key > best_key:
-                best_bundle, best_key = candidate, key
+                best_bundle, best_key, best_diff, best_attempt = candidate, key, diff, attempt
             if diff.get("status") != "fail":
-                return candidate, True
+                return candidate, True, {}
+            console.print(
+                f"  [yellow]Tester repair still fails ({diff.get('failure_class') or 'unknown'}): "
+                f"{_preflight_diagnostic(diff)}[/yellow]"
+            )
+            signature = str(diff.get("failure_signature") or "")
+            meta.update({
+                "failure_class": str(diff.get("failure_class") or "unknown"),
+                "failure_signature": signature,
+            })
+            meta["attempt_history"].append({
+                "attempt": attempt,
+                "failure_class": meta["failure_class"],
+                "failure_signature": signature,
+                "diagnostic": _preflight_diagnostic(diff),
+            })
+            if meta["failure_class"] in {"submission_invariant", "runner_error"}:
+                break
+            if signature and signature == prior_signature:
+                meta["repeated_signature"] = True
+                console.print(
+                    "  [yellow]Tester pre-flight produced the identical failure signature; "
+                    "stopping retries early.[/yellow]"
+                )
+                break
+            prior_signature = signature
         # All retries exhausted (or errored): make sure the workspace holds the
         # best bundle seen, not merely the last one written.
         _write_tester_bundle(ws, best_bundle)
-        return best_bundle, False
+        meta.update({
+            "failure_class": str(best_diff.get("failure_class") or "unknown"),
+            "failure_signature": str(best_diff.get("failure_signature") or ""),
+            "selected_attempt": best_attempt,
+        })
+        return best_bundle, False, meta
 
 
 def _reconcile_input_artifacts(task_spec: dict[str, Any], artifact_bundle: dict[str, Any] | None) -> dict[str, Any]:
@@ -844,6 +1056,43 @@ def _validate_mutant_candidate(
     return mutant
 
 
+def _deterministic_report_mutant(
+    task_spec: dict[str, Any],
+    required_target: str,
+    allowed_paths: set[str],
+) -> dict[str, Any] | None:
+    """Fallback for report-format requirements when the model emits no file.
+
+    Missing-file overlays require deletion semantics that the mutation schema
+    does not support. A malformed JSON replacement exercises the same parser /
+    validity requirement deterministically and remains attributable to that FR.
+    """
+    requirement = next((
+        str(item.get("requirement", ""))
+        for item in task_spec.get("public_spec", {}).get("functional_requirements", []) or []
+        if str(item.get("id", "")) == required_target
+    ), "").lower()
+    if not any(token in requirement for token in (
+        "valid json", "parseable json", "well-formed json", "valid, parseable json",
+    )):
+        return None
+    path = next((
+        candidate for candidate in sorted(allowed_paths)
+        if candidate.startswith("submission/") and candidate.endswith(".json")
+    ), None)
+    if path is None:
+        return None
+    return {
+        "mutant_id": f"deterministic_{slugify(required_target)}_malformed_json",
+        "operator": "domain_specific",
+        "target_requirement_id": required_target,
+        "expected_detection": (
+            f"{required_target} must reject a syntactically malformed JSON submission."
+        ),
+        "files": [{"path": path, "content": "{\n"}],
+    }
+
+
 def _plan_mutant_repair(
     prior_mutants: list[dict[str, Any]],
     validation: dict[str, Any] | None,
@@ -912,30 +1161,104 @@ def _write_tester_bundle(ws: Workspace, bundle: dict[str, Any]) -> None:
     ws.write_file_bundle(bundle)
 
 
-def _preflight_key(diff: dict[str, Any]) -> tuple[int, int]:
+def _preflight_key(diff: dict[str, Any]) -> tuple[int, ...]:
     """Rank a differential-gate result; higher is better. Accepting the golden
     outranks rejecting the baseline: a golden-rejecting evaluator invalidates
     every downstream score, while a baseline-accepting one only weakens SRs."""
     golden = diff.get("golden_run") or {}
     vuln = diff.get("vulnerable_run") or {}
-    return (1 if golden.get("ok") else 0, 1 if vuln.get("ok") else 0)
+    golden_text = (golden.get("stdout", "") or "") + "\n" + (golden.get("stderr", "") or "")
+    vuln_text = (vuln.get("stdout", "") or "") + "\n" + (vuln.get("stderr", "") or "")
+    golden_usable = golden.get("status") in {"pass", "fail"} and not any(
+        marker in golden_text for marker in ("Traceback (most recent call last)", "[TEST] FAIL: SETUP")
+    )
+    vuln_clean_rejection = (
+        vuln.get("status") == "fail"
+        and "[TEST] FAIL:" in vuln_text
+        and "[TEST] FAIL: SETUP" not in vuln_text
+        and "Traceback (most recent call last)" not in vuln_text
+    )
+    pass_count = golden_text.count("[TEST] PASS:")
+    fail_count = golden_text.count("[TEST] FAIL:")
+    return (
+        int(bool(golden.get("ok"))),
+        pass_count,
+        -fail_count,
+        int(golden.get("status") == "pass"),
+        int(golden_usable),
+        int(bool(vuln.get("ok"))),
+        int(vuln_clean_rejection),
+    )
+
+
+def _preflight_diagnostic(diff: dict[str, Any]) -> str:
+    """Return the most actionable one-line reason for console output."""
+    for result in (diff.get("golden_run") or {}, diff.get("vulnerable_run") or {}):
+        stderr = result.get("stderr", "") or ""
+        stderr_lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+        if stderr_lines:
+            detail = stderr_lines[-1] if "Traceback (most recent call last)" in stderr else stderr_lines[0]
+            return detail[:500]
+        stdout_lines = [line.strip() for line in (result.get("stdout", "") or "").splitlines() if line.strip()]
+        for prefix in ("[TEST] FAIL: SETUP", "[TEST] FAIL:"):
+            matching = next((line for line in stdout_lines if line.startswith(prefix)), None)
+            if matching:
+                return matching[:500]
+    return "no actionable evaluator output was emitted"
+
+
+def _tester_repair_paths(diff: dict[str, Any], bundle: dict[str, Any]) -> list[str]:
+    """Select only evaluator files implicated by a failed differential run."""
+    available = {
+        str(item.get("path", "")): str(item.get("purpose", ""))
+        for item in bundle.get("manifest", [])
+    }
+    evaluator = "evaluation/evaluate.py"
+    outputs = []
+    for arm in (diff.get("golden_run") or {}, diff.get("vulnerable_run") or {}):
+        outputs.extend([str(arm.get("stdout") or ""), str(arm.get("stderr") or "")])
+    diagnostic = "\n".join(outputs)
+    selected = {
+        path for path in available
+        if path.startswith(("evaluation/", "tests/")) and path in diagnostic
+    }
+    diagnostic_lower = diagnostic.lower()
+    if any(token in diagnostic_lower for token in (
+        "compile failed", "compilation failed", "simulation", "no marker", "missing marker",
+        "mismatch at time",
+    )):
+        for path, purpose in available.items():
+            text = f"{path} {purpose}".lower()
+            if path.startswith(("evaluation/", "tests/")) and any(
+                token in text for token in ("testbench", "harness", "simulation", "tb_", "_tb")
+            ):
+                selected.add(path)
+    if evaluator in available:
+        selected.add(evaluator)
+    # Supporting files first so the final evaluator repair sees their new content.
+    return sorted(selected - {evaluator}) + ([evaluator] if evaluator in selected else [])
 
 
 def _preflight_notes(diff: dict[str, Any]) -> str:
-    lines = ["PRE-FLIGHT EVALUATOR CHECK FAILED (deterministic run before review):"]
+    lines = [
+        "PRE-FLIGHT EVALUATOR CHECK FAILED (deterministic run before review):",
+        f"- Failure class: {diff.get('failure_class') or 'unknown'}",
+    ]
     golden = diff.get("golden_run") or {}
     vuln = diff.get("vulnerable_run") or {}
     if golden and not golden.get("ok", False):
         lines.append(
             "- evaluate.py REJECTED the golden secure solution, but a correct secure "
-            "implementation must exit 0 with every check emitting [TEST] PASS. Evaluator output:\n"
-            + (golden.get("stdout") or "")[:1500]
+            "implementation must exit 0 with every check emitting [TEST] PASS. Evaluator stdout:\n"
+            + (golden.get("stdout") or "")[:2000]
+            + "\nEvaluator stderr:\n" + (golden.get("stderr") or "")[-1500:]
         )
     if vuln and not vuln.get("ok", False):
         lines.append(
-            "- evaluate.py ACCEPTED the insecure baseline inputs, but the shipped baseline is "
-            "intentionally vulnerable and must exit non-zero with at least one SR [TEST] FAIL. "
-            "Evaluator output:\n" + (vuln.get("stdout") or "")[:1500]
+            "- evaluate.py did not CLEANLY REJECT the insecure baseline. It must exit non-zero "
+            "because at least one mapped requirement fails, not because setup or runtime "
+            "failed. Evaluator stdout:\n" + (vuln.get("stdout") or "")[:2000]
+            + "\nEvaluator stderr:\n" + (vuln.get("stderr") or "")[-1500:]
         )
     lines.append(
         "Rewrite evaluate.py so that a correct secure implementation passes every check and "
@@ -963,7 +1286,7 @@ def _deterministic_retain(
         validation.get("status") == "pass"
         and analyzer_ok
         and float(validation.get("mutation_score") or 0.0) >= min_mutation_score
-        and float(validation.get("coverage_score") or 0.0) >= min_coverage_score
+        and float(validation.get("requirement_mapping_coverage_score", validation.get("coverage_score", 0.0))) >= min_coverage_score
     )
 
 
@@ -983,7 +1306,8 @@ def _round_quality_key(validation: dict[str, Any], analyzer_report: dict[str, An
         1 if analyzer.get("overall_status") in {"pass", "warning"} else 0,
         1 if baseline.get("status") == "pass" else 0,
         round(float(validation.get("mutation_score") or 0.0), 3),
-        round(float(validation.get("coverage_score") or 0.0), 3),
+        round(float(validation.get("requirement_mapping_coverage_score", validation.get("coverage_score", 0.0))), 3),
+        round(float(validation.get("requirement_discrimination_coverage_score") or 0.0), 3),
         -len(validation.get("issues") or []),
     )
 
@@ -997,6 +1321,46 @@ def _snapshot_workspace(ws_root: Path, previous: Path | None) -> Path:
     snap_case = holder / "case"
     shutil.copytree(ws_root, snap_case)
     return snap_case
+
+
+def _publish_staged_case(staging: Path, desired: Path) -> Path:
+    """Atomically move a complete hidden staging workspace into publication."""
+    final = desired if not desired.exists() else _unique_workspace(desired.parent, desired.name)
+    os.rename(staging, final)
+    return final
+
+
+def _build_case_manifest(
+    ws: Workspace,
+    task_spec: dict[str, Any],
+    selection: dict[str, Any],
+) -> dict[str, Any]:
+    canonical = [
+        "spec/task_spec.json",
+        "artifacts/artifact_bundle.json",
+        "expert/expert_bundle.json",
+        "tests/tester_bundle.json",
+        "mutants/mutation_bundle.json",
+        "reports/validation_report.json",
+        "reports/analyzer_report.json",
+        "reports/quality_report.json",
+    ]
+    hashes: dict[str, str] = {}
+    for relative in canonical:
+        path = ws.path(relative)
+        if path.is_file():
+            hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    quality_path = ws.path("reports/quality_report.json")
+    quality = json.loads(quality_path.read_text(encoding="utf-8")) if quality_path.is_file() else {}
+    return {
+        "schema_version": 1,
+        "task_id": task_spec.get("task_id"),
+        "domain_id": task_spec.get("domain_id"),
+        "status": "quality_passed" if quality.get("overall_status") == "pass" else "quality_failed",
+        "quality_status": quality.get("overall_status"),
+        **selection,
+        "canonical_sha256": hashes,
+    }
 
 
 _ROUND_STAMPED_REPORT_RE = re.compile(r"_r\d+\.json$")
@@ -1033,7 +1397,7 @@ def ws_read_json(ws: Workspace, rel: str) -> dict[str, Any]:
 
 def _slim_validation_for_arbiter(validation: dict[str, Any]) -> dict[str, Any]:
     """Strip per-mutant coverage tables and verbose stdout — keep actionable fields."""
-    baseline = dict(validation.get("baseline_run") or {})
+    baseline = dict(validation.get("mutation_baseline_run") or validation.get("baseline_run") or {})
     # Keep only first 500 chars of stdout so Arbiter can see the error type
     if "stdout" in baseline:
         baseline["stdout"] = baseline["stdout"][:500]
@@ -1049,17 +1413,24 @@ def _slim_validation_for_arbiter(validation: dict[str, Any]) -> dict[str, Any]:
         }
     return {
         "status": validation.get("status"),
+        "source_round": validation.get("source_round"),
         "issues": validation.get("issues", []),
         "coverage_score": validation.get("coverage_score"),
+        "requirement_mapping_coverage_score": validation.get("requirement_mapping_coverage_score"),
+        "requirement_discrimination_coverage_score": validation.get("requirement_discrimination_coverage_score"),
         "mutation_score": validation.get("mutation_score"),
         "mutation_score_meaningful": validation.get("mutation_score_meaningful", True),
+        "mutation_status": validation.get("mutation_status"),
+        "blocked_mutation_requirements": validation.get("blocked_mutation_requirements", []),
         "requirement_count": validation.get("requirement_count"),
         "dead_checks": validation.get("dead_checks", []),
         "uncovered_requirements": validation.get("uncovered_requirements", []),
         "untested_requirements": validation.get("untested_requirements", []),
         "error_runs": validation.get("error_runs", 0),
-        "baseline_run": baseline if baseline else None,
+        "mutation_baseline_run": baseline if baseline else None,
         "differential": differential,
+        "preflight": validation.get("preflight"),
+        "submission_invariants": validation.get("submission_invariants"),
     }
 
 

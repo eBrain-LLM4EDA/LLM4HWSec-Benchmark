@@ -1,0 +1,72 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for Logic Deobfuscation SAT Task\n\n## Grading Contract\n\nThis task uses **report_grading**: the participant submits an answer file (`submission/recovered_key.json`) that describes their analysis of the provided netlist. The evaluation harness (`evaluate.py`) grades the content of this answer file against hidden ground truth. The input artifacts (`inputs/locked_netlist.v` and `inputs/locking_scheme.txt`) are read for reference only; the verdicts are based solely on the submitted JSON.\n\n## Expected Submission\n\nThe participant must produce a single file at `submission/recovered_key.json`. The file must be valid JSON with the following schema:\n\n```json\n{\n  \"locked\": <boolean>,\n  \"key_bits\": <string>,\n  \"key_gates\": [<string>, ...]\n}\n```\n\n- `locked`: indicates whether the netlist contains key-gate logic (`true`) or not (`false`).\n- `key_bits`: a string of `'0'` and `'1'` characters representing the recovered key; must be empty if `locked` is `false`.\n- `key_gates`: a list of instance names identifying key gates in the netlist; must be empty if `locked` is `false`.\n\n## Input Artifacts\n\nThe following files are provided in `inputs/`:\n\n- `locked_netlist.v`: A structural Verilog netlist that may or may not contain locking structures.\n- `locking_scheme.txt`: A description of the locking algorithm that was supposedly applied.\n\n## Toolchain\n\nThe evaluation environment includes:\n\n- Python 3 (standard library only for `evaluate.py`)\n- Icarus Verilog (`iverilog` and `vvp`) for optional netlist simulation\n\n## Requirements\n\nThe harness checks the following requirements. Each requirement produces a `[TEST] PASS` or `[TEST] FAIL` marker.\n\n### Functional Requirements\n\n- **FR1**: The submission file exists and is valid JSON.\n- **FR2**: The JSON contains the three required fields (`locked`, `key_bits`, `key_gates`) with correct types.\n- **FR3**: If `locked` is `false`, `key_bits` must be the empty string and `key_gates` must be an empty array.\n- **FR4**: If `locked` is `true`, `key_bits` must be a non-empty string of only `'0'` and `'1'` characters, and `key_gates` must be a non-empty array of strings.\n\n### Security Requirements\n\n- **SR1**: The analysis must not report false key gates (ordinary functional logic misidentified as locking logic).\n- **SR2**: The analysis must not report a false key (a non-empty `key_bits` string when no key exists).\n\nThe hidden ground truth for this task is that the netlist contains no locking logic; therefore a correct submission must have `locked` set to `false`, `key_bits` set to `\"\"`, and `key_gates` set to `[]`.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport os\nimport sys\n\ndef main():\n    submission_path = os.path.join(\"submission\", \"recovered_key.json\")\n    all_pass = True\n\n    # FR1: File exists and is valid JSON\n    if not os.path.isfile(submission_path):\n        print(\"[TEST] FAIL: FR1: submission/recovered_key.json not found\")\n        all_pass = False\n        # Cannot continue without the file\n        sys.exit(1)\n    try:\n        with open(submission_path, \"r\") as f:\n            data = json.load(f)\n    except json.JSONDecodeError as e:\n        print(f\"[TEST] FAIL: FR1: invalid JSON: {e}\")\n        all_pass = False\n        sys.exit(1)\n    except Exception as e:\n        print(f\"[TEST] FAIL: FR1: could not read file: {e}\")\n        all_pass = False\n        sys.exit(1)\n    print(\"[TEST] PASS: FR1\")\n\n    # FR2: Required fields with correct types\n    required_fields = {\n        \"locked\": bool,\n        \"key_bits\": str,\n        \"key_gates\": list\n    }\n    fr2_pass = True\n    for field, expected_type in required_fields.items():\n        if field not in data:\n            print(f\"[TEST] FAIL: FR2: missing field '{field}'\")\n            fr2_pass = False\n        elif not isinstance(data[field], expected_type):\n            print(f\"[TEST] FAIL: FR2: field '{field}' has wrong type (expected {expected_type.__name__}, got {type(data[field]).__name__})\")\n            fr2_pass = False\n    if fr2_pass:\n        print(\"[TEST] PASS: FR2\")\n    else:\n        all_pass = False\n\n    # Extract values for further checks\n    locked = data.get(\"locked\")\n    key_bits = data.get(\"key_bits\")\n    key_gates = data.get(\"key_gates\")\n\n    # FR3: If locked is false, key_bits must be empty string and key_gates must be empty array\n    if locked is False:\n        fr3_pass = True\n        if key_bits != \"\":\n            print(f\"[TEST] FAIL: FR3: locked is false but key_bits is not empty (got '{key_bits}')\")\n            fr3_pass = False\n        if key_gates != []:\n            print(f\"[TEST] FAIL: FR3: locked is false but key_gates is not empty (got {key_gates})\")\n            fr3_pass = False\n        if fr3_pass:\n            print(\"[TEST] PASS: FR3\")\n        else:\n            all_pass = False\n    else:\n        # FR3 only applies when locked is false; if locked is true, we skip FR3 (or treat as not applicable)\n        # According to spec, FR3 is a constraint that must hold when locked is false.\n        # If locked is true, the constraint is vacuously satisfied.\n        print(\"[TEST] PASS: FR3\")\n\n    # FR4: If locked is true, key_bits must be non-empty binary string and key_gates must be non-empty array of strings\n    if locked is True:\n        fr4_pass = True\n        if not isinstance(key_bits, str) or key_bits == \"\":\n            print(f\"[TEST] FAIL: FR4: locked is true but key_bits is empty or not a string\")\n            fr4_pass = False\n        elif not all(c in \"01\" for c in key_bits):\n            print(f\"[TEST] FAIL: FR4: key_bits contains non-binary characters (got '{key_bits}')\")\n            fr4_pass = False\n        if not isinstance(key_gates, list) or len(key_gates) == 0:\n            print(f\"[TEST] FAIL: FR4: locked is true but key_gates is empty or not a list\")\n            fr4_pass = False\n        else:\n            if not all(isinstance(g, str) for g in key_gates):\n                print(f\"[TEST] FAIL: FR4: key_gates contains non-string elements\")\n                fr4_pass = False\n        if fr4_pass:\n            print(\"[TEST] PASS: FR4\")\n        else:\n            all_pass = False\n    else:\n        # FR4 only applies when locked is true; if locked is false, vacuously satisfied\n        print(\"[TEST] PASS: FR4\")\n\n    # SR1: key_gates must be empty (no false key gates)\n    if isinstance(key_gates, list) and len(key_gates) == 0:\n        print(\"[TEST] PASS: SR1\")\n    else:\n        print(f\"[TEST] FAIL: SR1: key_gates is not empty (got {key_gates})\")\n        all_pass = False\n\n    # SR2: key_bits must be empty (no false key recovery)\n    if isinstance(key_bits, str) and key_bits == \"\":\n        print(\"[TEST] PASS: SR2\")\n    else:\n        print(f\"[TEST] FAIL: SR2: key_bits is not empty (got '{key_bits}')\")\n        all_pass = False\n\n    if all_pass:\n        sys.exit(0)\n    else:\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the grading contract (report_grading), the expected submission file (submission/recovered_key.json), the input artifacts (locked_netlist.v, locking_scheme.txt), and the toolchain (Python 3, iverilog, vvp). Explain that evaluate.py grades the answer file against hidden ground truth, not the netlist itself. List the requirement IDs and their types (FR1-FR4 functional, SR1-SR2 security) without revealing the hidden acceptance criteria."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Opens submission/recovered_key.json and validates it against the hidden ground truth (locked=false, key_bits='', key_gates=[]). Checks FR1 (file exists, valid JSON), FR2 (three required fields present with correct types), FR3 (if locked is false, key_bits must be '' and key_gates must be []), FR4 (if locked is true, key_bits must be non-empty binary string and key_gates non-empty array of strings). Checks SR1 (key_gates must be empty; any non-empty list is a false positive), SR2 (key_bits must be empty; any non-empty string is a false key recovery). Emits [TEST] PASS/FAIL markers per requirement. Exits 0 if all pass, 1 otherwise. Uses only Python stdlib; no subprocess calls needed since this is report_grading."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Check that submission/recovered_key.json exists and is valid JSON. Emit [TEST] PASS: FR1 if file exists and parses; [TEST] FAIL: FR1: <reason> if missing or invalid.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the parsed JSON contains exactly the three required fields: 'locked' (boolean), 'key_bits' (string), 'key_gates' (array). Emit [TEST] PASS: FR2 if all present with correct types; [TEST] FAIL: FR2: <reason> if any missing or wrong type.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that when 'locked' is false, 'key_bits' is the empty string and 'key_gates' is an empty array. Emit [TEST] PASS: FR3 if constraint holds; [TEST] FAIL: FR3: <reason> if violated.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that when 'locked' is true, 'key_bits' is a non-empty string of only '0' and '1' characters, and 'key_gates' is a non-empty array of strings. Emit [TEST] PASS: FR4 if constraint holds; [TEST] FAIL: FR4: <reason> if violated.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that the 'key_gates' list is empty. Any non-empty list indicates a false positive (ordinary functional logic misidentified as locking logic). Emit [TEST] PASS: SR1 if empty; [TEST] FAIL: SR1: <reason> if non-empty.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that 'key_bits' is an empty string. Any non-empty string indicates a false key recovery. Emit [TEST] PASS: SR2 if empty; [TEST] FAIL: SR2: <reason> if non-empty.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    }
+  ]
+}

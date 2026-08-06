@@ -1,0 +1,25 @@
+{
+  "lock_gates": [
+    {
+      "gate_label": "lock_xor",
+      "classification": "XOR",
+      "key_bit": 0
+    },
+    {
+      "gate_label": "lock_xnor",
+      "classification": "XNOR",
+      "key_bit": 1
+    },
+    {
+      "gate_label": "lock_mux0",
+      "classification": "MUX_0",
+      "key_bit": 0
+    },
+    {
+      "gate_label": "lock_mux1",
+      "classification": "MUX_1",
+      "key_bit": 1
+    }
+  ],
+  "recovered_key": "0101"
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 0.0,
+  "rationale": "The evaluator crashes with a ModuleNotFoundError before grading any requirement, causing both the golden and baseline runs to fail. This makes the mutation score 0.0 and meaningless. The primary issue is the broken import in evaluate.py, which must be fixed first. Additionally, the evaluator does not emit [TEST] PASS/FAIL markers for any requirement, does not compute the three required metrics, and has no targeting mutants to prove harness discrimination. All these are evaluation_framework defects.",
+  "retain_case": false,
+  "revision_instructions": "Fix evaluate.py as follows:\n1. Replace the absolute import 'from evaluation.private.ground_truth import ...' with a relative import that works when the script is executed from the work directory. For example, use 'from private.ground_truth import ...' if evaluate.py is inside the evaluation/ directory, or adjust sys.path to include the evaluation directory.\n2. Ensure evaluate.py emits [TEST] PASS/FAIL markers for every requirement (FR1, FR2, FR3, FR4, SR1, SR2) before exiting. The marker IDs must exactly match the requirement_map keys: 'FR1', 'FR2', 'FR3', 'FR4', 'SR1', 'SR2'.\n3. Implement the three metrics defined in the task specification: leakage_detection_accuracy, fault_coverage, and hardening_precision. These must be computed and reported in the evaluator output.\n4. Verify that the baseline naive submission (vulnerable_cycle=-1, state_register='none', result_register='none', explanation='') is properly rejected with requirement-level FAIL markers after the import fix.\n5. Provide targeting mutants for each requirement so that mutation testing can verify harness discrimination.",
+  "root_cause": "evaluation_issue",
+  "source_round": 0
+}

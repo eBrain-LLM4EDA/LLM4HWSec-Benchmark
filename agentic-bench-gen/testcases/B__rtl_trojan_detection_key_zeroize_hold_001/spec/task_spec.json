@@ -1,0 +1,102 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Empty/naive baseline: submission/trojan_report.json with candidates=[] and summary='No anomalies detected' -- must FAIL FR3 and SR1-SR4.",
+      "Trust-Hub-style keyword-grep baseline: flags any occurrence of the token 'zeroize' as a candidate with low confidence and generic trigger_condition='zeroize asserted', without mentioning bus_busy -- must FAIL SR1."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of graded cases where the submitted report's top-confidence candidate satisfies SR1, SR2, and SR4 (correct trigger condition, root cause, and localization).",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported candidates (across all candidates in the report) that do not correspond to any real defect in the RTL and are unrelated to the zeroize/bus_busy coincidence, penalizing noisy over-reporting.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Score in [0,1] measuring how precisely the report's location_hint and trigger_condition pinpoint the actual zeroize_mask/zeroize_block construct and the exact zeroize&bus_busy trigger, versus vague or generic statements.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A report is graded PASS only if FR1-FR4 all hold AND SR1-SR4 all hold.",
+      "The shipped baseline empty/naive submission (empty candidates array or generic 'no issues found' summary) must fail FR1/FR3 and thus receive FAIL.",
+      "A report that flags an unrelated signal (e.g. rst_n glitches) as the top candidate while omitting the zeroize/bus_busy coincidence entirely must FAIL SR1 and SR3.",
+      "A report that correctly identifies zeroize+bus_busy coincidence but attributes it to the wrong root cause (e.g. blames a reset synchronizer) must FAIL SR2."
+    ],
+    "cwe_ids": [
+      "CWE-1265",
+      "CWE-670",
+      "CWE-693",
+      "CWE-1298"
+    ],
+    "ground_truth": "In key_loader_ctrl.v, the always block computing the next value of key_q contains a labeled expression (zeroize_block) of the form: wire zeroize_mask = zeroize & ~bus_busy; ... key_q_next = zeroize_mask ? 32'b0 : (bus_wr ? bus_data : key_q); This masks the zeroize command whenever bus_busy is simultaneously high, causing key_q to hold its previous value (via the key_q branch) instead of being cleared. An attacker who asserts zeroize while a bus transaction is in flight (bus_busy=1) prevents the key register from being erased, allowing later recovery of stale key material once bus_busy deasserts, even though the module's documented contract states zeroize always clears key_q on the next clock edge.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse trigger_condition text of the top candidate(s) for conjunction of a zeroize-asserted term and a bus_busy/bus-transaction-in-progress term; reject reports that only mention one signal or describe an unrelated condition (e.g. reset, power-on).",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that the vulnerability is triggered by the specific coincidence of zeroize=1 AND bus_busy=1 (not by zeroize alone, and not by bus_busy alone), distinguishing this from a generic 'zeroize sometimes fails' claim."
+      },
+      {
+        "detection_strategy": "Check location_hint / summary text for reference to an AND/mask term combining zeroize with an inverted or negated bus_busy-derived condition, and to key_q being selected as its own next value (self-hold) in that branch; optionally cross-check by simulating inputs/key_loader_ctrl.v with iverilog/vvp driving zeroize=1, bus_busy=1 (via a sustained bus_wr) and confirming key_q does not clear, then confirming it does clear when bus_busy=0.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify that the root cause is combinational masking/gating of the zeroize signal (the zeroize_mask-equivalent term) feeding the next-state selection for key_q, and that the faulty branch selects key_q's own current value rather than 32'b0."
+      },
+      {
+        "detection_strategy": "Sort candidates by confidence descending; verify the top entry satisfies SR1 and SR2 criteria and has confidence >= 0.6.",
+        "id": "SR3",
+        "requirement": "The report's highest-confidence candidate (by numeric confidence field) must be the zeroize/bus_busy coincidence issue, not a decoy or unrelated finding, and confidence must be >= 0.6."
+      },
+      {
+        "detection_strategy": "Fuzzy-match location_hint string against known label tokens present in inputs/key_loader_ctrl.v (e.g. 'zeroize_block', 'zeroize_mask', or the actual always-block name); accept case-insensitive substring or line-number-range matches within a small tolerance of the real construct's line span.",
+        "id": "SR4",
+        "requirement": "The report must not merely assert the presence of a trojan without actionable localization; it must identify the specific label/construct name or line range in the RTL closely matching the actual hidden zeroize_block/zeroize_mask construct, enabling localization for remediation."
+      }
+    ],
+    "threat_model": "An attacker with control over bus transaction timing (e.g. a malicious peripheral or compromised bus arbiter) deliberately keeps bus_busy asserted (e.g. by initiating a long or stalled bus_wr transaction) at the moment a legitimate emergency zeroize command is issued (e.g. by a tamper-detection circuit or software emergency-erase routine). Because of the hidden zeroize_mask logic, the key register silently ignores the zeroize command during that window and retains the old key value in key_q. The attacker can then read out or otherwise exfiltrate the un-erased key material after the bus transaction completes, defeating the emergency erase security control entirely while all functional tests that check zeroize under idle-bus conditions pass normally."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL module key_loader_ctrl is fewer than 150 lines of synthesizable Verilog-2001.",
+      "The module exposes exactly the ports listed in the interface section; no additional ports.",
+      "The RTL is provided as-is and must not be modified by the participant; all analysis is reported in the separate answer file.",
+      "The design_brief.md describes intended functional behavior (key loading over the bus, and zeroize-on-demand) without describing any known defect."
+    ],
+    "expected_outputs": [
+      "trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON containing top-level fields: 'candidates' (a non-empty array), 'summary' (string), and 'tool_version_or_method' (string describing how the analysis was performed, e.g. manual review, formal tool, simulation)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Each entry in 'candidates' must contain the fields: 'signal_or_net' (string), 'location_hint' (string identifying the RTL construct, e.g. a label, always block, or line range), 'trigger_condition' (string describing the input/state condition that activates the anomaly), and 'confidence' (a number between 0.0 and 1.0)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "At least one candidate entry must explicitly describe a condition involving simultaneous assertion of zeroize and bus_busy (or an equivalent bus-transaction-in-progress state) as the trigger for the key register failing to clear."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must state, for the highest-confidence candidate, what the expected correct behavior of key_q should have been under the identified trigger condition (i.e. that key_q should equal 32'b0), enabling a reader to verify the claim by inspection or simulation of inputs/key_loader_ctrl.v."
+      }
+    ],
+    "input_artifacts": [
+      "key_loader_ctrl.v",
+      "design_brief.md"
+    ],
+    "interface": "Module under analysis: key_loader_ctrl, located in inputs/key_loader_ctrl.v. Port list (exact): module key_loader_ctrl(input wire clk, input wire rst_n, input wire [31:0] bus_data, input wire bus_wr, input wire zeroize, output wire bus_busy, output wire [31:0] key_q). Semantics: clk is the system clock; rst_n is active-low synchronous reset; bus_data is the 32-bit data bus carrying key material to be loaded (secret-bearing input); bus_wr, when asserted for one or more cycles, initiates a bus write transaction that drives bus_busy high for the duration of the transfer; zeroize is a control input that, per the design intent, must force key_q to 32'b0 on the next clock edge whenever asserted, irrespective of bus_busy; bus_busy is a status output indicating an in-progress bus transaction; key_q is the 32-bit registered key output (the value participants must show can be forced to leak old key material). The participant submission is NOT code -- it is an analysis answer file at submission/trojan_report.json, described in response_format.",
+    "objective": "You are given the RTL source for a key-loading controller module (key_loader_ctrl) used in a cryptographic subsystem. The module manages loading of a 32-bit key register from a bus, and supports an emergency zeroize function that is supposed to clear the key register to all zeros whenever the zeroize input is asserted, regardless of other bus activity. Analyze the provided RTL to determine whether the implementation faithfully clears the key register under all conditions in which zeroize is asserted. Produce a structured analysis report identifying any logic construct(s) that could cause the key register to retain its previous value instead of being cleared when zeroize is asserted, including the exact signal/state conditions under which this occurs, the RTL line/label of the offending logic, and your confidence that this is an intentionally inserted defect versus a benign design artifact.",
+    "response_format": "Submit a single JSON file at submission/trojan_report.json with the schema: {\"candidates\": [{\"signal_or_net\": string, \"location_hint\": string, \"trigger_condition\": string, \"confidence\": number}], \"summary\": string, \"tool_version_or_method\": string}. The file must be valid UTF-8 JSON parseable with a standard JSON parser; no comments or trailing commas."
+  },
+  "task_id": "rtl_trojan_detection_key_zeroize_hold_001",
+  "title": "Busy-state key-zeroization inhibition Trojan in key-loading controller"
+}

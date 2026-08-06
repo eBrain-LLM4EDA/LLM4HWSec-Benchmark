@@ -1,0 +1,132 @@
+Let me compute the reference codeword from `data_in = 8'b10110010` using the encode equations in `secded_codec.v`.
+
+Bit assignment (data_in[7:0] = 1 0 1 1 0 0 1 0, so data_in[0]=0, data_in[1]=1, data_in[2]=0, data_in[3]=0, data_in[4]=1, data_in[5]=1, data_in[6]=0, data_in[7]=1):
+
+- p1 = d0^d1^d3^d4^d6 = 0^1^0^1^0 = 0
+- p2 = d0^d2^d3^d5^d6 = 0^0^0^1^0 = 1
+- p4 = d1^d2^d3^d7 = 1^0^0^1 = 0
+- p8 = d4^d5^d6^d7 = 1^1^0^1 = 1
+
+enc_word[3]=d0=0, enc_word[5]=d1=1, enc_word[6]=d2=0, enc_word[7]=d3=0, enc_word[9]=d4=1, enc_word[10]=d5=1, enc_word[11]=d6=0, enc_word[12]=d7=1
+enc_word[1]=p1=0, enc_word[2]=p2=1, enc_word[4]=p4=0, enc_word[8]=p8=1
+
+p0 = XOR of enc_word[1..12] = 0^1^0^0^1^0^0^1^1^1^0^1 = let's sum ones: positions with 1: [2]=1,[5]=1,[8]=1,[9]=1,[10]=1,[12]=1 → six 1s → XOR=0
+
+enc_word[0]=0
+
+So codeword bits [0..12] = 0,0,1,1,0,1,0,0,1,1,1,0,1
+
+String (bit12..bit0, MSB first as [12] first): bit12=1,11=0,10=1,9=1,8=1,7=0,6=0,5=1,4=0,3=1,2=1,1=0,0=0 → "1011100101100"
+
+```json
+{
+  "reference_data_in": "10110010",
+  "reference_codeword": "1011100101100",
+  "note": "reference_codeword is the correct 13-bit extended-Hamming encoding of reference_data_in (bit-vector notation matches Verilog [12:0], i.e. reference_codeword[0] is codeword bit 12 and reference_codeword[12] is codeword bit 0). Each fault case below applies XOR with a one-hot (or two-hot) mask at the listed bit_positions to reference_codeword, expressed as codeword_in in the same [12:0] bit-vector notation as the RTL ports.",
+  "faults": [
+    {"fault_id": "single_b0",  "bit_positions": [0],  "codeword_in": "1011100101101"},
+    {"fault_id": "single_b1",  "bit_positions": [1],  "codeword_in": "1011100101110"},
+    {"fault_id": "single_b2",  "bit_positions": [2],  "codeword_in": "1011100101000"},
+    {"fault_id": "single_b3",  "bit_positions": [3],  "codeword_in": "1011100100100"},
+    {"fault_id": "single_b4",  "bit_positions": [4],  "codeword_in": "1011100111100"},
+    {"fault_id": "single_b5",  "bit_positions": [5],  "codeword_in": "1011100001100"},
+    {"fault_id": "single_b6",  "bit_positions": [6],  "codeword_in": "1011101101100"},
+    {"fault_id": "single_b7",  "bit_positions": [7],  "codeword_in": "1011110101100"},
+    {"fault_id": "single_b8",  "bit_positions": [8],  "codeword_in": "1011000101100"},
+    {"fault_id": "single_b9",  "bit_positions": [9],  "codeword_in": "1010100101100"},
+    {"fault_id": "single_b10", "bit_positions": [10], "codeword_in": "1001100101100"},
+    {"fault_id": "single_b11", "bit_positions": [11], "codeword_in": "1111100101100"},
+    {"fault_id": "single_b12", "bit_positions": [12], "codeword_in": "0011100101100"},
+
+    {"fault_id": "double_b0_b1",  "bit_positions": [0,1],  "codeword_in": "1011100101111"},
+    {"fault_id": "double_b0_b2",  "bit_positions": [0,2],  "codeword_in": "1011100101001"},
+    {"fault_id": "double_b0_b3",  "bit_positions": [0,3],  "codeword_in": "1011100100101"},
+    {"fault_id": "double_b0_b4",  "bit_positions": [0,4],  "codeword_in": "1011100111101"},
+    {"fault_id": "double_b0_b5",  "bit_positions": [0,5],  "codeword_in": "1011100001101"},
+    {"fault_id": "double_b0_b6",  "bit_positions": [0,6],  "codeword_in": "1011101101101"},
+    {"fault_id": "double_b0_b7",  "bit_positions": [0,7],  "codeword_in": "1011110101101"},
+    {"fault_id": "double_b0_b8",  "bit_positions": [0,8],  "codeword_in": "1011000101101"},
+    {"fault_id": "double_b0_b9",  "bit_positions": [0,9],  "codeword_in": "1010100101101"},
+    {"fault_id": "double_b0_b10", "bit_positions": [0,10], "codeword_in": "1001100101101"},
+    {"fault_id": "double_b0_b11", "bit_positions": [0,11], "codeword_in": "1111100101101"},
+    {"fault_id": "double_b0_b12", "bit_positions": [0,12], "codeword_in": "0011100101101"},
+
+    {"fault_id": "double_b1_b2",  "bit_positions": [1,2],  "codeword_in": "1011100101010"},
+    {"fault_id": "double_b1_b3",  "bit_positions": [1,3],  "codeword_in": "1011100100110"},
+    {"fault_id": "double_b1_b4",  "bit_positions": [1,4],  "codeword_in": "1011100111110"},
+    {"fault_id": "double_b1_b5",  "bit_positions": [1,5],  "codeword_in": "1011100001110"},
+    {"fault_id": "double_b1_b6",  "bit_positions": [1,6],  "codeword_in": "1011101101110"},
+    {"fault_id": "double_b1_b7",  "bit_positions": [1,7],  "codeword_in": "1011110101110"},
+    {"fault_id": "double_b1_b8",  "bit_positions": [1,8],  "codeword_in": "1011000101110"},
+    {"fault_id": "double_b1_b9",  "bit_positions": [1,9],  "codeword_in": "1010100101110"},
+    {"fault_id": "double_b1_b10", "bit_positions": [1,10], "codeword_in": "1001100101110"},
+    {"fault_id": "double_b1_b11", "bit_positions": [1,11], "codeword_in": "1111100101110"},
+    {"fault_id": "double_b1_b12", "bit_positions": [1,12], "codeword_in": "0011100101110"},
+
+    {"fault_id": "double_b2_b3",  "bit_positions": [2,3],  "codeword_in": "1011100100000"},
+    {"fault_id": "double_b2_b4",  "bit_positions": [2,4],  "codeword_in": "1011100111000"},
+    {"fault_id": "double_b2_b5",  "bit_positions": [2,5],  "codeword_in": "1011100001000"},
+    {"fault_id": "double_b2_b6",  "bit_positions": [2,6],  "codeword_in": "1011101101000"},
+    {"fault_id": "double_b2_b7",  "bit_positions": [2,7],  "codeword_in": "1011110101000"},
+    {"fault_id": "double_b2_b8",  "bit_positions": [2,8],  "codeword_in": "1011000101000"},
+    {"fault_id": "double_b2_b9",  "bit_positions": [2,9],  "codeword_in": "1010100101000"},
+    {"fault_id": "double_b2_b10", "bit_positions": [2,10], "codeword_in": "1001100101000"},
+    {"fault_id": "double_b2_b11", "bit_positions": [2,11], "codeword_in": "1111100101000"},
+    {"fault_id": "double_b2_b12", "bit_positions": [2,12], "codeword_in": "0011100101000"},
+
+    {"fault_id": "double_b3_b4",  "bit_positions": [3,4],  "codeword_in": "1011100110100"},
+    {"fault_id": "double_b3_b5",  "bit_positions": [3,5],  "codeword_in": "1011100000100"},
+    {"fault_id": "double_b3_b6",  "bit_positions": [3,6],  "codeword_in": "1011101100100"},
+    {"fault_id": "double_b3_b7",  "bit_positions": [3,7],  "codeword_in": "1011110100100"},
+    {"fault_id": "double_b3_b8",  "bit_positions": [3,8],  "codeword_in": "1011000100100"},
+    {"fault_id": "double_b3_b9",  "bit_positions": [3,9],  "codeword_in": "1010100100100"},
+    {"fault_id": "double_b3_b10", "bit_positions": [3,10], "codeword_in": "1001100100100"},
+    {"fault_id": "double_b3_b11", "bit_positions": [3,11], "codeword_in": "1111100100100"},
+    {"fault_id": "double_b3_b12", "bit_positions": [3,12], "codeword_in": "0011100100100"},
+
+    {"fault_id": "double_b4_b5",  "bit_positions": [4,5],  "codeword_in": "1011100011100"},
+    {"fault_id": "double_b4_b6",  "bit_positions": [4,6],  "codeword_in": "1011101111100"},
+    {"fault_id": "double_b4_b7",  "bit_positions": [4,7],  "codeword_in": "1011110111100"},
+    {"fault_id": "double_b4_b8",  "bit_positions": [4,8],  "codeword_in": "1011000111100"},
+    {"fault_id": "double_b4_b9",  "bit_positions": [4,9],  "codeword_in": "1010100111100"},
+    {"fault_id": "double_b4_b10", "bit_positions": [4,10], "codeword_in": "1001100111100"},
+    {"fault_id": "double_b4_b11", "bit_positions": [4,11], "codeword_in": "1111100111100"},
+    {"fault_id": "double_b4_b12", "bit_positions": [4,12], "codeword_in": "0011100111100"},
+
+    {"fault_id": "double_b5_b6",  "bit_positions": [5,6],  "codeword_in": "1011101001100"},
+    {"fault_id": "double_b5_b7",  "bit_positions": [5,7],  "codeword_in": "1011110001100"},
+    {"fault_id": "double_b5_b8",  "bit_positions": [5,8],  "codeword_in": "1011000001100"},
+    {"fault_id": "double_b5_b9",  "bit_positions": [5,9],  "codeword_in": "1010100001100"},
+    {"fault_id": "double_b5_b10", "bit_positions": [5,10], "codeword_in": "1001100001100"},
+    {"fault_id": "double_b5_b11", "bit_positions": [5,11], "codeword_in": "1111100001100"},
+    {"fault_id": "double_b5_b12", "bit_positions": [5,12], "codeword_in": "0011100001100"},
+
+    {"fault_id": "double_b6_b7",  "bit_positions": [6,7],  "codeword_in": "1011111101100"},
+    {"fault_id": "double_b6_b8",  "bit_positions": [6,8],  "codeword_in": "1011001101100"},
+    {"fault_id": "double_b6_b9",  "bit_positions": [6,9],  "codeword_in": "1010101101100"},
+    {"fault_id": "double_b6_b10", "bit_positions": [6,10], "codeword_in": "1001101101100"},
+    {"fault_id": "double_b6_b11", "bit_positions": [6,11], "codeword_in": "1111101101100"},
+    {"fault_id": "double_b6_b12", "bit_positions": [6,12], "codeword_in": "0011101101100"},
+
+    {"fault_id": "double_b7_b8",  "bit_positions": [7,8],  "codeword_in": "1011010101100"},
+    {"fault_id": "double_b7_b9",  "bit_positions": [7,9],  "codeword_in": "1010110101100"},
+    {"fault_id": "double_b7_b10", "bit_positions": [7,10], "codeword_in": "1001110101100"},
+    {"fault_id": "double_b7_b11", "bit_positions": [7,11], "codeword_in": "1111110101100"},
+    {"fault_id": "double_b7_b12", "bit_positions": [7,12], "codeword_in": "0011110101100"},
+
+    {"fault_id": "double_b8_b9",  "bit_positions": [8,9],  "codeword_in": "1010000101100"},
+    {"fault_id": "double_b8_b10", "bit_positions": [8,10], "codeword_in": "1001000101100"},
+    {"fault_id": "double_b8_b11", "bit_positions": [8,11], "codeword_in": "1111000101100"},
+    {"fault_id": "double_b8_b12", "bit_positions": [8,12], "codeword_in": "0011000101100"},
+
+    {"fault_id": "double_b9_b10", "bit_positions": [9,10], "codeword_in": "1000100101100"},
+    {"fault_id": "double_b9_b11", "bit_positions": [9,11], "codeword_in": "1110100101100"},
+    {"fault_id": "double_b9_b12", "bit_positions": [9,12], "codeword_in": "0010100101100"},
+
+    {"fault_id": "double_b10_b11", "bit_positions": [10,11], "codeword_in": "1101100101100"},
+    {"fault_id": "double_b10_b12", "bit_positions": [10,12], "codeword_in": "0001100101100"},
+
+    {"fault_id": "double_b11_b12", "bit_positions": [11,12], "codeword_in": "0111100101100"}
+  ]
+}
+```

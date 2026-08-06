@@ -1,0 +1,87 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "The proportion of Trojan nodes correctly identified out of the total number of Trojan nodes in the ground truth.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "The proportion of reported suspect nodes that are not part of the Trojan logic.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "The wall-clock time taken by the analysis script to produce the report, measured in seconds.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted report correctly identifies trojan_detected as true.",
+      "The suspect_nodes list contains the exact hierarchical name of the trigger cone's output net and the payload gate that drives the suppressed clock enable signal.",
+      "The suspect_nodes list does not contain any false positives (nodes unrelated to the Trojan)."
+    ],
+    "cwe_ids": [
+      "CWE-1245"
+    ],
+    "ground_truth": "A rare four-input NAND cone drives the labeled enable mask; when active it forces update_en low and freezes the authentication state register.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if the submitted suspect_nodes list includes the hierarchical name of the output net of the 4-input NAND gate that forms the trigger.",
+        "id": "SR1",
+        "requirement": "The detection method must identify the rare trigger cone composed of a four-input NAND gate with specific net connections."
+      },
+      {
+        "detection_strategy": "Check if the submitted suspect_nodes list includes the hierarchical name of the gate that drives the update_en net low when the trigger is activated.",
+        "id": "SR2",
+        "requirement": "The detection method must identify the payload gate that suppresses the clock enable signal."
+      }
+    ],
+    "threat_model": "A denial-of-service Trojan freezes security state updates while leaving combinational outputs apparently normal."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist is a flat, synthesized gate-level Verilog file using cells from the provided standard cell library.",
+      "The design contains a finite state machine and a register bank with a shared clock enable.",
+      "The netlist includes a rare trigger cone implemented with primitive gates and a payload that affects the clock enable signal.",
+      "The normal data outputs of the design remain functionally correct as long as the trigger condition is not met.",
+      "The analysis must be performed on the provided netlist; no modifications to the netlist are permitted."
+    ],
+    "expected_outputs": [
+      "A valid trojan_report.json file in the submission directory.",
+      "The report must contain a top-level 'trojan_detected' boolean field.",
+      "The report must contain a 'suspect_nodes' list of strings, where each string is a hierarchical netlist node name."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The 'trojan_detected' field must be a boolean value (true or false)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The 'suspect_nodes' field must be a list of strings. Each string must match the exact hierarchical name of a wire or gate instance in the provided netlist."
+      }
+    ],
+    "input_artifacts": [
+      "design.v",
+      "cells.lib"
+    ],
+    "interface": "SUBMISSION INTERFACE (analysis_report): The participant submits a single JSON file at submission/trojan_report.json. The file must conform to the following exact schema:\n{\n  \"trojan_detected\": <boolean>,\n  \"suspect_nodes\": [<string>, ...]\n}\nThe evaluator will read this file and grade it against the hidden ground truth. The input artifacts under inputs/ are provided for reference and must not be modified.",
+    "objective": "Analyze the provided gate-level netlist and identify any suspicious logic that could interfere with the correct operation of the design. Submit a report listing all suspect nodes and a classification of the overall netlist.",
+    "response_format": "A JSON object with the following fields:\n- trojan_detected (boolean): true if any Trojan is present, false otherwise.\n- suspect_nodes (list of strings): A list of hierarchical node names in the netlist that are part of the Trojan logic. An empty list is acceptable if trojan_detected is false."
+  },
+  "task_id": "gate_clock_enable_payload",
+  "title": "Clock-enable suppression Trojan"
+}

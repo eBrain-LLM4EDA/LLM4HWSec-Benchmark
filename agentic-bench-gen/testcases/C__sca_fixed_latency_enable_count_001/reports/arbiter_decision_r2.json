@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 1.0,
+  "rationale": "validation_status is fail solely due to a single low-severity issue: input_artifact_not_filename, flagging that public_spec.input_artifacts entries like 'traces.csv' are listed as plain filenames rather than paths relative to inputs/. Mutation score is 1.0, mapping and discrimination coverage are both 1.0, the differential run correctly accepts the golden and rejects the baseline (failing FR3, SR1, SR2, SR3 as required), analyzer_status is warning (not fail), and baseline_exit_code is 0. All substantive checks pass. Per the retention rule, validation must pass AND analyzer must be pass/warning AND mutation_score >= 0.5 for retention; here validation_status is technically fail because of this single cosmetic issue. Since the issue is exactly 'input_artifact_not_filename', the rule requires routing to evaluation_framework for a fix, even though the case is otherwise fully sound and should be retained pending that fix. Deterministic quality gates override retain_case to False (actual mutation_score=1.0, validation_status=fail).",
+  "retain_case": false,
+  "revision_instructions": "evaluate.py is opening filenames that are not in task_spec.public_spec.input_artifacts. Rewrite evaluate.py to open ONLY the files listed in input_artifacts, using their exact names. Do not invent or guess filenames. Additionally, normalize public_spec.input_artifacts entries to be path-qualified relative to inputs/ (e.g., 'inputs/traces.csv', 'inputs/mult_ctrl.v', 'inputs/fault_model.md', 'inputs/trace_manifest.json', 'inputs/design_brief.md') instead of plain filenames, and ensure evaluate.py's file-open logic references these same path-qualified names consistently so the input_artifact_not_filename check passes without altering any grading behavior.",
+  "root_cause": "evaluation_issue",
+  "source_round": 2
+}

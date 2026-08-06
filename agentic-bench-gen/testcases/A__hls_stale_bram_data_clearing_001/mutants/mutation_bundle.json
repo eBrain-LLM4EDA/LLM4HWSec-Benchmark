@@ -1,0 +1,88 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Harness calls process_packet with length=32 and a non-zero (0xFF) input pattern, then calls again with a shorter length (e.g. 0 or 4) reusing the same out_buf without clearing it. The mutant only writes out_buf[i] for i < length, leaving indices >= length untouched, so they retain the transformed 0xFF-derived values from the prior call instead of being explicitly zeroed. The evaluator's assertion that output[length..32) == 0x00 after the second call will fail.",
+      "files": [
+        {
+          "content": "// packet_kernel.cpp\n//\n// Packet transformation kernel.\n//\n// NOTE: This version only writes valid indices [0,length) and skips\n// writing anything for indices [length,32), relying on out_buf\n// retaining whatever it held from a previous call for the tail.\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    for (int i = 0; i < 32; ++i) {\n        bool valid = (i < length);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0xA5) + i) & 0xFF);\n        if (valid) {\n            out_buf[i] = transformed;\n        }\n        // else: intentionally not writing out_buf[i], leaving stale data\n    }\n}",
+          "path": "inputs/packet_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_stale_bram_data_clearing_001_SR1_assignment_removal",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Harness sweeps length across {0,1,8,17,31,32} while reusing out_buf across calls, with a prior length=32 call using all-0xFF input. This mutant caches the previous invocation's length in a static variable and only zeroes indices from the *previous* length onward instead of the *current* length onward. When length decreases between calls (e.g. 32 then 4), indices [current_length, previous_length) retain stale transformed bytes from the earlier call because the zeroing loop bound is derived from stale static state rather than the current call's length, violating SR2's requirement that indices >= length never reflect prior-call data.",
+      "files": [
+        {
+          "content": "// packet_kernel.cpp\n//\n// Packet transformation kernel (mutated).\n//\n// NOTE: This version attempts to \"optimize\" clearing by only zeroing the\n// portion of the buffer that changed since the last call, using cached\n// state to avoid redundant writes. This introduces cross-invocation\n// leakage: if the current call has a smaller length than the previous\n// call, indices between the current length and the previous length are\n// never re-cleared and retain stale transformed bytes from the earlier\n// invocation.\n\nstatic int g_prev_length = 32;\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    int clear_from = length;\n    if (g_prev_length > length) {\n        // Assume anything below the previous length was already zero\n        // or will be handled next time; only clear what \"changed\".\n        clear_from = g_prev_length;\n    }\n\n    for (int i = 0; i < 32; ++i) {\n        bool valid = (i < length);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0xA5) + i) & 0xFF);\n        if (valid) {\n            out_buf[i] = transformed;\n        } else if (i >= clear_from) {\n            out_buf[i] = (unsigned char)0x00;\n        }\n        // else: leave out_buf[i] untouched, retaining stale data\n    }\n\n    g_prev_length = length;\n}",
+          "path": "inputs/packet_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_stale_bram_data_clearing_001_SR2_domain_specific",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Known-answer test with fixed input vector and length=17 (and other lengths like 8, 31) will fail: bytes at indices < length will be computed using the wrong XOR constant 0x5A instead of 0xA5, producing transformed values that do not match the expected ((in_buf[i]^0xA5)+i)&0xFF formula, causing byte-for-byte mismatches in the synthesis_pass_rate functional tests.",
+      "files": [
+        {
+          "content": "// packet_kernel.cpp\n//\n// Hardened packet transformation kernel.\n//\n// Security property: every invocation of process_packet writes all 32\n// bytes of out_buf, unconditionally. Bytes at indices >= length are\n// always explicitly set to 0x00, never left containing stale data from\n// a previous call that may have used a longer length. This prevents\n// cross-invocation leakage of confidential data through a shared\n// output buffer (CWE-459 / CWE-200 / CWE-212).\n//\n// The loop has a fixed trip count of 32 iterations (bounded by the\n// array size), and `length` is used only as a per-iteration\n// conditional (i < length), never as a loop bound. No dynamic memory\n// allocation, no recursion, no global or static state.\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    for (int i = 0; i < 32; ++i) {\n        bool valid = (i < length);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0x5A) + i) & 0xFF);\n        out_buf[i] = valid ? transformed : (unsigned char)0x00;\n    }\n}",
+          "path": "inputs/packet_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_stale_bram_data_clearing_001_SR3_constant_change",
+      "operator": "constant_change",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Known-answer test for length=32 (and other lengths) will fail because the transformation subtracts the index instead of adding it, producing incorrect output bytes at indices < length, e.g. for i>0 the computed value ((in_buf[i]^0xA5) - i) & 0xFF will not match the required ((in_buf[i]^0xA5) + i) & 0xFF, causing FR1 and FR3 byte-for-byte comparisons to fail.",
+      "files": [
+        {
+          "content": "// packet_kernel.cpp\n//\n// Hardened packet transformation kernel.\n//\n// Security property: every invocation of process_packet writes all 32\n// bytes of out_buf, unconditionally. Bytes at indices >= length are\n// always explicitly set to 0x00, never left containing stale data from\n// a previous call that may have used a longer length. This prevents\n// cross-invocation leakage of confidential data through a shared\n// output buffer (CWE-459 / CWE-200 / CWE-212).\n//\n// The loop has a fixed trip count of 32 iterations (bounded by the\n// array size), and `length` is used only as a per-iteration\n// conditional (i < length), never as a loop bound. No dynamic memory\n// allocation, no recursion, no global or static state.\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    for (int i = 0; i < 32; ++i) {\n        bool valid = (i < length);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0xA5) - i) & 0xFF);\n        out_buf[i] = valid ? transformed : (unsigned char)0x00;\n    }\n}",
+          "path": "inputs/packet_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_stale_bram_data_clearing_001_FR1_operator_swap",
+      "operator": "operator_swap",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Known-answer test for length=0 will fail: instead of all 32 output bytes being 0x00, the output will contain the transformed values ((in_buf[i]^0xA5)+i)&0xFF for all indices, since the valid/invalid condition has been inverted. This also breaks FR3 for all lengths since the transformation is applied to the wrong region, but is most directly observable at length=0 where the entire expected all-zero output is replaced with fully transformed garbage.",
+      "files": [
+        {
+          "content": "// packet_kernel.cpp\n//\n// Hardened packet transformation kernel.\n//\n// Security property: every invocation of process_packet writes all 32\n// bytes of out_buf, unconditionally. Bytes at indices >= length are\n// always explicitly set to 0x00, never left containing stale data from\n// a previous call that may have used a longer length. This prevents\n// cross-invocation leakage of confidential data through a shared\n// output buffer (CWE-459 / CWE-200 / CWE-212).\n//\n// The loop has a fixed trip count of 32 iterations (bounded by the\n// array size), and `length` is used only as a per-iteration\n// conditional (i < length), never as a loop bound. No dynamic memory\n// allocation, no recursion, no global or static state.\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    for (int i = 0; i < 32; ++i) {\n        bool valid = (i >= length);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0xA5) + i) & 0xFF);\n        out_buf[i] = valid ? transformed : (unsigned char)0x00;\n    }\n}",
+          "path": "inputs/packet_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_stale_bram_data_clearing_001_FR2_condition_negation",
+      "operator": "condition_negation",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Known-answer and boundary tests for length in {0,1,8,17,31,32} will fail: for indices i where i == length - 1 (the last valid index), the output will incorrectly be forced to 0x00 instead of the transformed value T(in_buf[i], i), since the boundary condition now excludes the last valid index from the 'valid' set. This produces a byte-for-byte mismatch against expected output for any length > 0, violating FR3 and detectable by synthesis_pass_rate and cwe_violation_rate style checks.",
+      "files": [
+        {
+          "content": "// packet_kernel.cpp\n//\n// Hardened packet transformation kernel.\n//\n// Security property: every invocation of process_packet writes all 32\n// bytes of out_buf, unconditionally. Bytes at indices >= length are\n// always explicitly set to 0x00, never left containing stale data from\n// a previous call that may have used a longer length. This prevents\n// cross-invocation leakage of confidential data through a shared\n// output buffer (CWE-459 / CWE-200 / CWE-212).\n//\n// The loop has a fixed trip count of 32 iterations (bounded by the\n// array size), and `length` is used only as a per-iteration\n// conditional (i < length), never as a loop bound. No dynamic memory\n// allocation, no recursion, no global or static state.\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    for (int i = 0; i < 32; ++i) {\n        // Off-by-one: excludes the last valid index (i == length - 1)\n        // from being treated as valid, causing it to be zeroed instead\n        // of transformed. This stuck-at defect forces a 0x00 output\n        // for the final in-range byte on every call with length > 0.\n        bool valid = (i < length - 1);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0xA5) + i) & 0xFF);\n        out_buf[i] = valid ? transformed : (unsigned char)0x00;\n    }\n}",
+          "path": "inputs/packet_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_stale_bram_data_clearing_001_FR3_stuck_at_signal",
+      "operator": "stuck_at_signal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Compiling inputs/packet_kernel.cpp with g++ -Wall -Wextra will emit a signed/unsigned comparison warning (or unused-variable warning) on stderr because the loop bound was changed from the int literal 32 to an unsigned constant compared against a signed loop index, and an extra unused local variable was introduced. The FR4 check inspects compiler stderr for the substring 'warning:' and fails the submission, while all functional and security behavioral test vectors (FR1-FR3, SR1-SR3) still pass byte-for-byte since the actual loop trip count and per-index transformation/zero-fill logic are unchanged.",
+      "files": [
+        {
+          "content": "// packet_kernel.cpp\n//\n// Hardened packet transformation kernel.\n//\n// Security property: every invocation of process_packet writes all 32\n// bytes of out_buf, unconditionally. Bytes at indices >= length are\n// always explicitly set to 0x00, never left containing stale data from\n// a previous call that may have used a longer length. This prevents\n// cross-invocation leakage of confidential data through a shared\n// output buffer (CWE-459 / CWE-200 / CWE-212).\n//\n// The loop has a fixed trip count of 32 iterations (bounded by the\n// array size), and `length` is used only as a per-iteration\n// conditional (i < length), never as a loop bound. No dynamic memory\n// allocation, no recursion, no global or static state.\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    unsigned int limit = 32;\n    int unused_marker = 0;\n    for (int i = 0; i < limit; ++i) {\n        bool valid = (i < length);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0xA5) + i) & 0xFF);\n        out_buf[i] = valid ? transformed : (unsigned char)0x00;\n    }\n}",
+          "path": "inputs/packet_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_stale_bram_data_clearing_001_FR4_constant_change",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

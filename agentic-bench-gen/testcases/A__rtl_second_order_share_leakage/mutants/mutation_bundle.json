@@ -1,0 +1,88 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "The mutant changes the leaking_register_pair to a different pair of registers that do not actually leak, violating SR1 which requires exact identification of share0_stage2_q and share1_stage2_q.",
+      "files": [
+        {
+          "content": "{\n  \"leaking_register_pair\": [\"share0_a_stage1_q\", \"share1_a_stage1_q\"],\n  \"alignment_condition\": \"Both registers update on the same clock cycle, causing their joint Hamming-distance transition to correlate with the unmasked value.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\",\n      \"safe\": true\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"When share0_stage2_q and share1_stage2_q update simultaneously, the sum of their Hamming distances leaks the unmasked value because the masking randomness cancels out in the combined transition. Individually, each register appears safe under first-order analysis.\"\n  }\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "SR1_wrong_register_pair",
+      "operator": "constant_change",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The evaluator must detect that the first_order_analysis array incorrectly marks one of the registers as unsafe, violating SR2 which requires both to be marked safe.",
+      "files": [
+        {
+          "content": "{\n  \"leaking_register_pair\": [\"share0_stage2_q\", \"share1_stage2_q\"],\n  \"alignment_condition\": \"Both registers update on the same clock cycle, causing their joint Hamming-distance transition to correlate with the unmasked value.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\",\n      \"safe\": false\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"When share0_stage2_q and share1_stage2_q update simultaneously, the sum of their Hamming distances leaks the unmasked value because the masking randomness cancels out in the combined transition. Individually, each register appears safe under first-order analysis.\"\n  }\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "SR2_flip_safe_flag",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The mutant changes the alignment_condition string to an incorrect description that does not match the ground truth temporal alignment, causing SR3 to fail because the report no longer correctly identifies that the joint transition leaks when both registers update in the same clock cycle.",
+      "files": [
+        {
+          "content": "{\n  \"leaking_register_pair\": [\"share0_stage2_q\", \"share1_stage2_q\"],\n  \"alignment_condition\": \"The registers leak when they are updated on alternating clock cycles, causing a timing mismatch that reveals the secret.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\",\n      \"safe\": true\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"When share0_stage2_q and share1_stage2_q update simultaneously, the sum of their Hamming distances leaks the unmasked value because the masking randomness cancels out in the combined transition. Individually, each register appears safe under first-order analysis.\"\n  }\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "SR3_wrong_alignment_condition",
+      "operator": "constant_change",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "The evaluator must reject this submission because it is not valid JSON and cannot be parsed, violating FR1.",
+      "files": [
+        {
+          "content": "{\n  \"leaking_register_pair\": [\"share0_stage2_q\", \"share1_stage2_q\"],\n  \"alignment_condition\": \"Both registers update on the same clock cycle, causing their joint Hamming-distance transition to correlate with the unmasked value.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\",\n      \"safe\": true\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"When share0_stage2_q and share1_stage2_q update simultaneously, the sum of their Hamming distances leaks the unmasked value because the masking randomness cancels out in the combined transition. Individually, each register appears safe under first-order analysis.\"\n  }\n",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "FR1_invalid_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "The evaluator should reject this submission because the leaking_register_pair contains signal names that do not exist in the provided RTL, violating FR2.",
+      "files": [
+        {
+          "content": "{\n  \"leaking_register_pair\": [\"share0_stage2_q_typo\", \"share1_stage2_q_typo\"],\n  \"alignment_condition\": \"Both registers update on the same clock cycle, causing their joint Hamming-distance transition to correlate with the unmasked value.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\",\n      \"safe\": true\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"When share0_stage2_q and share1_stage2_q update simultaneously, the sum of their Hamming distances leaks the unmasked value because the masking randomness cancels out in the combined transition. Individually, each register appears safe under first-order analysis.\"\n  }\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "FR2_wrong_register_names",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The evaluator will reject the submission because the first_order_analysis array entry for share0_stage2_q is missing the required 'safe' boolean field, violating FR3.",
+      "files": [
+        {
+          "content": "{\n  \"leaking_register_pair\": [\"share0_stage2_q\", \"share1_stage2_q\"],\n  \"alignment_condition\": \"Both registers update on the same clock cycle, causing their joint Hamming-distance transition to correlate with the unmasked value.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\"\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"When share0_stage2_q and share1_stage2_q update simultaneously, the sum of their Hamming distances leaks the unmasked value because the masking randomness cancels out in the combined transition. Individually, each register appears safe under first-order analysis.\"\n  }\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "FR3_missing_safe_field",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "The evaluator should reject this submission because the second_order_analysis.explanation field is an empty string, violating FR4 which requires a non-empty explanation string.",
+      "files": [
+        {
+          "content": "{\n  \"leaking_register_pair\": [\"share0_stage2_q\", \"share1_stage2_q\"],\n  \"alignment_condition\": \"Both registers update on the same clock cycle, causing their joint Hamming-distance transition to correlate with the unmasked value.\",\n  \"first_order_analysis\": [\n    {\n      \"register\": \"share0_stage2_q\",\n      \"safe\": true\n    },\n    {\n      \"register\": \"share1_stage2_q\",\n      \"safe\": true\n    }\n  ],\n  \"second_order_analysis\": {\n    \"leaking\": true,\n    \"explanation\": \"\"\n  }\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "FR4_empty_explanation",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

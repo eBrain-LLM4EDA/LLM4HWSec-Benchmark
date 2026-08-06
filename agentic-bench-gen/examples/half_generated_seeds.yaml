@@ -1,0 +1,32 @@
+- seed_id: hls_key_indexed_lookup
+  domain_id: hls_security_codegen
+  title: Fixed-pattern lookup for a key-indexed table
+  objective: Rewrite a small substitution kernel so secret-dependent table indices do not change its memory-access trace while preserving all output values.
+  constraints:
+    - Use a fixed 16-entry table and a pinned lookup(uint8_t value, uint8_t key) interface.
+    - Every call must read all 16 entries in the same order and select the result without a secret-dependent branch.
+    - Fixed-trip-count loops only; no dynamic allocation or STL in the kernel body.
+  threat_model: An attacker observes on-chip memory addresses or cache activity and correlates the accessed table entry with secret key bits.
+  ground_truth: The output equals table[(value xor key) & 0x0f], but the sequence and count of table reads and branches are invariant across key values.
+
+- seed_id: rtl_lockstep_checker_compensation_trojan
+  domain_id: rtl_trojan_detection
+  title: Compensating Trojan in a lockstep ALU checker
+  objective: Detect and localize malicious RTL that corrupts one ALU result for a rare operand tuple while simultaneously forging the lockstep mismatch signal.
+  constraints:
+    - Use two independently written 8-bit ALU channels in a self-contained synthesizable module under 220 lines.
+    - Trigger only for opcode 2'b10 with operands 8'h5a and 8'ha5; ordinary operands must preserve lockstep behavior.
+    - Include hidden labels for the trigger comparator, result-corruption mux, and mismatch-mask expression.
+  threat_model: An attacker supplies the selected operation and operands to induce a silently incorrect computation despite a lockstep integrity monitor.
+  ground_truth: The rare operand and opcode comparator flips architectural_result[3] and forces mismatch low; both the result mux and mismatch mask are payload nodes.
+
+- seed_id: rtl_nmi_priority_suppression_trojan
+  domain_id: rtl_trojan_detection
+  title: Simultaneous-interrupt NMI suppression Trojan
+  objective: Identify logic in a compact interrupt controller that suppresses a non-maskable interrupt for one specific combination of simultaneous ordinary interrupts.
+  constraints:
+    - Implement a four-source priority encoder with one NMI input and registered one-hot grants.
+    - The Trojan condition is nmi=1 and irq=3'b111 in one arbitration cycle; every other case follows the documented priority policy.
+    - Keep RTL under 160 lines and label the NMI mask and affected grant logic privately.
+  threat_model: An attacker synchronizes three controllable interrupt sources to hide a security-critical NMI and delay emergency handling.
+  ground_truth: When NMI and all ordinary IRQs are asserted together, the labeled mask suppresses grant_nmi and incorrectly grants irq2; NMI wins in a clean implementation.

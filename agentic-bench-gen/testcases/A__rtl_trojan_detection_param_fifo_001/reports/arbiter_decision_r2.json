@@ -1,0 +1,8 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs are green: validation_status=pass, baseline_exit_code=0, mutation_score=1.0, coverage_score=1.0, issue_count=0, analyzer_status=pass. The differential run shows the golden submission is accepted (all FR1-4/SR1-4 PASS) while the naive empty-findings baseline is correctly rejected (FR2-4, SR1-4 FAIL). All 8 mutants targeting FR1-4 and SR1-4 were detected (mutation_score=1.0), with no dead_checks or uncovered_requirements. The analyzer confirms coherence between public spec, hidden ground truth, and evaluation logic, no leakage of hidden security intent in public-facing artifacts (the WIDTH==24 branch is disguised as a 'burst-boundary alignment adjustment' rather than flagged as malicious), and requirements are concrete and machine-checkable. The task is a well-formed, domain-appropriate RTL trojan detection benchmark with no gaps.",
+  "retain_case": true,
+  "revision_instructions": "No revision needed; the case meets all retention criteria.",
+  "root_cause": "none"
+}

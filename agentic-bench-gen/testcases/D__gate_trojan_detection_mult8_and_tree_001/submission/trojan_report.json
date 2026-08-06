@@ -1,0 +1,7 @@
+{
+  "classification": "clean",
+  "netlist_summary": {
+    "total_gates": 0,
+    "gate_type_counts": {}
+  }
+}

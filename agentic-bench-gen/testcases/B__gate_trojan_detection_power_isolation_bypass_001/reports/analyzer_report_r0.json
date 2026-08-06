@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR4 (well-formed affected_outputs entries) has no mutant that specifically targets it in isolation from SR2; the mutation report shows 0/1 mutants detected for FR4 despite the static check logic appearing correct (baseline empty list correctly fails FR4 in the vulnerable run). This is a minor test-suite coverage gap rather than a grader logic bug.",
+      "evidence": "per_requirement_coverage.FR4: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: [\"FR4\"]",
+      "severity": "low"
+    },
+    {
+      "artifact": "inputs/isolation_wrapper_netlist.v manifest purpose text",
+      "description": "The manifest 'purpose' field for isolation_wrapper_netlist.v explicitly describes the bypass mechanism as intended to violate the isolation contract ('while public_out[0]=secure_data[0] when power_down=0 as expected... violating the isolation contract'), which is an internal build artifact, not participant-facing README/metadata/input file content. This does not leak into README.md, design_brief.md, or metadata.json (which remain clean), but should be double-checked that manifest.json itself is never shipped to participants alongside inputs/.",
+      "evidence": "manifest entry: 'such that when power_down=1 and secure_data[0]=1, public_out[0] evaluates to 1 (violating the isolation contract)'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or adjust a mutant that specifically breaks FR4's malformed-entry detection (e.g. a submission with affected_outputs=['out0'] or ['public_out[5]']) so FR4 has a dedicated distinguishing mutant, improving mutation_score from 0.875 to 1.0.",
+    "Consider having evaluate.py emit explicit numeric detection_rate/false_positive_rate metrics (not just PASS/FAIL per requirement and exit code) to more directly satisfy the metrics section of the task spec, even if only for reporting purposes.",
+    "Confirm that manifest.json (with its detailed internal 'purpose' descriptions of the trojan) is not inadvertently included in the participant-visible file set alongside inputs/, since it contains phrasing describing the intentional violation."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "README.md, design_brief.md, and metadata.json present a plain verification task with no CWE/SR/threat-model leakage; the actual netlist correctly implements the described bypass (u_leak_or OR-gate leaking secure_data[0] under power_down=1) matching hidden_spec ground_truth exactly.",
+      "requirement": "Coherence of public spec, hidden spec, and artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code 0, all PASS. differential.vulnerable_run (naive baseline, trojan_present=false, empty fields): exit_code 1, FR2/FR3/FR4/SR1/SR2/SR3/SR4 all FAIL as required by acceptance_criteria.",
+      "requirement": "evaluate.py accepts correct submission and rejects baseline/naive submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements pass/fail per-requirement checks (FR1-4, SR1-4) that map conceptually to detection_rate and false_positive_rate (SR2/SR3 check precision), but does not explicitly compute or emit numeric detection_rate/false_positive_rate/inference_latency values as separate metrics; only PASS/FAIL lines and exit code are produced.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, inference_latency)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional_requirement type) and SR1-SR4 (security_requirement type) each with distinct expected_detection logic and test_files, matching functional_requirements and security_requirements in hidden/public spec.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py performs exhaustive 32-vector co-simulation via iverilog/vvp (tb_isolation.v) to derive ground truth mismatched bits and cross-simulates the specific power_down=1,secure_data[0]=1 vector for SR4, rather than relying on static/hardcoded expectations.",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "Netlist and primitive library are pure combinational Verilog modules, self-contained, compilable with iverilog -g2012; no external dependencies or unsafe operations.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task involves realistic gate-level netlist analysis with AND2/OR2/MUX2 primitives, structural parsing, and exhaustive simulation semantics specific to hardware trojan detection, not generic text analysis.",
+      "requirement": "Benchmark adapted to domain (gate-level trojan detection) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py derives ground truth purely from simulation/structural parsing of inputs/ files with no hardcoded netlist-specific names, ensuring verifiability; baseline_run and mutation_baseline_run both pass with exit 0.",
+      "requirement": "No gaps making results unverifiable",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, metadata.json contain no CWE references, SR ids, or explicit statements that the design is intentionally flawed; netlist itself has no comments hinting at the trojan, as required by manifest purpose note 'without any comments hinting at a flaw'.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) into participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four concrete, machine-checkable requirements (JSON schema validity, trojan_present=true, suspect_nodes instance-name match, affected_outputs bit-indexed format), each independently verifiable via the pinned JSON interface.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 items)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

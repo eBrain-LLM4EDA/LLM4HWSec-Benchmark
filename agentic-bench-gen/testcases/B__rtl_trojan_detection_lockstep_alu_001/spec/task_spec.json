@@ -1,0 +1,113 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Empty/naive trojan_report.json (empty candidates array, overall_confidence=0, generic summary) representing a participant who submits no real analysis; must FAIL.",
+      "Trust-Hub style chip-level Trojan benchmark heuristics (e.g. flagging all rarely-toggled signals) used as a reference low-precision baseline for false_positive_rate comparison."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of hidden security requirements (SR1-SR4) satisfied by the submitted trojan_report.json, measured as a proportion across the graded case set.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported high-confidence (>=0.6) candidates that do not correspond to any real payload/trigger node in the ground truth (i.e. spurious findings unrelated to the trigger comparator, result mux, or mismatch mask).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Score in [0,1] measuring how precisely the report localizes all three ground-truth elements (trigger comparator condition, result-corruption bit/mux, mismatch-mask logic) versus vague or partial identification.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      },
+      {
+        "description": "Measures whether the true payload-related candidates rank among the highest-confidence entries in the submitted report rather than being buried under false leads.",
+        "direction": "maximize",
+        "name": "confidence_calibration"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "evaluate.py returns PASS only if FR1-FR4 are structurally satisfied AND SR1, SR2, SR3 are all satisfied by at least one high-confidence candidate each (possibly overlapping) AND SR4 ranking constraint holds.",
+      "The shipped baseline empty/naive trojan_report.json must be graded FAIL with detection_rate=0.",
+      "Optional simulation cross-check: evaluate.py may compile lockstep_alu.v with iverilog, drive the trigger vector (opcode=2'b10, operand_a=8'h5a, operand_b=8'ha5) plus several benign vectors, and confirm architectural_result[3] flips and mismatch reads 0 despite internal channel disagreement, to corroborate that the ground truth trigger is genuinely present in the shipped artifact."
+    ],
+    "cwe_ids": [
+      "CWE-1245",
+      "CWE-696",
+      "CWE-670",
+      "CWE-693"
+    ],
+    "ground_truth": "lockstep_alu.v contains a hidden trigger comparator (internal wire/reg often named something like `rare_trig` or embedded inline) that evaluates true only when opcode==2'b10 && operand_a==8'h5a && operand_b==8'ha5. When this trigger fires: (1) a result-corruption mux (e.g. named `res_mux` or inlined into the architectural_result assignment) flips bit [3] of the otherwise-correct architectural_result before it is registered, and (2) a mismatch-mask expression (e.g. `mismatch_mask` or an inline AND/XOR gating term) forces the registered mismatch output to 0 even though the two internal ALU channels' raw outputs actually differ at that cycle, thereby hiding the corruption from the lockstep checker. Both the mux and the mask are payload nodes driven by the same trigger comparator, making this a classic trigger+dual-payload compensating Trojan: it simultaneously corrupts data and forges the very integrity signal meant to catch the corruption.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse submission JSON candidates' rationale text for the trigger opcode value (10 or 2'b10 or 'AND') combined with both hex/decimal forms of 0x5a (90) and 0xa5 (165); require co-occurrence of opcode reference and both operand values in at least one candidate.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify the exact rare trigger condition (opcode=2'b10 AND operand_a=8'h5a AND operand_b=8'ha5) as the activation condition for the anomaly, not merely state 'rare input causes error' without specifying values."
+      },
+      {
+        "detection_strategy": "Search candidate rationale/signal_or_line fields for bit-index references (e.g. 'bit 3', '[3]', 'architectural_result[3]') co-located with corruption/flip/xor language; optionally cross-validate via iverilog simulation comparing golden vs DUT output bit-by-bit at the trigger vector.",
+        "id": "SR2",
+        "requirement": "The report must identify that architectural_result is corrupted specifically at bit position 3 under the trigger condition, distinguishing this from a generic 'wrong result' claim."
+      },
+      {
+        "detection_strategy": "Search for candidates whose rationale mentions 'mismatch' together with masking/forcing/suppression language (e.g. 'forced to 0', 'masked', 'suppressed', 'hidden from checker') and confidence >= 0.5; cross-check via simulation that raw channel outputs differ while mismatch reads 0 at the trigger vector.",
+        "id": "SR3",
+        "requirement": "The report must identify that the mismatch signal is being forced/masked to a false-negative (low) value at the same trigger condition, i.e. that the integrity checker itself is compromised, not just the data path."
+      },
+      {
+        "detection_strategy": "Rank candidates by confidence descending; verify at least one of the top-2 candidates (by confidence) satisfies SR1+SR2 or SR1+SR3 combined criteria.",
+        "id": "SR4",
+        "requirement": "The overall_confidence and per-candidate confidences for the true payload signals (result mux and mismatch mask) must exceed a minimum threshold (>=0.6), and the report must not bury the correct finding beneath a higher-confidence false lead."
+      },
+      {
+        "detection_strategy": "Baseline empty submission is included as the shipped default; evaluate.py must assign it detection_rate=0 and overall FAIL.",
+        "id": "SR5",
+        "requirement": "A naive/empty submission (empty candidates array, zero confidence, generic summary) must fail all above checks and receive a FAIL verdict."
+      }
+    ],
+    "threat_model": "An attacker with RTL insertion capability (e.g. a malicious IP vendor or compromised CAD flow) embeds a rare-condition trigger into an otherwise-correct dual-channel lockstep ALU. The attacker controls or predicts the opcode/operand values supplied by software or an adjacent core, and can therefore intentionally issue the rare tuple (opcode=AND, operand_a=0x5a, operand_b=0xa5) to cause a single-bit corruption of the ALU result while the lockstep mismatch flag is simultaneously forced low, defeating the safety/security monitor and allowing the corrupted value to be silently accepted downstream."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL module must be self-contained synthesizable Verilog under 220 lines, requiring no external IP.",
+      "The design implements two independently written 8-bit ALU channels (channel A and channel B) whose outputs normally must agree; the comparison result feeds the mismatch output.",
+      "For all opcode/operand combinations except opcode=2'b10, operand_a=8'h5a, operand_b=8'ha5, the two channels must agree and mismatch must be low, and architectural_result must equal the correct ALU result for the selected opcode.",
+      "Do not require any proprietary EDA tool; iverilog/vvp/yosys are optional aids only.",
+      "The testbench_stub.v file provides a minimal, non-exhaustive clocking/reset scaffold that participants and the evaluator may extend for their own simulation-based investigation; it does not itself exercise the rare trigger condition."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing ranked Trojan candidates with confidence scores and rationale"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/trojan_report.json must be valid JSON with top-level fields: 'candidates' (array), 'overall_confidence' (number in [0,1]), and 'summary' (string, non-empty)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Each element of 'candidates' must be an object with fields: 'signal_or_line' (string identifying an RTL signal name or approximate line/region in lockstep_alu.v), 'confidence' (number in [0,1]), and 'rationale' (string, non-empty, at least 20 characters)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must include at least one candidate whose 'rationale' references the specific rare operand/opcode condition (i.e. mentions the trigger condition tying opcode value 2'b10 with operand values matching 8'h5a and 8'ha5, in any textual form such as hex literals or a description of 'AND opcode with operand_a=0x5a and operand_b=0xa5') that activates the anomalous behavior."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must explicitly identify, among its candidates, at least one signal or construct responsible for corrupting the architectural_result output and at least one signal or construct responsible for forcing the mismatch output to an incorrect (masked) value, rather than only reporting a single generic 'suspicious module' finding."
+      }
+    ],
+    "input_artifacts": [
+      "lockstep_alu.v",
+      "design_brief.md",
+      "testbench_stub.v"
+    ],
+    "interface": "The design is a single Verilog module named `lockstep_alu` located in inputs/lockstep_alu.v with the following port list: module lockstep_alu(input wire clk, input wire rst_n, input wire [1:0] opcode, input wire [7:0] operand_a, input wire [7:0] operand_b, output reg [7:0] architectural_result, output reg mismatch). Ports: clk (system clock, public), rst_n (active-low synchronous reset, public), opcode (2-bit ALU operation select: 00=ADD,01=SUB,10=AND,11=XOR, public), operand_a and operand_b (8-bit operands, public), architectural_result (8-bit committed ALU output, public, registered, updates 1 cycle after opcode/operands are presented on a clk posedge with rst_n high), mismatch (1-bit lockstep disagreement flag, public, registered, same 1-cycle latency as architectural_result; asserted high when the two internal ALU channels disagree, else low). On reset (rst_n=0 sampled at clk posedge), architectural_result and mismatch both synchronously clear to 0 on that same edge. The participant does NOT modify inputs/lockstep_alu.v. Instead they submit an analysis file at submission/trojan_report.json. evaluate.py reads inputs/lockstep_alu.v (and may optionally drive it through iverilog/vvp using inputs/testbench_stub.v as a scaffold) purely for reference/cross-checking, and grades the content of submission/trojan_report.json against hidden ground truth.",
+    "objective": "A dual-channel lockstep ALU module (two independently coded 8-bit ALU pipelines whose results are compared for integrity checking) is provided as synthesizable Verilog. Analyze the RTL and produce a structured report identifying any suspicious logic that could cause the module to report a false 'match' while the two channels actually disagree, or cause an incorrect architectural result to be silently accepted. Your report must list candidate signals/lines, a confidence score for each, and a rationale grounded in the RTL structure and/or simulation evidence.",
+    "response_format": "submission/trojan_report.json must be a single JSON object with keys: 'candidates' (array of objects each with 'signal_or_line', 'confidence' in [0,1], 'rationale'), 'overall_confidence' (number in [0,1]), and 'summary' (string). No other top-level files are graded."
+  },
+  "task_id": "rtl_trojan_detection_lockstep_alu_001",
+  "title": "Compensating Trojan in a Lockstep ALU Checker"
+}

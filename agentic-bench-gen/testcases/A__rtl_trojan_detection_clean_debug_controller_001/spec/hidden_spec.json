@@ -1,0 +1,33 @@
+{
+  "acceptance_criteria": [
+    "PASS requires submission/trojan_report.json to be syntactically valid per the pinned schema (FR1).",
+    "PASS requires infected=false with triggers=[] and payloads=[] (SR1, SR2, FR2).",
+    "PASS requires confidence >= 0.6 (FR4) and a rationale (FR3, SR3) that references debug_enable gating completeness and/or the watchdog counter's limited effect on status only.",
+    "FAIL if infected=true, or if any non-empty trigger/payload entries reference debug_enable, debug_sel, debug_out, or the watchdog/idle counter as malicious.",
+    "FAIL if the baseline empty/naive submission (e.g., infected=true with generic unsupported findings, or a missing file) is submitted; such a submission must not pass."
+  ],
+  "cwe_ids": [
+    "CWE-1039",
+    "CWE-1231",
+    "CWE-1242"
+  ],
+  "ground_truth": "pcu_core.v is a clean design. debug_enable is a real, always-checked gate: every read of debug_sel and every write to debug_out passes through an AND/mux structure keyed on debug_enable, and debug_out is registered to 8'h00 whenever debug_enable is deasserted, with no bypass path. The watchdog/idle counter increments only during idle cycles and its rollover only sets a documented status[15] flag observed on the status output; it never alters ack, req arbitration, or debug_out, and is not gated by any secret or rare undocumented input combination. There is no rare-value comparator against a hidden magic constant, no counter-driven mode change that alters primary output behavior, and no code path reachable only through an undocumented sequence of inputs. Correct submissions must report infected=false with empty triggers and payloads.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String/boolean check of the infected field in trojan_report.json; cross-checked against the hidden ground truth label for this case (clean).",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly classify the design as NOT infected (infected=false)."
+    },
+    {
+      "detection_strategy": "Parse triggers/payloads arrays; any non-empty entries referencing debug_enable, debug_sel, debug_out, or the watchdog counter as malicious constitute a false positive and fail this SR even if the overall infected flag happens to be false due to inconsistent reporting.",
+      "id": "SR2",
+      "requirement": "The submission must not report spurious trigger/payload findings against the debug_enable-gated debug path or the watchdog/idle counter, since both are legitimate documented functionality with no bypass or undocumented side effect."
+    },
+    {
+      "detection_strategy": "Keyword/semantic check that rationale references gating completeness (e.g., mentions 'all paths', 'no bypass', 'only status', 'forced to zero when disabled') and optionally corroborate via iverilog/vvp simulation of pcu_core.v toggling debug_enable and observing debug_out stays zero when deasserted.",
+      "id": "SR3",
+      "requirement": "The rationale must demonstrate the participant actually verified the debug_enable gating is exhaustive (covers all paths to debug_out) and that the counter has no effect beyond the documented status bit, rather than asserting cleanliness without justification."
+    }
+  ],
+  "threat_model": "An overly aggressive or naive Trojan detector pattern-matches on superficially suspicious constructs (multi-bit counters, a debug_enable-gated observability mux, comparator logic against constants) and flags them as trigger/payload pairs without verifying that (a) the debug path is truly gated on every path with no bypass, (b) the counter only affects a documented status bit rather than primary control/data outputs, and (c) no undocumented input sequence unlocks different behavior. This produces false positives, which if unchecked, would make a Trojan-detection benchmark useless because legitimate design idioms are indistinguishable from malicious ones under superficial analysis."
+}

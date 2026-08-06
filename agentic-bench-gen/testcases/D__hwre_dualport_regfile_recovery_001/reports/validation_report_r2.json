@@ -1,0 +1,112 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/gate_netlist.v",
+    "inputs/obfuscated_wrapper.v",
+    "metadata.json",
+    "submission/recovered_rtl.v"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: missing PROBE for cycle 0\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: missing PROBE for collision cycle 0\n[TEST] FAIL: FR4: missing PROBE for cycle 0\n[TEST] PASS: SR1\n[TEST] PASS: SR3\n[TEST] PASS: SR2\nMETRICS: {\"cycle_accurate_match_rate\": 0.995, \"functional_equivalence\": 0.25, \"structural_match_accuracy\": 1.0, \"word_recovery_rate\": 0.25}\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: cycle 1 expected rdata=(0xFF,0x00) got (0x00,0x00)\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: collision cycle 1 raddr0==waddr: expected new value 0xFF got 0x00 (old value semantics detected)\n[TEST] FAIL: FR4: cycle 1 independent-read mismatch expected=(0xFF,0x00) got=(0x00,0x00)\n[TEST] FAIL: SR1: mid-cycle probe after cycle 3 expected (0x00,0xFF) at toggled addresses but got (0x00,0x00); read appears to require an extra clock edge (nonzero latency)\n[TEST] PASS: SR3\n[TEST] PASS: SR2\nMETRICS: {\"cycle_accurate_match_rate\": 0.095, \"functional_equivalence\": 0.25, \"structural_match_accuracy\": 1.0, \"word_recovery_rate\": 0.25}\n"
+    }
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "expert_files": [
+    "golden/recovered_rtl.v"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: FR1: missing PROBE for cycle 0",
+        "failure_class": "golden_rejected",
+        "failure_signature": "119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: FR1: missing PROBE for cycle 0",
+        "failure_class": "golden_rejected",
+        "failure_signature": "119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true,
+    "selected_attempt": 0
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "df968009dd0830a2d8453dda93d13a738ff4dca09da1e30bf8f7d4d43f52d978",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "95dfe1e6b7abaec89ed9b9372b05b547b35f3d9ecc83ac1b08445aa4bb3d49f4",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_regfile.v"
+  ],
+  "uncovered_requirements": []
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden run failed. The root cause is a bug in evaluate.py: the parse_markers regex does not match the testbench output format, causing all PASS markers to be missed and the golden solution to be incorrectly rejected. Additionally, two of the three declared metrics (word_recovery_rate, structural_match_accuracy) are not implemented. The evaluator must be fixed before any other issues (missing mutants, etc.) can be meaningfully addressed.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

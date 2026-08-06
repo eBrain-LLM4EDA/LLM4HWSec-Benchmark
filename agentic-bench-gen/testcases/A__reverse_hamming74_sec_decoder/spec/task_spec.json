@@ -1,0 +1,93 @@
+{
+  "domain_id": "hardware_reverse_engineering",
+  "evaluation": {
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of the 128 exhaustive input codewords for which data[3:0] exactly matches the reference decoder output.",
+        "direction": "maximize",
+        "name": "word_recovery_rate"
+      },
+      {
+        "description": "Fraction of the 128 exhaustive input codewords for which corrected_codeword[6:0] and error_detected exactly match the reference decoder output, verifying correct syndrome computation and bit-flip correction.",
+        "direction": "maximize",
+        "name": "structural_match_accuracy"
+      },
+      {
+        "description": "Boolean pass/fail: 1 if all three outputs (data, corrected_codeword, error_detected) match the reference for all 128 input codewords under iverilog/vvp simulation, else 0.",
+        "direction": "maximize",
+        "name": "functional_equivalence"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "evaluate.py compiles inputs/flattened_netlist.v (wrapped as the golden reference) and submission/recovered_rtl.v together with a generated testbench under evaluation/ using iverilog, and runs vvp.",
+      "The testbench drives all 128 values of codeword (7'b0000000 through 7'b1111111) sequentially with a #5 settling delay between each, sampling data, corrected_codeword, and error_detected from both the reference and the submission each cycle.",
+      "PASS requires 128/128 exact matches on all three output signals between submission and reference; any single mismatch causes FAIL.",
+      "A submission that fails to compile under iverilog is graded FAIL with a compile-error diagnostic.",
+      "The shipped baseline/naive submission (e.g., all outputs hardwired to 0) must produce fewer than 128/128 matches and must FAIL."
+    ],
+    "cwe_ids": [
+      "CWE-1201",
+      "CWE-704"
+    ],
+    "ground_truth": "The flattened netlist implements an even-parity Hamming(7,4) single-error-correcting decoder. Using 1-indexed bit positions (position 1 = codeword[0] ... position 7 = codeword[6]), parity bits occupy positions 1, 2, and 4, and data bits occupy positions 3, 5, 6, and 7 (mapped to data[3:0] = {pos7, pos6, pos5, pos3} i.e. data[3]=codeword[6](pos7), data[2]=codeword[5](pos6), data[1]=codeword[4](pos5), data[0]=codeword[2](pos3)). Syndrome bits are computed as s0 = codeword[0] XOR codeword[2] XOR codeword[4] XOR codeword[6] (covers positions 1,3,5,7), s1 = codeword[1] XOR codeword[2] XOR codeword[5] XOR codeword[6] (covers positions 2,3,6,7), s2 = codeword[3] XOR codeword[4] XOR codeword[5] XOR codeword[6] (covers positions 4,5,6,7). The syndrome {s2,s1,s0} as a 3-bit binary number gives the 1-indexed position of the single erroneous bit (0 = no error). error_detected = (s2|s1|s0) i.e. nonzero syndrome. corrected_codeword flips the bit at the position indicated by the syndrome (if nonzero); otherwise corrected_codeword = codeword. data is then extracted from the corrected codeword's positions 3,5,6,7 as described. This is the standard textbook even-parity Hamming(7,4) SEC code with parity-position convention {1,2,4}.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Exhaustively simulate all 128 input codewords (16 valid codewords plus all 112 single-bit-error variants) and compare data, corrected_codeword, and error_detected bit-for-bit against the reference netlist simulation; any parity/data confusion will manifest as mismatches on the 112 error-injected cases even if the 16 clean codewords pass.",
+        "id": "SR1",
+        "requirement": "The recovered RTL must correctly identify all three parity bit positions (1, 2, 4) and never confuse a parity bit with a data bit in the data[3:0] extraction, since a swapped mapping would appear functionally plausible for error-free codewords but fail on corrected single-bit-error codewords."
+      },
+      {
+        "detection_strategy": "For each of the 7 single-bit-error injections per valid codeword (7*16=112 cases), check that corrected_codeword exactly reverses the injected error at the correct bit position; a permuted syndrome ordering will cause corrected_codeword to flip the wrong bit for a detectable subset of these cases.",
+        "id": "SR2",
+        "requirement": "The syndrome-to-bit-position mapping (s2 s1 s0 as binary position index) must exactly match the reference's internal XOR grouping order; a reversed or permuted syndrome bit order silently produces a different but internally-consistent-looking decoder that corrects the wrong bit."
+      }
+    ],
+    "threat_model": "An undocumented storage interface embeds a Hamming(7,4) SEC decoder whose bit-position convention and syndrome-to-position mapping are not documented. A reverse engineer must recover the exact parity convention, syndrome bit ordering, and data-bit extraction order from the flattened gate-level netlist before the storage subsystem can be safely replaced, audited, or interfaced with new firmware. An incorrect recovery (e.g., swapped syndrome bit order, wrong parity position assignment, or off-by-one data extraction) would silently corrupt recovered data or miscorrect errors in the field."
+  },
+  "public_spec": {
+    "constraints": [
+      "The submission must be a single self-contained Verilog-2001 (or SystemVerilog) file with no dependence on external libraries or proprietary IP.",
+      "The submission must not instantiate or reference the original flattened netlist module; it must be an independently written, human-readable RTL description.",
+      "Internal signal names in the recovered RTL are implementation freedom and are not graded; only the observable outputs at the pinned interface are graded.",
+      "The module must be purely combinational: no always @(posedge ...) blocks, no internal registers, no clocks.",
+      "All 128 input codewords (7'b0000000 through 7'b1111111) must be exercised by the grading testbench and must match cycle-for-cycle (delta-cycle) with the reference."
+    ],
+    "expected_outputs": [
+      "submission/recovered_rtl.v containing a synthesizable Verilog module named recovered_decoder with the pinned port list, implementing the same combinational input/output mapping as the reference for all 128 codeword values"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For all 128 possible 7-bit values of codeword, data[3:0], corrected_codeword[6:0], and error_detected must exactly match the behavior of the reference netlist when both are simulated combinationally with the same input value and a #5 settling delay."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For every codeword that is a valid (error-free) codeword of the underlying code, error_detected must be 0 and corrected_codeword must equal codeword unchanged."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For every codeword containing exactly one flipped bit relative to a valid codeword, error_detected must be 1 and corrected_codeword must equal the corresponding valid codeword (i.e., the single erroneous bit is flipped back)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The submitted file must contain exactly one module named recovered_decoder with the exact port list given in the interface section, and must compile cleanly under iverilog without errors."
+      }
+    ],
+    "input_artifacts": [
+      "flattened_netlist.v",
+      "design_brief.md"
+    ],
+    "interface": "The submission file submission/recovered_rtl.v MUST define exactly one module with this literal declaration:\n\nmodule recovered_decoder (\n  input  [6:0] codeword,\n  output [3:0] data,\n  output [6:0] corrected_codeword,\n  output       error_detected\n);\n\nThis is a PURELY COMBINATIONAL module (no clock, no reset, no internal state). Timing discipline: every output is a Mealy-style combinational function of the current value of `codeword` only, with zero clock-cycle latency -- outputs must settle to their final values within the same delta cycle as any change to `codeword` (the evaluation testbench applies a codeword value, waits a fixed settling delay of #5 simulation time units with no clock involved, then samples data, corrected_codeword, and error_detected). There is no handshake, no valid/ready signal, and no sequencing across cycles: each of the 128 codeword values is tested independently and outputs must be purely a function of the present input value at sample time. Bit ordering: codeword[6:0] and corrected_codeword[6:0] use the same bit ordering (bit 0 is the first transmitted/stored bit position, bit 6 is the last); data[3:0] carries the four recovered data bits, MSB-first as data[3]=bit corresponding to the highest-order recovered data position and data[0] the lowest, consistent with whatever data-bit extraction order the reference netlist uses. error_detected is asserted (1) if and only if the input codeword contains exactly one bit in error relative to a valid codeword of the underlying code (i.e., the syndrome is nonzero), and corrected_codeword equals codeword with that single erroneous bit flipped (or equal to codeword unchanged if no error was detected).",
+    "objective": "You are given a flattened, obfuscated gate-level netlist of a combinational decoder module extracted from an undocumented storage controller. The netlist implements a 7-bit codeword decoder that detects and corrects a single-bit error and outputs the recovered 4-bit data word. All internal signal names have been replaced with generic labels (e.g. n1, n2, _T_3) and the structure has been flattened so that no parity-position or syndrome-bit naming survives. Your job is to analyze the netlist's behavior, recover the intended word-level function, and submit clean, readable RTL that is behaviorally identical to the original design for every one of the 128 possible input codewords.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "reverse_hamming74_sec_decoder",
+  "title": "Recover a Hamming(7,4) single-error-correcting decoder"
+}

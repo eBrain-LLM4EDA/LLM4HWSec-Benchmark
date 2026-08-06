@@ -1,0 +1,21 @@
+{
+  "best_round": 2,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "176c65e3f47d1d8d549314dca765d55b0a609ffae2941e55a20f6f986dcd2caa",
+    "expert/expert_bundle.json": "a40ff7e376a8e597639671da09308b868db47c25c3b86b0e5ebfdbc1dd27dfe1",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "40f78fbcbfb92a1c7877948eeb789090777af48f4e647de8ec349fb0ff9727d2",
+    "reports/quality_report.json": "9aef4ac35ace9ebf891139c3dfbc52023f28859db8c28c4b193e4914789a0a8f",
+    "reports/validation_report.json": "99190321e6946b26ccc7d76cfa0c3b833247fdba3e3fd07f09bebc4eec4ff118",
+    "spec/task_spec.json": "09b2177916983ba1eeec743efa47362e81bf14e7700949d6d6172aa387c7138a",
+    "tests/tester_bundle.json": "9ef6887b72ca43eefae41625ff6e5fdff77fa06384003f0242749a89ec355407"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 2,
+  "status": "complete",
+  "task_id": "rtl_auth_clock_glitch_window"
+}

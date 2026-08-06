@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The netlist uses a small technology-mapped cell vocabulary including AOI21, OAI22, INV, XOR, and DFF.",
+    "The netlist is a flat, gate-level Verilog file.",
+    "The control_out signal is a single-bit output of the top-level module."
+  ],
+  "expected_outputs": [
+    "A valid trojan_report.json file in the submission directory.",
+    "The report must list at least one trigger cell instance and at least one payload cell instance.",
+    "The report must list at least one trigger net and at least one payload net."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The submitted trojan_report.json must contain the exact top-level keys: \"trigger_cells\", \"trigger_nets\", \"payload_cells\", \"payload_nets\"."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Each of the four required keys must map to a non-empty array of strings."
+    },
+    {
+      "id": "FR4",
+      "requirement": "All reported cell instance names and net names must exist in the provided netlist (design.v)."
+    }
+  ],
+  "input_artifacts": [
+    "design.v",
+    "cells.lib"
+  ],
+  "interface": "The participant must produce a single JSON file at submission/trojan_report.json. The file must contain a JSON object with the following required fields: \"trigger_cells\" (array of strings, instance names of cells implementing the trigger condition), \"trigger_nets\" (array of strings, names of nets carrying the trigger signal), \"payload_cells\" (array of strings, instance names of cells implementing the payload), \"payload_nets\" (array of strings, names of nets carrying the payload effect). All arrays must be non-empty. The evaluator will parse this file and compare its contents against the hidden ground truth.",
+  "objective": "Analyze the provided gate-level netlist and identify any logic that could cause the control_out signal to flip under a specific, rare input condition. Report the instance names of the cells and nets involved in this behavior.",
+  "response_format": "A JSON object with keys \"trigger_cells\", \"trigger_nets\", \"payload_cells\", \"payload_nets\", each mapping to a non-empty array of strings."
+}

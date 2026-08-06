@@ -1,0 +1,83 @@
+{
+  "issues": [
+    {
+      "artifact": "inputs/decoder_netlist.v",
+      "description": "The netlist's actual bridging behavior does not match the hidden ground truth / golden report. Per the differential harness, exhaustive simulation of the shipped decoder_netlist.v shows that at addr=011,we=1 the asserted set is {bank2_we, bank3_we}, not {bank0_we, bank2_we} as required by SR3 and as described in the hidden_spec ground truth. This indicates the netlist's minterm-3 aliasing tap was wired into the wrong final path (likely bank3_we's legitimate sel3_we also independently asserts at addr=011, while the alias OR into bank2_we combines with sel2_we, but bank0_we's sel0_we is only driven by minterm0, so at addr=011 bank0_we cannot assert at all) \u2014 i.e. the artifact was not built to actually produce the documented Trojan symptom.",
+      "evidence": "golden_run stdout: '[TEST] FAIL: SR3: simulation cross-check mismatch: ground truth asserted set at addr=011,we=1 is [\\'bank2_we\\', \\'bank3_we\\'], expected [\\'bank0_we\\', \\'bank2_we\\']'",
+      "severity": "high"
+    },
+    {
+      "artifact": "golden/trojan_report.json",
+      "description": "The expert/golden submission is rejected by evaluate.py (exit code 1), meaning a correct analysis of the actual (as-shipped) netlist behavior cannot pass the grader's hardcoded SR3 expectation of {bank0_we, bank2_we}. This is a golden_rejected failure per the differential harness, confirming the benchmark is currently unusable as-is.",
+      "evidence": "differential.status=fail, failure_class=golden_rejected, golden_run.ok=false while expected=pass",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py / requirement_map",
+      "description": "SR3 (and by extension SR2's simulation cross-check) hardcodes the expected asserted set to {bank0_we, bank2_we} taken from hidden_spec, but this doesn't match what the actual shipped decoder_netlist.v produces under simulation, creating an unresolvable contradiction between the public artifact, the hidden ground truth narrative, and the automated grader.",
+      "evidence": "requirement_map SR3 expected_detection references exact set {'bank0_we','bank2_we'} cross-checked via tb_exhaustive.v, but preflight attempts (0 and 1) both show golden_rejected with mismatched sets.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix decoder_netlist.v so that the alias/bridging gate actually produces the documented symptom: at addr=011 (write_en=1), exactly bank0_we and bank2_we should assert (not bank2_we and bank3_we). This requires re-checking the wiring: bank0_we is currently only driven by sel0_we (minterm0 AND write_en), which can never assert at addr=011; the design needs an additional OR-tap into bank0_we's combinational tree (or the minterm-3 tap should feed bank0_we's tree instead of/along with bank2_we's), while sel3_we (the legitimate addr=011 decode for bank3) must be prevented from asserting, or the ground truth/legend of 'legal addresses' must be revised so bank3 is not the legitimate target of addr=011.",
+    "Alternatively, revise the hidden_spec/ground_truth and design_brief.md mapping so that address 011 is documented as unused/reserved (not mapped to bank3) and re-derive the alias tap so that the actual simulated behavior at addr=011,we=1 produces exactly {bank0_we, bank2_we}, matching SR2/SR3 as written.",
+    "Regenerate golden/trojan_report.json against the corrected (or currently-simulated) netlist behavior and re-run the differential harness to confirm golden_run now exits 0 with all PASS lines.",
+    "Re-verify via iverilog/vvp exhaustive simulation (tb_exhaustive.v) that the corrected netlist yields exactly one anomalous address (011) with asserted set {bank0_we, bank2_we}, and that all other 7 addresses remain strictly one-hot or fully de-asserted per write_en, before resubmitting the case for validation.",
+    "After the netlist fix, re-run the full differential (golden vs. vulnerable/naive) to confirm golden_run.status=pass and vulnerable_run.status=fail with the expected per-requirement PASS/FAIL lines matching the intended SR1-SR5 semantics."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run and vulnerable_run both show '[TEST] PASS: FR1' / correctly fails on naive baseline structure elsewhere; schema checks function as intended.",
+      "requirement": "FR1 schema structural validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs show '[TEST] PASS: FR2'.",
+      "requirement": "FR2 design_under_test + address format",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs show '[TEST] PASS: FR3'.",
+      "requirement": "FR3 affected_outputs valid ports",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs show '[TEST] PASS: FR4'.",
+      "requirement": "FR4 single-address scoping",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run PASS; vulnerable(naive baseline) run correctly FAILs SR1 ('trojan_present must be true (got False)').",
+      "requirement": "SR1 trojan_present true",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run PASS: SR2; naive baseline correctly fails SR2.",
+      "requirement": "SR2 trigger_condition address/write_en + sim cross-check",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run FAILS SR3 due to actual simulation producing {bank2_we,bank3_we} instead of {bank0_we,bank2_we} \u2014 the golden/expert-correct submission is rejected, meaning ground truth and shipped artifact disagree. This is the core blocking failure per the differential report (failure_class: golden_rejected).",
+      "requirement": "SR3 affected_outputs == {bank0_we,bank2_we} exactly, sim cross-checked",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run PASS: SR4; naive baseline correctly FAILs SR4 (empty suspect_nets).",
+      "requirement": "SR4 structural bridging-gate identification",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run PASS: SR5; naive baseline correctly FAILs SR5.",
+      "requirement": "SR5 no false positives beyond addr=011",
+      "status": "pass"
+    },
+    {
+      "evidence": "Because SR3 rejects the golden submission, the evaluator does not accept a correct submission with exit 0, violating the core submission contract requirement even though the naive baseline is correctly rejected.",
+      "requirement": "Overall grader accept-correct/reject-naive contract",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

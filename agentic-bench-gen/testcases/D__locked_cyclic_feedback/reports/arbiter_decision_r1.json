@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected because the Verilog testbench template or its placeholder substitution in evaluate.py produces a syntax error (line 17 of tb_check.v). This causes FR3 to fail for the correct key '10', making the baseline_run fail and the mutation score 0.0 (not meaningful). Additionally, the evaluator does not compute the required metrics (key_recovery_rate, key_gate_localization_accuracy, sat_iteration_reduction), does not perform cycle detection for FR3, and skips FR3 when FR2 fails instead of independently verifying that a naive submission fails to restore acyclic behavior. All requirements are untested because no mutants were generated. The primary fix is to repair the evaluator so the golden passes and all requirements are properly checked.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

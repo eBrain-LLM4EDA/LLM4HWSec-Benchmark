@@ -1,0 +1,21 @@
+{
+  "best_round": 2,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "c2da36f78e7d7a950a65b1a746155ab8c6a02b2e82c8ea410d1cdef43974af70",
+    "expert/expert_bundle.json": "b57b2e269de1291c0d2bd32b057565b5fdc294a1ea1087fe38a972faef176c82",
+    "mutants/mutation_bundle.json": "7e92549ac34159093769414d641b27caeddbfb4e34570e6cea50a45db3986976",
+    "reports/analyzer_report.json": "48c74f2c36a1a2271c89c2f9968bac375e6101b929f7901591b4260e8be339f0",
+    "reports/quality_report.json": "40faf0e7ecb9bdc503f78d2641abad5e9ff077eac5f0a8d171069d67231cb862",
+    "reports/validation_report.json": "0f7332539aaa46a948b08fac505319ee56058882816d2dd80c857b7fd05e2205",
+    "spec/task_spec.json": "e6bb5dda6cd4b444d24eda658f728f0032b76751d9e5ee2f00572e8f4c510938",
+    "tests/tester_bundle.json": "e6b514ca570bad0f1c05c044cb7b941694264e0cc9138880bf1d9ec2d6ce81be"
+  },
+  "domain_id": "rtl_trojan_detection",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 2,
+  "status": "quality_failed",
+  "task_id": "rtl_nmi_priority_suppression_trojan_v1"
+}

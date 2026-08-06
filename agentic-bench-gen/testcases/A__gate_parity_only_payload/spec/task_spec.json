@@ -1,0 +1,89 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "Proportion of Trojan-infected netlists correctly labeled as 'Trojan'.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Proportion of Trojan-free netlists incorrectly labeled as 'Trojan'.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Jaccard similarity between the submitted suspect_nodes set and the ground truth suspect set.",
+        "direction": "maximize",
+        "name": "node_identification_accuracy"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted label is 'Trojan'.",
+      "The suspect_nodes list contains the hierarchical name of the final AND gate that drives parity_error.",
+      "The suspect_nodes list contains at least one gate from the trigger comparator cone."
+    ],
+    "cwe_ids": [
+      "CWE-1245",
+      "CWE-1262"
+    ],
+    "ground_truth": "The netlist contains a Trojan. The trigger is a rare-value comparator on the data bus. The payload is an AND gate that forces the parity_error output low when the trigger condition is met. The main data outputs are unmodified. The correct report label is 'Trojan'. The suspect_nodes list must include the final AND gate in the parity_error path and at least one gate from the trigger comparator cone.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Trace the fan-in cone of the parity_error output and identify any gate not part of the standard parity tree. The final AND gate combining the parity result with a trigger signal is the payload.",
+        "id": "SR1",
+        "requirement": "The detection method must identify the gate that masks the parity error signal."
+      },
+      {
+        "detection_strategy": "Identify a comparator structure (e.g., a tree of XNOR and AND gates) whose output does not affect any primary data output but converges on the parity_error masking gate.",
+        "id": "SR2",
+        "requirement": "The detection method must identify at least one gate from the trigger logic."
+      }
+    ],
+    "threat_model": "An attacker inserts a Trojan that suppresses the parity error signal for a specific rare data pattern, allowing corrupted data to be accepted by downstream logic without detection. The main datapath remains functionally correct under normal testing."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist is a flat or single-level hierarchical Verilog file using only primitive gates (and, or, not, nand, nor, xor, xnor, buf).",
+      "The design implements a simple data path with a parity generator and a parity error output.",
+      "The participant must not modify the input artifacts; only the submission/trojan_report.json file is graded.",
+      "A naive or empty report (e.g., label 'Trojan-Free' with an empty suspect_nodes list) will fail evaluation."
+    ],
+    "expected_outputs": [
+      "A valid trojan_report.json file in the submission directory.",
+      "The report must contain a top-level 'label' field (string) and a 'suspect_nodes' field (list of strings).",
+      "The 'label' must be either 'Trojan' or 'Trojan-Free'.",
+      "The 'suspect_nodes' list must contain hierarchical net names from the netlist."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted trojan_report.json must be parseable as valid JSON and contain exactly the two top-level keys 'label' and 'suspect_nodes'."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The 'label' field must be a string equal to either 'Trojan' or 'Trojan-Free'."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The 'suspect_nodes' field must be an array of strings, where each string is a valid identifier present in the provided design.v netlist."
+      }
+    ],
+    "input_artifacts": [
+      "design.v",
+      "design_tb.v",
+      "design_brief.md"
+    ],
+    "interface": "SUBMISSION INTERFACE (analysis_report): The participant must produce a single file at submission/trojan_report.json. The file must be valid JSON with the following schema: { \"label\": \"Trojan\" | \"Trojan-Free\", \"suspect_nodes\": [\"string\", ...] }. Each string in suspect_nodes must match a wire or gate instance name present in the input netlist design.v. The evaluator will parse this file and compare its contents against the hidden ground truth.",
+    "objective": "Analyze the provided gate-level netlist and identify any suspicious logic that could interfere with the parity error output signal. Submit a report listing suspect nodes and a detection label.",
+    "response_format": "A JSON object with two required fields: 'label' (string, either 'Trojan' or 'Trojan-Free') and 'suspect_nodes' (array of strings, each a hierarchical node name from the netlist). Example: { \"label\": \"Trojan\", \"suspect_nodes\": [\"top.trigger_gate\", \"top.payload_gate\"] }."
+  },
+  "task_id": "gate_parity_only_payload",
+  "title": "Integrity-status-only Trojan payload"
+}

@@ -1,0 +1,74 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py, evaluation/harness_main.cpp",
+      "description": "FR1 has no dedicated mutant coverage in the validation report (0 of 1 targeting mutants detected), meaning the FR1 check as currently implemented is not empirically confirmed to catch functional-formula-breaking mutants distinct from what SR4 already catches. Since FR1 and SR4 share identical harness logic (same fr1-mode run, same mismatch computation), FR1 is effectively redundant with SR4 and the specific mutant meant to target FR1 slipped through undetected.",
+      "evidence": "per_requirement_coverage.FR1: {\"covered\": false, \"mutants_detected\": 0, \"mutants_targeting\": 1}; uncovered_requirements: [\"FR1\"]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "differential harness output",
+      "description": "Baseline (insecure) submission correctly fails SR1/SR2/SR3/FR3 as intended (discriminative power confirmed), but passes FR1/SR4/FR2/FR4, and golden passes all 8 \u2014 this matches expected behavior, but the overall mutation_score of 0.875 (7/8) combined with the FR1 coverage gap indicates the benchmark is not fully validated for functional-mutant discrimination on FR1 specifically.",
+      "evidence": "mutation_score: 0.875, status: \"fail\" in validation report",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why the FR1-targeting mutant (likely a formula-breaking mutant such as ignoring key or using wrong xor/mask) was not detected by the FR1 check \u2014 check.py's FR1 logic is functionally identical to SR4's, so verify the specific mutant used for FR1 targeting and confirm it isn't silently caught by SR4 while genuinely evading FR1, or consider consolidating FR1/SR4 into a single explicitly-shared check with two labels if they are meant to be redundant by design.",
+    "Add or verify a mutant specifically designed to break the substitution formula (e.g., swap XOR for OR, use only value, off-by-one mask) to confirm FR1's mismatch-detection logic independently achieves full mutation coverage.",
+    "Consider documenting in evaluation/README.md why FR1 and SR4 share identical detection logic (same harness invocation), to clarify they are intentionally testing the same behavioral property from two different requirement angles (functional correctness vs. security-preserving correctness) rather than being an accidental duplicate."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "FR1-FR4 and SR1-SR4 in hidden_spec align with README.md and metadata.json; interface, table constraints, and TRACE_ACCESS macro contract are consistent across public_spec, input artifacts, and harness.",
+      "requirement": "Public/hidden spec coherence",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code 0, status pass, all 8 [TEST] PASS lines. differential.vulnerable_run (baseline): exit_code 1, status fail, FR3/SR1/SR2/SR3 emit [TEST] FAIL as expected, matching the stated baseline weakness (single secret-dependent index read).",
+      "requirement": "evaluate.py accepts correct hardened submission (golden) and rejects baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1-SR4 checks derive cwe_violation_rate; SR1/SR2 trace-invariance checks derive information_flow_correctness; FR1-FR4 checks derive synthesis_pass_rate. All are computed via compile-and-run harness rather than static-only inspection except two narrow fail-on-presence scans for FR2/FR4.",
+      "requirement": "Evaluator measures requested metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional) and SR1-SR4 (security) each with distinct expected_detection strategies and test_files; check_activation counts show each requirement is exercised (FR1:2, FR2:1, FR3:5, FR4:4, SR1:4, SR2:5, SR3:5, SR4:2).",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 sweeps all 256 key values at fixed value; SR2 sweeps all 256 values at fixed key plus 500 random pairs; SR3 checks per-call access count across all these; these actively exercise the secret-dependent access pattern rather than relying on static analysis alone.",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files (README.md, metadata.json, inputs/lookup_kernel.cpp, inputs/design_brief.md) are self-contained C++/markdown/JSON with no external dependencies, unsafe operations, or malicious code.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task specifically targets HLS synthesizable-subset constraints (fixed-trip-count loops, no dynamic allocation), CWE-208/385/200 (timing side channel, covert access pattern, info exposure), and TRACE_ACCESS instrumentation tailored to memory-access-pattern side-channel analysis, not generic code generation.",
+      "requirement": "Benchmark adapted to domain (HLS security codegen) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 mutant coverage is 0/1 detected per validation report, meaning at least one class of functional mutant intended to test FR1 is not reliably caught by FR1's own check, creating a partial verifiability gap even though SR4 (which shares the same underlying check) still catches baseline-style violations of the access pattern indirectly via other requirements.",
+      "requirement": "No gaps making results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, inputs/lookup_kernel.cpp, and inputs/design_brief.md contain no mention of CWE ids, SR ids, 'side channel', 'timing attack', or explicit statements that the baseline is intentionally insecure; design_brief.md frames uniform access as a generic physical-design/interconnect hygiene goal.",
+      "requirement": "No CWE/SR-id or threat-model leakage in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md lists concrete constraints: exact function signature, fixed 16-entry table preserved, fixed-trip-count loops only, no dynamic allocation/STL/recursion/exceptions, TRACE_ACCESS(idx) called exactly once per read with literal index, no data-dependent branches \u2014 all directly verifiable through compiled execution and mapped to FR1-FR4 in hidden_spec.",
+      "requirement": "Public functional requirements are concrete, machine-checkable, and domain-specific (2-4 count)",
+      "status": "pass"
+    }
+  ]
+}

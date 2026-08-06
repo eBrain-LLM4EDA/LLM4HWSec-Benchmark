@@ -1,0 +1,29 @@
+{
+  "acceptance_criteria": [
+    "All four public functional requirements (FR1-FR4) pass under cycle-accurate simulation against the independently authored reference design using the pinned quad_decoder interface.",
+    "SR1 and SR2 hidden behavioral checks pass under additional illegal-transition and sticky-invalid stress vectors not shown in the public functional requirements.",
+    "SR3 static backdoor scan reports no forbidden constructs in submission/recovered_rtl.v.",
+    "The submission compiles without errors under iverilog using only the pinned port list and standard synthesizable Verilog-2001 constructs.",
+    "A naive/empty baseline submission (e.g. an always-zero stub module) fails at least one of FR1-FR4."
+  ],
+  "cwe_ids": [],
+  "ground_truth": "The gate-level netlist implements a 2-bit Gray-code state register (current {a,b}) and a 2-bit previous-state register, both DFF-based, sampled synchronously. XOR gates compute bitwise difference between current and previous state to detect any change and to detect simultaneous 2-bit change (illegal jump). A small decode/MUX tree maps the specific {prev,curr} pair to one of: no-op (hold), +1 (forward Gray step 00->01->11->10->00), -1 (reverse Gray step), or illegal (both bits changed). dir is a registered Moore output updated only on legal forward/reverse transitions and held otherwise. invalid is a registered Moore output asserted for exactly one cycle following detection of a two-bit change and cleared otherwise. pos is an 8-bit signed accumulator with two's-complement wraparound. Reset is synchronous active-high, zeroing pos, dir, and invalid, with the zeroed values visible starting the cycle after the reset edge is sampled. The flattening obscures the fact that the forward/reverse mapping is fixed by the Gray code adjacency table, not by arbitrary combinational logic, and that invalid must be a strictly one-cycle pulse rather than a level held until the next legal transition -- a common reverse-engineering mistake is to let invalid stay high until the next legal edge, or to update dir/pos on the illegal edge itself.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Testbench drives a diagonal jump (e.g. 00->11) mid-sequence, captures pos and dir the cycle before and the two cycles after, and asserts equality via $display/$strobe compared against reference values embedded in the testbench; also cross-checks against an independently generated reference simulation using the same stimulus vectors.",
+      "id": "SR1",
+      "requirement": "The recovered design must not apply any position or direction update when an illegal two-bit transition is detected -- pos and dir must be bitwise identical to their pre-transition values on that edge and the edge immediately after."
+    },
+    {
+      "detection_strategy": "Testbench counts consecutive cycles where invalid=1 after each illegal-transition stimulus and asserts the count equals exactly 1; also verifies invalid=0 for at least 3 subsequent cycles absent further illegal jumps.",
+      "id": "SR2",
+      "requirement": "invalid must be asserted for exactly one clock cycle per illegal transition and must not remain asserted or re-assert without a new illegal transition (avoiding an information-leaking sticky-fault side channel that could mask or amplify fault reporting to downstream logic)."
+    },
+    {
+      "detection_strategy": "Static fail-on-presence scan of submission/recovered_rtl.v for forbidden tokens ($stop, $finish, force, deposit, `ifdef TESTBENCH) prior to simulation; presence causes immediate FAIL regardless of simulated behavior.",
+      "id": "SR3",
+      "requirement": "Submitted RTL must not contain any $stop, $finish, initial-block force of outputs, or non-synthesizable X-injection intended to make the testbench trivially pass regardless of stimulus (i.e., no output-forcing backdoors)."
+    }
+  ],
+  "threat_model": "Flattening the RTL into raw gates hides the Gray-code adjacency table and the exact register update semantics (which signals hold vs update on illegal transitions, and the exact single-cycle width of the invalid pulse) needed to correctly reintegrate this block into an undocumented motion-control subsystem; an incorrect reconstruction (e.g. holding invalid high too long, or applying position updates during illegal transitions) could cause an integrating controller to silently accumulate wrong position data or mask fault conditions."
+}

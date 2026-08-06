@@ -1,0 +1,20 @@
+// cells.lib - Minimal standard-cell library stub
+// Provides DFF and NAND primitives for structural instantiation
+
+module DFF (
+    input  logic D,
+    input  logic CLK,
+    output logic Q
+);
+    always_ff @(posedge CLK) begin
+        Q <= D;
+    end
+endmodule
+
+module NAND2 (
+    input  logic A,
+    input  logic B,
+    output logic Y
+);
+    assign Y = ~(A & B);
+endmodule

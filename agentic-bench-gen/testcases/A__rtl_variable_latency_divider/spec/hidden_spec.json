@@ -1,0 +1,25 @@
+{
+  "acceptance_criteria": [
+    "vulnerability_found is true.",
+    "vulnerable_component correctly identifies the early-termination logic.",
+    "recommended_fix describes a fixed-latency design change."
+  ],
+  "cwe_ids": [
+    "CWE-203",
+    "CWE-208"
+  ],
+  "ground_truth": "The early_done comparator on the remaining dividend causes variable latency; removing it and running all word-width iterations yields the required fixed schedule.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if the 'vulnerable_component' string contains 'early_done' or a description of the comparator logic.",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly identify the 'early_done' signal or the comparator that generates it as the source of variable latency."
+    },
+    {
+      "detection_strategy": "Check if the 'recommended_fix' string contains keywords like 'remove early_done', 'fixed latency', 'all iterations', or 'counter runs to width'.",
+      "id": "SR2",
+      "requirement": "The recommended fix must describe removing the early-termination condition and forcing the divider to run for a fixed number of cycles equal to the data width."
+    }
+  ],
+  "threat_model": "An attacker measures start-to-done cycles and infers secret operand magnitude or leading-zero count."
+}

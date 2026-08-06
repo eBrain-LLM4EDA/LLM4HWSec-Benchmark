@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "77b1cec0268704049d707818ca781a05028a480f55036b0c1c035f285a0489ac",
+    "expert/expert_bundle.json": "93a6126c0b23d9a0d08e1b46e6831d7e74c8e473d5f2535a68ff091856099648",
+    "mutants/mutation_bundle.json": "65cf46a3ccfff4fb481588301e3ad26bf219de8977982890680492a0791640ce",
+    "reports/analyzer_report.json": "9b24af8e047639119f4c9fcb17d37155caf350286744b3abd4ae04b04ec79f45",
+    "reports/quality_report.json": "29a5f66d0e500a29359c1c1479418d7a9b14ee2b95747986b94218863c1830d5",
+    "reports/validation_report.json": "1d4ea69a9296d0a31dab035793a8080b10a2fe8f72c567a04d0022cf32daf7b1",
+    "spec/task_spec.json": "7f3be1395041f1d4a0c2b273a1eba88f5f308b23c1981d9bb9388290471c6e78",
+    "tests/tester_bundle.json": "941ab55d6e6147f08000bbfbe298ace4f9811981fcc842a18aa384a61e4d0135"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 0,
+  "quality_status": "pass",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "rtl_second_order_share_leakage"
+}

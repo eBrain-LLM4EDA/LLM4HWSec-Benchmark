@@ -1,0 +1,25 @@
+{
+  "acceptance_criteria": [
+    "The submitted RTL passes a cycle-accurate simulation testbench that compares its outputs against a golden reference model implementing sat20(acc + a*b) with two-cycle latency.",
+    "The testbench includes sequences that cause both positive and negative saturation, zero inputs, maximum magnitude inputs, and back-to-back valid transactions.",
+    "The submission must not contain any direct assignment of the internal netlist wires; it must be a behavioral RTL description."
+  ],
+  "cwe_ids": [
+    "CWE-682",
+    "CWE-190"
+  ],
+  "ground_truth": "On each accepted input the design computes sat20(acc + signed(a)*signed(b)); result_valid and result appear exactly two rising edges later.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Simulate with varying data patterns and measure cycle counts; any variation in result_valid timing relative to valid_in indicates a violation.",
+      "id": "SR1",
+      "requirement": "The recovered RTL must not inadvertently expose internal accumulator state through any side-channel (e.g., observable timing variations based on data values)."
+    },
+    {
+      "detection_strategy": "Exhaustive corner-case simulation across all combinations of extreme signed 8-bit values.",
+      "id": "SR2",
+      "requirement": "The design must correctly handle the full signed range of inputs without arithmetic errors such as incorrect sign extension or truncation."
+    }
+  ],
+  "threat_model": "Bit-level arithmetic and pipeline registers obscure signedness, overflow behavior, and latency from an analyst."
+}

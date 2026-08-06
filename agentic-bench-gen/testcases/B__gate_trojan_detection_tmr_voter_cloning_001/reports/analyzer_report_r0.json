@@ -1,0 +1,94 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (FR1)",
+      "description": "FR1 is a dead check in mutation testing - no mutant targeting FR1 was detected as FAIL, meaning the schema-validity check, while logically correct by code inspection, was not exercised/discriminating in the mutation harness. This suggests the mutant generation for FR1 may not have produced a genuinely schema-invalid submission, or the check short-circuits before other checks in a way that masks discrimination.",
+      "evidence": "per_requirement_coverage.FR1: mutants_detected=0, mutants_targeting=1; dead_checks includes 'FR1'",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR2)",
+      "description": "SR2 (naming the specific cloning instance u_buf1 or unambiguous causal description) never triggered a FAIL on its targeting mutant, indicating either the mutant wasn't a true SR2-violating case or the SR2 logic has a gap allowing a mutant that should fail SR2 to pass. This is a real discrimination gap for a security-relevant requirement.",
+      "evidence": "per_requirement_coverage.SR2: mutants_detected=0, mutants_targeting=1; uncovered_requirements includes 'SR2'",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR1)",
+      "description": "SR1 (identifying the wiring/connectivity nature of the defect via suspect_nets) also failed to be discriminated by its targeting mutant, despite being flagged as 'covered' via check_activation with count 2 in the differential run. The per_requirement_coverage shows 0/1 detected, suggesting the dedicated SR1 mutant did not exercise the intended failure path.",
+      "evidence": "per_requirement_coverage.SR1: mutants_detected=0, mutants_targeting=1",
+      "severity": "medium"
+    },
+    {
+      "artifact": "mutation harness",
+      "description": "One mutant run crashed/timed out/used unsafe paths, leaving mutation quality incomplete and the overall mutation_score (0.714) marked not meaningful.",
+      "evidence": "error_runs=1; mutation_score_meaningful=false; issue 'mutation_execution_error'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why the FR1-targeting mutant (likely a schema-breaking mutation such as removing a field or wrong type) did not produce a FAIL \u2014 verify the mutant actually altered submission/trojan_report.json in a way that invalidates schema, and confirm evaluate.py's FR1 check path is reached under that mutant.",
+    "Investigate the SR1-targeting mutant: it should produce a submission where trojan_present=true but suspect_nets omits all of {net_repa_out, voter_a, voter_b} to test the wiring-defect identification logic distinctly from SR2/SR3; confirm the mutant used actually creates this condition rather than accidentally satisfying SR1 or being caught by an earlier failing check (e.g., FR1) that short-circuits grading.",
+    "Investigate the SR2-targeting mutant: it should test a submission that flags the voter or replicas generically without naming u_buf1 or the replica_a/voter_b causal relationship; verify this mutant is not accidentally including one of those tokens or being masked by FR1 short-circuit failure.",
+    "Address the 1 mutation_execution_error (crash/timeout/unsafe path) to ensure mutation_score reflects true discrimination quality across all 8 requirements.",
+    "Consider adding an explicit standalone mutant test for each SR/FR that isolates only that requirement's violation without simultaneously triggering FR1 failure, to avoid the short-circuit-on-FR1-failure behavior masking downstream requirement discrimination."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline and golden runs both show [TEST] PASS: FR1; code correctly checks types for all six fields. However mutation testing shows this check is a 'dead_check' with 0/1 mutants detected, so its discriminative power is unverified by mutation evidence.",
+      "requirement": "FR1 - schema validity (6 required fields, correct types)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential shows vulnerable_run (naive baseline) still passes FR2 vacuously (trojan_present=false), golden passes with real instance names; mutation coverage shows 1/1 detected.",
+      "requirement": "FR2 - suspect_instances reference real instances",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vacuously satisfied by naive baseline (empty lists, trojan_present=false); golden passes; mutation coverage 1/1 detected.",
+      "requirement": "FR3 - suspect_nets reference real nets",
+      "status": "pass"
+    },
+    {
+      "evidence": "Naive baseline has affected_output='' which correctly fails FR4 in the vulnerable_run trace; mutation coverage 1/1 detected.",
+      "requirement": "FR4 - affected_output matches real top-level output",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR1 shows mutants_detected=0/1 targeting mutants, listed as uncovered_requirement despite check_activation=2 in the differential run; discrimination coverage gap remains unresolved.",
+      "requirement": "SR1 - identifies wiring/connectivity defect via suspect_nets",
+      "status": "fail"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR2 shows mutants_detected=0/1, listed as dead_check and uncovered_requirement; the mutation meant to test this path did not produce a FAIL, indicating an unverified gap in this security check's robustness.",
+      "requirement": "SR2 - names the specific cloning instance u_buf1 or unambiguous causal text",
+      "status": "fail"
+    },
+    {
+      "evidence": "Naive baseline correctly fails SR3 per vulnerable_run trace ('submission does not flag net_repb_out ... as dangling/unused'); mutation coverage 1/1 detected.",
+      "requirement": "SR3 - flags net_repb_out as dangling/unused",
+      "status": "pass"
+    },
+    {
+      "evidence": "Naive baseline correctly fails SR4 ('trojan_present is false'); golden passes; mutation coverage 1/1 detected.",
+      "requirement": "SR4 - trojan_present=true and affected_output=='voted_out', with best-effort empirical corroboration",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.status='pass': golden_run exits 0 (all PASS) as expected, vulnerable_run (naive baseline) exits 1 with multiple FAILs (FR4, SR1, SR2, SR3, SR4) as expected. Baseline_run and mutation_baseline_run both match golden behavior.",
+      "requirement": "Overall grader accept/reject semantics per submission contract",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and netlist comments use only ordinary RTL terminology (u_buf1, net_repa_out, wire_tap) with no mention of 'trojan', 'clone', 'malicious', CWE ids, or SR/threat-model language, consistent with public_spec constraints.",
+      "requirement": "No hidden-intent leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are each independently verifiable against the pinned interface (JSON schema/types, instance-name matching, net-name matching, output-port matching), not a single generic restatement.",
+      "requirement": "Functional requirements are concrete and machine-checkable (FR1-FR4)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

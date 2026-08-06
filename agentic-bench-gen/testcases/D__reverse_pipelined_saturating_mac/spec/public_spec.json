@@ -1,0 +1,34 @@
+{
+  "constraints": [
+    "Use signed 8-bit operands, a signed 20-bit accumulator, and a two-stage registered pipeline.",
+    "Pin reset, valid propagation, saturation limits, and the exact two-rising-edge input-to-output latency.",
+    "Include vectors around positive and negative overflow boundaries."
+  ],
+  "expected_outputs": [
+    "recovered_rtl.v"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "Compilation: The submitted recovered_rtl.v must compile without errors using iverilog when analyzed together with a simple testbench that instantiates mac_top."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Reset behavior: While rst_n is low, result must be 0 and result_valid must be 0 on every rising edge of clk. After rst_n goes high, the first valid_in=1 transaction produces its result exactly two cycles later."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Basic arithmetic: For inputs a=8'd5, b=8'd3, valid_in=1, the output result must be 20'd15 with result_valid=1 exactly two cycles later. A second transaction with a=8'd10, b=8'd2 must produce result=20'd35 (15 + 20) two cycles after its valid_in."
+    },
+    {
+      "id": "FR4",
+      "requirement": "Saturation: For a sequence that drives the accumulator beyond 20'h7FFFF (e.g., repeated a=8'd127, b=8'd127), result must saturate at 20'h7FFFF and not wrap. Similarly, negative overflow must saturate at 20'h80000."
+    }
+  ],
+  "input_artifacts": [
+    "obfuscated_mac_netlist.v"
+  ],
+  "interface": "Module name: mac_top\nPorts:\n- input clk\n- input rst_n (active-low asynchronous reset)\n- input signed [7:0] a\n- input signed [7:0] b\n- input valid_in\n- output reg signed [19:0] result\n- output reg result_valid\n\nTiming contract:\n- All outputs are Moore-type (registered).\n- Reset: asynchronous active-low. When rst_n is deasserted (low), result is forced to 20'd0 and result_valid is forced to 1'b0 on the next rising edge of clk. After rst_n is asserted (high), the design begins normal operation on the following rising edge.\n- Input sampling: a, b, and valid_in are sampled on the rising edge of clk. A transaction occurs when valid_in is high.\n- Output latency: result and result_valid appear exactly two rising edges of clk after the rising edge on which the corresponding a, b, and valid_in were sampled. result_valid is high for exactly one cycle per accepted input.\n- Saturation: The internal accumulator is 20 bits wide. The result saturates to 20'h7FFFF (maximum positive) on positive overflow and to 20'h80000 (minimum negative) on negative overflow.",
+  "objective": "Lift a bit-level sequential netlist into RTL implementing signed multiply-accumulate with saturation and exact pipeline latency.",
+  "response_format": "A single SystemVerilog file named recovered_rtl.v containing the module mac_top with the exact interface and timing behavior specified above."
+}

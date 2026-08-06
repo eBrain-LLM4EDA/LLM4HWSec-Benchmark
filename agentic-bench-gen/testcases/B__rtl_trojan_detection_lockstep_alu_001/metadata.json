@@ -1,0 +1,49 @@
+{
+  "task_id": "rtl_trojan_detection_lockstep_alu_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Compensating Trojan in a Lockstep ALU Checker",
+  "submission_kind": "analysis_report",
+  "input_artifacts": [
+    "inputs/lockstep_alu.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_stub.v"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_output": {
+    "path": "submission/trojan_report.json",
+    "summary": "A structured JSON report identifying suspicious RTL candidates (with signal_or_line, confidence, rationale for each), an overall_confidence score, and a free-text summary, describing any logic capable of silently corrupting architectural_result or forcing a false-negative mismatch flag in lockstep_alu.v."
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of hidden security requirements (SR1-SR4) satisfied by the submitted trojan_report.json, measured as a proportion across the graded case set."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported high-confidence (>=0.6) candidates that do not correspond to any real payload/trigger node in the ground truth (i.e. spurious findings unrelated to the trigger comparator, result mux, or mismatch mask)."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Score in [0,1] measuring how precisely the report localizes all three ground-truth elements (trigger comparator condition, result-corruption bit/mux, mismatch-mask logic) versus vague or partial identification."
+    },
+    {
+      "name": "confidence_calibration",
+      "direction": "maximize",
+      "description": "Measures whether the true payload-related candidates rank among the highest-confidence entries in the submitted report rather than being buried under false leads."
+    }
+  ],
+  "baselines": [
+    "Empty/naive trojan_report.json (empty candidates array, overall_confidence=0, generic summary) representing a participant who submits no real analysis; must FAIL.",
+    "Trust-Hub style chip-level Trojan benchmark heuristics (e.g. flagging all rarely-toggled signals) used as a reference low-precision baseline for false_positive_rate comparison."
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ]
+}

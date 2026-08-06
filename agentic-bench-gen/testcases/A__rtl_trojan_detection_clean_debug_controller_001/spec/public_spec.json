@@ -1,0 +1,41 @@
+{
+  "constraints": [
+    "pcu_core.v must be under 200 lines and elaboratable with `iverilog -g2012`.",
+    "The design must include a documented debug_enable input port that strictly gates all diagnostic observability logic (debug_out must be forced to zero whenever debug_enable is low, verifiable by simulation).",
+    "The design must include at least one low-activity/rare-event counter (e.g., a watchdog or idle counter) whose rollover or threshold-crossing only affects a documented status bit and has no undocumented side effect on ack, req handling, or any output.",
+    "No signal in the design may depend on a hidden, undocumented constant pattern or hidden counter to alter functional behavior (i.e., there must be no actual trigger/payload structure), so that ground truth for this task is a clean design.",
+    "All ports, internal counters, and debug logic must be explained in design_brief.md in plain functional terms without referencing security analysis terminology."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing an infected/clean verdict",
+    "a list of suspected trigger signals or expressions (empty if clean)",
+    "a list of suspected payload effects (empty if clean)",
+    "a confidence score per finding",
+    "a rationale explaining each finding or the clean verdict"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json must be valid JSON containing exactly the top-level keys infected (boolean), triggers (array), payloads (array), confidence (number in [0,1]), and rationale (non-empty string)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "If infected is false, triggers and payloads must both be empty arrays; if infected is true, triggers must contain at least one entry with non-empty signal_or_expression and description fields."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The rationale field must explicitly reference at least one of the following design elements present in pcu_core.v: the debug_enable gating, the watchdog counter, or the debug_sel/debug_out path, demonstrating the report is grounded in the actual RTL rather than generic boilerplate."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The reported confidence must be consistent with the verdict: confidence >= 0.6 when infected is false (a clean call should be made with reasonable certainty given the small, fully-inspectable design), and confidence >= 0.5 for infected=true verdicts."
+    }
+  ],
+  "input_artifacts": [
+    "pcu_core.v",
+    "design_brief.md"
+  ],
+  "interface": "The input RTL module is named pcu_core and lives in inputs/pcu_core.v with the port list: module pcu_core(input clk, input rst_n, input req, output ack, input debug_enable, input [7:0] debug_sel, output [7:0] debug_out, output [15:0] status). clk is the system clock; rst_n is active-low synchronous reset; req/ack form a handshake pair; debug_enable is a documented public input that, when high, permits debug_sel to select an internal signal group observed on debug_out (all-zero when debug_enable is low); status exposes the watchdog counter's high byte and internal state bits for normal operation monitoring, none of which are secret. The participant's deliverable is NOT code: it is a single JSON answer file at submission/trojan_report.json with this exact schema: {\"infected\": <boolean>, \"triggers\": [ {\"signal_or_expression\": <string>, \"description\": <string>} ... ], \"payloads\": [ {\"effect\": <string>, \"description\": <string>} ... ], \"confidence\": <number between 0 and 1>, \"rationale\": <string> }. triggers and payloads MUST be empty arrays when infected is false. evaluate.py reads inputs/pcu_core.v and inputs/design_brief.md for reference and grades only submission/trojan_report.json.",
+  "objective": "You are given the RTL source of a small peripheral control unit (PCU) that manages a request/acknowledge handshake, an internal watchdog counter, and an optional debug/diagnostic observation path. Perform a hardware Trojan audit of this design and submit a structured findings report. Your report must state whether the design is infected by a hardware Trojan, and if so, identify every suspected trigger condition and payload effect with a confidence score and supporting rationale grounded in the RTL. If you conclude the design is clean, your report must explicitly say so with empty trigger/payload lists and an accompanying rationale that addresses why the debug and counter logic present in the design are not malicious.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface. No other files are graded."
+}

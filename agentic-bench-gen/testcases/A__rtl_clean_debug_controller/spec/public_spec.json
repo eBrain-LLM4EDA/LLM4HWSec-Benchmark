@@ -1,0 +1,33 @@
+{
+  "constraints": [
+    "Include low-activity counters and a documented debug-enable input that may look suspicious to a naive detector.",
+    "Keep RTL under 200 lines and elaboratable with iverilog -g2012."
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must contain the boolean field \"infected\" and the array field \"trojan_candidates\"."
+    },
+    {
+      "id": "FR3",
+      "requirement": "If \"infected\" is true, \"trojan_candidates\" must contain at least one object with non-empty \"signal_path\", \"trigger_condition\", and \"payload_effect\" strings."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The \"rationale\" field must be a non-empty string explaining the analysis methodology and conclusion."
+    }
+  ],
+  "input_artifacts": [
+    "debug_controller.v"
+  ],
+  "interface": "The participant must submit a single JSON file at submission/trojan_report.json. The file must contain a JSON object with the following keys: \"infected\" (boolean), \"trojan_candidates\" (array of objects, each with \"signal_path\" (string), \"trigger_condition\" (string), \"payload_effect\" (string), \"confidence\" (number between 0.0 and 1.0)), and \"rationale\" (string). For a clean design, \"infected\" must be false and \"trojan_candidates\" must be an empty array.",
+  "objective": "Analyze a compact controller containing disabled-by-default debug and diagnostic paths and correctly report that it has no Hardware Trojan.",
+  "response_format": "A JSON object with keys: \"infected\" (boolean), \"trojan_candidates\" (array of objects with keys \"signal_path\", \"trigger_condition\", \"payload_effect\", \"confidence\"), and \"rationale\" (string)."
+}

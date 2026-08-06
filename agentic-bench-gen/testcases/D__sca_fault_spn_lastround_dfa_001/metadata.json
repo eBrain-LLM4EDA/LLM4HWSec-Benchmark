@@ -1,0 +1,50 @@
+{
+  "task_id": "sca_fault_spn_lastround_dfa_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Last-round differential fault analysis on a toy SPN",
+  "description": "Analyze a 16-bit, 4-round substitution-permutation network (SPN) cipher implemented in Verilog together with a set of correct/faulty ciphertext trace pairs collected under a fixed but undisclosed single-nibble transient fault model. Identify the exploitable register, localize the fault in time and nibble position, recover the affected final-round subkey nibble via differential fault analysis, and propose concrete hardening measures.",
+  "input_artifacts": [
+    "inputs/spn_core.v",
+    "inputs/spn_top.v",
+    "inputs/fault_model.md",
+    "inputs/trace_pairs.json",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "submission_kind": "analysis_report",
+  "evaluation_mode": "report_grading",
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Binary correctness of identifying the vulnerable register, fault cycle offset, and affected nibble index against hidden ground truth; all three must match for full credit."
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Whether the reported fault location/cycle, when re-simulated with iverilog/vvp, reproduces the differential ciphertext patterns present in trace_pairs.json."
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Fraction of submitted hardening_recommendations entries that are semantically valid, concrete fault-hardening techniques applicable to the identified register, as opposed to generic or irrelevant advice."
+    },
+    {
+      "name": "key_recovery_correctness",
+      "description": "Whether the recovered subkey nibble index and value exactly match the unique survivor of brute-force differential elimination over the 16 candidate nibble values against trace_pairs.json."
+    },
+    {
+      "name": "schema_conformance",
+      "description": "Whether the submitted vulnerability_report.json satisfies all structural, type, and format functional requirements for the report."
+    }
+  ],
+  "constraints": [
+    "Do not modify any files under inputs/; submit only the answer file under submission/.",
+    "The only graded artifact is submission/vulnerability_report.json.",
+    "All artifacts under inputs/ are self-contained and simulatable with iverilog/vvp without proprietary IP."
+  ]
+}

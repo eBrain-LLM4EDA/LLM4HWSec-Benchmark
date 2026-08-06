@@ -1,0 +1,26 @@
+{
+  "task_id": "gate_sequential_fsm_trigger_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Sequential trigger Trojan in a gate-level controller",
+  "input_artifacts": [
+    "controller_netlist.v"
+  ],
+  "expected_output": "A JSON file named trojan_report.json with the following schema: {\"suspect_nodes\": [{\"node_name\": \"string\", \"role\": \"string\"}]}",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "description": "The proportion of true Trojan nodes (trigger DFFs and payload gate) correctly identified in the report.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "The proportion of reported suspect nodes that are not part of the actual Trojan.",
+      "direction": "minimize"
+    },
+    {
+      "name": "inference_latency",
+      "description": "The wall-clock time taken by the evaluation script to grade the submission, measured in seconds.",
+      "direction": "minimize"
+    }
+  ]
+}

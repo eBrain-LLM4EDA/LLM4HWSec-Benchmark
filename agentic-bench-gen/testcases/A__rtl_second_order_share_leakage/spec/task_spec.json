@@ -1,0 +1,94 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "Empty submission (fails all metrics).",
+      "Random register pair submission (expected to fail leakage_detection_accuracy)."
+    ],
+    "metrics": [
+      {
+        "description": "Binary metric: 1 if the correct leaking register pair is identified, 0 otherwise.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Binary metric: 1 if the report correctly identifies the alignment condition and second-order leakage, 0 otherwise.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Binary metric: 1 if the report correctly states that both registers are safe under first-order analysis, 0 otherwise.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted vulnerability_report.json passes all functional requirements (FR1-FR4).",
+      "The submitted vulnerability_report.json satisfies all security requirements (SR1-SR3).",
+      "A naive/empty submission (e.g., empty JSON object or missing fields) must fail evaluation."
+    ],
+    "cwe_ids": [
+      "CWE-203",
+      "CWE-1245"
+    ],
+    "ground_truth": "share0_stage2_q and share1_stage2_q are updated in the same cycle and their joint transition correlates with the unmasked value; retiming one share breaks the alignment.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Exact string match against the ground truth register names in the \"leaking_register_pair\" array.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify the pair (share0_stage2_q, share1_stage2_q) as the leaking register pair."
+      },
+      {
+        "detection_strategy": "Check that the \"first_order_analysis\" array contains entries for both registers with \"safe\": true.",
+        "id": "SR2",
+        "requirement": "The report must state that both registers appear safe under individual first-order Hamming-distance analysis."
+      },
+      {
+        "detection_strategy": "Check that the \"alignment_condition\" field contains a description matching the ground truth temporal alignment, and that \"second_order_analysis.leaking\" is true.",
+        "id": "SR3",
+        "requirement": "The report must correctly identify that the joint transition leaks when both registers update in the same clock cycle."
+      }
+    ],
+    "threat_model": "An attacker combines two centered power samples to cancel masking randomness and recover a secret-dependent intermediate."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL contains a two-share masked datapath with multiple pipeline stages.",
+      "The leakage_models.json file defines both first-order and pairwise Hamming-distance leakage models.",
+      "The analysis must consider temporal alignment of register updates.",
+      "The submitted report must be self-contained and reference only the provided input artifacts."
+    ],
+    "expected_outputs": [
+      "A vulnerability_report.json file identifying the leaking register pair and explaining the alignment condition."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON and parse without errors."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must identify exactly one leaking register pair in the \"leaking_register_pair\" field, and both names must match signal names present in the provided RTL."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The \"first_order_analysis\" array must contain entries for at least the two registers in the leaking pair, each with a boolean \"safe\" field."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The \"second_order_analysis\" object must contain a boolean \"leaking\" field and a non-empty \"explanation\" string."
+      }
+    ],
+    "input_artifacts": [
+      "masked_datapath.v",
+      "leakage_models.json"
+    ],
+    "interface": "The participant must submit a single file named vulnerability_report.json in the submission/ directory. The file must conform to the schema defined in response_format.",
+    "objective": "Analyze the provided two-share masked datapath RTL and identify a pair of share registers whose combined transitions leak information about the unmasked value, even though each register appears safe under individual first-order analysis.",
+    "response_format": "The submission file vulnerability_report.json must be a JSON object with the following required fields:\n- \"leaking_register_pair\": an array of exactly two strings, each being the hierarchical signal name of a register (e.g., \"top.u_dut.share0_stage2_q\").\n- \"alignment_condition\": a string describing the temporal condition under which the joint transition leaks (e.g., \"both registers update on the same clock cycle\").\n- \"first_order_analysis\": an array of objects, each with fields \"register\" (string) and \"safe\" (boolean), indicating whether the register appears safe under individual first-order Hamming-distance analysis.\n- \"second_order_analysis\": an object with fields \"leaking\" (boolean) and \"explanation\" (string)."
+  },
+  "task_id": "rtl_second_order_share_leakage",
+  "title": "Higher-order leakage across masked-share registers"
+}

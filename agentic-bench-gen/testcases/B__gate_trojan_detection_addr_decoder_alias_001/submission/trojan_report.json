@@ -1,0 +1,13 @@
+{
+  "design_under_test": "decoder_netlist.v",
+  "trojan_present": false,
+  "suspect_nets": [],
+  "trigger_condition": {
+    "address": "000",
+    "control_inputs": {
+      "write_en": "0"
+    }
+  },
+  "affected_outputs": [],
+  "evidence": "No anomalies detected; decoder behaves as expected one-hot decoder across sampled addresses."
+}

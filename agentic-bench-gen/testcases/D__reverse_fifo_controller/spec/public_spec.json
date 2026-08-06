@@ -1,0 +1,35 @@
+{
+  "constraints": [
+    "The input netlist is a flattened gate-level description using DFFs and multiplexers.",
+    "The design uses a synchronous active-high reset.",
+    "The FIFO depth is 4 and width is 8 bits.",
+    "The submission must be a single Verilog file with no external dependencies."
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "When empty is high and write_en is high at a rising edge, the FIFO accepts write_data and empty deasserts on the next rising edge."
+    },
+    {
+      "id": "FR2",
+      "requirement": "When full is high and read_en is high at a rising edge, the FIFO presents the oldest stored data on read_data on the next rising edge, and full deasserts on that same next rising edge."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Simultaneous write_en and read_en when the FIFO is neither full nor empty results in both operations completing: new data is stored, oldest data is output on read_data on the next rising edge, and occupancy remains unchanged."
+    },
+    {
+      "id": "FR4",
+      "requirement": "A write_en when full is high or a read_en when empty is high must not alter the FIFO state or output; read_data retains its previous value."
+    }
+  ],
+  "input_artifacts": [
+    "fifo_netlist.v"
+  ],
+  "interface": "Module name: fifo_controller\nPort list (all 1-bit unless noted):\n- input clk\n- input rst (synchronous, active-high)\n- input [7:0] write_data\n- input write_en\n- input read_en\n- output [7:0] read_data\n- output full\n- output empty\n\nTiming contract:\n- All outputs are Moore type (functions of current registered state only).\n- read_data: registered output. After a read is accepted (read_en high and empty low at a rising edge), the data appears on read_data on the NEXT rising edge of clk (1 cycle latency).\n- full: asserts on the rising edge FOLLOWING the cycle in which the fourth write is accepted (i.e., when occupancy transitions from 3 to 4). Deasserts on the rising edge FOLLOWING the cycle in which a read is accepted when full.\n- empty: asserts on the rising edge FOLLOWING the cycle in which the last entry is read (occupancy transitions from 1 to 0). Deasserts on the rising edge FOLLOWING the cycle in which a write is accepted when empty.\n- Reset: synchronous active-high. When rst is high at a rising edge, the FIFO is cleared. On the NEXT rising edge after rst is released (rst low), empty is high, full is low, and read_data holds 0.",
+  "objective": "Reconstruct readable RTL for a flattened four-entry FIFO including pointer updates, full/empty flags, and registered read timing.",
+  "response_format": "Submit a single Verilog file at submission/recovered_rtl.v containing the module fifo_controller with the exact port list specified in the interface. The module must be synthesizable and match the cycle-accurate behavior described."
+}

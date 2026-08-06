@@ -1,0 +1,37 @@
+{
+  "acceptance_criteria": [
+    "A submission is graded PASS only if trojan_present=true, affected_output=='voted_out', suspect_instances includes a name matching the ground-truth cloning instance (exact or fuzzy match validated against the netlist), and suspect_nets includes at least one of the two aliased voter-input nets plus the dangling replica_b output net.",
+    "A submission with trojan_present=false, or with suspect_instances/suspect_nets that reference only the voter or unrelated instances without identifying the cloning cell, must FAIL.",
+    "The empty/naive baseline submission (trojan_present=false, empty suspect lists) must FAIL under this grading.",
+    "Confidence field is recorded but not required to exceed a threshold; it is reported for analysis only and does not gate PASS/FAIL."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-1300",
+    "CWE-670"
+  ],
+  "ground_truth": "Instance u_clone_a_to_b (implemented as a buffer/wire alias cell) drives voter_b (the voter's second input) directly from replica_a's output net instead of from replica_b's output net. Consequently a single stuck-at fault injected into replica_a propagates simultaneously to voter_a and voter_b, constituting a majority (2 of 3) of the voter inputs, and corrupts the top-level output net voted_out despite the design nominally tolerating any single replica fault. replica_b's true output net (net_repb_out) is left dangling/unused, which is the structural fingerprint of the attack.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse inputs/tmr_voter_netlist.v to build a net-to-driver map; confirm that voter_b's driving net is identical to voter_a's driving net (both trace to replica_a's output) rather than to replica_b's output net. Cross-check the submitted suspect_nets/suspect_instances against this ground-truth mapping; require overlap with the true cloning instance and the two aliased voter input nets.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the anomaly is a wiring/connectivity defect (not a logic-function change) that duplicates one replica's output onto two voter inputs."
+    },
+    {
+      "detection_strategy": "String-match (case-insensitive, allowing minor naming variants) submission.suspect_instances against the known ground-truth instance name recorded during artifact generation; also accept if root_cause text names the correct source/destination replica-to-voter-input relationship even if the exact instance token differs, verified via a keyword/net-name overlap check.",
+      "id": "SR2",
+      "requirement": "The report must name the specific cloning instance (u_clone_a_to_b) or otherwise unambiguously identify the buffer/tap cell responsible, not just the voter or replicas in general."
+    },
+    {
+      "detection_strategy": "Check whether suspect_nets or root_cause references replica_b's true output net (net_repb_out) as unused/dangling; run yosys 'select -module tmr_top t:* %co' or a simple fanout scan on the netlist to confirm net_repb_out has zero fanout, then require the submission to have flagged this.",
+      "id": "SR3",
+      "requirement": "The report must correctly flag that replica_b's genuine output is disconnected/unused (dangling), evidencing the single point of failure."
+    },
+    {
+      "detection_strategy": "Directly compare submission.trojan_present (must be true) and submission.affected_output (must equal 'voted_out') against ground truth; optionally re-run fault_harness_tb.v with an injected stuck-at fault on replica_a via iverilog/vvp to empirically confirm voted_out flips, validating the claim is not merely asserted but demonstrably true in simulation.",
+      "id": "SR4",
+      "requirement": "The report must correctly identify voted_out as the top-level output vulnerable to a single-replica fault, and must not report trojan_present=false."
+    }
+  ],
+  "threat_model": "A malicious netlist-level edit was inserted during synthesis or layer-2 integration. The edit preserves fault-free (golden) functional equivalence -- with no faults, voter_a, voter_b, and voter_c all still equal the correct value because replica_a and replica_b are functionally identical to replica_c on golden inputs in the test vectors used for verification -- but structurally rewires voter_b's driver from replica_b's output net to replica_a's output net via an inserted buffer/tap cell. This creates a hidden single point of failure: any fault (stuck-at, delay, or adversarially triggered rare-condition bug) in replica_a now controls 2 of 3 voter inputs, defeating the fault-masking guarantee that is the entire purpose of TMR, without altering the observable golden-path truth table."
+}

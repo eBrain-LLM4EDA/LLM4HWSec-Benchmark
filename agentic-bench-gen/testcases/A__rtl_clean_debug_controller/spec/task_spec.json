@@ -1,0 +1,88 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub chip-level Trojan benchmarks"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of designs correctly classified (infected or clean). For this clean design, a correct classification is infected=false.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of clean designs incorrectly flagged as infected. For this task, a false positive is infected=true.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "For infected designs, accuracy of reported trigger and payload paths. Not applicable to clean designs; metric is 1.0 if no candidates are reported, 0.0 otherwise.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "infected is false",
+      "trojan_candidates is an empty array",
+      "rationale does not claim any Trojan exists"
+    ],
+    "cwe_ids": [
+      "CWE-1245"
+    ],
+    "evidence_policy": {
+      "kind": "report_only",
+      "required": false
+    },
+    "ground_truth": "Every debug path is gated by the documented debug_enable port and has no secret source or undocumented functional effect; infected=false is the correct classification.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if any reported trojan_candidate signal_path involves the debug_enable signal or its fanout; if so, the report is a false positive.",
+        "id": "SR1",
+        "requirement": "The detector must not flag the documented debug_enable gated paths as Trojans."
+      },
+      {
+        "detection_strategy": "Verify that the submitted report has infected set to false and an empty trojan_candidates array.",
+        "id": "SR2",
+        "requirement": "The detector must correctly classify the design as clean (infected=false)."
+      }
+    ],
+    "threat_model": "Over-sensitive detection flags legitimate rare debug behavior, producing false positives that make benchmark accuracy meaningless."
+  },
+  "public_spec": {
+    "constraints": [
+      "Include low-activity counters and a documented debug-enable input that may look suspicious to a naive detector.",
+      "Keep RTL under 200 lines and elaboratable with iverilog -g2012."
+    ],
+    "expected_outputs": [
+      "trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must contain the boolean field \"infected\" and the array field \"trojan_candidates\"."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If \"infected\" is true, \"trojan_candidates\" must contain at least one object with non-empty \"signal_path\", \"trigger_condition\", and \"payload_effect\" strings."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The \"rationale\" field must be a non-empty string explaining the analysis methodology and conclusion."
+      }
+    ],
+    "input_artifacts": [
+      "debug_controller.v"
+    ],
+    "interface": "The participant must submit a single JSON file at submission/trojan_report.json. The file must contain a JSON object with the following keys: \"infected\" (boolean), \"trojan_candidates\" (array of objects, each with \"signal_path\" (string), \"trigger_condition\" (string), \"payload_effect\" (string), \"confidence\" (number between 0.0 and 1.0)), and \"rationale\" (string). For a clean design, \"infected\" must be false and \"trojan_candidates\" must be an empty array.",
+    "objective": "Analyze a compact controller containing disabled-by-default debug and diagnostic paths and correctly report that it has no Hardware Trojan.",
+    "response_format": "A JSON object with keys: \"infected\" (boolean), \"trojan_candidates\" (array of objects with keys \"signal_path\", \"trigger_condition\", \"payload_effect\", \"confidence\"), and \"rationale\" (string)."
+  },
+  "task_id": "rtl_clean_debug_controller",
+  "title": "Trojan-free RTL with legitimate debug logic"
+}

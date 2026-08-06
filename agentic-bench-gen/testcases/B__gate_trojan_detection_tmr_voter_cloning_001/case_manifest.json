@@ -1,0 +1,21 @@
+{
+  "best_round": 2,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "4484e9a889abe5e0194d84df2013514974f3e6a041805bd4e0996f54e7d9d029",
+    "expert/expert_bundle.json": "2c7cc94d9867b41db88a8ebf8de2eb097fb688eb4d8c485812b199591f21a059",
+    "mutants/mutation_bundle.json": "8654acbc50654063677f931f62554cc9a721f76a8b40bfe61f123384ff77e341",
+    "reports/analyzer_report.json": "24ef0e4ed23a31e8633ebd8871686f474225e79a92197bf11243fd10194ff15f",
+    "reports/quality_report.json": "cc8ad141da8ec644aed2ba7dc88846aebd925d508a7461f768cf304c594ba276",
+    "reports/validation_report.json": "2e4c7fdf2da1f07a5e6a84c0d8cf415120f127fb49b6d53c7ed42b36cf875d62",
+    "spec/task_spec.json": "9e8f46ce69200273e19e91cfceae288e0e162516436d873ff57fa3b113c0ed8d",
+    "tests/tester_bundle.json": "821b43c7dc827f8138a2ff27c6317a6730e19399f929957a76fad4a67220108e"
+  },
+  "domain_id": "gate_trojan_detection",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 2,
+  "status": "quality_failed",
+  "task_id": "gate_trojan_detection_tmr_voter_cloning_001"
+}

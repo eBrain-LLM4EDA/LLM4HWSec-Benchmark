@@ -1,0 +1,108 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/trojan_report.json) because the simulation fails to observe the trigger and payload persistence. This indicates a bug in the evaluation harness or testbench that prevents correct submissions from passing SR1 and SR2.",
+      "evidence": "Validation report shows golden_run exit_code=1 with stdout: '[TEST] FAIL: SR1: simulation did not observe trigger' and '[TEST] FAIL: SR2: simulation did not observe payload persistence'. The golden solution is correct per hidden_spec.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_trigger.v",
+      "description": "The testbench may not correctly apply the two-cycle gap reset sequence or may have a race condition that prevents the trigger from being observed, causing the simulation to fail even for the correct design.",
+      "evidence": "Both golden and vulnerable runs produce identical output: 'simulation did not observe trigger' and 'simulation did not observe payload persistence'. The design contains the trigger logic, but the testbench fails to activate it.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure the requested metrics (detection_rate, false_positive_rate, trigger_payload_localization) as specified in the task evaluation section. It only performs binary pass/fail checks on individual requirements.",
+      "evidence": "Task specification lists metrics: detection_rate, false_positive_rate, trigger_payload_localization. evaluate.py only emits PASS/FAIL for FR1-FR3 and SR1-SR2, with no computation of these metrics.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator uses fuzzy matching with a threshold of 0.6 to compare submitted trigger_condition and payload_effect against ground truth. This may be too strict or too lenient, and the threshold is not documented in the participant-facing instructions.",
+      "evidence": "evaluate.py defines fuzzy_match with threshold=0.6. The README does not mention fuzzy matching or the threshold, making grading opaque to participants.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator checks confidence > 0.5 for SR1 and SR2, but the participant-facing instructions do not specify a minimum confidence threshold. This hidden requirement could cause valid submissions to fail.",
+      "evidence": "evaluate.py line: 'if finding.get(\"confidence\", 0) > 0.5'. README.md does not mention any confidence threshold requirement.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 checks elaboration of input artifacts (design + cells.lib) rather than the submission. This is a setup sanity check, not a grading criterion on the participant's work, yet it is labeled as a functional requirement.",
+      "evidence": "evaluate.py compiles inputs/core_wrapper.sv + inputs/cells.lib and emits PASS/FAIL for FR3. The participant cannot influence this check.",
+      "severity": "low"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The public README does not mention that the evaluator will simulate the design with specific reset sequences to cross-validate findings. Participants may not know their report will be checked against simulation results.",
+      "evidence": "README.md only describes the report format and functional requirements. It does not mention the simulation-based cross-validation performed by evaluate.py.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the testbench (evaluation/tb_trigger.v) to correctly apply the two-cycle gap reset sequence and ensure the trigger is observed. Verify that the reset release edge detection logic in the testbench aligns with the design's synchronizer behavior.",
+    "Add a pre-simulation step to confirm the design elaborates and simulates correctly with the trigger sequence before grading submissions. The golden solution should pass all checks.",
+    "Implement the specified metrics (detection_rate, false_positive_rate, trigger_payload_localization) in evaluate.py or document why they are not directly measured in this benchmark format.",
+    "Document the fuzzy matching threshold and confidence requirements in the participant-facing README.md to make grading transparent.",
+    "Consider moving FR3 (elaboration check) to a setup validation step rather than a graded requirement, or make it clear that it validates the input artifacts, not the submission.",
+    "Add a note in README.md that the evaluator will cross-validate findings against simulation results to set appropriate expectations for participants."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "The hidden ground truth describes a trigger that should activate when peri_rst_n is released two cycles before core_rst_n. The RTL design implements this logic. However, the evaluation harness fails to observe this trigger during simulation, causing the golden solution to be rejected. This indicates incoherence between the design, testbench, and evaluator.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "fail"
+    },
+    {
+      "evidence": "The evaluator rejects the golden solution (correct submission) with SR1 and SR2 failures. The baseline submission (trojan_present=false) also fails SR1 and SR2, but for different reasons. The evaluator cannot distinguish between correct and incorrect submissions for the security requirements.",
+      "requirement": "Evaluator accepts correct submission and rejects baseline",
+      "status": "fail"
+    },
+    {
+      "evidence": "The task specification defines metrics: detection_rate, false_positive_rate, trigger_payload_localization. The evaluator does not compute or report any of these metrics. It only performs binary pass/fail checks on individual requirements.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "fail"
+    },
+    {
+      "evidence": "The requirement_map in the tester bundle clearly separates FR1-FR3 (functional) from SR1-SR2 (security). Each requirement has a distinct expected_detection description and associated test files.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "The testbench attempts to trigger the security behavior with a two-cycle gap reset sequence, but the simulation fails to observe the trigger. This suggests the testbench does not correctly activate the security-relevant behavior, making the security checks ineffective.",
+      "requirement": "Security-relevant behaviors are actively triggered",
+      "status": "fail"
+    },
+    {
+      "evidence": "All files are self-contained: core_wrapper.sv is under 200 lines, cells.lib provides minimal primitives, and the testbench is standalone. No external dependencies beyond iverilog and Python 3 standard library. No malicious code or unsafe operations.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task is specific to RTL Trojan detection: analyzing a SystemVerilog design for reset-order-dependent hidden trigger logic that asserts a protected_mode signal. This is a realistic hardware security scenario, not a generic filler task.",
+      "requirement": "Benchmark is adapted to the selected domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "The simulation failure in the evaluation harness makes SR1 and SR2 results unverifiable. Even a perfect submission cannot pass these checks, so the benchmark cannot produce meaningful evaluation results.",
+      "requirement": "No gaps that make results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "The public README.md describes the task as a standard RTL analysis assignment: 'Analyze the provided SystemVerilog RTL design and identify any logic that could cause the protected_mode output to assert under non-standard reset sequencing.' It does not mention CWE-1245, CWE-1262, SR1, SR2, threat model, or the specific trigger condition. The RTL code has no comments hinting at the Trojan. The task reads as a plain engineering assignment.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1, FR2, and FR3 are specific and verifiable: FR1 and FR2 define exact reset sequences and expected protected_mode values; FR3 requires successful elaboration with iverilog -g2012. The evaluator checks FR1 and FR2 through JSON structure validation and FR3 through compilation.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

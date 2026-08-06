@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The RTL contains a two-share masked datapath with multiple pipeline stages.",
+    "The leakage_models.json file defines both first-order and pairwise Hamming-distance leakage models.",
+    "The analysis must consider temporal alignment of register updates.",
+    "The submitted report must be self-contained and reference only the provided input artifacts."
+  ],
+  "expected_outputs": [
+    "A vulnerability_report.json file identifying the leaking register pair and explaining the alignment condition."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must be valid JSON and parse without errors."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must identify exactly one leaking register pair in the \"leaking_register_pair\" field, and both names must match signal names present in the provided RTL."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The \"first_order_analysis\" array must contain entries for at least the two registers in the leaking pair, each with a boolean \"safe\" field."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The \"second_order_analysis\" object must contain a boolean \"leaking\" field and a non-empty \"explanation\" string."
+    }
+  ],
+  "input_artifacts": [
+    "masked_datapath.v",
+    "leakage_models.json"
+  ],
+  "interface": "The participant must submit a single file named vulnerability_report.json in the submission/ directory. The file must conform to the schema defined in response_format.",
+  "objective": "Analyze the provided two-share masked datapath RTL and identify a pair of share registers whose combined transitions leak information about the unmasked value, even though each register appears safe under individual first-order analysis.",
+  "response_format": "The submission file vulnerability_report.json must be a JSON object with the following required fields:\n- \"leaking_register_pair\": an array of exactly two strings, each being the hierarchical signal name of a register (e.g., \"top.u_dut.share0_stage2_q\").\n- \"alignment_condition\": a string describing the temporal condition under which the joint transition leaks (e.g., \"both registers update on the same clock cycle\").\n- \"first_order_analysis\": an array of objects, each with fields \"register\" (string) and \"safe\" (boolean), indicating whether the register appears safe under individual first-order Hamming-distance analysis.\n- \"second_order_analysis\": an object with fields \"leaking\" (boolean) and \"explanation\" (string)."
+}

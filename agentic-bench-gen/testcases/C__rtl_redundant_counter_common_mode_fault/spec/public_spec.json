@@ -1,0 +1,34 @@
+{
+  "constraints": [
+    "The RTL includes two separate counter instances and a comparison logic block.",
+    "A single-bit transient fault model is defined for nets and registers.",
+    "The two counters share one enable-generation cone.",
+    "The timeout decision logic depends on both counters."
+  ],
+  "expected_outputs": [
+    "A valid vulnerability_report.json file in the submission directory.",
+    "The report must identify the common-mode node and explain the mechanism of failure."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The vulnerability_report.json file must be present at submission/vulnerability_report.json and must be valid JSON."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must contain a non-empty string for the 'common_mode_node' field."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must contain a non-empty string for the 'failure_mechanism' field."
+    }
+  ],
+  "input_artifacts": [
+    "timeout_module.v",
+    "fault_model.txt",
+    "design_brief.md"
+  ],
+  "interface": "The submission is a JSON report file at submission/vulnerability_report.json. The evaluator reads this file and grades its content against the hidden ground truth. The input artifacts under inputs/ are provided for reference and must not be modified.",
+  "objective": "Analyze the provided RTL design of a dual-counter timeout module. Determine why a single fault on a common control signal can defeat both counters simultaneously, and identify the specific net or register that represents this common-mode failure point.",
+  "response_format": "The submission must be a single JSON file named vulnerability_report.json with the following schema: {\"common_mode_node\": \"<string identifier of the net or register>\", \"failure_mechanism\": \"<string explanation of how faulting this node defeats both counters>\"}. Both fields are required. The common_mode_node must be a precise hierarchical name matching the RTL source."
+}

@@ -1,0 +1,25 @@
+{
+  "lock_gates": [
+    {
+      "gate_label": "g1",
+      "classification": "XOR",
+      "key_bit": 0
+    },
+    {
+      "gate_label": "g2",
+      "classification": "XOR",
+      "key_bit": 0
+    },
+    {
+      "gate_label": "g3",
+      "classification": "XOR",
+      "key_bit": 0
+    },
+    {
+      "gate_label": "g4",
+      "classification": "XOR",
+      "key_bit": 0
+    }
+  ],
+  "recovered_key": "0000"
+}

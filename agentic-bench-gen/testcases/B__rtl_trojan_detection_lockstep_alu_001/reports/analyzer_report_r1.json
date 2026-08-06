@@ -1,0 +1,76 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The golden/expert submission (golden/trojan_report.json) is rejected by evaluate.py, failing SR4. The differential harness shows the golden run expected to PASS but exits 1 with FAIL: SR4, because the top-2 highest-confidence candidates in the golden report do not combine the trigger condition with bit-3 corruption or mismatch masking language per the SR4 regex checks. This means a correct, well-reasoned submission cannot pass the benchmark, making the task unusable as shipped.",
+      "evidence": "differential.golden_run.stdout: '[TEST] FAIL: SR4: top-2 highest-confidence candidates (>=0.6) do not include a candidate combining the trigger condition with either bit-3 corruption or mismatch masking...' with golden_run.expected='pass' but status='fail'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR4 matcher)",
+      "description": "SR4's ranking check requires the trigger-condition pattern (matches_trigger_condition, which itself requires co-occurrence of opcode/AND language AND both 0x5a AND 0xa5 literals) to appear in the SAME top-2 candidate as bit-3 or mismatch-masking language. This is overly strict compared to FR3/SR1 semantics and likely does not match how a reasonable expert report would structure candidates (e.g. separate candidates for trigger, result corruption, and mismatch masking, as recommended by the README's own guidance to split findings into separate candidates). This directly contradicts the README's advice ('report each of them as its own candidate') and causes false rejection of well-structured golden answers.",
+      "evidence": "README.md: 'If you believe multiple RTL constructs are involved ... report each of them as its own candidate with its own rationale' vs evaluate.py check_sr4() requiring a single candidate matching both trigger AND (bit3 OR mask) patterns within the top-2 by confidence.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix SR4 in evaluate.py so it accepts golden-quality submissions that split the trigger condition, bit-3 corruption, and mismatch masking across multiple separate high-confidence candidates (as explicitly recommended by README.md), e.g. by checking whether SR1+SR2 and SR1+SR3 conditions are satisfied by the UNION of the top-N high-confidence candidates rather than requiring a single candidate in the top-2 to match both patterns simultaneously.",
+    "Re-run the golden submission against the fixed evaluate.py and confirm it exits 0 with all [TEST] PASS lines before shipping.",
+    "Add explicit metric computation/output (detection_rate, false_positive_rate, trigger_payload_localization, confidence_calibration) to evaluate.py or a companion scorer so the four declared metrics are actually measured and reported, not just an aggregate PASS/FAIL.",
+    "Consider loosening or clarifying the SR4 detection_strategy text in hidden_spec to match the intended per-candidate-splitting design pattern encouraged by the public README, then align evaluate.py's implementation accordingly."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "lockstep_alu.v RTL matches the ground_truth description (rare_trig, res_mux flipping bit 3, mismatch_mask forcing 0); design_brief.md and README.md are consistent and free of security-intent leaks.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run shows exit_code=1, status='fail', expected='pass' \u2014 SR4 fails against the golden submission per the harness's own differential test, confirmed by repeated identical failure across retries (repeated_preflight_failure).",
+      "requirement": "evaluate.py accepts a correct/golden submission (exit 0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.vulnerable_run shows exit_code=1, status='fail', expected='fail', ok=true \u2014 baseline correctly fails FR2, FR3, FR4, SR1-SR5.",
+      "requirement": "evaluate.py rejects the naive/empty baseline submission (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py only emits PASS/FAIL per requirement (FR1-4, SR1-5) and an overall exit code; it does not appear to compute or output the four named continuous metrics from metadata.json/task spec, leaving metric computation unverified from the provided evaluate.py content.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trigger_payload_localization, confidence_calibration)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type='functional' and SR1-SR5 as requirement_type='security', matching hidden_spec and public_spec definitions.",
+      "requirement": "Requirement map separates functional and security requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_trigger_check.v drives the exact trigger vector (opcode=2'b10, operand_a=8'h5a, operand_b=8'ha5) plus benign vectors and prints golden vs actual results/mismatch, corroborating the trigger is genuinely embedded in lockstep_alu.v, even though this simulation is informational-only.",
+      "requirement": "Security-relevant behaviors actively triggered rather than generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "All Verilog/JSON/Markdown artifacts are self-contained, under stated line limits, and require no external IP; toolchain (iverilog/vvp/yosys) is optional per constraints.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a well-specified RTL hardware Trojan detection scenario with concrete trigger/payload structure (rare_trig, res_mux, mismatch_mask), domain-specific CWEs (CWE-1245, CWE-696, CWE-670, CWE-693), and simulation corroboration \u2014 not generic filler.",
+      "requirement": "Benchmark adapted to domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, metadata.json, and testbench_stub.v contain no CWE ids, SR ids, or explicit statements that the RTL is intentionally trojaned; testbench_stub.v explicitly avoids driving the trigger vector and manifest confirms no hints are present.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each specify precise, independently checkable JSON structural constraints and content requirements (top-level fields, per-candidate fields, trigger-condition co-mention, and dual result/mask role coverage), matching evaluate.py's check_fr1-4 implementations.",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

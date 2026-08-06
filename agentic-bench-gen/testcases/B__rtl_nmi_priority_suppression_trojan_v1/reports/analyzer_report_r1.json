@@ -1,0 +1,87 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR2, FR3, and SR2 have no mutants that trigger their intended failure paths, indicating these checks are effectively dead/unverified against realistic mutations. Mutation score is 0.571, below typical acceptable threshold, and 3 of 7 requirements are marked uncovered in the validation report.",
+      "evidence": "per_requirement_coverage: FR2 mutants_detected=0/1, FR3 mutants_detected=0/1, SR2 mutants_detected=0/1; uncovered_requirements: [FR2, FR3, SR2]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR2 and FR3 only fire when a submitted finding makes an explicit scope/ordering claim in free text; a well-formed correct submission that does not phrase things exactly this way trivially passes without exercising the check, making these functional requirements largely vacuous safety nets rather than substantive checks.",
+      "evidence": "do_fr2 / do_fr3 only inspect findings for optional explicit regex-matched claims (IRQ_EQ_111_RE, PRIORITY_CLAIM_RE) and pass by default when absent",
+      "severity": "low"
+    },
+    {
+      "artifact": "metadata.json / README.md",
+      "description": "No leakage of CWE ids, SR ids, or explicit Trojan-hint language found in public-facing files; design_brief.md and nmi_arbiter.v comments are appropriately generic ('calibration/adjust term', 'fold-in path') without revealing the hidden trigger. This is good, but noting for completeness that the naming 'cal_adjust' is somewhat suggestive though not disqualifying.",
+      "evidence": "inputs/nmi_arbiter.v comment: 'Auxiliary calibration/adjust term used to fold a rarely-exercised corner of the request encoding into the ordinary grant path during simultaneous full-line activity.'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen or add mutants that specifically target FR2 (an nmi=1 scope claim contradicting simulated ground truth) and FR3 (an nmi=0 priority-ordering claim contradicting simulated ground truth) so these checks are demonstrably discriminating rather than vacuously passing.",
+    "Add a mutant targeting SR2 specifically (e.g. swap affected_signal to an unrelated signal name like 'ord_grant' or bare 'grant' while keeping trigger_condition correct) to confirm the SR2 field-primacy check actually fires and fails such a submission.",
+    "Consider tightening FR2/FR3 semantics so that a fully correct, well-formed submission is required to make at least one explicit scope/ordering statement, or otherwise ensure these checks are exercised by more than just the golden/baseline pair used for differential validation.",
+    "Since mutation_score (0.571) and requirement_discrimination_coverage_score (0.571) are below common acceptance thresholds despite full requirement_mapping_coverage (1.0), consider re-running mutation testing after check improvements before treating the case as fully validated."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Mutation coverage confirms FR1 detects malformed JSON; validation report shows mutants_detected=1/1.",
+      "requirement": "FR1 - submission JSON syntax validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage FR2: mutants_detected=0, mutants_targeting=1; listed under uncovered_requirements, indicating no mutant reliably triggers a genuine FR2 failure.",
+      "requirement": "FR2 - nmi=1 scope/polarity cross-check",
+      "status": "fail"
+    },
+    {
+      "evidence": "per_requirement_coverage FR3: mutants_detected=0, mutants_targeting=1; listed under uncovered_requirements.",
+      "requirement": "FR3 - nmi=0 priority ordering cross-check",
+      "status": "fail"
+    },
+    {
+      "evidence": "mutants_detected=1/1 for FR4 per validation report.",
+      "requirement": "FR4 - findings array structural/type validation",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes SR1; vulnerable/baseline run (empty findings) fails SR1 as required; mutants_detected=1/1.",
+      "requirement": "SR1 - trigger_condition matches nmi=1 AND irq=3'b111 at confidence>=0.5",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage SR2: mutants_detected=0, mutants_targeting=1; listed under uncovered_requirements despite the check logic itself (matches_affected_signal_field) appearing well constructed in code.",
+      "requirement": "SR2 - affected_signal correctly names grant[1]/grant[3]",
+      "status": "fail"
+    },
+    {
+      "evidence": "mutants_detected=1/1; baseline empty-findings submission fails SR3 in differential vulnerable_run output.",
+      "requirement": "SR3 - confidence and false-positive-rate thresholds",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run shows exit_code=1 with FAIL on SR1, SR2, SR3, matching expected='fail'.",
+      "requirement": "Baseline (empty findings) must fail acceptance",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run exit_code=0, all PASS lines shown, matching expected='pass'.",
+      "requirement": "Golden/correct submission must pass",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md and metadata.json omit CWE ids, SR ids, and explicit Trojan/backdoor terminology; nmi_arbiter.v comments are innocuous ('calibration/adjust', 'fold-in path').",
+      "requirement": "No hidden-intent leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional and SR1-SR3 as security, matching hidden_spec and public_spec structure.",
+      "requirement": "Requirement map separates functional and security requirements",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

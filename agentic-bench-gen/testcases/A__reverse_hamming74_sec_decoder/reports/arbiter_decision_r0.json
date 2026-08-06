@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs are clean: validation_status=pass, mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, baseline_exit_code=0, zero validation/analyzer issues, and analyzer_status=pass. The differential shows the golden reference passing all six requirement checks (FR1-FR4, SR1-SR2) and the naive baseline correctly failing on FR1, FR3, SR1, SR2 with concrete mismatch counts. The mutation bundle covers all six requirements and the mutation_baseline_run passes cleanly, confirming the harness both accepts correct behavior and rejects corrupted/naive submissions. No missing interface, no timing ambiguity (purely combinational, pinned port list and bit ordering), no security leakage in public artifacts, and the requirement map cleanly separates functional (FR1-FR4) from security (SR1-SR2) requirements with distinct detection strategies. The analyzer's two recommendations are optional polish items (exposing numeric metrics in stdout, tightening FR4/FR2 baseline discrimination) that do not affect pass/fail correctness or mutation discrimination and do not meet any threshold for mandatory revision.",
+  "retain_case": true,
+  "revision_instructions": "No revision required. Optional future polish (non-blocking): consider having evaluate.py additionally emit explicit numeric metric values (word_recovery_rate, structural_match_accuracy) in its output stream to more directly surface the three named evaluation metrics for downstream tooling, and consider adding a corrected_codeword-specific check to the naive-baseline discrimination path so FR2/FR4 also visibly fail against that particular baseline rather than passing incidentally.",
+  "root_cause": "none",
+  "source_round": 0
+}

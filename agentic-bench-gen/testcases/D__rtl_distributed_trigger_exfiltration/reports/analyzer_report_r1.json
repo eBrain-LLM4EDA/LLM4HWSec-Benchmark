@@ -1,0 +1,78 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden_rejected). The golden run expected PASS but got FAIL on SR1-SR4, indicating the evaluator is buggy or over-strict and cannot correctly grade a valid submission.",
+      "evidence": "Golden run stdout: [TEST] FAIL: SR1: counter_terminal not identified in counter.v; [TEST] FAIL: SR2: command_match not identified in command_decoder.v; [TEST] FAIL: SR3: sticky_error not identified in error_handler.v; [TEST] FAIL: SR4: payload mux (secret_reg[0] -> status_out) not described in top.v",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "All 8 requirements (FR1-FR3, SR1-SR5) are untested because no targeting mutants were provided, so the harness's ability to discriminate correct from incorrect behavior is unproven.",
+      "evidence": "Validation report shows mutation_score: 0.0, untested_requirements: [FR1, FR2, FR3, SR1, SR2, SR3, SR4, SR5]",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The preflight check failed with golden_rejected and the same failure signature was repeated on retry, confirming a deterministic bug in the evaluator.",
+      "evidence": "Preflight failure_class: golden_rejected, repeated_signature: true",
+      "severity": "high"
+    },
+    {
+      "artifact": "submission/trojan_report.json",
+      "description": "The shipped baseline submission correctly fails the evaluator (as expected), but the evaluator cannot pass a correct golden submission, making the benchmark unusable.",
+      "evidence": "Vulnerable run fails SR1-SR5 as expected; golden run also fails SR1-SR4 unexpectedly.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py to correctly grade the golden submission. The current implementation likely fails to match findings because of case sensitivity, whitespace, or exact string matching issues. Ensure the finding_matches function and payload keyword search are robust.",
+    "Provide targeting mutants for each requirement (FR1-FR3, SR1-SR5) to prove the harness can discriminate between correct and incorrect submissions.",
+    "Re-run the preflight check after fixing the evaluator to confirm golden passes and baseline fails.",
+    "Consider adding a golden submission file (golden/trojan_report.json) that is known to pass all requirements, and verify it is correctly placed and referenced in the submission invariants."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "No mutant targeting FR1; harness discrimination unproven.",
+      "requirement": "FR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeting FR2; harness discrimination unproven.",
+      "requirement": "FR2",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeting FR3; harness discrimination unproven.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeting SR1; harness discrimination unproven. Golden run fails SR1.",
+      "requirement": "SR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeting SR2; harness discrimination unproven. Golden run fails SR2.",
+      "requirement": "SR2",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeting SR3; harness discrimination unproven. Golden run fails SR3.",
+      "requirement": "SR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeting SR4; harness discrimination unproven. Golden run fails SR4.",
+      "requirement": "SR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targeting SR5; harness discrimination unproven. Golden run passes SR5.",
+      "requirement": "SR5",
+      "status": "unknown"
+    }
+  ],
+  "source_round": 1
+}

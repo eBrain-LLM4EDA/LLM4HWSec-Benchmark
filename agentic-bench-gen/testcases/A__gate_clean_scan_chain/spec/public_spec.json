@@ -1,0 +1,35 @@
+{
+  "constraints": [
+    "The netlist uses only primitive gates (AND, OR, NOT, NAND, NOR, XOR, XNOR, BUF) and D-type flip-flops (DFF).",
+    "The design includes scan multiplexers and a documented test_mode input with naturally low switching activity.",
+    "The participant must not modify the input artifacts; only the report file is submitted."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must contain the exact fields infected, trigger_nodes, and payload_nodes with the correct types (boolean, array of strings, array of strings)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "If infected is false, trigger_nodes and payload_nodes must be empty arrays. If infected is true, both arrays must be non-empty."
+    },
+    {
+      "id": "FR4",
+      "requirement": "All node names listed in trigger_nodes or payload_nodes must be valid identifiers present in the provided netlist."
+    }
+  ],
+  "input_artifacts": [
+    "scan_controller.v",
+    "design_brief.md"
+  ],
+  "interface": "The participant must produce a single answer file at submission/trojan_report.json. The file must be valid JSON with the following schema: {\"infected\": <boolean>, \"trigger_nodes\": [<string>, ...], \"payload_nodes\": [<string>, ...]}. If infected is false, trigger_nodes and payload_nodes must be empty arrays. If infected is true, trigger_nodes and payload_nodes must contain at least one node name each, where node names are exact hierarchical instance paths or wire names as they appear in the netlist.",
+  "objective": "Analyze the provided gate-level netlist and determine whether it contains any hardware Trojan logic. Submit a structured report identifying any suspect trigger or payload nodes, or declare the netlist clean.",
+  "response_format": "A JSON object with three fields: infected (boolean), trigger_nodes (array of strings), payload_nodes (array of strings)."
+}

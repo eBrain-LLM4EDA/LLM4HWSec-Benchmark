@@ -1,0 +1,31 @@
+{
+  "task_id": "rtl_clean_debug_controller",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Trojan-free RTL with legitimate debug logic",
+  "input_artifacts": [
+    "debug_controller.v"
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "description": "Fraction of designs correctly classified (infected or clean). For this clean design, a correct classification is infected=false.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "Fraction of clean designs incorrectly flagged as infected. For this task, a false positive is infected=true.",
+      "direction": "minimize"
+    },
+    {
+      "name": "trigger_payload_localization",
+      "description": "For infected designs, accuracy of reported trigger and payload paths. Not applicable to clean designs; metric is 1.0 if no candidates are reported, 0.0 otherwise.",
+      "direction": "maximize"
+    }
+  ],
+  "baselines": [
+    "Trust-Hub chip-level Trojan benchmarks"
+  ]
+}

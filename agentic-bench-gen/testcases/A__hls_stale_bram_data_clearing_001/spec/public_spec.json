@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "Keep the fixed 32-byte input and output buffer sizes; do not change the function signature.",
+    "length must be treated as a runtime value in the inclusive range [0,32]; do not assume it is always 32.",
+    "All loops must iterate a fixed 32 times (bounded by the array size), never a variable number of times based on length.",
+    "Do not use malloc, new, std::vector, or any dynamic-size container.",
+    "The function must not read or depend on any global or static state that persists meaningfully between calls in a way that affects output correctness.",
+    "Code must compile cleanly with g++ (C++11 or later) with no external dependencies beyond the standard library."
+  ],
+  "expected_outputs": [
+    "A revised packet_kernel.cpp implementing process_packet() per the interface below, compiled and validated by the harness."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For length=32 and a given 32-byte input, every output byte out_buf[i] must equal ((in_buf[i] ^ 0xA5) + i) & 0xFF for i in [0,32)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For length=0, calling process_packet must produce an output buffer where all 32 bytes equal 0x00, regardless of the contents of in_buf."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For any length L in [0,32], bytes at indices [0,L) must equal the transformation T(in_buf[i], i) = ((in_buf[i] ^ 0xA5) + i) & 0xFF, and bytes at indices [L,32) must equal 0x00."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The function must compile without errors or warnings under g++ with -Wall -Wextra using only fixed-size arrays, fixed-trip-count loops (32 iterations), and no dynamic allocation or recursion."
+    }
+  ],
+  "input_artifacts": [
+    "packet_kernel.cpp"
+  ],
+  "interface": "File: packet_kernel.cpp. Function signature (must match exactly): void process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32]); Parameters: in_buf is a 32-byte public input buffer (the packet payload). length is a public integer in the inclusive range [0,32] indicating how many leading bytes of in_buf are valid for this call. out_buf is a caller-allocated 32-byte output buffer that the function must fully populate on every call (all 32 indices written, no partial writes). Transformation: for every index i in [0,length), out_buf[i] must equal the byte transformation T(in_buf[i], i) defined as ((in_buf[i] ^ 0xA5) + i) & 0xFF. For every index i in [length,32), out_buf[i] must equal 0x00. The function has no return value and must not allocate memory dynamically or use recursion; all loops must have a fixed trip count of 32 iterations bounded by array size, using length only as a per-iteration conditional, not as a loop bound.",
+  "objective": "You are given an HLS-style C++ packet transformation kernel intended for repeated invocation on a shared hardware accelerator buffer. The kernel accepts a fixed 32-byte input buffer, a length field indicating how many of those bytes are valid for this call, and must produce a fixed 32-byte output buffer. Your task is to revise the kernel so that its output is fully and correctly determined by the current call's inputs alone, for every possible sequence of calls with varying lengths. Ensure the function is synthesizable HLS-style C++ (fixed-trip-count loops, no dynamic memory allocation, no recursion) and compiles cleanly with g++.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

@@ -1,0 +1,98 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Whether the submitted leaking_signals/non_leaking_signals sets exactly match the ground-truth partition (rom_addr_q, lookup_index leaking; table_data, public_index-only non-leaking) and recovered_secret_key matches all trace entries.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Fraction of address_traces.json entries for which the reported recovered_secret_key and leakage_relationship correctly predict observed_rom_addr via XOR with public_index.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Whether mitigation_patch is syntactically valid Verilog, functionally equivalent to the original module across all 256 input combinations (verified via optional iverilog/vvp simulation), and structurally free of any secret-dependent memory address computation.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission that reports leaking_signals=[] or omits rom_addr_q/lookup_index, or that names only table_data as leaking, FAILS SR1.",
+      "A submission whose recovered_secret_key does not satisfy observed_rom_addr == public_index XOR recovered_secret_key for every entry in address_traces.json FAILS SR2 and FR2.",
+      "A submission whose mitigation_patch still computes lookup_index = public_index ^ secret_key and uses it as a ROM/array index FAILS SR3, even if leaking_signals and recovered_secret_key are correct.",
+      "The shipped baseline (naive/empty) submission, e.g. an all-empty-array/zero-valued vulnerability_report.json, must fail FR2, FR3, SR1, SR2, and SR3.",
+      "A fully correct submission identifies rom_addr_q and lookup_index as leaking, table_data as non-leaking, recovers the exact secret_key consistent with all trace entries, states the XOR relationship, and supplies a full-scan or bit-sliced mitigation verified functionally equivalent via simulation."
+    ],
+    "cwe_ids": [
+      "CWE-203",
+      "CWE-208",
+      "CWE-385",
+      "CWE-200"
+    ],
+    "ground_truth": "rom_addr_q (the registered address fed to the ROM) and lookup_index (the combinational XOR of public_index and secret_key that drives rom_addr_q) are the signals whose observable transitions on the address bus reveal secret_key: for every captured cycle, observed_rom_addr == public_index XOR secret_key, so an attacker who observes rom_addr_q (or any bus/memory trace equal to it) and knows public_index recovers secret_key exactly via secret_key = observed_rom_addr XOR public_index. table_data (the ROM's combinational output register/wire) is NOT the leakage source in this address-observation threat model: an attacker monitoring only bus/address lines never sees table_data's value, and table_data alone (without address visibility) does not directly disclose secret_key. A conforming mitigation must avoid computing any secret-dependent index used to select a memory location; e.g., a full-scan/bit-sliced implementation that evaluates all 16 ROM entries in parallel combinational logic and selects table_data via a secret-independent-address boolean function keyed on secret_key and public_index directly (no address bus toggling correlated with secret_key) removes the leakage while preserving table_data's original truth table.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check leaking_signals contains 'rom_addr_q' (or an equivalent exact identifier from the netlist for the registered address) and 'lookup_index' (or the XOR-producing wire); check that 'table_data' appears in non_leaking_signals rather than leaking_signals.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify rom_addr_q and lookup_index as the address-bus-observable signals that leak secret_key, and must NOT rely on table_data as the leaking signal in this threat model."
+      },
+      {
+        "detection_strategy": "Parse leakage_relationship for an XOR relation between public_index and secret_key/rom_addr_q; recompute secret_key = observed_rom_addr XOR public_index for every trace entry and confirm it matches recovered_secret_key for all entries (100% consistency required, not majority).",
+        "id": "SR2",
+        "requirement": "The report must state the precise leakage relationship observed_addr = public_index XOR secret_key (or equivalent algebraic form) in leakage_relationship, and recovered_secret_key must be independently verifiable against address_traces.json."
+      },
+      {
+        "detection_strategy": "Static text scan of mitigation_patch for indexing patterns (e.g., mem[idx], case(idx)) where idx is derived from an XOR of public_index and secret_key; optionally instantiate both original and patched modules in a testbench via iverilog/vvp, drive all 256 input combinations, and assert table_data outputs are bit-identical, while confirming the patched module contains no single signal equal to public_index^secret_key driving a memory address port (checked via yosys signal fan-in trace or textual pattern match).",
+        "id": "SR3",
+        "requirement": "The proposed mitigation_patch must eliminate the secret-dependent memory address entirely (no signal computed as public_index XOR secret_key, or any function thereof, may be used to index an array/case-select memory) and instead use a full-scan or bit-sliced boolean evaluation strategy that produces identical table_data outputs to the original ROM for all 256 (public_index, secret_key) combinations."
+      }
+    ],
+    "threat_model": "An attacker with physical or logical access to on-chip memory address lines, an instruction/address bus trace, or power/EM side-channel measurements correlated with address-bus toggling can observe the value driven onto the ROM's address port (rom_addr_q) each cycle. Because rom_addr_q = public_index XOR secret_key and public_index is known/public (e.g., a known plaintext byte index in a cipher context), the attacker directly computes secret_key = rom_addr_q XOR public_index for every observed trace, achieving full key-nibble recovery without ever needing to observe table_data or ROM contents."
+  },
+  "public_spec": {
+    "constraints": [
+      "subst_lookup.v must be under 120 lines of Verilog-2001, synthesizable, containing exactly one clocked register (rom_addr_q) and a 16-entry combinational ROM (case or array) indexed by rom_addr_q.",
+      "address_traces.json must contain at least 16 distinct public_index entries (0-15) all captured under the same fixed secret_key, sufficient to uniquely determine secret_key via observed_rom_addr XOR public_index.",
+      "design_brief.md must describe the module's intended function (a keyed substitution/permutation lookup used in a small cipher datapath) purely in functional terms without referencing side channels, address buses as an attack surface, or any security terminology.",
+      "All input artifacts must be self-contained; no external IP or proprietary tool is required to inspect or simulate them (iverilog/vvp/yosys are optional aids only)."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON containing all required top-level fields (leaking_signals, non_leaking_signals, recovered_secret_key, leakage_relationship, mitigation_patch, mitigation_rationale) with the types specified in the interface."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The value of recovered_secret_key must be an integer in [0,15] that is consistent with every (public_index, observed_rom_addr) pair in inputs/address_traces.json under the relationship observed_rom_addr = public_index XOR recovered_secret_key for all entries."
+      },
+      {
+        "id": "FR3",
+        "requirement": "leaking_signals and non_leaking_signals must each be non-empty arrays of strings that exactly match signal names declared or instantiated in inputs/subst_lookup.v (e.g. rom_addr_q, lookup_index, table_data, secret_key, public_index)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "mitigation_patch must contain syntactically valid Verilog (parseable, e.g. via iverilog -t null on a wrapper) that defines a module producing the same table_data value as the original module for every (public_index, secret_key) pair, while never assigning secret_key or any XOR of secret_key with public_index directly to a signal used to index memory (i.e., it must use full-table-scan or bit-sliced boolean evaluation instead of address indexing by lookup_index)."
+      }
+    ],
+    "input_artifacts": [
+      "subst_lookup.v",
+      "address_traces.json",
+      "design_brief.md"
+    ],
+    "interface": "Module under review: subst_lookup.v defines `module subst_lookup(input wire clk, input wire rst_n, input wire [3:0] public_index, input wire [3:0] secret_key, output wire [3:0] table_data);`. Ports: clk (system clock), rst_n (active-low synchronous reset), public_index (4-bit public input, known to an observer), secret_key (4-bit secret, NOT observable directly), table_data (4-bit combinational ROM output for the resolved index, the only intended output). Internally the module computes a registered address `rom_addr_q` on the rising edge of clk from `lookup_index = public_index ^ secret_key`, and uses `rom_addr_q` to index a 16-entry ROM whose output drives table_data. address_traces.json contains, for a list of test vectors, the fields {\"public_index\": <int 0-15>, \"observed_rom_addr\": <int 0-15>} captured over multiple clock cycles with a fixed but unknown secret_key value consistent across all entries in the file. The participant submits a single JSON file at submission/vulnerability_report.json (no other files, and inputs/ files must not be modified) conforming to this schema: {\"leaking_signals\": [string, ...] (exact RTL signal names, e.g. \"rom_addr_q\", \"lookup_index\"), \"non_leaking_signals\": [string, ...] (exact RTL signal names that do NOT carry secret-dependent information observable on the address bus, e.g. \"table_data\"), \"recovered_secret_key\": integer 0-15 (the secret_key value derived from address_traces.json), \"leakage_relationship\": string (a precise mathematical/logical description of how a leaking signal relates to public_index and secret_key, e.g. 'rom_addr_q = public_index XOR secret_key'), \"mitigation_patch\": string (Verilog RTL snippet or full replacement module implementing an address-invariant lookup, e.g. full-scan-of-all-entries or bit-sliced boolean evaluation, that eliminates secret-dependent addressing), \"mitigation_rationale\": string (explanation of why the patch removes the address-dependent leakage while preserving functional correctness)}. evaluate.py reads inputs/subst_lookup.v and inputs/address_traces.json for reference and grades only submission/vulnerability_report.json; it may optionally use iverilog/vvp/yosys to cross-check reported signals and the mitigation_patch against the netlist, but does not require them.",
+    "objective": "Analyze the provided RTL substitution-table lookup module (subst_lookup.v) and its accompanying address-trace logs (address_traces.json) to produce a written engineering review of the module's internal signal behavior. Your review must identify which internal registers/signals are fully determined functions of the module's public input and secret input, characterize that functional relationship precisely, and propose a concrete RTL modification that removes any input-independent-of-public-index correlation from observable bus/address activity while preserving the module's lookup functionality.",
+    "response_format": "A single JSON file at submission/vulnerability_report.json matching the schema given in public_spec.interface. No other submission files are read or graded."
+  },
+  "task_id": "sfa_rom_addr_leak_001",
+  "title": "Secret-dependent ROM address-bus leakage in a substitution-table lookup module"
+}

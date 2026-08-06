@@ -1,0 +1,28 @@
+{
+  "task_id": "rtl_distributed_trigger_exfiltration",
+  "domain_id": "rtl_trojan_detection",
+  "input_artifacts": [
+    "top.v",
+    "counter.v",
+    "command_decoder.v",
+    "error_handler.v"
+  ],
+  "expected_output": "submission/trojan_report.json",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "description": "Proportion of hidden Trojan components (trigger fragments and payload) correctly identified in the report.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "Proportion of reported findings that do not correspond to actual Trojan components.",
+      "direction": "minimize"
+    },
+    {
+      "name": "trigger_payload_localization",
+      "description": "Binary metric indicating whether the report correctly identifies both the trigger mechanism and the payload data path.",
+      "direction": "maximize"
+    }
+  ]
+}

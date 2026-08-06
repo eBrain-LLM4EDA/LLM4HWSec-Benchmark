@@ -1,0 +1,14 @@
+{
+  "trojan_present": true,
+  "trigger_condition": "The trigger activates when the 4-bit shift register hist_reg matches the pattern 1011 (MSB first), representing the most recent four valid-ready handshake outcomes: valid-ready, no-transfer, valid-ready, valid-ready.",
+  "payload_effect": "When the trigger pattern matches, the payload logic forces m_valid low for exactly one cycle, silently dropping a single otherwise-valid transfer.",
+  "trigger_signals": [
+    "hist_reg[0]",
+    "hist_reg[1]",
+    "hist_reg[2]",
+    "hist_reg[3]"
+  ],
+  "payload_signals": [
+    "payload_gate"
+  ]
+}

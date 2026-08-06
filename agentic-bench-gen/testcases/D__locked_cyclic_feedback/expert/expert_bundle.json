@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"key\": \"10\",\n  \"feedback_gates\": [\"mux_fb1\", \"mux_fb2\"]\n}",
+      "path": "golden/recovered_key.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/recovered_key.json",
+      "purpose": "The golden answer file for the analysis_report submission contract. Contains the exact ground-truth key '10' in the required 'key' field and the optional 'feedback_gates' array listing the two key-controlled feedback MUX gate names ['mux_fb1', 'mux_fb2']. This file is placed at submission/recovered_key.json during grading and must parse as valid JSON with the correct schema to satisfy FR1, FR2, FR3, SR1, and SR2. The key string length matches the key width in hints.txt (2 bits)."
+    }
+  ]
+}

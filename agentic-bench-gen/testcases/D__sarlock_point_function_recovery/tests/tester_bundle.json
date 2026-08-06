@@ -1,0 +1,74 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for SARLock Point-Function Key Recovery\n\n## Overview\n\nThis directory contains the evaluation harness for the `sarlock_point_function_recovery` task. The harness grades a participant's submitted answer file (`submission/recovered_key.json`) against hidden ground truth. The evaluation is purely report-based: the submission is an analysis report, not executable code.\n\n## Entry Point\n\n`evaluation/evaluate.py` is the main grading script. It:\n\n1. Reads the participant's submission from `submission/recovered_key.json`.\n2. Reads the input artifacts (`inputs/locked_netlist.v`, `inputs/oracle_vectors.json`, `inputs/locking_scheme_description.md`) for reference and validation.\n3. Checks the submission against all functional and security requirements.\n4. Emits `[TEST] PASS` or `[TEST] FAIL` markers for each requirement.\n5. Exits with code 0 if all requirements pass, non-zero otherwise.\n\n## Requirements\n\n| ID   | Type       | Description                                                                 |\n|------|------------|-----------------------------------------------------------------------------|\n| FR1  | Functional | The submission file is valid JSON and parseable by a standard JSON parser.  |\n| FR2  | Functional | The `recovered_key` field is a non-empty string consisting only of '0' and '1'. |\n| FR3  | Functional | The `key_gate_nets` field is an array of strings, each a valid net name present in `locked_netlist.v`. |\n| SR1  | Security   | The submitted `recovered_key` exactly matches the hidden key.               |\n| SR2  | Security   | The submitted `key_gate_nets` contains all ground-truth key-gate nets.      |\n\n## Toolchain Availability\n\nThe evaluation environment includes `yosys`, `iverilog`, and `vvp`. These tools are available for optional cross-checks on the input artifacts (e.g., simulating the netlist to confirm a reported trigger), but the PASS/FAIL verdicts are based solely on the content of the submitted answer file.\n\n## Private Ground Truth\n\nHidden constants (correct key and ground-truth net names) are stored in `evaluation/private/ground_truth.py` and are not accessible to participants.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport os\nimport re\nimport sys\n\n# Import private ground truth\nsys.path.insert(0, os.path.join(os.path.dirname(__file__), 'private'))\nfrom ground_truth import CORRECT_KEY, GROUND_TRUTH_NETS\n\ndef extract_net_names(netlist_path):\n    \"\"\"Extract all net names declared in the netlist (wire/assign).\"\"\"\n    nets = set()\n    with open(netlist_path, 'r') as f:\n        content = f.read()\n    # Match wire declarations: wire [optional range] name;\n    wire_pattern = r'wire\\s+(?:\\[\\d+:\\d+\\]\\s+)?(\\w+)\\s*;'\n    for m in re.finditer(wire_pattern, content):\n        nets.add(m.group(1))\n    # Match assign statements: assign name = ...;\n    assign_pattern = r'assign\\s+(\\w+)\\s*='\n    for m in re.finditer(assign_pattern, content):\n        nets.add(m.group(1))\n    # Also match module port connections (hierarchical names like lock_comp/xor_0)\n    # We'll collect all identifiers that appear as net names in the netlist\n    # For hierarchical names, we need to consider module instances and their internal nets.\n    # Since the netlist is flat, we can extract all identifiers used in connections.\n    # A simple approach: collect all identifiers that are not keywords.\n    # But we'll rely on the fact that the netlist uses explicit wire declarations for all nets.\n    # For hierarchical names like lock_comp/xor_0, we need to parse the module hierarchy.\n    # We'll extract module instance names and their internal nets.\n    # Pattern: module_name instance_name ( .port(net) );\n    instance_pattern = r'(\\w+)\\s+(\\w+)\\s*\\(([^)]+)\\)'\n    for m in re.finditer(instance_pattern, content):\n        module_name = m.group(1)\n        instance_name = m.group(2)\n        ports = m.group(3)\n        # Extract port connections: .port_name(net_name)\n        port_conn_pattern = r'\\.(\\w+)\\s*\\(\\s*(\\w+)\\s*\\)'\n        for pm in re.finditer(port_conn_pattern, ports):\n            port = pm.group(1)\n            net = pm.group(2)\n            # Add both the flat net and the hierarchical path\n            nets.add(net)\n            nets.add(f\"{instance_name}/{net}\")\n    # Also add nets from module internal declarations (inside submodules)\n    # We'll parse all wire declarations inside any module\n    module_pattern = r'module\\s+(\\w+)\\s*\\(([^)]*)\\)\\s*;(.*?)endmodule'\n    for mm in re.finditer(module_pattern, content, re.DOTALL):\n        mod_name = mm.group(1)\n        mod_body = mm.group(3)\n        # Find wire declarations inside this module\n        for wm in re.finditer(wire_pattern, mod_body):\n            nets.add(wm.group(1))\n        # Also assign statements\n        for am in re.finditer(assign_pattern, mod_body):\n            nets.add(am.group(1))\n    return nets\n\ndef main():\n    submission_path = 'submission/recovered_key.json'\n    netlist_path = 'inputs/locked_netlist.v'\n    \n    # Check submission file exists\n    if not os.path.isfile(submission_path):\n        print(\"[TEST] FAIL: SETUP: submission/recovered_key.json not found\")\n        sys.exit(1)\n    \n    # FR1: Valid JSON\n    try:\n        with open(submission_path, 'r') as f:\n            data = json.load(f)\n        print(\"[TEST] PASS: FR1\")\n    except (json.JSONDecodeError, FileNotFoundError) as e:\n        print(f\"[TEST] FAIL: FR1: {str(e)}\")\n        # Cannot continue without valid JSON\n        sys.exit(1)\n    \n    # FR2: recovered_key field\n    recovered_key = data.get('recovered_key')\n    if not isinstance(recovered_key, str) or not recovered_key:\n        print(\"[TEST] FAIL: FR2: recovered_key must be a non-empty string\")\n    elif not all(c in '01' for c in recovered_key):\n        print(\"[TEST] FAIL: FR2: recovered_key must contain only '0' and '1'\")\n    else:\n        print(\"[TEST] PASS: FR2\")\n    \n    # FR3: key_gate_nets field\n    key_gate_nets = data.get('key_gate_nets')\n    if not isinstance(key_gate_nets, list):\n        print(\"[TEST] FAIL: FR3: key_gate_nets must be an array\")\n    else:\n        # Extract valid net names from netlist\n        valid_nets = extract_net_names(netlist_path)\n        all_valid = True\n        for net in key_gate_nets:\n            if not isinstance(net, str):\n                print(f\"[TEST] FAIL: FR3: key_gate_nets contains non-string element: {net}\")\n                all_valid = False\n                break\n            if net not in valid_nets:\n                print(f\"[TEST] FAIL: FR3: net '{net}' not found in locked_netlist.v\")\n                all_valid = False\n                break\n        if all_valid:\n            print(\"[TEST] PASS: FR3\")\n    \n    # SR1: Exact key match\n    if recovered_key == CORRECT_KEY:\n        print(\"[TEST] PASS: SR1\")\n    else:\n        print(f\"[TEST] FAIL: SR1: recovered_key '{recovered_key}' does not match hidden key\")\n    \n    # SR2: Key gate nets superset\n    submitted_nets = set(key_gate_nets) if isinstance(key_gate_nets, list) else set()\n    missing = GROUND_TRUTH_NETS - submitted_nets\n    if not missing:\n        print(\"[TEST] PASS: SR2\")\n    else:\n        print(f\"[TEST] FAIL: SR2: missing ground-truth nets: {missing}\")\n    \n    # Determine exit code based on all checks\n    # We need to re-check all conditions to decide exit code\n    # Since we printed PASS/FAIL, we can track failures\n    failures = []\n    # Re-evaluate FR1 (already passed if we got here)\n    # FR2\n    if not (isinstance(recovered_key, str) and recovered_key and all(c in '01' for c in recovered_key)):\n        failures.append('FR2')\n    # FR3\n    if not isinstance(key_gate_nets, list) or any(not isinstance(n, str) or n not in valid_nets for n in key_gate_nets):\n        failures.append('FR3')\n    # SR1\n    if recovered_key != CORRECT_KEY:\n        failures.append('SR1')\n    # SR2\n    if missing:\n        failures.append('SR2')\n    \n    if failures:\n        sys.exit(1)\n    else:\n        sys.exit(0)\n\nif __name__ == '__main__':\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# Ground truth constants for SARLock point-function key recovery\n# These are hidden from participants and used only by evaluate.py\n\nCORRECT_KEY = \"101101\"\n\nGROUND_TRUTH_NETS = {\n    \"lock_comp/xor_0\",\n    \"lock_comp/xor_1\",\n    \"lock_comp/xor_2\",\n    \"lock_comp/xor_3\",\n    \"lock_comp/xor_4\",\n    \"lock_comp/xor_5\",\n    \"lock_comp/and_stage1_0\",\n    \"lock_comp/and_stage1_1\",\n    \"lock_comp/and_stage2\",\n    \"lock_comp/corrupt_xor\",\n}",
+      "path": "evaluation/private/ground_truth.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness structure: evaluate.py is the entry point; it grades the submission/recovered_key.json answer file against hidden ground truth. Lists the requirement IDs and their types (FR1-FR3 functional, SR1-SR2 security). Explains that the toolchain (yosys, iverilog, vvp) is available for optional cross-checks but verdicts are based solely on the submitted answer content."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading script. Reads submission/recovered_key.json and inputs/locked_netlist.v, inputs/oracle_vectors.json, inputs/locking_scheme_description.md for reference. Checks FR1 (valid JSON parseable), FR2 (recovered_key is non-empty string of '0'/'1'), FR3 (key_gate_nets is array of strings, each a valid net name present in locked_netlist.v). Checks SR1 (recovered_key exactly equals '101101'), SR2 (key_gate_nets contains all ground-truth nets: lock_comp/xor_0 through xor_5, and_stage1_0, and_stage1_1, and_stage2, corrupt_xor). Emits [TEST] PASS/FAIL markers per requirement. Exits 0 if all pass, non-zero otherwise. Missing submission file emits SETUP failure and exits 1."
+    },
+    {
+      "path": "evaluation/private/ground_truth.py",
+      "purpose": "Private module containing the hidden ground truth constants: CORRECT_KEY = '101101' and GROUND_TRUTH_NETS = set of the nine key-gate net names. Imported by evaluate.py for SR1 and SR2 comparisons. Not shipped to participants; kept under evaluation/private/."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "evaluate.py attempts to open and parse submission/recovered_key.json as JSON. PASS if parsing succeeds; FAIL if file missing, unreadable, or invalid JSON.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py checks that the parsed JSON has a 'recovered_key' field that is a non-empty string consisting only of '0' and '1' characters. PASS if valid; FAIL if missing, empty, or contains other characters.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py checks that 'key_gate_nets' is an array of strings, each string being a valid net name present in inputs/locked_netlist.v (verified by scanning the netlist for wire/assign declarations). PASS if all nets found; FAIL if not an array, contains non-strings, or any net name absent from the netlist.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py compares the submitted recovered_key string against the hidden CORRECT_KEY = '101101' from ground_truth.py. PASS on exact match; FAIL on any mismatch.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "evaluate.py checks that the submitted key_gate_nets array contains all nets in GROUND_TRUTH_NETS (set of nine comparator-cone nets). PASS if the submitted set is a superset of the ground truth; FAIL if any ground-truth net is missing.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    }
+  ]
+}

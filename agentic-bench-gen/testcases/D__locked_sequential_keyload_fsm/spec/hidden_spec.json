@@ -1,0 +1,24 @@
+{
+  "acceptance_criteria": [
+    "The submitted key_sequence exactly matches \"0110\".",
+    "The submitted lock_registers list contains exactly the four hierarchical names \"top.lock_reg[0]\", \"top.lock_reg[1]\", \"top.lock_reg[2]\", \"top.lock_reg[3]\" in that order.",
+    "A naive or empty submission (e.g., key_sequence=\"0000\" or lock_registers=[]) must fail evaluation."
+  ],
+  "cwe_ids": [
+    "CWE-1274"
+  ],
+  "ground_truth": "The correct key sequence is \"0110\". The lock registers are the four DFFs instantiated as the shift register chain: top.lock_reg[0], top.lock_reg[1], top.lock_reg[2], top.lock_reg[3]. The first bit of the key (0) is loaded into top.lock_reg[0] on the first rising clock edge after reset de-assertion, the second bit (1) into top.lock_reg[1] on the next edge, and so on. Only when these four registers hold the pattern 0110 does the FSM transition to the functional state on the subsequent clock edge.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if the key sequence can be determined by a simple string search or constant propagation in the netlist. The ground truth key bits should be distributed across the sequential logic and not appear as a single constant.",
+      "id": "SR1",
+      "requirement": "The key sequence must not be trivially extractable from the netlist structure alone without analyzing the temporal behavior."
+    },
+    {
+      "detection_strategy": "Simulate the netlist with the correct key and several incorrect keys. Verify that the output sequences for incorrect keys are deterministic but do not match the functional oracle traces for any meaningful input sequence.",
+      "id": "SR2",
+      "requirement": "The decoy behavior must be functionally distinct from the correct behavior to prevent an attacker from assuming any output is correct."
+    }
+  ],
+  "threat_model": "An attacker has access to the locked netlist and a limited number of input/output oracle traces from a functional chip. The attacker must reverse-engineer the temporal key-loading protocol and the correct key sequence to unlock the circuit's functionality. The sequential nature of the lock expands the key space beyond a single combinational assignment and hides the functional initial state."
+}

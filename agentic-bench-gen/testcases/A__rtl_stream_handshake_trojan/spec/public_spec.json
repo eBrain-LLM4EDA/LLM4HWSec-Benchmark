@@ -1,0 +1,34 @@
+{
+  "constraints": [
+    "The module uses a single clock and a synchronous active-low reset.",
+    "The module implements a ready/valid handshake with a one-entry skid buffer.",
+    "The design is written in synthesizable Verilog.",
+    "The analysis must be performed on the provided input artifacts without modification."
+  ],
+  "expected_outputs": [
+    "A valid trojan_report.json file conforming to the response format.",
+    "The report correctly identifies the trigger sequence and the payload effect.",
+    "The report localizes the trigger logic to specific registers or signals and the payload to a specific gate or signal."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must contain all required fields: trojan_present, trigger_condition, payload_effect, trigger_signals, payload_signals, and confidence."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The confidence field must be a number between 0.0 and 1.0 inclusive."
+    }
+  ],
+  "input_artifacts": [
+    "stream_pipeline.v",
+    "design_brief.md"
+  ],
+  "interface": "The submission is a report file, not a code module. The participant must produce a single JSON file at submission/trojan_report.json. The file must contain a JSON object with the following required fields: \"trojan_present\" (boolean), \"trigger_condition\" (string describing the exact sequence of valid/ready handshake values that activates the Trojan), \"payload_effect\" (string describing the consequence on the output interface), \"trigger_signals\" (array of strings naming the specific RTL signals or registers involved in recognizing the trigger), \"payload_signals\" (array of strings naming the specific RTL signals or gates that implement the payload), and \"confidence\" (number between 0.0 and 1.0).",
+  "objective": "Analyze the provided RTL design of a streaming pipeline module with a skid buffer and identify any logic that could cause a single valid transfer to be silently dropped under a specific, rare valid-ready handshake history. Report the trigger condition and the affected signal.",
+  "response_format": "A single JSON file named trojan_report.json placed in the submission/ directory. The file must be a JSON object with the following schema: { \"trojan_present\": boolean, \"trigger_condition\": string, \"payload_effect\": string, \"trigger_signals\": [string, ...], \"payload_signals\": [string, ...], \"confidence\": number }. All fields are required."
+}

@@ -1,0 +1,6 @@
+{
+  "trigger_cells": ["aoi_trig", "oai_trig"],
+  "trigger_nets": ["n_trigger_internal"],
+  "payload_cells": ["xor_payload"],
+  "payload_nets": ["n_payload_out"]
+}

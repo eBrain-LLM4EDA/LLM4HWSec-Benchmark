@@ -1,0 +1,5 @@
+{
+  "trojan_present": false,
+  "findings": [],
+  "rationale": "No suspicious logic was found. The design appears to implement a standard register file and ALU with reset synchronization. All reset sequences observed during analysis kept protected_mode low."
+}

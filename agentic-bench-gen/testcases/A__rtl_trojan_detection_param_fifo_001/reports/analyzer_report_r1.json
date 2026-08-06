@@ -1,0 +1,86 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The golden/expert submission (golden/trojan_report.json) is REJECTED by the evaluator (SR1 and SR4 fail), per the differential test results. This means a correct, high-quality submission cannot pass the benchmark as currently configured \u2014 either the golden answer file's wording doesn't match the SR1 width-extraction regex (e.g. it may phrase the affected width in a way that also matches 8/16, or doesn't isolate '24' cleanly), or the SR1/SR2 regex patterns are too strict/brittle. This is a critical correctness bug: the task is unusable until the golden solution passes.",
+      "evidence": "differential.golden_run.stdout shows: '[TEST] FAIL: SR1: no finding's extracted affected-width value(s) equal exactly {24}...' and '[TEST] FAIL: SR4: no single finding simultaneously satisfies SR1+SR2+SR3...' with overall exit_code 1 and expected 'pass'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation bundle / mutation testing",
+      "description": "No mutants were provided/run to validate that each requirement's check actually discriminates correct from incorrect submissions. mutation_score is 0.0 and all 8 requirements (FR1-FR4, SR1-SR4) are marked untested/unproven, meaning the harness's discrimination power is entirely unverified beyond the one golden and one naive-baseline run.",
+      "evidence": "validation report: 'mutation_score': 0.0, 'mutation_score_meaningful': false, 'untested_requirements': ['FR1','FR2','FR3','FR4','SR1','SR2','SR3','SR4'], and issues list includes 'golden_rejected' plus 8 'untested_requirement' entries.",
+      "severity": "high"
+    },
+    {
+      "artifact": "golden/trojan_report.json (not shown in bundle)",
+      "description": "The golden answer file referenced by the differential harness is not included in the provided artifact bundles (only the naive empty baseline submission/trojan_report.json is shown). Without inspecting its exact text, it's impossible to confirm whether the SR1/SR2 regexes are miscalibrated or the golden file itself is poorly worded, but either way the mismatch must be fixed before this case is usable.",
+      "evidence": "expert_files: ['golden/trojan_report.json'] is referenced in the validation report but not present in the case_files or bundles supplied for analysis.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the golden/trojan_report.json fixture and/or the SR1 numeric-width-extraction regex so that the expert/correct answer passes SR1 (and consequently SR4) \u2014 verify by re-running the differential harness until golden_run.status == 'pass'.",
+    "Add mutant submissions (e.g. mutant_sr1_constant_change_width16, mutant_sr2_domain_specific_wrong_trigger_pattern, mutant_fr4_assignment_removal_unconditional_claim, and similar targeted mutants for FR1-FR3) and re-run mutation testing to raise mutation_score above 0 and confirm each requirement actually discriminates correct vs. incorrect submissions.",
+    "Double check the SR1 regex against realistic golden-quality phrasing (e.g. 'WIDTH parameter set to 24', '24-bit width configuration') to ensure it doesn't spuriously also capture DEPTH_LOG2 numeric values or other adjacent digits as false affected-width hits.",
+    "Re-run the full differential (golden vs. naive baseline) after fixes and confirm golden exits 0 while naive baseline exits non-zero, per the submission contract."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and naive baseline both pass/behave correctly for FR1 in the differential run (golden PASS FR1; naive baseline also PASS FR1 since it's valid empty JSON).",
+      "requirement": "FR1 schema validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: FR2'.",
+      "requirement": "FR2 concrete WIDTH=24 naming",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: FR3'.",
+      "requirement": "FR3 concrete payload consequence",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: FR4'.",
+      "requirement": "FR4 specific conditional trigger, not unconditional",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] FAIL: SR1: no finding's extracted affected-width value(s) equal exactly {24}...' \u2014 the evaluator rejects the correct/expert answer, indicating a bug in either the golden fixture or the SR1 regex extraction logic.",
+      "requirement": "SR1 exact WIDTH=24 scoping",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: SR2'.",
+      "requirement": "SR2 conjunctive pointer+write+near-full trigger",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: SR3'.",
+      "requirement": "SR3 full-suppression + overwrite payload",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] FAIL: SR4' because no finding simultaneously satisfies SR1+SR2+SR3 (cascading failure from SR1).",
+      "requirement": "SR4 qualifying finding not buried",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run (naive baseline) shows exit_code 1 with FR2-SR4 all FAIL due to empty findings array, matching expected 'fail'.",
+      "requirement": "Naive/empty baseline must FAIL",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/ files do not mention CWE ids, SR ids, WIDTH=24 trojan specifics, or any 'intentionally vulnerable' framing; param_fifo.v comments describe the WIDTH==24 branch as an ordinary 'burst-boundary alignment' optimization, consistent with hiding the trojan.",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "validation report: mutation_score 0.0, mutation_score_meaningful false, all 8 requirements listed as untested_requirements with no targeting mutants provided.",
+      "requirement": "Mutation/discrimination coverage of requirements",
+      "status": "fail"
+    }
+  ]
+}

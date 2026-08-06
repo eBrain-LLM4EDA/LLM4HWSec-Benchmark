@@ -1,0 +1,112 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.md",
+    "inputs/spn_core.v",
+    "inputs/spn_top.v",
+    "inputs/trace_pairs.json",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "a2b88c8ff680cb4f782a65d726294fedd52afdd7a3ac401c30e902223af344a2",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] FAIL: SR3: independent DFA cross-check failed to run: Expecting value: line 1 column 1 (char 0)\n[TEST] PASS: SR4\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: FR4: hardening_recommendations has fewer than 2 distinct non-empty strings >=10 chars (found 1)\n[TEST] FAIL: SR1: vulnerable_register='key_reg' does not match ground truth 'state_q'\n[TEST] FAIL: SR2: vulnerable_cycle_offset=0 != 1; affected_nibble_index=3 != 0\n[TEST] FAIL: SR3: independent DFA cross-check failed to run: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: SR4: fewer than 2 distinct hardening_recommendations entries reference concrete register-level fault-hardening techniques (found 0)\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SR3: independent DFA cross-check failed to run: Expecting value: line 1 column 1 (char 0)",
+        "failure_class": "golden_rejected",
+        "failure_signature": "a2b88c8ff680cb4f782a65d726294fedd52afdd7a3ac401c30e902223af344a2"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "File \"/work/evaluation/evaluate.py\", line 1",
+        "failure_class": "multiple",
+        "failure_signature": "afe1cb9d51a3fdd3f68b03f38519cbb42a7f7c68159f131764055641b4f9fa6a"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "a2b88c8ff680cb4f782a65d726294fedd52afdd7a3ac401c30e902223af344a2",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "4c4399222964875e6dd5a9be6874558834878f1fc3370a37c36fbaf0a30cf700",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "55fb47584c9630b38ab070c7f81a82bf63c4638f33eeb9665cd7b936555b539b",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/dfa_reference.py",
+    "evaluation/evaluate.py",
+    "tests/private/golden_vulnerability_report.json"
+  ],
+  "uncovered_requirements": []
+}

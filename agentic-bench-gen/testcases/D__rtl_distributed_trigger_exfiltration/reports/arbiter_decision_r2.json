@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission (a correct expert solution) is rejected by evaluate.py on SR1-SR4, meaning the evaluator is buggy and cannot correctly grade a valid answer. Additionally, no mutants were generated, so mutation_score is 0.0 and discrimination is unproven. The baseline (empty report) correctly fails, but the golden rejection is the critical blocker. The root cause is in evaluate.py: the finding_matches function or the SR check logic fails to recognize the correct trigger fragment and payload descriptions in the golden submission. The evaluator must be fixed to accept the golden before any other issues can be addressed.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

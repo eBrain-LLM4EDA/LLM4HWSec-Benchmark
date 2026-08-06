@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"recombination_net\": \"recombine_xor\",\n  \"recombination_register\": \"recombined_sbox_q\",\n  \"leakage_type\": \"first-order switching leakage\"\n}",
+      "path": "golden/vulnerability_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/vulnerability_report.json",
+      "purpose": "The golden answer file for the analysis_report submission. Contains exactly three fields: recombination_net set to 'recombine_xor', recombination_register set to 'recombined_sbox_q', and leakage_type set to 'first-order switching leakage'. This file is placed at golden/vulnerability_report.json and will be overlaid onto submission/vulnerability_report.json during grading. The evaluator checks field presence/format (FR1-FR3) and exact string matches against the hidden ground truth (SR1-SR3)."
+    }
+  ]
+}

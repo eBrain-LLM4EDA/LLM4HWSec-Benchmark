@@ -1,0 +1,76 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/recovered_key.json) because its net-name extraction logic fails to recognize hierarchical net names like 'lock_comp/xor_0' as valid. The golden run shows FR3 failing with 'net 'xor_0' not found in locked_netlist.v', indicating the extract_net_names function does not correctly parse the netlist to include the hierarchical names that the ground truth expects. This makes the benchmark unusable as-is.",
+      "evidence": "Golden run stdout: '[TEST] FAIL: FR3: net 'xor_0' not found in locked_netlist.v'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator's net-name extraction logic is inconsistent with the ground truth. The ground truth nets use hierarchical paths (e.g., 'lock_comp/xor_0'), but the extract_net_names function only adds hierarchical names for module instance port connections, not for internal wires declared inside submodules. The internal wires of lock_comp (xor_0, xor_1, etc.) are declared as 'wire xor_0;' inside the module body, and the extraction code for internal wires only adds the flat name (e.g., 'xor_0'), not the hierarchical path. This causes FR3 to fail for any correct submission that uses the expected hierarchical names.",
+      "evidence": "Code in extract_net_names: the loop over module_pattern extracts wire declarations inside submodules but only adds the flat name (wm.group(1)), not the hierarchical path. The instance_pattern loop adds hierarchical names only for port connections, not for internal wires.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not compute the metrics specified in the task metadata (key_recovery_rate and key_gate_localization_accuracy). It only performs pass/fail checks against exact ground truth. The metrics are defined but never calculated or reported.",
+      "evidence": "evaluate.py contains no code that computes key_recovery_rate (fraction of bits correct) or key_gate_localization_accuracy (Jaccard index). It only does exact-match comparisons for SR1 and SR2.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/oracle_vectors.json",
+      "description": "The oracle vectors file contains only 8 vectors, all with identical inputs for the two 4-bit operands (e.g., '00', '11', '22'). This does not exercise the full 8-bit input space and may not include the protected input pattern that triggers the lock. The vectors appear to be simple adder test cases rather than vectors designed to reveal the point-function trigger.",
+      "evidence": "Oracle vectors content: all inputs are of the form 'XX' where both nibbles are identical, e.g., '00', '11', '22', etc. The protected pattern for key '101101' would require specific bit patterns on the 8-bit input {a[3:0], b[3:0]} that match the key bits mapped to in[0] through in[5].",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The README hints that 'The oracle vectors include the protected input pattern', but the actual oracle_vectors.json may not contain a vector that triggers the lock. This creates a misleading instruction for participants.",
+      "evidence": "README.md states: 'The oracle vectors include the protected input pattern \u2013 look for the one output that differs from the expected functional behavior.' The provided vectors show outputs that are all consistent with a correct adder (e.g., 0+0=0, 1+1=2, 2+2=4), with no corrupted output visible.",
+      "severity": "low"
+    },
+    {
+      "artifact": "submission/recovered_key.json",
+      "description": "The shipped baseline submission contains an empty key and empty net list, which correctly fails evaluation. However, the differential test shows the vulnerable run passes FR3 (empty array is valid), which is acceptable but the golden run fails FR3 due to the net-name extraction bug.",
+      "evidence": "Vulnerable run stdout: '[TEST] PASS: FR3'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix extract_net_names in evaluate.py to correctly build hierarchical net names for all wires declared inside submodules. For each wire declared in a module body, prepend the module instance name with a '/' separator to match the ground truth format (e.g., 'lock_comp/xor_0').",
+    "Add computation of the specified metrics (key_recovery_rate and key_gate_localization_accuracy) to evaluate.py and report them in the output, even if the final pass/fail is based on exact-match criteria.",
+    "Review and regenerate oracle_vectors.json to ensure it includes at least one vector that triggers the point-function lock (i.e., an input pattern matching the hidden key bits on the monitored inputs), so participants can actually use oracle access to identify the protected pattern.",
+    "Ensure the README.md hint about oracle vectors is accurate after fixing the vectors file.",
+    "Add targeted mutant tests for each requirement (FR1-FR3, SR1-SR2) to prove the harness can discriminate between passing and failing submissions for each requirement individually."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py correctly parses JSON and reports PASS/FAIL. The golden run shows '[TEST] PASS: FR1'.",
+      "requirement": "FR1: Valid JSON submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py correctly validates the recovered_key field. Golden run shows '[TEST] PASS: FR2' for the correct key '101101'.",
+      "requirement": "FR2: recovered_key format validation",
+      "status": "pass"
+    },
+    {
+      "evidence": "The net-name extraction logic fails to recognize hierarchical names for internal wires of submodules. Golden run shows '[TEST] FAIL: FR3: net 'xor_0' not found in locked_netlist.v' even though the golden submission uses the correct hierarchical names.",
+      "requirement": "FR3: key_gate_nets validation against netlist",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py correctly compares recovered_key against CORRECT_KEY. Golden run shows '[TEST] PASS: SR1' for the correct key.",
+      "requirement": "SR1: Exact key match",
+      "status": "pass"
+    },
+    {
+      "evidence": "Because FR3 fails and rejects the submission before SR2 can be meaningfully evaluated, the golden run shows '[TEST] FAIL: SR2: missing ground-truth nets: {...}' as a cascading failure from the net-name extraction bug.",
+      "requirement": "SR2: Key gate net superset check",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

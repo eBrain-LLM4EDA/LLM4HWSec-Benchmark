@@ -1,0 +1,27 @@
+{
+  "acceptance_criteria": [
+    "evaluate.py compiles inputs/net_shifter_flat.v and submission/recovered_rtl.v together with a generated testbench using iverilog, producing a vvp executable that runs under vvp without compile or elaboration errors.",
+    "The testbench exhaustively (or via dense pseudo-random sampling covering all 2^13 = 8192 combinations of data_in x amount x direction x mode, since 8+3+1+2=14 bits total is small enough for full exhaustion) drives both the reference netlist instance and the submitted barrel_shifter_top instance with identical vectors and asserts data_out equality every vector.",
+    "Any mismatch on any vector, including mode=11 don't-care resolution and sign-extension edge cases, causes FAIL with a reported first-failing vector.",
+    "The shipped baseline/naive submission (e.g., an empty or all-zero-output stub) must fail this exhaustive comparison.",
+    "A structurally different but behaviorally identical RTL implementation (e.g., using generate loops instead of case statements) must PASS, since grading is purely behavioral via simulation."
+  ],
+  "cwe_ids": [
+    "CWE-1120",
+    "CWE-758"
+  ],
+  "ground_truth": "The flattened netlist implements: mode=00 -> logical shift (left when direction=0 zero-filling low bits, right when direction=1 zero-filling high bits); mode=01 -> arithmetic behavior only distinguishes right shift (sign-extend using original MSB into vacated high bits when direction=1) from left shift which is identical to logical left shift (direction=0); mode=10 -> rotate left (direction=0) or rotate right (direction=1) by amount mod 8, with wrap-around bits re-entering on the opposite end; mode=11 is an unused/don't-care encoding in the original design intent, but the flattened netlist's staged MUX tree happens to resolve it identically to mode=00's logical-shift behavior because the MUX select decoding is only 2 bits wide and the tree was built by don't-care-filling the unused row with the logical-shift datapath. A correct reverse-engineered model must reproduce this same don't-care resolution for mode=11 to achieve bit-exact equivalence, even though it is not part of the documented 3 semantic modes.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Directed and exhaustive testbench vectors specifically targeting mode=11 across all amount/direction/data_in combinations, comparing submission output against the reference netlist's simulated output; any divergence or X-propagation mismatch fails.",
+      "id": "SR1",
+      "requirement": "The recovered RTL must not treat mode=11 as an unconstrained don't-care (e.g., via 'x' assignment or omitted case branch) in a way that produces a different resolved value than the reference netlist under 4-state or 2-state simulation; the evaluator instantiates the actual reference netlist and requires bit-exact match on mode=11 vectors, not merely 'compiles without warnings'."
+    },
+    {
+      "detection_strategy": "Testbench vectors with data_in having MSB=1 under mode=01, direction=0 (left), across all amounts; verify data_out low bits are zero-filled, not sign-extended, by comparing against the simulated reference netlist.",
+      "id": "SR2",
+      "requirement": "The recovered RTL must not conflate arithmetic-left-shift with sign-extension (a common reverse-engineering error given the mode=01 encoding ambiguity); left shifts under mode=01 must zero-fill exactly like mode=00, verified behaviorally rather than by inspecting shift operators in source."
+    }
+  ],
+  "threat_model": "An adversarial or legacy flattening pass removed all hierarchy and symbol names from a bit-manipulation IP block, making it impossible to tell from source alone whether the block performs shifting or rotation, which direction convention it uses, how it fills vacated bits (zero vs sign-extended), and what the reverse engineer assumes for the nominally 'unused' 4th mode encoding. An analyst who guesses wrong on any of these axes (e.g., assuming mode=11 is X/don't-care and leaving it unconstrained, or sign-extending on left shifts, or swapping the rotate direction convention) will produce RTL that appears functionally plausible but silently diverges from the fielded netlist on specific input classes, which is exactly the failure mode this benchmark targets."
+}

@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "#include <cstdint>\n\n// Overflow-safe DMA range validation.\n//\n// Determines whether the half-open byte range [base, base+length) is\n// entirely contained within the half-open allowed range\n// [region_start, region_start+region_size), without ever performing the\n// actual memory access.\n//\n// All boundary arithmetic is widened to uint64_t so that no 32-bit\n// wraparound can occur: the maximum possible sum of two uint32_t values\n// is 2*UINT32_MAX (~8.6e9), which fits comfortably within the uint64_t\n// range (~1.8e19). This eliminates the classic integer-overflow bounds\n// check bypass (CWE-190/CWE-191) where base+length or\n// region_start+region_size wraps modulo 2^32 and spuriously satisfies a\n// naive 32-bit comparison.\nextern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size) {\n    // Zero-length transfers are never valid, regardless of alignment.\n    if (length == 0) {\n        return 0;\n    }\n\n    const uint64_t base64 = static_cast<uint64_t>(base);\n    const uint64_t length64 = static_cast<uint64_t>(length);\n    const uint64_t region_start64 = static_cast<uint64_t>(region_start);\n    const uint64_t region_size64 = static_cast<uint64_t>(region_size);\n\n    // Widened, non-wrapping end addresses.\n    const uint64_t end = base64 + length64;\n    const uint64_t region_end = region_start64 + region_size64;\n\n    // Fully contained iff the start is at or after region_start and the\n    // exact (non-wrapped) end address does not exceed region_end.\n    if (base64 >= region_start64 && end <= region_end) {\n        return 1;\n    }\n\n    return 0;\n}",
+      "path": "golden/dma_validate.cpp"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/dma_validate.cpp",
+      "purpose": "Hardened reference implementation. Provides `extern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size)` in <cstdint>-only C++17, no main(). Logic: reject length==0 (return 0). Compute end = (uint64_t)base + (uint64_t)length and region_end = (uint64_t)region_start + (uint64_t)region_size, both widened to uint64_t so no 32-bit wraparound occurs. Return 1 iff (uint64_t)base >= (uint64_t)region_start AND end <= region_end, else 0. No pointer dereference of any parameter, no loops, O(1) fixed arithmetic, no I/O/exceptions/global state. Satisfies FR1-FR4 and SR1-SR4 by construction since all comparisons use exact unbounded-equivalent 64-bit arithmetic that cannot wrap for any 32-bit inputs (max possible sum is 2*UINT32_MAX, well within uint64_t range)."
+    }
+  ]
+}

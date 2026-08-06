@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "The RTL must be self-contained, synthesizable Verilog-2001 compatible with iverilog, with no vendor primitives.",
+    "The decoder logic must be expressible in under ~120 lines of RTL to keep the analysis tractable.",
+    "fault_model.json must deterministically enumerate all 13 single-bit and all 78 two-bit flip positions relative to one fixed correct reference codeword encoding a fixed 8-bit data value stated in design_brief.md.",
+    "fault_enum_tb.v must be runnable via iverilog+vvp without modification and must not require the participant's submission to run.",
+    "The response_format for the submission is a single JSON file; no other submission files are read by evaluate.py."
+  ],
+  "expected_outputs": [
+    "vulnerability_report.json describing decoder behavior under every enumerated single- and two-bit fault, including classification and hardening suggestions"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "vulnerability_report.json must be valid JSON with a top-level object containing keys 'fault_cases' (array) and 'summary' (object); each element of 'fault_cases' must include 'fault_id' (matching an entry in fault_model.json), 'bit_positions' (array of ints), 'classification' (one of 'no_error','corrected','detected_uncorrectable'), and 'observed_outputs' (object with keys 'syndrome','overall_parity_error','correctable','uncorrectable','correction_mask','data_out')."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must include an entry for every fault_id present in inputs/fault_model.json (91 total cases: 13 single-bit + 78 two-bit), with no missing or duplicated fault_id entries."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For all 13 single-bit fault cases, the reported classification must be 'corrected' and observed_outputs.data_out must equal the correct reference 8-bit data value (i.e. single-bit faults must always be shown as correctly repaired)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The 'summary' object must include integer fields 'num_no_error', 'num_corrected', 'num_detected_uncorrectable' whose sum equals 91 and which match the counts implied by the per-case 'classification' fields."
+    }
+  ],
+  "input_artifacts": [
+    "secded_codec.v",
+    "fault_model.json",
+    "fault_enum_tb.v",
+    "design_brief.md"
+  ],
+  "interface": "The RTL module is defined in inputs/secded_codec.v as: module secded_codec(input wire [7:0] data_in, input wire encode_en, input wire [12:0] codeword_in, output wire [12:0] codeword_out, output wire [7:0] data_out, output wire [3:0] syndrome, output wire overall_parity_error, output wire correctable, output wire uncorrectable, output wire [12:0] correction_mask); The codeword is a 13-bit extended Hamming word: bits [12:1] hold 4 parity bits (positions 1,2,4,8) plus 8 data bits interleaved per standard Hamming placement, and bit [0] holds the overall (extended) parity bit covering all 13 bits. When encode_en=1, the module computes codeword_out from data_in. When encode_en=0, codeword_in is treated as a (possibly faulty) stored codeword; the module computes syndrome (4-bit, nonzero if any single Hamming parity mismatches), overall_parity_error (1 if the extended parity bit is violated), correctable (asserted when the decoder decides to flip a bit via correction_mask), uncorrectable (asserted when the decoder decides the error cannot be safely corrected), correction_mask (13-bit one-hot or zero mask XORed with codeword_in to produce the corrected codeword from which data_out is extracted), and data_out (the 8 data bits extracted after applying correction_mask, or the raw bits if no correction is applied). inputs/fault_model.json enumerates fault cases as a JSON array of objects {\"fault_id\": string, \"bit_positions\": [int,...], \"codeword_in\": \"13-bit binary string\"} covering all C(13,1)=13 single-bit and all C(13,2)=78 two-bit flips applied to a fixed reference correct codeword. inputs/fault_enum_tb.v is an iverilog-compatible testbench that instantiates secded_codec, drives each fault_model.json case through codeword_in, and prints/dumps syndrome, overall_parity_error, correctable, uncorrectable, correction_mask, and data_out per case (usable for optional cross-checking, not required to run). The submission is a JSON file at submission/vulnerability_report.json.",
+  "objective": "Analyze the provided 8-bit extended-Hamming (SECDED-style) encoder/decoder RTL and its fault-injection harness to determine, for the enumerated single-bit and two-bit memory faults, which decoder output signals and internal states are asserted for each fault case, and report the exact set of fault patterns for which the decoder's correction logic modifies the stored data while reporting a successful correction (i.e., 'correctable' status) rather than reporting an uncorrectable/detected-only condition. Produce a structured vulnerability_report.json describing, per fault case, the decoder's classification (no_error / corrected / detected_uncorrectable) and the observed output values.",
+  "response_format": "submission/vulnerability_report.json: a single JSON object {\"fault_cases\": [{\"fault_id\": str, \"bit_positions\": [int,...], \"classification\": \"no_error\"|\"corrected\"|\"detected_uncorrectable\", \"observed_outputs\": {\"syndrome\": str|int, \"overall_parity_error\": 0|1, \"correctable\": 0|1, \"uncorrectable\": 0|1, \"correction_mask\": str, \"data_out\": str}}, ...], \"summary\": {\"num_no_error\": int, \"num_corrected\": int, \"num_detected_uncorrectable\": int}, \"vulnerable_fault_ids\": [str,...], \"hardening_suggestions\": [str,...]}"
+}

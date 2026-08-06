@@ -1,0 +1,102 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub-style naive baseline: submission/trojan_report.json with trojan_present=false and empty suspect_nodes/affected_outputs (must fail all SR checks)",
+      "CASlab GAINESIS-style structural heuristic baseline: flags any gate whose output influences public_out under power_down=1 as suspect without pinpointing bit-level isolation failure (expected partial credit only)"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required ground-truth findings (trojan presence, correct suspect node, correct affected output bit, correct violating condition) that the submitted report correctly captures across the SR checklist.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported suspect_nodes or affected_outputs that do not correspond to the true bypass path or truly-compromised bit (e.g. flagging public_out[1..3] or unrelated gates as compromised).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time taken by evaluate.py to parse, optionally re-simulate via iverilog/vvp, and grade the submitted trojan_report.json against the reference netlist.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission passes only if trojan_present=true, suspect_nodes contains a name matching the true bypass path, affected_outputs is exactly {public_out[0]} (no extra falsely-flagged bits), and violating_condition correctly names power_down=1 & secure_data[0]=1 as the failing case.",
+      "A submission that reports trojan_present=false, or that flags all four output bits generically without isolating bit 0, or that names only unrelated gates (e.g. only u_iso_mux) must fail.",
+      "The baseline empty/naive submission (trojan_present=false, empty suspect_nodes/affected_outputs) must fail all SR checks."
+    ],
+    "cwe_ids": [
+      "CWE-1256",
+      "CWE-1231",
+      "CWE-200",
+      "CWE-284"
+    ],
+    "ground_truth": "The netlist contains a legitimate isolation MUX (instance u_iso_mux) that correctly forces public_out[3:1] to 0 when power_down=1. However, bit 0 is routed through an extra OR2 gate (instance u_leak_or, hidden name in netlist) that computes public_out[0] = secure_data[0] OR (isolated_bit0 AND power_down)-equivalent bypass, effectively leaking secure_data[0] through public_out[0] whenever power_down=1, since OR with secure_data[0] never forces zero when secure_data[0]=1. This violates the required public_out=0 during power_down for bit 0, exposing one bit of the secure register even while nominally powered down. The correct classification is trojan_present=true, suspect_nodes must include the OR gate instance name (e.g. u_leak_or) and the bypass wire feeding it (e.g. net_bypass_bit0), affected_outputs must include 'public_out[0]' only (bits 1-3 are correctly isolated), and violating_condition should state that setting power_down=1 and secure_data[0]=1 yields public_out[0]=1 instead of the required 0.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Exhaustively simulate isolation_wrapper over all 32 (secure_data,power_down) combinations using iverilog/vvp; compare public_out against the reference isolation contract (public_out=0 when power_down=1). Any mismatch confirms trojan_present=true. Cross-check against the submitted trojan_present field.",
+        "id": "SR1",
+        "requirement": "The report must correctly flag trojan_present=true; the netlist contains an isolation bypass, and a false-negative (reporting no trojan) must fail grading."
+      },
+      {
+        "detection_strategy": "Parse affected_outputs field; require 'public_out[0]' present and reject if any of public_out[1], public_out[2], public_out[3] are also claimed as affected (false positives on correctly-isolated bits indicate imprecise/incorrect analysis).",
+        "id": "SR2",
+        "requirement": "The report must identify that only public_out[0] is compromised, not bits 1-3, distinguishing a precise finding from a vague or overbroad one."
+      },
+      {
+        "detection_strategy": "Extract the set of instance/net names appearing in inputs/isolation_wrapper_netlist.v; verify at least one reported suspect_node string exactly matches the known bypass-path instance name(s) recorded in ground_truth (e.g. u_leak_or or net_bypass_bit0), rather than matching an unrelated instance like u_iso_mux or an AND2 used elsewhere.",
+        "id": "SR3",
+        "requirement": "suspect_nodes must name at least one actual gate instance from the netlist that lies on the bypass path (the leak OR gate or its unique bypass net), not an arbitrary or unrelated gate name."
+      },
+      {
+        "detection_strategy": "Keyword/pattern check for mention of power_down=1 (or power_down asserted) together with secure_data[0]=1 (or bit 0 set) in the violating_condition string; optionally re-simulate that exact vector via vvp to confirm public_out[0]=1 is produced, substantiating the claim.",
+        "id": "SR4",
+        "requirement": "The violating_condition description must correctly characterize the failing input assignment (power_down=1 combined with secure_data[0]=1) rather than an unrelated or incorrect condition."
+      }
+    ],
+    "threat_model": "An on-chip or board-level observer with access only to the always-on public_out pin samples its value while the secure domain is asserted powered-down (power_down=1). Because bit 0 is routed through an inserted OR gate rather than the isolation MUX, the observer directly recovers secure_data[0] during shutdown, defeating the intended power-gating-based confidentiality isolation. The attacker does not need internal probe access, only the ability to toggle power_down and read public_out across the domain's normal power cycles."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist is expressed purely with AND2, OR2, and MUX2 primitive instances (no higher-level always blocks) plus wire declarations, so it can be parsed structurally or simulated exhaustively over all 5 input bits (secure_data[3:0], power_down).",
+      "The clean/expected contract is: whenever power_down=1, public_out must equal 4'b0000 regardless of secure_data value; whenever power_down=0, public_out must equal secure_data.",
+      "All input combinations (32 total) must be exhaustively exercised by any simulation-based check the participant or evaluator performs; the netlist is small enough for full enumeration.",
+      "The netlist and primitive library are fully self-contained and synthesizable/simulatable with iverilog without external libraries."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing a trojan classification label, a list of suspect node names, and a list of affected output ports"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON containing all six required top-level fields (trojan_present, confidence, suspect_nodes, affected_outputs, violating_condition, analysis_summary) with the exact types specified in the interface (boolean, float, array of strings, array of strings, string, string)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "trojan_present must be set to true, matching the presence of an isolation violation in the reference netlist."
+      },
+      {
+        "id": "FR3",
+        "requirement": "suspect_nodes must include at least one gate instance name that exists in inputs/isolation_wrapper_netlist.v (case-sensitive exact match against instance names declared in the file)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "affected_outputs must correctly identify which bit(s) of public_out are compromised, referencing them using the exact bit-indexed naming convention 'public_out[N]'."
+      }
+    ],
+    "input_artifacts": [
+      "isolation_wrapper_netlist.v",
+      "design_brief.md",
+      "primitive_library.v"
+    ],
+    "interface": "Netlist file: inputs/isolation_wrapper_netlist.v, top module name: isolation_wrapper, ports: input secure_data (4-bit, inputs/secrets held by the secure domain), input power_down (1-bit control, 1 = secure domain should be shut off), input clk (unused by combinational logic but present for interface uniformity), output public_out (4-bit, the always-on observable output). Gate primitives used: AND2, OR2, MUX2 (sel,a,b -> sel?b:a), all defined in inputs/primitive_library.v with named ports (a, b, sel, y). The submission is NOT code: participants write an answer file at submission/trojan_report.json with this exact JSON schema: {\"trojan_present\": <boolean>, \"confidence\": <float 0.0-1.0>, \"suspect_nodes\": [<string, gate instance names from isolation_wrapper_netlist.v>], \"affected_outputs\": [<string, port names of public_out bits, e.g. \"public_out[0]\">], \"violating_condition\": <string, a short description of the input assignment(s) under which the isolation contract fails>, \"analysis_summary\": <string>}. evaluate.py reads inputs/ for reference and optionally re-simulates the netlist via iverilog/vvp to confirm reported violating_condition, then grades submission/trojan_report.json.",
+    "objective": "You are given a synthesized gate-level Verilog netlist implementing a small secure-domain power-gating wrapper. The wrapper is supposed to isolate a secure internal register from an always-on output pin whenever the domain is powered down, using standard combinational primitives (AND, OR, MUX). Analyze the netlist structurally (and optionally simulate it with the provided toolchain) to determine whether the isolation behavior actually holds for all input combinations, and produce a structured trojan_report.json identifying any suspect gates/nets that violate the isolation contract and any output signals affected.",
+    "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface. No other submission files are graded."
+  },
+  "task_id": "gate_trojan_detection_power_isolation_bypass_001",
+  "title": "Gate-Level Trojan Detection: Secure-Domain Isolation Cell"
+}

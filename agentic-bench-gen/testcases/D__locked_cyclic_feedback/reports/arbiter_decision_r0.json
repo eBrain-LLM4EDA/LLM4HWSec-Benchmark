@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected by evaluate.py due to a bug in the FR3 testbench generation that produces invalid Verilog syntax (iverilog compile error at line 17). This causes the baseline run to fail, making the mutation score of 0.0 not meaningful. Additionally, no mutants were generated for any requirement, so discrimination coverage is 0.0 and all requirements are untested. The evaluator also fails to compute the required metrics (key_recovery_rate, key_gate_localization_accuracy, sat_iteration_reduction) and does not verify that the circuit is cycle-free as required by FR3. The root cause is an evaluation framework issue: the evaluator is buggy and incomplete.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

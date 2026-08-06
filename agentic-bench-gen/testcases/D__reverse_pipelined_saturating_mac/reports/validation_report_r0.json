@@ -1,0 +1,118 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/obfuscated_mac_netlist.v",
+    "metadata.json",
+    "submission/recovered_rtl.v"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "6d1cff55dc438ff2ccdaa400b495d4f5f5d4d460bd09e90973d6b44fe64b78eb",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: compile failed: submission/recovered_rtl.v:51: syntax error; submission/recovered_rtl.v:51: error: Malformed statement; evaluation/tb_mac_top.v:178: syntax error\n[TEST] FAIL: FR2: compile failed: submission/recovered_rtl.v:51: syntax error; submission/recovered_rtl.v:51: error: Malformed statement; evaluation/tb_mac_top.v:178: syntax error\n[TEST] FAIL: FR3: compile failed: submission/recovered_rtl.v:51: syntax error; submission/recovered_rtl.v:51: error: Malformed statement; evaluation/tb_mac_top.v:178: syntax error\n[TEST] FAIL: FR4: compile failed: submission/recovered_rtl.v:51: syntax error; submission/recovered_rtl.v:51: error: Malformed statement; evaluation/tb_mac_top.v:178: syntax error\n[TEST] FAIL: SR1: compile failed: submission/recovered_rtl.v:51: syntax error; submission/recovered_rtl.v:51: error: Malformed statement; evaluation/tb_mac_top.v:178: syntax error\n[TEST] FAIL: SR2: compile failed: submission/recovered_rtl.v:51: syntax error; submission/recovered_rtl.v:51: error: Malformed statement; evaluation/tb_mac_top.v:178: syntax error\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: compile failed: evaluation/tb_mac_top.v:178: syntax error; evaluation/tb_mac_top.v:178: error: Malformed statement\n[TEST] FAIL: FR2: compile failed: evaluation/tb_mac_top.v:178: syntax error; evaluation/tb_mac_top.v:178: error: Malformed statement\n[TEST] FAIL: FR3: compile failed: evaluation/tb_mac_top.v:178: syntax error; evaluation/tb_mac_top.v:178: error: Malformed statement\n[TEST] FAIL: FR4: compile failed: evaluation/tb_mac_top.v:178: syntax error; evaluation/tb_mac_top.v:178: error: Malformed statement\n[TEST] FAIL: SR1: compile failed: evaluation/tb_mac_top.v:178: syntax error; evaluation/tb_mac_top.v:178: error: Malformed statement\n[TEST] FAIL: SR2: compile failed: evaluation/tb_mac_top.v:178: syntax error; evaluation/tb_mac_top.v:178: error: Malformed statement\n"
+    }
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "expert_files": [
+    "golden/recovered_rtl.v"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "6d1cff55dc438ff2ccdaa400b495d4f5f5d4d460bd09e90973d6b44fe64b78eb",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "1b225165addd3d1c4fd38f18dd586363b58feb2e107696313f48ed0890ea48de",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "f299d9ee7ac7784059f03f45ccf5794148f5690dfab9d28c560320ee151725c8",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/mac_golden.v",
+    "evaluation/tb_mac_top.v"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "Proportion of correctly identified trigger and payload components (cells and nets) out of the total ground truth components.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Proportion of incorrectly reported components (cells and nets not in the ground truth) out of all reported components.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Time taken by the evaluation script to grade the submission, measured in seconds.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted trigger_cells array contains the exact instance names of the AOI21 and OAI22 cells that form the trigger.",
+      "The submitted trigger_nets array contains the exact name of the net connecting the AOI21 and OAI22 cells.",
+      "The submitted payload_cells array contains the exact instance name of the XOR cell driving control_out.",
+      "The submitted payload_nets array contains the exact name of the net connecting the trigger output to the XOR cell input."
+    ],
+    "cwe_ids": [
+      "CWE-1245"
+    ],
+    "ground_truth": "Two labeled AOI/OAI cells jointly implement the rare state-and-input match; their output controls the labeled payload XOR on control_out.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if the reported trigger cells include the specific AOI21 and OAI22 instances that implement the rare comparator, and if the reported trigger nets include the internal net connecting them.",
+        "id": "SR1",
+        "requirement": "The detection method must identify the trigger logic even when it is absorbed into complex AOI/OAI cells."
+      },
+      {
+        "detection_strategy": "Check if the reported payload cells include the XOR gate instance that drives control_out, and if the reported payload nets include the net connecting the trigger output to the XOR input.",
+        "id": "SR2",
+        "requirement": "The detection method must identify the payload logic that flips the control_out signal."
+      }
+    ],
+    "threat_model": "Technology mapping obscures the recognizable AND-tree shape used by structural Trojan detectors."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist uses a small technology-mapped cell vocabulary including AOI21, OAI22, INV, XOR, and DFF.",
+      "The netlist is a flat, gate-level Verilog file.",
+      "The control_out signal is a single-bit output of the top-level module."
+    ],
+    "expected_outputs": [
+      "A valid trojan_report.json file in the submission directory.",
+      "The report must list at least one trigger cell instance and at least one payload cell instance.",
+      "The report must list at least one trigger net and at least one payload net."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The submitted trojan_report.json must contain the exact top-level keys: \"trigger_cells\", \"trigger_nets\", \"payload_cells\", \"payload_nets\"."
+      },
+      {
+        "id": "FR3",
+        "requirement": "Each of the four required keys must map to a non-empty array of strings."
+      },
+      {
+        "id": "FR4",
+        "requirement": "All reported cell instance names and net names must exist in the provided netlist (design.v)."
+      }
+    ],
+    "input_artifacts": [
+      "design.v",
+      "cells.lib"
+    ],
+    "interface": "The participant must produce a single JSON file at submission/trojan_report.json. The file must contain a JSON object with the following required fields: \"trigger_cells\" (array of strings, instance names of cells implementing the trigger condition), \"trigger_nets\" (array of strings, names of nets carrying the trigger signal), \"payload_cells\" (array of strings, instance names of cells implementing the payload), \"payload_nets\" (array of strings, names of nets carrying the payload effect). All arrays must be non-empty. The evaluator will parse this file and compare its contents against the hidden ground truth.",
+    "objective": "Analyze the provided gate-level netlist and identify any logic that could cause the control_out signal to flip under a specific, rare input condition. Report the instance names of the cells and nets involved in this behavior.",
+    "response_format": "A JSON object with keys \"trigger_cells\", \"trigger_nets\", \"payload_cells\", \"payload_nets\", each mapping to a non-empty array of strings."
+  },
+  "task_id": "gate_aoi_absorbed_trigger",
+  "title": "Trigger absorbed into mapped AOI cells"
+}

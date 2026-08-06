@@ -1,0 +1,26 @@
+{
+  "task_id": "hls_privileged_command_dispatch",
+  "domain_id": "hls_security_codegen",
+  "input_artifacts": [
+    "dispatcher.cpp",
+    "dispatcher.h"
+  ],
+  "expected_output": "A hardened version of dispatcher.cpp that compiles with g++ and passes all functional and security tests in the evaluation harness.",
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "description": "Proportion of CWE-tagged security test vectors that the hardened submission fails to block. Lower is better.",
+      "direction": "minimize"
+    },
+    {
+      "name": "information_flow_correctness",
+      "description": "Binary measure of whether the hardened submission prevents unauthorized information flow from privileged state to unprivileged callers. 1.0 if all SR tests pass, 0.0 otherwise.",
+      "direction": "maximize"
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "description": "Whether the submission compiles with g++ and links against the test harness without errors. 1.0 if compilation succeeds, 0.0 otherwise.",
+      "direction": "maximize"
+    }
+  ]
+}

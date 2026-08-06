@@ -1,0 +1,25 @@
+{
+  "acceptance_criteria": [
+    "All four lock gates are correctly identified by their original netlist labels.",
+    "Each lock gate is classified correctly as XOR, XNOR, MUX_0, or MUX_1.",
+    "The recovered_key string exactly matches the hidden correct key '0101'.",
+    "The submission file is valid JSON and passes schema validation."
+  ],
+  "cwe_ids": [
+    "CWE-1278"
+  ],
+  "ground_truth": "The four labeled lock sites comprise XOR, XNOR, MUX-functional-on-0, and MUX-functional-on-1 gates in that order; the restoring key is 0101.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare the submitted classification for each gate label against the ground truth classification. Any mismatch indicates failure to distinguish the locking schemes.",
+      "id": "SR1",
+      "requirement": "The participant must correctly distinguish XOR/XNOR key gates from MUX-based key gates despite their structural similarity in the netlist."
+    },
+    {
+      "detection_strategy": "Compare the submitted recovered_key string against the ground truth key '0101'. Any bit mismatch indicates incomplete key recovery.",
+      "id": "SR2",
+      "requirement": "The participant must recover the exact correct key bits for all lock gates, demonstrating the ability to resolve key values for mixed locking styles."
+    }
+  ],
+  "threat_model": "Combining lock styles defeats detectors that assume one structural key-gate pattern throughout the design."
+}

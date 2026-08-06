@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "Code must be C/C++ compatible with PandA-Bambu style HLS: fixed-size arrays, no dynamic allocation, no STL containers used within the kernel computation.",
+    "The function signature `uint32_t modexp(uint32_t base, uint32_t exponent, uint32_t modulus)` must be preserved exactly, in modexp_kernel.cpp.",
+    "The exponentiation loop must iterate a fixed 32 times (one per bit of a 32-bit exponent), with the same set of arithmetic operations performed on every iteration.",
+    "No recursive functions, no exceptions, no runtime file or network I/O."
+  ],
+  "expected_outputs": [
+    "A single revised modexp_kernel.cpp file implementing the pinned modexp() interface, synthesizable under PandA-Bambu-style HLS constraints (no dynamic allocation, no STL containers in the kernel body, fixed-size arrays only), that produces bit-identical results to the reference implementation for all test vectors."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For known test vectors (base, exponent, modulus, expected_result) covering exponent=0, exponent=1, modulus=2, and several randomized cases, modexp(base, exponent, modulus) must return exactly expected_result computed via a trusted reference (e.g., Python pow(base, exponent, modulus))."
+    },
+    {
+      "id": "FR2",
+      "requirement": "modexp(0, e, m) must return 0 for any e>0 and m>1, and modexp(b, 0, m) must return 1 for any b and m>1 (per standard modexp convention), matching the reference model exactly."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The file must compile standalone with g++ using only fixed-size local arrays/scalars, no STL containers (e.g. std::vector, std::map) and no dynamic memory allocation (malloc/new) inside the modexp function body, and must not call printf, exit, or abort."
+    },
+    {
+      "id": "FR4",
+      "requirement": "For a fixed modulus and base, calling modexp with different exponent values must always execute the same number of high-level loop iterations (a caller-observable iteration counter, exposed only through the test harness via a compiled-in instrumentation hook, must equal 32 for every call), regardless of exponent value."
+    }
+  ],
+  "input_artifacts": [
+    "modexp_kernel.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: modexp_kernel.cpp. Entry point (must match exactly): `uint32_t modexp(uint32_t base, uint32_t exponent, uint32_t modulus);` where `base` is the public plaintext base (0 <= base < modulus), `exponent` is the secret private exponent (32-bit unsigned, all bit patterns valid, including 0), `modulus` is the public modulus (2 <= modulus < 2^16 to avoid overflow of intermediate 32-bit products in the reference model), and the return value is the public result base^exponent mod modulus. No other global state, I/O, or side channel is part of the interface. The function must be pure (no printf/exit/dynamic allocation) and must always run the same fixed number of loop iterations (32, one per exponent bit) regardless of exponent value.",
+  "objective": "Refactor the provided HLS-style C/C++ modular exponentiation kernel so it is compatible with high-level synthesis constraints (fixed-size arrays, static memory, no STL/dynamic allocation in the kernel body) while preserving exact functional correctness for all valid inputs. Improve the internal loop structure so that it always executes a fixed, predictable sequence of arithmetic operations per exponent bit position, regardless of the exponent's value, and keep the exact same top-level function signature and semantics.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

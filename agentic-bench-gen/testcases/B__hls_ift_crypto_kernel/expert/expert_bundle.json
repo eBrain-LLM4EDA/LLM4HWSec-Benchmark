@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "content": "#include <cstdint>\n#include <cstddef>\n#include \"crypto_kernel.h\"\n\n// Hardened crypto kernel.\n//\n// Security invariants enforced by construction:\n//  - The loop bound is a compile-time constant (16); it never depends on\n//    the content of `plaintext` or `key`.\n//  - Every iteration performs the identical, data-independent operation:\n//    a byte-wise XOR combination written into `ciphertext`. There is no\n//    branch, comparison, or memory-access pattern keyed on any byte of\n//    `key` or `plaintext`.\n//  - `*status` is written exactly once, unconditionally, to the fixed\n//    literal 0x00 after the loop completes. No branch, comparison, or\n//    lookup involving `key`/`plaintext` participates in computing this\n//    value.\n//  - No stdout/stderr/file I/O, no static or global mutable state, no\n//    dynamic allocation, and no recursion are used anywhere in this\n//    function, preventing any additional covert channel.\nvoid crypto_kernel(const unsigned char plaintext[16],\n                    const unsigned char key[16],\n                    unsigned char ciphertext[16],\n                    unsigned char *status)\n{\n    for (int i = 0; i < 16; i++) {\n        ciphertext[i] = static_cast<unsigned char>(plaintext[i] ^ key[i]);\n    }\n\n    *status = 0x00;\n}",
+      "path": "golden/crypto_kernel.cpp"
+    },
+    {
+      "content": "#ifndef CRYPTO_KERNEL_H_\n#define CRYPTO_KERNEL_H_\n\nvoid crypto_kernel(const unsigned char plaintext[16],\n                    const unsigned char key[16],\n                    unsigned char ciphertext[16],\n                    unsigned char *status);\n\n#endif // CRYPTO_KERNEL_H_",
+      "path": "golden/crypto_kernel.h"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/crypto_kernel.cpp",
+      "purpose": "Hardened implementation of void crypto_kernel(const unsigned char plaintext[16], const unsigned char key[16], unsigned char ciphertext[16], unsigned char *status) matching golden/crypto_kernel.h exactly. Body: single straight-line for(i=0;i<16;i++) ciphertext[i]=plaintext[i]^key[i]; loop bound is constant 16, never derived from key/plaintext content. *status is unconditionally assigned literal 0x00 exactly once after the loop, with no branch, comparison, lookup, or early return referencing any byte of key or plaintext. No stdout/stderr/file I/O, no static/global state, no dynamic allocation, no recursion. Only includes <cstdint>/<cstddef> plus crypto_kernel.h. Satisfies FR1-FR4 and SR1-SR4: constant status, no key-dependent timing variance, no key exposure outside ciphertext XOR, no debug output. This is the file graded in place by evaluate.py after being copied to inputs/crypto_kernel.cpp."
+    },
+    {
+      "path": "golden/crypto_kernel.h",
+      "purpose": "Header declaring exactly: void crypto_kernel(const unsigned char plaintext[16], const unsigned char key[16], unsigned char ciphertext[16], unsigned char *status); guarded with include guard (e.g. #ifndef CRYPTO_KERNEL_H_ / #define / #endif), wrapped in extern \"C\" only if needed for C++/C interop consistency with harness includes. Must be byte-identical in prototype to what golden/crypto_kernel.cpp implements and what evaluation harness includes. No other declarations, macros, or constants beyond the include guard. This file is required so golden/crypto_kernel.cpp compiles standalone against the pinned public interface without depending on any harness-provided header."
+    }
+  ]
+}

@@ -7,6 +7,7 @@ from agentic_bench_gen.validator import (
     _find_opened_input_files,
     _golden_overlay,
     _parse_failing_checks,
+    _submission_overlay_plan,
     validate_benchmark_case,
 )
 from agentic_bench_gen.workspace import Workspace
@@ -465,17 +466,47 @@ sys.exit(0)
 """
 
 _VULN_SRC = "// VULN insecure baseline\nint f(){return 0;}"
-_SECURE_GOLDEN = {"files": [{"path": "golden/secure.c", "content": "// secure\nint f(){return 0;}"}]}
+_SECURE_GOLDEN = {"files": [{"path": "golden/code.c", "content": "// secure\nint f(){return 0;}"}]}
 _DIFF_SPEC = {"domain_id": "hls_security_codegen", "public_spec": {"input_artifacts": ["code.c"]}}
 
 
-def test_golden_overlay_maps_golden_code_onto_input_path_by_extension():
+def test_golden_overlay_requires_exact_filename_match():
     task_spec = {"domain_id": "hls_security_codegen", "public_spec": {"input_artifacts": ["code.c", "spec.md"]}}
     expert_bundle = {"files": [
         {"path": "golden/secure.c", "content": "SECURE"},
         {"path": "golden/notes.txt", "content": "ignored"},
     ]}
-    assert _golden_overlay(task_spec, expert_bundle) == {"inputs/code.c": "SECURE"}
+    assert _golden_overlay(task_spec, expert_bundle) == {}
+
+
+def test_golden_overlay_does_not_replace_same_stem_header():
+    task_spec = {
+        "domain_id": "hls_security_codegen",
+        "public_spec": {"input_artifacts": ["dispatcher.cpp", "dispatcher.h"]},
+    }
+    expert_bundle = {"files": [{
+        "path": "golden/dispatcher.cpp", "content": "secure implementation",
+    }]}
+    assert _golden_overlay(task_spec, expert_bundle) == {
+        "inputs/dispatcher.cpp": "secure implementation",
+    }
+
+
+def test_submission_overlay_plan_records_unmapped_header_and_hashes(tmp_path):
+    ws = Workspace(tmp_path)
+    ws.write_text("inputs/dispatcher.cpp", "insecure")
+    ws.write_text("inputs/dispatcher.h", "valid header")
+    spec = {
+        "domain_id": "hls_security_codegen",
+        "public_spec": {"input_artifacts": ["dispatcher.cpp", "dispatcher.h"]},
+    }
+    expert = {"files": [{"path": "golden/dispatcher.cpp", "content": "secure"}]}
+    plan = _submission_overlay_plan(spec, expert, ws=ws)
+    assert plan["status"] == "pass"
+    assert plan["overlay"] == {"inputs/dispatcher.cpp": "secure"}
+    assert plan["unmapped_targets"] == ["inputs/dispatcher.h"]
+    assert plan["mappings"][0]["changed"] is True
+    assert len(plan["mappings"][0]["golden_sha256"]) == 64
 
 
 def test_golden_overlay_empty_when_no_code_input():
@@ -512,7 +543,8 @@ def test_differential_skipped_without_golden():
         ws.write_text("inputs/code.c", _VULN_SRC)
         ws.write_text("evaluation/evaluate.py", _CORRECT_EVALUATOR)
         diff = _compute_differential_validation(_DIFF_SPEC, {"files": []}, ws)
-    assert diff["status"] == "skipped"
+    assert diff["status"] == "fail"
+    assert diff["failure_class"] == "submission_invariant"
 
 
 def test_validate_benchmark_case_raises_inverted_logic_issues():
@@ -666,6 +698,8 @@ def test_report_domain_end_to_end_grades_submission_not_inputs():
     assert report["differential"]["status"] == "pass"
     assert report["mutation_score"] == 1.0        # wrong-trigger mutant detected
     assert report["status"] == "pass"
+    assert report["requirement_mapping_coverage_score"] == 1.0
+    assert report["requirement_discrimination_coverage_score"] == 1.0
 
 
 def test_grader_convention_mutation_scoring_with_golden_overlay():
@@ -771,10 +805,10 @@ sys.exit(0)
     issues = {i["issue"] for i in report["issues"]}
     assert "requirement_id_mismatch" in issues
     assert "golden_rejected" in issues
-    assert "vulnerable_accepted" in issues
+    assert "vulnerable_rejection_invalid" in issues
 
 
-def test_validator_raises_baseline_failed_issue_without_golden():
+def test_validator_flags_missing_golden_overlay():
     # No golden code overlay exists (expert ships only labels), the differential
     # gate is skipped, and the as-shipped baseline fails — the report must say
     # so instead of passing validation with a 0.0 mutation score.
@@ -825,7 +859,7 @@ def test_validator_raises_baseline_failed_issue_without_golden():
         )
 
     issues = {i["issue"] for i in report["issues"]}
-    assert "baseline_failed" in issues
+    assert "golden_overlay_missing" in issues
     assert report["status"] == "fail"
     assert report["mutation_score"] == 0.0
 
@@ -1109,6 +1143,27 @@ def test_mutation_score_meaningful_flag_false_when_differential_fails_without_mu
     assert report["differential"]["status"] == "fail"
     assert report["mutation_score"] == 0.0
     assert report["mutation_score_meaningful"] is False
+    assert report["mutation_status"] == "blocked_by_differential"
+    assert report["blocked_mutation_requirements"] == ["SR1"]
+    assert "untested_requirement" not in _issue_kinds(report)
+
+
+def test_dynamic_mutation_score_is_not_meaningful_without_mutants():
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Workspace(tmp)
+        ws.write_text("inputs/code.c", _VULN_SRC)
+        ws.write_text("evaluation/evaluate.py", _CORRECT_EVALUATOR)
+        spec, bundle, tester = _leak_case(functional_requirements=[])
+        expert = {"files": [{
+            "path": "golden/code.c",
+            "content": _SECURE_GOLDEN["files"][0]["content"],
+        }]}
+        report = validate_benchmark_case(
+            spec, bundle, tester, expert, {"mutants": []}, ws=ws,
+        )
+
+    assert report["differential"]["status"] == "pass"
+    assert report["mutation_score_meaningful"] is False
 
 
 def test_mutant_rejected_by_wrong_check_gets_no_target_credit():
@@ -1176,3 +1231,27 @@ def test_differential_does_not_count_setup_failure_as_vulnerable_rejection():
         diff = _compute_differential_validation(_DIFF_SPEC, _SECURE_GOLDEN, ws)
     assert diff["status"] == "fail"
     assert diff["vulnerable_run"]["ok"] is False
+
+
+def test_differential_ignores_non_requirement_evidence_markers():
+    evaluator = _CORRECT_EVALUATOR.replace(
+        'src = pathlib.Path("inputs/code.c").read_text()',
+        'src = pathlib.Path("inputs/code.c").read_text()\nprint("[EVIDENCE] FAIL: optional diagnostic")',
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Workspace(tmp)
+        ws.write_text("inputs/code.c", _VULN_SRC)
+        ws.write_text("evaluation/evaluate.py", evaluator)
+        diff = _compute_differential_validation(_DIFF_SPEC, _SECURE_GOLDEN, ws)
+
+    assert diff["status"] == "pass"
+
+
+def test_evaluator_traceback_is_classified_separately():
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Workspace(tmp)
+        ws.write_text("inputs/code.c", _VULN_SRC)
+        ws.write_text("evaluation/evaluate.py", "raise ModuleNotFoundError('private oracle')\n")
+        diff = _compute_differential_validation(_DIFF_SPEC, _SECURE_GOLDEN, ws)
+
+    assert diff["failure_class"] == "evaluator_error"

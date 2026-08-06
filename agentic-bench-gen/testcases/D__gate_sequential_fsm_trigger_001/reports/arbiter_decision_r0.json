@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden solution is rejected by evaluate.py, causing mutation_score=0.0 to be meaningless. The evaluator's ground truth constants (u_trig_dff0..3, u_xor_payload) do not match the actual instance names in the netlist (u_trig_dff0..3, u_xor_payload exist in the netlist, but the golden uses hierarchical names like controller_netlist.u_trigger.dff_0). The evaluator must be fixed to correctly match the golden's node names against the netlist instances, or the golden must be regenerated to use the exact instance names. Additionally, the evaluator does not compute the required metrics (detection_rate, false_positive_rate, inference_latency) and has no mutant tests. The primary issue is the evaluator rejecting the correct golden submission.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

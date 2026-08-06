@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"trigger_cells\": [\n    \"aoi21_trigger\",\n    \"oai22_trigger\"\n  ],\n  \"trigger_nets\": [\n    \"trigger_internal\"\n  ],\n  \"payload_cells\": [\n    \"xor_payload\"\n  ],\n  \"payload_nets\": [\n    \"trigger_to_xor\"\n  ]\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The exact correct submission answer file for the gate_aoi_absorbed_trigger task. Contains the ground-truth instance names of the trigger cells (AOI21 and OAI22), the trigger net connecting them, the payload cell (XOR driving control_out), and the payload net from trigger output to XOR input. All four required keys (trigger_cells, trigger_nets, payload_cells, payload_nets) map to non-empty arrays of strings. The evaluator overlays this file onto submission/trojan_report.json and grades it against the hidden acceptance criteria, expecting 100% detection_rate and 0% false_positive_rate."
+    }
+  ]
+}

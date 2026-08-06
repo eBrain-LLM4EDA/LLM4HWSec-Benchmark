@@ -1,0 +1,104 @@
+{
+  "files": [
+    {
+      "content": "#include <cstdint>\n#include <cstdlib>\n#include <cstdio>\n\nextern \"C\" int validate_dma(uint32_t base, uint32_t length,\n                             uint32_t region_start, uint32_t region_size);\n\nint main(int argc, char** argv) {\n    if (argc != 5) {\n        std::fprintf(stderr, \"usage: %s <base> <length> <region_start> <region_size>\\n\", argv[0]);\n        return 2;\n    }\n\n    uint32_t base         = static_cast<uint32_t>(std::strtoull(argv[1], nullptr, 10));\n    uint32_t length        = static_cast<uint32_t>(std::strtoull(argv[2], nullptr, 10));\n    uint32_t region_start  = static_cast<uint32_t>(std::strtoull(argv[3], nullptr, 10));\n    uint32_t region_size   = static_cast<uint32_t>(std::strtoull(argv[4], nullptr, 10));\n\n    int result = validate_dma(base, length, region_start, region_size);\n\n    std::printf(\"%d\\n\", result);\n\n    return 0;\n}",
+      "path": "evaluation/harness_main.cpp"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"\nevaluate.py - Grader for hls_dma_range_overflow_001\n\nCompiles inputs/dma_validate.cpp with evaluation/harness_main.cpp, then runs\nthe resulting binary against a battery of known-answer functional vectors\n(FR1-FR4) and security vectors (SR1-SR4), comparing the observed return\nvalue against a Python-computed ground truth using exact (unbounded)\ninteger arithmetic.\n\"\"\"\n\nimport os\nimport subprocess\nimport sys\nimport tempfile\n\nUINT32_MAX = 0xFFFFFFFF\n\nREQUIREMENT_IDS = [\"FR1\", \"FR2\", \"FR3\", \"FR4\", \"SR1\", \"SR2\", \"SR3\", \"SR4\"]\n\n\ndef ground_truth(base, length, region_start, region_size):\n    \"\"\"Exact containment predicate using Python's unbounded integers.\n\n    Valid iff:\n      length != 0\n      AND base >= region_start\n      AND base + length <= region_start + region_size\n    \"\"\"\n    if length == 0:\n        return 0\n    if base < region_start:\n        return 0\n    if base + length > region_start + region_size:\n        return 0\n    return 1\n\n\ndef build_vectors():\n    \"\"\"Return dict requirement_id -> list of (base, length, region_start, region_size).\"\"\"\n    vectors = {}\n\n    # Functional requirements (fixed known-answer vectors from public_spec)\n    vectors[\"FR1\"] = [(0x1000, 0x100, 0x1000, 0x200)]\n    vectors[\"FR2\"] = [(0x1000, 0x300, 0x1000, 0x200)]\n    vectors[\"FR3\"] = [(0x0FF0, 0x20, 0x1000, 0x200)]\n    vectors[\"FR4\"] = [(0x1100, 0x0, 0x1000, 0x200)]\n\n    # SR1: base + length (true value) exceeds UINT32_MAX\n    vectors[\"SR1\"] = [\n        (0xFFFFFFF0, 0x20, 0x0, 0xFFFFFFFF),\n        (0xFFFFFFFF, 0x1, 0x0, 0xFFFFFFFF),\n        (0xF0000000, 0x20000000, 0x0, 0xFFFFFFFF),\n    ]\n\n    # SR2: base+length overflows uint32_t and wraps to a value spuriously\n    # <= region_start+region_size under naive 32-bit arithmetic, but the\n    # true (unbounded) end lies outside the region.\n    vectors[\"SR2\"] = [\n        (0xFFFFFFF0, 0x30, 0xF0000000, 0x10000000),\n        (0xFFFFFFF8, 0x10, 0x00000000, 0x00000010),\n        (0xFFFFFFFE, 0x4, 0x00000000, 0x00000004),\n    ]\n\n    # SR3: zero-length transfers must always be rejected, regardless of\n    # base/region alignment (including base == region_start).\n    vectors[\"SR3\"] = [\n        (0x1000, 0x0, 0x1000, 0x200),\n        (0x0, 0x0, 0x0, 0x0),\n        (0x0, 0x0, 0x0, 0x100),\n        (0xFFFFFFFF, 0x0, 0x0, 0xFFFFFFFF),\n    ]\n\n    # SR4: partial containment - base before region_start with end inside;\n    # base inside region but end exceeds region bound; region_start+region_size\n    # itself overflows uint32_t.\n    vectors[\"SR4\"] = [\n        (0x0FF0, 0x20, 0x1000, 0x200),          # base before region_start\n        (0x1000, 0x300, 0x1000, 0x200),          # end exceeds region bound\n        (0xF0000000, 0x10, 0xF0000000, 0x20000000),  # region_start+region_size overflows 32-bit, base valid & fully contained\n        (0xFFFFFFF0, 0x30, 0xF0000000, 0x20000000),  # region_start+region_size overflows 32-bit, request extends past true end\n    ]\n\n    return vectors\n\n\ndef compile_harness(build_dir):\n    cpp_file = \"inputs/dma_validate.cpp\"\n    harness_file = \"evaluation/harness_main.cpp\"\n    out_bin = os.path.join(build_dir, \"harness\")\n\n    cmd = [\"g++\", \"-std=c++17\", \"-O0\", \"-o\", out_bin, cpp_file, harness_file]\n    try:\n        proc = subprocess.run(\n            cmd, capture_output=True, text=True, timeout=60\n        )\n    except subprocess.TimeoutExpired:\n        return None, \"compile timed out\"\n\n    if proc.returncode != 0:\n        stderr_lines = proc.stderr.strip().splitlines()\n        first_line = stderr_lines[0] if stderr_lines else \"unknown compile error\"\n        return None, first_line\n\n    return out_bin, None\n\n\ndef run_vector(binary, vector, timeout=5):\n    base, length, region_start, region_size = vector\n    args = [binary, str(base), str(length), str(region_start), str(region_size)]\n    try:\n        proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout)\n    except subprocess.TimeoutExpired:\n        return None, \"run timed out\"\n\n    if proc.returncode != 0:\n        return None, \"run crashed (exit code %d)\" % proc.returncode\n\n    out = proc.stdout.strip()\n    try:\n        value = int(out.splitlines()[0].strip())\n    except (ValueError, IndexError):\n        return None, \"run produced no parseable integer output (got %r)\" % out\n\n    return value, None\n\n\ndef main():\n    inputs_cpp = \"inputs/dma_validate.cpp\"\n    inputs_brief = \"inputs/design_brief.md\"\n\n    overall_pass = True\n\n    if not os.path.isfile(inputs_cpp):\n        for rid in REQUIREMENT_IDS:\n            print(\"[TEST] FAIL: SETUP: %s not found\" % inputs_cpp)\n        sys.exit(1)\n\n    if not os.path.isfile(inputs_brief):\n        for rid in REQUIREMENT_IDS:\n            print(\"[TEST] FAIL: SETUP: %s not found\" % inputs_brief)\n        sys.exit(1)\n\n    vectors = build_vectors()\n\n    with tempfile.TemporaryDirectory() as build_dir:\n        binary, compile_err = compile_harness(build_dir)\n\n        if binary is None:\n            for rid in REQUIREMENT_IDS:\n                print(\"[TEST] FAIL: %s: compile failed: %s\" % (rid, compile_err))\n            sys.exit(1)\n\n        for rid in REQUIREMENT_IDS:\n            vecs = vectors[rid]\n            rid_pass = True\n            fail_reason = None\n\n            for vec in vecs:\n                base, length, region_start, region_size = vec\n                expected = ground_truth(base, length, region_start, region_size)\n                observed, run_err = run_vector(binary, vec)\n\n                if observed is None:\n                    rid_pass = False\n                    fail_reason = (\n                        \"run crashed/timed out on vector base=0x%X length=0x%X \"\n                        \"region_start=0x%X region_size=0x%X (%s)\"\n                        % (base, length, region_start, region_size, run_err)\n                    )\n                    break\n\n                if observed != expected:\n                    rid_pass = False\n                    fail_reason = (\n                        \"vector base=0x%X length=0x%X region_start=0x%X region_size=0x%X \"\n                        \"expected=%d got=%d\"\n                        % (base, length, region_start, region_size, expected, observed)\n                    )\n                    break\n\n            if rid_pass:\n                print(\"[TEST] PASS: %s\" % rid)\n            else:\n                print(\"[TEST] FAIL: %s: %s\" % (rid, fail_reason))\n                overall_pass = False\n\n    sys.exit(0 if overall_pass else 1)\n\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# Evaluation: Overflow-safe DMA range validation\n\n## What this grader does\n\n`evaluate.py` behaviorally grades `inputs/dma_validate.cpp` against the\npinned interface:\n\n```\nextern \"C\" int validate_dma(uint32_t base, uint32_t length,\n                             uint32_t region_start, uint32_t region_size);\n```\n\nIt never inspects the submission's source text. Correctness of\n`validate_dma` is fully determined by its observable input/output\nbehavior at this interface, so every requirement (FR1-FR4, SR1-SR4) is\nchecked by compiling and running the code, never by pattern-matching\nhow it is written.\n\n## Steps performed by `evaluate.py`\n\n1. **Presence check.** Confirms `inputs/dma_validate.cpp` and\n   `inputs/design_brief.md` exist. If either is missing, every\n   requirement is reported as `[TEST] FAIL: SETUP: <file> not found`\n   and the script exits 1.\n\n2. **Compile.** Builds the submission together with the harness driver\n   using:\n\n   ```\n   g++ -std=c++17 -O0 -o <tmpdir>/harness inputs/dma_validate.cpp evaluation/harness_main.cpp\n   ```\n\n   with a 60-second timeout. If compilation fails, every requirement\n   id (FR1-FR4, SR1-SR4) is reported as\n   `[TEST] FAIL: <id>: compile failed: <first stderr line>` and the\n   script exits 1. This ensures a broken/mutated submission that fails\n   to build is correctly counted as failing every requirement rather\n   than being skipped.\n\n3. **Run vectors.** `evaluation/harness_main.cpp` is a thin CLI wrapper:\n   it takes `base`, `length`, `region_start`, `region_size` as decimal\n   command-line arguments, calls `validate_dma`, and prints the integer\n   return value on stdout. For each requirement id, `evaluate.py` spawns\n   one subprocess invocation per test vector (with a 5-second timeout\n   per run) and parses the single printed integer as the observed\n   result.\n\n4. **Ground truth.** For each vector, the expected result is computed in\n   Python using **exact, unbounded integer arithmetic** (Python `int` has\n   no fixed width, so there is no wraparound in the reference\n   computation itself):\n\n   ```python\n   def ground_truth(base, length, region_start, region_size):\n       if length == 0:\n           return 0\n       if base < region_start:\n           return 0\n       if base + length > region_start + region_size:\n           return 0\n       return 1\n   ```\n\n   This is the half-open-interval containment predicate from the task\n   specification: `[base, base+length)` must be non-empty and fully\n   contained within `[region_start, region_start+region_size)`.\n\n5. **Compare and report.** For each requirement id, every associated\n   vector's observed value is compared to the Python-computed expected\n   value. A requirement is reported `[TEST] PASS: <id>` only if all of\n   its vectors match; otherwise it is reported\n   `[TEST] FAIL: <id>: <first mismatching vector and values>`. A crash\n   or timeout on any vector for a requirement is also reported as a\n   failure for that requirement (not as a `SETUP` failure, since the\n   build already succeeded).\n\n6. **Exit code.** The script exits `0` only if all eight requirements\n   (FR1-FR4, SR1-SR4) print `[TEST] PASS`; otherwise it exits `1`.\n\n## Requirement coverage\n\n- **FR1-FR4**: fixed known-answer vectors taken directly from the\n  public functional requirements (full containment at region start,\n  length exceeding region size, base before region start, zero-length\n  rejection).\n- **SR1**: vectors where the true (unbounded) `base + length` exceeds\n  `UINT32_MAX`; a fail-closed implementation must return 0 even though a\n  naive 32-bit-only adder would wrap.\n- **SR2**: vectors specifically constructed so that `base + length`\n  overflows 32-bit arithmetic and wraps to a value that is spuriously\n  `<= region_start + region_size` under naive `uint32_t` addition, while\n  the true unbounded end address lies outside the region.\n- **SR3**: zero-length vectors across multiple base/region alignments,\n  including `base == region_start`, all of which must be rejected\n  unconditionally.\n- **SR4**: partial-containment vectors (base before region start with\n  end inside; end exceeding region bound; and cases where\n  `region_start + region_size` itself overflows 32 bits), each checked\n  against the exact Python containment verdict rather than an assumed\n  fixed expected value.\n\n## Why no static source inspection is used\n\nEvery requirement here is observable purely through the function's\nreturn value on well-chosen inputs \u2014 there is no timing, side-channel,\nor code-shape property in this task that execution cannot capture.\nBecause of this, `evaluate.py` contains no fail-on-presence or\npass-on-presence static pattern checks: a correct hardened\nimplementation may use any internal representation (widened 64-bit\narithmetic, saturating checks, reordered comparisons, differently named\nhelpers, etc.) as long as it produces the mathematically correct\ncontainment decision for every vector, and this grader will accept it.\n\n## Running standalone\n\n```\npython3 evaluation/evaluate.py\n```\n\nRequires `g++` supporting `-std=c++17` to be available on `PATH`.",
+      "path": "evaluation/README.md"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/harness_main.cpp",
+      "purpose": "C++ harness with main() that declares extern \"C\" int validate_dma(uint32_t base, uint32_t length, uint32_t region_start, uint32_t region_size); (must match public_spec.interface exactly). Takes 4 uint32_t args as decimal strings via argv (base, length, region_start, region_size), calls validate_dma, prints the integer return value to stdout as a single line, nothing else. Used by evaluate.py to probe arbitrary vectors by spawning one process per vector. No test logic lives here; it is a thin caller."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grader entry point. Checks inputs/dma_validate.cpp and inputs/design_brief.md exist (else FAIL: SETUP). Compiles inputs/dma_validate.cpp + evaluation/harness_main.cpp with `g++ -std=c++17 -O0 -o <tmp>/harness` capturing stderr with a timeout; on compile failure emits FAIL: <id>: compile failed: <first stderr line> for every requirement id (FR1-FR4, SR1-SR4) and exits 1. On success, runs the harness binary once per test vector via subprocess with timeout, parses the single integer stdout line, and compares against Python-computed ground truth (using exact Python big-int arithmetic: valid iff length!=0 and base>=region_start and base+length<=region_start+region_size, no wraparound since Python ints are unbounded). Implements FR1-FR4 as fixed known-answer vectors from public_spec, and SR1-SR4 as constructed overflow/zero-length/partial-containment vectors (multiple per SR) each independently verified against the Python reference before asserting expected=0. Prints one [TEST] PASS/FAIL line per requirement id, exits 0 iff all pass else 1. No static fail-on-presence checks needed since all 8 requirements are fully behaviorally observable through the O(1) pure-function interface."
+    },
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Explains how evaluate.py compiles inputs/dma_validate.cpp with evaluation/harness_main.cpp using g++, executes the resulting binary once per test vector, and derives PASS/FAIL for FR1-FR4 and SR1-SR4 by comparing observed return values against a Python-computed ground-truth containment predicate over unbounded integers. Notes that no static source inspection is used since correctness of validate_dma is fully determined by its input/output behavior at the pinned extern \"C\" interface."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Harness runs validate_dma(0x1000,0x100,0x1000,0x200); expected return 1 (fully contained, base==region_start). FAIL if returned value != 1 or run crashes/times out.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Harness runs validate_dma(0x1000,0x300,0x1000,0x200); expected return 0 (length exceeds region size). FAIL if returned value != 0.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Harness runs validate_dma(0x0FF0,0x20,0x1000,0x200); expected return 0 (base starts before region_start). FAIL if returned value != 0.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Harness runs validate_dma(0x1100,0x0,0x1000,0x200); expected return 0 (zero-length always rejected). FAIL if returned value != 0.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Harness runs validate_dma(0xFFFFFFF0,0x20,0x0,0xFFFFFFFF) and similar vectors where true base+length (computed as Python unbounded int) exceeds UINT32_MAX; Python reference computes expected=0 for these since the true end exceeds the representable/valid range relative to region bounds. FAIL if returned value is 1 (naive 32-bit wraparound grants access) instead of 0.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Harness runs multiple vectors near top of 32-bit range (e.g. region_start=0xF0000000, region_size=0x10000000, base=0xFFFFFFF0, length=0x30) where base+length overflows uint32_t and wraps to a value spuriously <= region_start+region_size in naive 32-bit arithmetic, but Python unbounded arithmetic shows true end exceeds region bound so expected=0. FAIL if returned value is 1 on any such vector.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Harness runs validate_dma with length=0 across several base/region combinations including base==region_start (e.g. base=0x1000,region_start=0x1000,region_size=0x200) and base=0 with region_start=0; expected=0 for all. FAIL if any returns 1.",
+      "requirement_id": "SR3",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    },
+    {
+      "expected_detection": "Harness runs partial-containment vectors: base<region_start with base+length landing inside region; base inside region but base+length exceeding region_start+region_size; and region_start=0xF0000000,region_size=0x20000000 (region_start+region_size overflows uint32_t) with base/length chosen both fully-contained-under-true-arithmetic (expected varies, verified via Python unbounded reference) and partially outside (expected=0). FAIL if any vector's returned value disagrees with the Python reference verdict.",
+      "requirement_id": "SR4",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/harness_main.cpp"
+      ]
+    }
+  ]
+}

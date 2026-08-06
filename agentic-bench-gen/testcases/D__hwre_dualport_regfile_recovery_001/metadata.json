@@ -1,0 +1,49 @@
+{
+  "task_id": "hwre_dualport_regfile_recovery_001",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover a dual-read register file and collision behavior",
+  "input_artifacts": [
+    "inputs/gate_netlist.v",
+    "inputs/obfuscated_wrapper.v",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "path": "submission/recovered_rtl.v",
+    "module": "reg_file_recovered",
+    "description": "Synthesizable Verilog module implementing a 4-entry by 8-bit register file with one synchronous write port and two independent, purely combinational read ports, matching the pinned port list and timing contract in README.md."
+  },
+  "evaluation_mode": "simulate",
+  "metrics": [
+    {
+      "name": "cycle_accurate_match_rate",
+      "direction": "maximize",
+      "description": "Fraction of simulated clock cycles across all randomized test sequences (writes, reads, collisions, resets) in which rdata0 and rdata1 from the submission exactly match the independently generated reference design."
+    },
+    {
+      "name": "word_recovery_rate",
+      "direction": "maximize",
+      "description": "Fraction of the four architecturally distinct register entries (0-3) for which the submission demonstrably recovers correct read/write mapping under targeted single-address write-then-read test vectors."
+    },
+    {
+      "name": "structural_match_accuracy",
+      "direction": "maximize",
+      "description": "Static structural check (fail-on-presence only) confirming the submission uses explicit clocked storage (no latches/no combinational feedback loops) and purely combinational read multiplexing, used only to flag disallowed constructs, never to grant a PASS."
+    },
+    {
+      "name": "functional_equivalence",
+      "direction": "maximize",
+      "description": "Boolean pass/fail per test scenario (basic read/write, collision, reset-then-read, dual-port independence) indicating whether the submission's simulated I/O behavior is functionally equivalent to the reference across the full randomized regression."
+    }
+  ],
+  "baselines": [
+    "HAL benchmarks",
+    "ISCAS'85",
+    "ITC'99",
+    "naive stub submission tying rdata0/rdata1 to zero (must fail)"
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ]
+}

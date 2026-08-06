@@ -1,0 +1,276 @@
+# Fourth multi-domain seed set: five new tasks for every domain except HLS.
+# The 25 scenarios are distinct from all prior seed bundles and use compact
+# artifacts suitable for the repository's Python, iverilog, and Yosys tooling.
+
+# ----------------------------------------------------------------------------
+# 3. Hardware Reverse Engineering
+# ----------------------------------------------------------------------------
+- seed_id: reverse_bidirectional_barrel_shifter
+  domain_id: hardware_reverse_engineering
+  title: Recover a bidirectional barrel shifter and fill semantics
+  objective: Lift a flattened staged-MUX network into readable RTL for an eight-bit variable shifter with logical, arithmetic, and rotate modes.
+  constraints:
+    - Provide an acyclic bit-level netlist with an 8-bit input, 3-bit amount, direction, and 2-bit mode.
+    - Require exact behavior for shifts zero through seven, including arithmetic-right sign extension and bidirectional rotation.
+    - Grade exhaustive combinational equivalence using iverilog or a compact Yosys miter.
+  threat_model: Flattening obscures whether an undocumented bit-manipulation block shifts or rotates, which direction it uses, and how vacated bits are filled.
+  ground_truth: Mode 00 is logical shift, mode 01 is arithmetic right or logical left according to direction, and mode 10 rotates in the selected direction by amount modulo eight.
+
+- seed_id: reverse_hamming74_sec_decoder
+  domain_id: hardware_reverse_engineering
+  title: Recover a Hamming(7,4) single-error-correcting decoder
+  objective: Reconstruct readable RTL for a flattened Hamming decoder, including parity convention, syndrome ordering, corrected data extraction, and error flag.
+  constraints:
+    - Use a seven-bit combinational codeword input and outputs data[3:0], corrected_codeword[6:0], and error_detected.
+    - Flatten the XOR syndrome network and correction decoder without preserving parity-position names.
+    - Grade all 128 input codewords against the hidden reference with iverilog.
+  threat_model: An undocumented storage interface cannot be audited or replaced until its bit placement and error-correction convention are recovered.
+  ground_truth: The design implements even-parity Hamming(7,4), with parity at one-indexed positions 1, 2, and 4 and data at positions 3, 5, 6, and 7.
+
+- seed_id: reverse_quadrature_position_decoder
+  domain_id: hardware_reverse_engineering
+  title: Recover a quadrature position and direction decoder
+  objective: Recover cycle-accurate RTL that converts sampled quadrature A and B transitions into signed position updates, direction, and an invalid-transition pulse.
+  constraints:
+    - Ship a flattened DFF, XOR, and MUX netlist with synchronous active-high reset and registered outputs.
+    - Pin one-count updates for legal Gray-code transitions and no update plus a pulse for two-bit transitions.
+    - Grade forward, reverse, stationary, bouncing, and illegal traces with iverilog.
+  threat_model: Flattening hides direction convention and invalid-transition handling needed to integrate an undocumented motion-control block.
+  ground_truth: Sequence 00-01-11-10-00 increments, the reverse sequence decrements, repeated samples hold position, and two-bit jumps assert invalid for one cycle.
+
+- seed_id: reverse_dualport_register_file
+  domain_id: hardware_reverse_engineering
+  title: Recover a dual-read register file and collision behavior
+  objective: Recreate a flattened four-entry by eight-bit register file with synchronous write, two read ports, and exact write-forwarding behavior.
+  constraints:
+    - Model storage using explicit DFFs and flatten address decoders and output multiplexers.
+    - Pin synchronous active-high reset and require same-cycle reads of the written address to return new data after the active edge.
+    - Grade randomized reads, writes, collisions, and reset behavior cycle by cycle.
+  threat_model: An undocumented register block cannot be safely replaced when its port timing and collision policy are concealed by gate-level implementation.
+  ground_truth: One write occurs on each enabled rising edge, both read ports are combinational over post-edge state, and same-address reads observe the newly written byte.
+
+- seed_id: reverse_complementary_pwm_deadtime
+  domain_id: hardware_reverse_engineering
+  title: Recover complementary PWM with dead-time insertion
+  objective: Reconstruct RTL for a four-bit PWM generator that produces complementary high-side and low-side outputs with two-cycle dead time.
+  constraints:
+    - Provide a compact counter, DFF, and comparator netlist with a 4-bit duty input and synchronous active-high reset.
+    - Pin period, duty-boundary behavior, disabled behavior, and exact dead-time cycles at both transitions.
+    - Grade complete periods for duty values 0 through 15 and assert that pwm_hi and pwm_lo never overlap.
+  threat_model: Misidentifying an undocumented gate-driver's timing could create shoot-through or unsafe actuator behavior.
+  ground_truth: The period is 16 clocks, pwm_hi follows the programmed duty window, pwm_lo is complementary only after a two-clock non-overlap interval, and both outputs are low during dead time.
+
+# ----------------------------------------------------------------------------
+# 4. Side-Channel and Fault Analysis
+# ----------------------------------------------------------------------------
+- seed_id: rtl_secret_rom_address_trace
+  domain_id: side_channel_fault_analysis
+  title: Secret-dependent ROM address-bus leakage
+  objective: Identify the address register and index expression that expose key information during a small substitution-table lookup and recommend an address-invariant implementation.
+  constraints:
+    - Use a 16-entry combinational ROM with a registered 4-bit address equal to public_index XOR secret_key.
+    - Supply address traces for multiple public indices and a leakage model that observes addresses but not ROM data.
+    - Keep RTL under 120 lines and grade exact leaking-signal labels plus a full-scan or bitsliced mitigation.
+  threat_model: An attacker observes on-chip memory addresses or localized bus activity and derives the secret nibble from known public indices.
+  ground_truth: rom_addr_q and lookup_index reveal secret_key as rom_addr_q XOR public_index; the ROM output register alone is not the primary address-trace source.
+
+- seed_id: rtl_fixed_latency_enable_count_leak
+  domain_id: side_channel_fault_analysis
+  title: Fixed-latency clock-enable activity leakage
+  objective: Locate secret-dependent clock-enable logic in a fixed-eight-cycle operation whose switching duty cycle equals the secret operand's Hamming weight.
+  constraints:
+    - Provide an eight-cycle controller with constant start-to-done latency and an accumulator gated by mul_en.
+    - Supply traces containing done timing and per-cycle mul_en activity for varied secret bytes.
+    - Require recommendations that equalize active operations rather than merely delaying done.
+  threat_model: A power observer counts high-activity cycles within a fixed-duration transaction and recovers the secret's Hamming weight.
+  ground_truth: Done always arrives after eight cycles, but mul_en is asserted once for each set secret bit, making enable_count equal popcount(secret_operand).
+
+- seed_id: rtl_toy_spn_last_round_dfa
+  domain_id: side_channel_fault_analysis
+  title: Last-round differential fault analysis on a toy SPN
+  objective: Identify a vulnerable last-round state register and show that a one-nibble transient fault permits recovery of a four-bit final-round subkey.
+  constraints:
+    - Use a compact 16-bit substitution-permutation network with a documented 4-bit S-box and registered penultimate state.
+    - Provide correct and faulty ciphertext pairs generated by one nonzero nibble fault immediately before the final S-box.
+    - Limit key-candidate enumeration to Python over 16 nibble values and hide the injected register, cycle, and recovered nibble.
+  threat_model: An attacker injects a localized transient fault during the final round and compares faulty output with a correct encryption.
+  ground_truth: Faulting state_q[3:0] one cycle before final substitution produces differential pairs for which only final_key[3:0]=4'h9 is consistent.
+
+- seed_id: rtl_flawed_secded_double_fault
+  domain_id: side_channel_fault_analysis
+  title: Double-bit fault miscorrection in a flawed SECDED decoder
+  objective: Find decoder signals that cause a two-bit memory fault to be treated as a correctable single-bit error and silently corrupt delivered data.
+  constraints:
+    - Provide an 8-bit extended-Hamming codeword path with syndrome, overall parity, correction mux, and status outputs.
+    - Enumerate all one-bit and two-bit injected faults in Python or iverilog while keeping RTL compact.
+    - Hidden ground truth distinguishes the flawed syndrome branch from registers carrying already-corrupted data.
+  threat_model: An attacker induces two simultaneous bit flips so a faulty ECC implementation changes a third bit and reports successful correction.
+  ground_truth: The decoder corrects whenever syndrome is nonzero without checking overall_parity; selected two-bit faults drive correction_mask while uncorrectable remains low.
+
+- seed_id: rtl_postcheck_dma_address_fault
+  domain_id: side_channel_fault_analysis
+  title: Post-validation DMA address-register fault
+  objective: Identify the latched address and pipeline cycle where one transient bit flip redirects an already-approved DMA read into a protected region.
+  constraints:
+    - Use a 4-bit DMA address, a public region 4'h0 through 4'h7, and a protected word at 4'hb.
+    - Model one single-cycle bit fault after bounds_check_ok is registered but before memory access.
+    - Grade the vulnerable register, exploitable cycle, example address transition, and fail-closed revalidation recommendation.
+  threat_model: An attacker faults an address bit after access control approves a descriptor, causing protected data to return through the normal DMA output.
+  ground_truth: A bit-3 fault changes approved address_q=4'h3 to 4'hb after validation, while stale bounds_ok_q remains high and authorizes the protected read.
+
+# ----------------------------------------------------------------------------
+# 5. Logic Deobfuscation and SAT Assistance
+# ----------------------------------------------------------------------------
+- seed_id: locked_lut_truth_table_configuration
+  domain_id: logic_deobfuscation_sat
+  title: Key-programmed LUT truth-table recovery
+  objective: Localize a three-input LUT lock and recover its eight configuration bits from the netlist and oracle vectors.
+  constraints:
+    - Use one explicit LUT3 cell inside a compact combinational datapath with key[7:0] selecting truth-table entries.
+    - Ensure public primary inputs exercise all eight LUT addresses across the supplied oracle set.
+    - Grade the LUT instance, key-to-address ordering, and exact key using Python enumeration and iverilog verification.
+  threat_model: An analyst has a key-programmable netlist and functional oracle but cannot infer the intended internal Boolean function from ordinary gate patterns.
+  ground_truth: Instance u_lock_lut is indexed by input concatenation a,b,c with key bit zero at address 000, and the restoring configuration is 8'b01101001.
+
+- seed_id: locked_switchbox_permutation_network
+  domain_id: logic_deobfuscation_sat
+  title: Keyed switchbox routing-permutation recovery
+  objective: Locate two stages of keyed two-by-two switchboxes and recover the routing key that restores four internal signals to intended destinations.
+  constraints:
+    - Use four internal channels, four key-controlled swap cells, and a compact combinational downstream function.
+    - Choose topology and oracle vectors so the restoring four-bit key is unique despite symmetric input patterns.
+    - Grade switchbox locations, per-stage routing decisions, complete key, and functional equivalence.
+  threat_model: Routing obfuscation prevents an analyst from determining which internal producer feeds each security-relevant consumer.
+  ground_truth: The four labeled swap cells restore channel order only for key_bits=1010; every other key misroutes at least one oracle-distinguishable channel.
+
+- seed_id: locked_polymorphic_gate_modes
+  domain_id: logic_deobfuscation_sat
+  title: Keyed polymorphic gate-mode recovery
+  objective: Identify keyed polymorphic cells, determine the Boolean function selected at each site, and recover the corresponding mode key.
+  constraints:
+    - Provide public behavioral definitions for two-input POLY cells and use four instances in a small acyclic netlist.
+    - Give each cell a one-bit mode selecting between a documented pair of NAND, NOR, XOR, or XNOR functions.
+    - Grade instance localization, resolved function names, and key correctness with Python enumeration and iverilog.
+  threat_model: An analyst sees configurable cells but does not know which physical or key-programmed function restores the original circuit.
+  ground_truth: The labeled cells resolve in order to NAND, XOR, NOR, and XNOR, corresponding to restoring key_bits=0110 under the supplied cell definitions.
+
+- seed_id: locked_redundant_key_equivalence
+  domain_id: logic_deobfuscation_sat
+  title: Functionally equivalent key-class identification
+  objective: Determine which key constraints are observable and report every key equivalent to the oracle rather than inventing a unique solution.
+  constraints:
+    - Use a three-bit combinational lock whose function depends only on key0 XOR key1 and key2.
+    - Require recovered_key.json to contain valid_keys, fixed_bits, and relational_constraints.
+    - Exhaust all eight keys with iverilog or Python and make exactly two keys functionally equivalent to the oracle.
+  threat_model: A deobfuscation tool overstates confidence by returning one arbitrary SAT solution when structural redundancy leaves multiple indistinguishable keys.
+  ground_truth: Keys 3'b001 and 3'b111 are exactly equivalent; key2 is fixed to one and key0 must equal key1, but neither key0 nor key1 is individually recoverable.
+
+- seed_id: locked_noisy_oracle_outlier
+  domain_id: logic_deobfuscation_sat
+  title: Key recovery with one corrupted oracle vector
+  objective: Recover a six-bit random-logic-locking key by finding the key with minimum oracle disagreement and report the single inconsistent vector.
+  constraints:
+    - Use six compact key-controlled AND or OR polarity sites in an acyclic combinational netlist, distinct from XOR and MUX locks.
+    - Supply 13 oracle vectors of which exactly one has an intentionally flipped output bit; the other 12 uniquely identify the key.
+    - Keep the key space at 64 candidates so exhaustive Python scoring and final iverilog verification are sufficient.
+  threat_model: Measurement noise or a faulty oracle response causes strict SAT formulations to declare inconsistency or select an incorrect key.
+  ground_truth: key_bits=100110 matches all oracle observations except vector index 7, whose output bit 0 is corrupted; every other key disagrees with at least two vectors.
+
+# Fifth multi-domain seed set: seven new tasks spanning all six active domains.
+# HLS receives two tasks because prior bundles contain fewer unique HLS seeds.
+# Every seed ID and task concept is distinct from the earlier seed bundles.
+
+# ----------------------------------------------------------------------------
+# 1. Security-Aware HLS Code Generation
+# ----------------------------------------------------------------------------
+- seed_id: hls_signed_quota_narrowing
+  domain_id: hls_security_codegen
+  title: Width-safe signed quota accounting
+  objective: Harden an HLS admission kernel so signed requests and narrowing conversions cannot undercharge a quota or admit an invalid transaction.
+  constraints:
+    - Keep a pinned admit_request(int16_t requested, uint16_t quota, uint16_t *remaining, uint8_t *accepted) interface using fixed-width scalar types.
+    - Reject nonpositive requests, requests above quota, and values that cannot be represented by the downstream transaction-count field before performing any conversion or state update.
+    - Compile with g++ and test boundary values around zero, 255, 256, the quota, and the signed 16-bit limits.
+  threat_model: An untrusted client supplies a negative or oversized request that wraps or truncates during validation and consumes more accelerator service than its quota permits.
+  ground_truth: The insecure kernel narrows requested to eight bits before comparing it with quota, so values such as 256 are admitted as zero; a correct implementation validates the original signed value in a sufficiently wide type and decrements quota exactly once only after every check succeeds.
+
+- seed_id: hls_authenticated_decrypt_commit
+  domain_id: hls_security_codegen
+  title: Commit plaintext only after authentication
+  objective: Harden a fixed-size authenticated-decryption kernel so unauthenticated plaintext is never published when tag verification fails.
+  constraints:
+    - Keep fixed 16-byte ciphertext, tag, key, plaintext-output, and status arguments with no dynamic allocation or STL use in the kernel body.
+    - Perform tag comparison with a fixed-trip-count reduction and leave the caller-visible plaintext buffer deterministically zeroed when authentication fails.
+    - Preserve correct plaintext and success status for valid records and compile against a g++ harness containing valid and forged tags.
+  threat_model: An attacker submits chosen ciphertext with an invalid tag and reads plaintext bytes written to shared output memory before the accelerator reports authentication failure.
+  ground_truth: The insecure kernel decrypts directly into the public output before checking the tag; a correct implementation decrypts into private temporary storage, verifies every tag byte without early exit, and copies plaintext to the public buffer only on successful authentication.
+
+# ----------------------------------------------------------------------------
+# 2. RTL Hardware Trojan Detection
+# ----------------------------------------------------------------------------
+- seed_id: rtl_secret_latency_modulation_trojan
+  domain_id: rtl_trojan_detection
+  title: Secret-dependent response-latency Trojan
+  objective: Detect logic that preserves every response value but modulates transaction latency with selected secret-register bits, creating a covert timing channel.
+  constraints:
+    - Provide a compact request and response RTL block with an address, request-valid, response-data, response-valid, and a private 8-bit configuration register.
+    - Ordinary addresses must always complete after one cycle, while accesses to one innocuous status address acquire an extra wait cycle according to an attacker-controlled secret-bit index.
+    - Grade exact localization of the secret-bit selector, delay-state control, affected response-valid signal, and timing-channel classification using iverilog traces.
+  threat_model: An unprivileged requester repeatedly reads a public status address and reconstructs a protected configuration byte from one-cycle versus two-cycle response timing.
+  ground_truth: A hidden selector reads secret_cfg[probe_index] when the status address is requested and conditionally inserts a delay state before response_valid, while response_data remains functionally correct for every transaction.
+
+# ----------------------------------------------------------------------------
+# 3. Gate-Level Trojan Detection
+# ----------------------------------------------------------------------------
+- seed_id: gate_cdc_synchronizer_bypass
+  domain_id: gate_trojan_detection
+  title: Authorization synchronizer-bypass ECO Trojan
+  objective: Identify a malicious gate-level reroute that lets an asynchronous authorization request reach secure control without traversing the intended two-flop synchronizer.
+  constraints:
+    - Use explicit DFF, MUX, AND, OR, and inverter cells for a source-domain request, two destination-domain synchronizer stages, and a registered authorization pulse.
+    - Preserve the legitimate synchronized path but add one small parallel cone that can assert the destination authorization pulse from the raw asynchronous input during a maintenance-control coincidence.
+    - Supply structural labels and asynchronous phase-offset simulations that distinguish the bypass cone from the legitimate synchronizer and ordinary maintenance logic.
+  threat_model: A malicious ECO introduces a metastability-prone authorization path that can create an unsynchronized secure action when an attacker controls request timing and maintenance mode.
+  ground_truth: The inserted bypass AND gate combines raw_auth_req with maintenance_mode and feeds an OR gate after the second synchronizer stage, allowing auth_pulse to assert without sync_ff1 or sync_ff2 observing the request.
+
+# ----------------------------------------------------------------------------
+# 4. Hardware Reverse Engineering
+# ----------------------------------------------------------------------------
+- seed_id: reverse_priority_cam
+  domain_id: hardware_reverse_engineering
+  title: Recover a priority content-addressable memory
+  objective: Reconstruct readable cycle-accurate RTL for a flattened four-entry content-addressable memory with valid bits, parallel equality matching, and lowest-index priority.
+  constraints:
+    - Ship a flattened netlist containing four 4-bit entries, valid DFFs, equality cones, a priority encoder, synchronous writes, and registered query outputs.
+    - Pin synchronous active-high reset, one-cycle query latency, lowest-index selection on multiple matches, and simultaneous write/query behavior against the pre-write contents.
+    - Grade reset, entry updates, misses, duplicate entries, priority selection, and write/query collisions cycle by cycle with iverilog.
+  threat_model: An undocumented associative lookup block cannot be safely replaced until its validity, priority, update, and query timing semantics are recovered from the netlist.
+  ground_truth: Reset clears all valid bits; each enabled rising edge writes one indexed entry, and a query sampled on that edge produces registered match_valid and match_index one cycle later from the entries that existed immediately before the write, choosing the lowest valid matching index.
+
+# ----------------------------------------------------------------------------
+# 5. Side-Channel and Fault Analysis
+# ----------------------------------------------------------------------------
+- seed_id: rtl_trng_common_mode_entropy_fault
+  domain_id: side_channel_fault_analysis
+  title: Common-mode entropy collapse hidden by output-gated health tests
+  objective: Analyze a dual-source random sampler for a fault that collapses both entropy inputs together while preventing its health monitor from observing the failed samples.
+  constraints:
+    - Provide compact RTL with two sampled entropy-source inputs, XOR conditioning, a von Neumann-style output-valid filter, and repetition and proportion health-test counters.
+    - Model a persistent common-mode fault that drives both sampled sources identically for a programmable interval and provide normal and faulty digital traces.
+    - Grade identification of the correlated sample registers, the health-counter enable flaw, the entropy-loss consequence, and a recommendation to monitor raw samples independently of conditioned output validity.
+  threat_model: An attacker injects supply or electromagnetic interference that correlates two nominally independent entropy sources, causing predictable random output without raising a health alarm.
+  ground_truth: When source_a_q equals source_b_q, the conditioner produces no valid bits and the existing health counters are disabled by out_valid, so a long common-mode collapse leaves health_error low; raw-sample health tests clocked on every sample would detect the fault.
+
+# ----------------------------------------------------------------------------
+# 6. Logic Deobfuscation and SAT Assistance
+# ----------------------------------------------------------------------------
+- seed_id: locked_scan_chain_reordering_key
+  domain_id: logic_deobfuscation_sat
+  title: Recover a key-controlled scan-chain ordering
+  objective: Localize keyed scan-routing elements and recover the key that restores the intended serial ordering of a small state register from scan traces.
+  constraints:
+    - Use four state DFFs with ordinary functional next-state logic and a scan mode containing three key-controlled two-input routing cells.
+    - Supply reset, scan-in, scan-enable, and scan-out traces whose multi-cycle behavior uniquely distinguishes all eight keys while single-cycle functional outputs remain identical.
+    - Require recovered_key.json to report the routing-cell locations, per-cell straight or swapped mode, complete three-bit key, and trace-consistency evidence.
+  threat_model: Key-controlled scan routing obscures state-bit correspondence and prevents an analyst from loading or observing the intended internal state during reverse engineering.
+  ground_truth: The three labeled scan-routing cells restore serial order state_q[3] through state_q[0] for key_bits=3'b101; every other key permutes at least two shifted bits and disagrees with one or more supplied multi-cycle scan-out traces.

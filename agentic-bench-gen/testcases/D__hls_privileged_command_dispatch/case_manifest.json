@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "50feedbfdf1ddb33ad535b09c566705c67033a9cad67914941a74e38f84ddb75",
+    "expert/expert_bundle.json": "564abbc6ec006833593dc919c7534d5e017eb04af406f65da25d9b0b3dc89cc6",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "827be7c6bb7942b8405b12650863df3287a1e6644996280b089c068489df87bc",
+    "reports/quality_report.json": "ac9f403d2f9bad83de8aac9f4a6300862c96ef54c09472174f0aa632e00362db",
+    "reports/validation_report.json": "87b176b2ab87d991ccd4cee362ef4c3f8f8a8049197b345bcd753640ee1fabd2",
+    "spec/task_spec.json": "85c5248cb4088aafbf9064ec7c205f955a80f81f2cbcd6fe171c6b621bf89cbf",
+    "tests/tester_bundle.json": "526656250df0153f8e2a77141aa9d7f7b618e2a63a6094074022c5e36f426fae"
+  },
+  "domain_id": "hls_security_codegen",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "hls_privileged_command_dispatch"
+}

@@ -1,0 +1,81 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for gate_clean_scan_chain\n\n## Overview\n\nThis directory contains the evaluation harness for the `gate_clean_scan_chain` task. The harness implements a **report-grading** contract: the participant submits an answer file (`submission/trojan_report.json`), and `evaluate.py` grades its content against the hidden ground truth. The input artifacts (`inputs/scan_controller.v`, `inputs/design_brief.md`) are provided for reference and may be used for optional cross-checks, but the PASS/FAIL verdicts are based solely on the submitted report.\n\n## Requirements\n\nThe harness checks the following requirements:\n\n| ID   | Type     | Description                                                                 |\n|------|----------|-----------------------------------------------------------------------------|\n| FR1  | Functional | The report file must be valid JSON and parseable.                         |\n| FR2  | Functional | The report must contain the exact fields `infected` (boolean), `trigger_nodes` (array of strings), and `payload_nodes` (array of strings) with correct types. |\n| FR3  | Functional | If `infected` is false, `trigger_nodes` and `payload_nodes` must be empty arrays. If `infected` is true, both arrays must be non-empty. |\n| FR4  | Functional | All node names listed in `trigger_nodes` or `payload_nodes` must be valid identifiers present in `inputs/scan_controller.v`. |\n| SR1  | Security   | The report must not flag legitimate scan-control logic (e.g., `test_mode`, `scan_enable`, scan multiplexers, DFF outputs) as Trojan trigger or payload nodes. |\n| SR2  | Security   | The report must correctly identify the absence of payload nodes; `payload_nodes` must be an empty array. |\n\n## Running the Evaluation\n\nFrom the repository root, execute:\n\n```bash\npython3 evaluation/evaluate.py\n```\n\nThe script will:\n\n1. Read `submission/trojan_report.json`.\n2. Validate the report against FR1\u2013FR4 (structural/format checks).\n3. Validate the report against SR1\u2013SR2 (substantive correctness checks).\n4. Print one `[TEST] PASS: <id>` or `[TEST] FAIL: <id>: <reason>` line per requirement.\n5. Exit with code 0 if all requirements pass, or non-zero if any requirement fails.\n\n## Toolchain Availability\n\nThe evaluation environment includes `iverilog` and `vvp`. These tools are available for optional cross-checks on the input netlist (e.g., simulating the design to confirm a reported trigger), but the harness does not require them for grading. All verdicts are based on the submitted report and the private ground truth.\n\n## Private Checks\n\nSecurity requirements SR1 and SR2 rely on private knowledge of the clean netlist's legitimate scan-control nodes. This information is stored in `evaluation/private/scan_whitelist.py` and is not visible to participants.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "import json\nimport os\nimport sys\nimport re\n\n# Fix import path so we can import from evaluation.private\nsys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom evaluation.private.scan_whitelist import SCAN_WHITELIST\n\ndef extract_netlist_identifiers(netlist_path):\n    \"\"\"Extract all valid identifiers (instance names, wire names) from the netlist.\"\"\"\n    identifiers = set()\n    try:\n        with open(netlist_path, 'r') as f:\n            content = f.read()\n    except FileNotFoundError:\n        print(f\"[TEST] FAIL: SETUP: {netlist_path} not found\")\n        sys.exit(1)\n    \n    # Match module instance names: <module_name> <instance_name> (\n    instance_pattern = re.compile(r'\\b\\w+\\s+(\\w+)\\s*\\(')\n    # Match wire declarations: wire [range] name;\n    wire_pattern = re.compile(r'\\bwire\\s+(?:\\[\\d+:\\d+\\]\\s+)?(\\w+)\\s*;')\n    # Match input/output port names\n    port_pattern = re.compile(r'\\b(?:input|output)\\s+(?:wire\\s+)?(?:\\[\\d+:\\d+\\]\\s+)?(\\w+)\\s*[,;]')\n    \n    for match in instance_pattern.finditer(content):\n        identifiers.add(match.group(1))\n    for match in wire_pattern.finditer(content):\n        identifiers.add(match.group(1))\n    for match in port_pattern.finditer(content):\n        identifiers.add(match.group(1))\n    \n    # Also add top-level ports explicitly\n    top_ports = ['clk', 'rst_n', 'test_mode', 'scan_in', 'data_in', 'data_out', 'scan_out']\n    identifiers.update(top_ports)\n    \n    return identifiers\n\ndef main():\n    submission_path = \"submission/trojan_report.json\"\n    netlist_path = \"inputs/scan_controller.v\"\n    \n    # Check submission file exists\n    if not os.path.exists(submission_path):\n        print(f\"[TEST] FAIL: SETUP: {submission_path} not found\")\n        sys.exit(1)\n    \n    # FR1: Valid JSON\n    try:\n        with open(submission_path, 'r') as f:\n            report = json.load(f)\n        print(\"[TEST] PASS: FR1\")\n    except (json.JSONDecodeError, FileNotFoundError) as e:\n        print(f\"[TEST] FAIL: FR1: {str(e)}\")\n        # Cannot proceed with other checks if JSON is invalid\n        sys.exit(1)\n    \n    # FR2: Required fields with correct types\n    fr2_pass = True\n    if not isinstance(report.get('infected'), bool):\n        print(\"[TEST] FAIL: FR2: 'infected' field missing or not boolean\")\n        fr2_pass = False\n    if not isinstance(report.get('trigger_nodes'), list) or not all(isinstance(n, str) for n in report['trigger_nodes']):\n        print(\"[TEST] FAIL: FR2: 'trigger_nodes' field missing or not array of strings\")\n        fr2_pass = False\n    if not isinstance(report.get('payload_nodes'), list) or not all(isinstance(n, str) for n in report['payload_nodes']):\n        print(\"[TEST] FAIL: FR2: 'payload_nodes' field missing or not array of strings\")\n        fr2_pass = False\n    if fr2_pass:\n        print(\"[TEST] PASS: FR2\")\n    \n    # FR3: Consistency between infected flag and arrays\n    infected = report.get('infected')\n    trigger_nodes = report.get('trigger_nodes', [])\n    payload_nodes = report.get('payload_nodes', [])\n    \n    fr3_pass = True\n    if infected is False:\n        if trigger_nodes or payload_nodes:\n            print(\"[TEST] FAIL: FR3: infected is false but trigger_nodes or payload_nodes is non-empty\")\n            fr3_pass = False\n    elif infected is True:\n        if not trigger_nodes or not payload_nodes:\n            print(\"[TEST] FAIL: FR3: infected is true but trigger_nodes or payload_nodes is empty\")\n            fr3_pass = False\n    if fr3_pass:\n        print(\"[TEST] PASS: FR3\")\n    \n    # FR4: All reported node names must exist in the netlist\n    netlist_ids = extract_netlist_identifiers(netlist_path)\n    all_reported = set(trigger_nodes) | set(payload_nodes)\n    invalid_nodes = [n for n in all_reported if n not in netlist_ids]\n    if invalid_nodes:\n        print(f\"[TEST] FAIL: FR4: invalid node names: {', '.join(invalid_nodes)}\")\n    else:\n        print(\"[TEST] PASS: FR4\")\n    \n    # SR1: No legitimate scan-control nodes flagged\n    flagged_whitelist = [n for n in all_reported if n in SCAN_WHITELIST]\n    if flagged_whitelist:\n        print(f\"[TEST] FAIL: SR1: legitimate scan-control nodes flagged: {', '.join(flagged_whitelist)}\")\n    else:\n        print(\"[TEST] PASS: SR1\")\n    \n    # SR2: payload_nodes must be empty (ground truth is clean)\n    if payload_nodes:\n        print(f\"[TEST] FAIL: SR2: payload_nodes is non-empty: {payload_nodes}\")\n    else:\n        print(\"[TEST] PASS: SR2\")\n    \n    # Determine exit code\n    failed = False\n    if not fr2_pass:\n        failed = True\n    if not fr3_pass:\n        failed = True\n    if invalid_nodes:\n        failed = True\n    if flagged_whitelist:\n        failed = True\n    if payload_nodes:\n        failed = True\n    \n    if failed:\n        sys.exit(1)\n    else:\n        sys.exit(0)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# Private whitelist of legitimate scan-control node names.\n# These nodes are part of the documented DFT infrastructure and must never\n# be flagged as Trojan trigger or payload nodes.\n\nSCAN_WHITELIST = {\n    # Top-level ports\n    \"test_mode\",\n    \"scan_in\",\n    \"scan_out\",\n    \"clk\",\n    \"rst_n\",\n    \"data_in\",\n    \"data_out\",\n\n    # Internal scan-control signals\n    \"scan_enable\",\n\n    # Scan multiplexer outputs (bit indices 0-3)\n    \"scan_mux_out[0]\",\n    \"scan_mux_out[1]\",\n    \"scan_mux_out[2]\",\n    \"scan_mux_out[3]\",\n\n    # DFF outputs (bit indices 0-3)\n    \"dff_q[0]\",\n    \"dff_q[1]\",\n    \"dff_q[2]\",\n    \"dff_q[3]\",\n\n    # Scan chain wires (declared but unused in this clean netlist)\n    \"next_scan_chain[0]\",\n    \"next_scan_chain[1]\",\n    \"next_scan_chain[2]\",\n    \"next_scan_chain[3]\",\n    \"scan_chain[0]\",\n    \"scan_chain[1]\",\n    \"scan_chain[2]\",\n    \"scan_chain[3]\",\n\n    # DFF inputs (bit indices 0-3)\n    \"dff_d[0]\",\n    \"dff_d[1]\",\n    \"dff_d[2]\",\n    \"dff_d[3]\",\n\n    # Instance names for scan-related primitives\n    \"u_scan_en_buf\",\n    \"u_mux0\",\n    \"u_mux1\",\n    \"u_mux2\",\n    \"u_mux3\",\n    \"u_dff0\",\n    \"u_dff1\",\n    \"u_dff2\",\n    \"u_dff3\",\n    \"u_out0\",\n    \"u_out1\",\n    \"u_out2\",\n    \"u_out3\",\n    \"u_scan_out\",\n}",
+      "path": "evaluation/private/scan_whitelist.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness for gate_clean_scan_chain. Describe the report-grading contract: participant submits submission/trojan_report.json, evaluate.py grades it against hidden ground truth. List all requirement IDs (FR1-FR4, SR1-SR2) with brief descriptions. Explain how to run: python3 evaluation/evaluate.py from repo root. Note that iverilog/vvp are available for optional cross-checks but verdicts grade the submitted answer file."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main entry point. Fix the import bug from previous bundle: add sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) before importing from evaluation.private.scan_whitelist. Open submission/trojan_report.json; if missing emit SETUP FAIL and exit 1. Parse JSON and run all FR and SR checks. FR1: valid JSON parse. FR2: correct field types (infected bool, trigger_nodes list of strings, payload_nodes list of strings). FR3: consistency between infected flag and array emptiness. FR4: all reported node names exist in inputs/scan_controller.v (extract identifiers via regex). SR1: no legitimate scan-control nodes flagged (cross-reference against private whitelist). SR2: payload_nodes must be empty (ground truth is clean). Emit [TEST] PASS/FAIL per requirement. Exit 0 iff all pass."
+    },
+    {
+      "path": "evaluation/private/scan_whitelist.py",
+      "purpose": "Private module defining SCAN_WHITELIST set of legitimate scan-control node names that must never appear in trigger_nodes or payload_nodes. Includes top-level ports (test_mode, scan_in, scan_out, clk, rst_n, data_in, data_out), internal signals (scan_enable, scan_mux_out[0..3], dff_q[0..3], dff_d[0..3], next_scan_chain[0..3], scan_chain[0..3]), and instance names (u_scan_en_buf, u_mux0..3, u_dff0..3, u_out0..3, u_scan_out). Used by evaluate.py for SR1 check."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "FAIL on baseline if submission is missing or malformed JSON; PASS on any valid JSON report.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if fields missing or wrong types; PASS when infected (bool), trigger_nodes (array of strings), payload_nodes (array of strings) all present with correct types.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if infected=false but arrays non-empty, or infected=true but either array empty; PASS when consistency holds.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if any reported node name is not a valid identifier present in inputs/scan_controller.v; PASS when all reported nodes exist in the netlist.",
+      "requirement_id": "FR4",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if any legitimate scan-control node appears in trigger_nodes or payload_nodes; PASS when the report does not flag any whitelisted scan-control nodes as Trojan nodes.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/scan_whitelist.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if payload_nodes is non-empty (since ground truth is clean); PASS when payload_nodes is an empty array.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    }
+  ]
+}

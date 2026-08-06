@@ -1,0 +1,77 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/tb_equiv.v + evaluation/evaluate.py (FR4 check)",
+      "description": "The golden/expert submission (golden/vulnerability_report.json) is rejected by evaluate.py. The differential run shows the golden run fails FR4 with 250/256 mismatches, indicating the co-simulation testbench's timing/sampling protocol does not correctly align with the golden mitigation_patch's expected one-cycle latency, or the golden mitigation_patch itself was not correctly authored/verified against tb_equiv.v before being frozen as ground truth. This is a blocking correctness bug: a fully correct submission must pass all FR/SR checks per acceptance criteria, but the shipped golden fails FR4.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR4: mitigation_patch table_data diverges from original for 250 of 256 combinations (e.g. public_index=0, secret_key=1: orig=9 patched=4)' while all other checks (FR1,FR2,FR3,SR1,SR2,SR3) pass.",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report",
+      "description": "Differential status is 'fail' with failure_class 'golden_rejected', and mutation_score is 0.0 with mutation_status 'blocked_by_differential'. This means mutation testing could not proceed and requirement_discrimination_coverage_score is 0.0 despite requirement_mapping_coverage_score of 1.0 \u2014 the requirement map exists on paper but is not empirically validated to discriminate correct vs. incorrect submissions.",
+      "evidence": "\"mutation_score\": 0.0, \"mutation_status\": \"blocked_by_differential\", \"requirement_discrimination_coverage_score\": 0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py / tb_equiv.v",
+      "description": "Repeated preflight attempts (2) produced the identical failure signature, indicating the repair attempt did not fix the root cause of the FR4 timing mismatch between the testbench sampling protocol and the golden mitigation_patch's actual pipeline latency.",
+      "evidence": "\"repeated_signature\": true, attempt_history shows identical diagnostic on attempt 0 and attempt 1.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix tb_equiv.v and/or evaluate.py's FR4 co-simulation timing protocol so that the golden/expert mitigation_patch (golden/vulnerability_report.json) passes FR4; debug why 250/256 combinations mismatch \u2014 likely an off-by-one-cycle sampling issue, incorrect reset/settle timing relative to the golden patch's internal pipeline depth, or a bug in how the golden mitigation_patch itself was authored (e.g. full-scan logic indexed incorrectly).",
+    "Re-run the golden submission against the corrected evaluate.py/tb_equiv.v and confirm exit code 0 with all seven [TEST] PASS lines before re-attempting mutation/discrimination scoring.",
+    "Once golden passes, re-run mutation testing to validate requirement_discrimination_coverage_score is non-zero and confirms each requirement (especially SR3's static scan and FR4's simulation) actually discriminates correct from incorrect submissions.",
+    "Consider adding an explicit self-test in the repo (e.g. a CI step) that runs evaluate.py against golden/vulnerability_report.json as part of case generation to catch this class of bug automatically before shipping."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and vulnerable-baseline runs show FR1 correctly evaluated (PASS for golden, PASS for baseline since fields exist with correct types even though empty).",
+      "requirement": "FR1 field presence/types",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes FR2; baseline correctly fails FR2 (16/16 mismatches) as required.",
+      "requirement": "FR2 recovered_secret_key vs trace",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR3; baseline fails FR3 (empty lists) as required.",
+      "requirement": "FR3 signal name validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS FR4 (250/256 mismatches) \u2014 this is the core blocking issue; the golden solution should pass this check but does not, indicating either the tb_equiv.v timing protocol or the golden mitigation_patch content is broken/misaligned.",
+      "requirement": "FR4 mitigation_patch functional equivalence",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden passes SR1; baseline fails SR1 as required.",
+      "requirement": "SR1 leaking/non-leaking signal partition",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR2; baseline fails SR2 as required (cascades from FR2 failure).",
+      "requirement": "SR2 leakage_relationship + FR2 zero-tolerance",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR3 and baseline (empty patch) also passes SR3 trivially since there's no indexing pattern to detect in an empty string \u2014 this is a weak positive but not the primary blocker; cannot be fully assessed for discrimination since mutation testing was blocked by the FR4 differential failure.",
+      "requirement": "SR3 static scan for secret-dependent addressing",
+      "status": "unknown"
+    },
+    {
+      "evidence": "README.md, design_brief.md, and metadata.json avoid CWE ids, SR ids, and security terminology; framed as a functional engineering review, consistent with hardened_artifact leakage-avoidance requirements.",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are each independently verifiable via schema/type checks, XOR consistency checks, signal-name matching, and simulation-based equivalence checks \u2014 not a single generic restatement.",
+      "requirement": "Public FRs are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

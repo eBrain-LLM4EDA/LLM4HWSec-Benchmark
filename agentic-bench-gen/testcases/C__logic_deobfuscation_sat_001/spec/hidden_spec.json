@@ -1,0 +1,24 @@
+{
+  "acceptance_criteria": [
+    "The submitted recovered_key.json must have locked set to false.",
+    "The submitted recovered_key.json must have key_bits set to \"\".",
+    "The submitted recovered_key.json must have key_gates set to []."
+  ],
+  "cwe_ids": [
+    "CWE-200"
+  ],
+  "ground_truth": "The netlist has no key ports and no locking cone; locked=false, key_bits=\"\", and an empty key_gates list are the only correct findings.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check that the key_gates list is empty. Any non-empty list indicates a false positive.",
+      "id": "SR1",
+      "requirement": "The analysis must not report false key gates (ordinary functional logic misidentified as locking logic)."
+    },
+    {
+      "detection_strategy": "Check that key_bits is an empty string. Any non-empty string indicates a false key recovery.",
+      "id": "SR2",
+      "requirement": "The analysis must not report a false key (a non-empty key_bits string when no key exists)."
+    }
+  ],
+  "threat_model": "A structural detector mistakes ordinary XORs or control MUXes for lock gates, generating false key hypotheses."
+}

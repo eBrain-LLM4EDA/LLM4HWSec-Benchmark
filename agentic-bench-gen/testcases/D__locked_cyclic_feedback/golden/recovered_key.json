@@ -1,0 +1,4 @@
+{
+  "key": "10",
+  "feedback_gates": ["mux_fb1", "mux_fb2"]
+}

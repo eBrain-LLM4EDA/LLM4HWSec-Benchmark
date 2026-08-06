@@ -1,0 +1,58 @@
+{
+  "generation_failures": [
+    {
+      "error": "Mutator returned a mutant with no files.",
+      "target_requirement_id": "FR1"
+    }
+  ],
+  "mutants": [
+    {
+      "expected_detection": "The submitted common_mode_node is 'timeout_module.count_a' which is not the shared enable signal. The evaluator's SR1 check should detect that the report does not correctly identify the common-mode node as the shared enable signal, causing the submission to fail.",
+      "files": [
+        {
+          "content": "{\n  \"common_mode_node\": \"timeout_module.count_a\",\n  \"failure_mechanism\": \"Faulting shared_count_en low stalls both counters identically, so their equality monitor remains satisfied while timeout never asserts; independently generated enables are required.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "SR1_wrong_node",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The failure_mechanism description is incorrect: it claims the fault causes counters to diverge and trigger error, which contradicts the ground truth that both counters stall identically and timeout never asserts. The evaluator's SR2 check should reject this submission.",
+      "files": [
+        {
+          "content": "{\n  \"common_mode_node\": \"timeout_module.shared_count_en\",\n  \"failure_mechanism\": \"Faulting shared_count_en low causes counter A to stall while counter B continues incrementing, leading to a mismatch that triggers the error flag and prevents timeout assertion.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "SR2_wrong_mechanism",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The evaluator should reject this submission because the 'common_mode_node' field is an empty string, violating FR2 which requires a non-empty string.",
+      "files": [
+        {
+          "content": "{\n  \"common_mode_node\": \"\",\n  \"failure_mechanism\": \"Faulting shared_count_en low stalls both counters identically, so their equality monitor remains satisfied while timeout never asserts; independently generated enables are required.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "FR2_empty_common_mode_node",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The evaluator should reject this submission because the failure_mechanism field is an empty string, violating FR3 which requires a non-empty string.",
+      "files": [
+        {
+          "content": "{\n  \"common_mode_node\": \"timeout_module.shared_count_en\",\n  \"failure_mechanism\": \"\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "FR3_empty_failure_mechanism",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    }
+  ]
+}

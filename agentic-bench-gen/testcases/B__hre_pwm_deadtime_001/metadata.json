@@ -1,0 +1,60 @@
+{
+  "task_id": "hre_pwm_deadtime_001",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover complementary PWM with dead-time insertion",
+  "description": "Reverse engineer a gate-level netlist and an obfuscated RTL wrapper describing a 4-bit-programmable complementary PWM generator with a fixed 16-clock period, used to drive a two-switch half-bridge gate driver. Submit a clean, word-level Verilog module that reproduces the exact same cycle-accurate behavior, including the safety gap inserted around every duty-cycle transition.",
+  "input_artifacts": [
+    "inputs/gate_netlist.v",
+    "inputs/obfuscated_rtl.v",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "path": "submission/recovered_rtl.v",
+    "module_name": "pwm_deadtime_gen",
+    "ports": [
+      { "name": "clk", "direction": "input", "width": 1, "description": "Rising-edge clock" },
+      { "name": "rst", "direction": "input", "width": 1, "description": "Synchronous, active-high reset" },
+      { "name": "en", "direction": "input", "width": 1, "description": "Active-high enable, sampled synchronously" },
+      { "name": "duty", "direction": "input", "width": 4, "description": "Programmable duty value, 0-15" },
+      { "name": "pwm_hi", "direction": "output reg", "width": 1, "description": "High-side complementary drive" },
+      { "name": "pwm_lo", "direction": "output reg", "width": 1, "description": "Low-side complementary drive" }
+    ],
+    "notes": "Must be a single self-contained file, compilable standalone with iverilog, matching the pinned port list exactly."
+  },
+  "evaluation": {
+    "mode": "simulate",
+    "toolchain": ["iverilog", "vvp", "yosys"],
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ],
+    "metrics": [
+      {
+        "name": "cycle_accurate_match_rate",
+        "description": "Fraction of simulated clock cycles across all test vectors (duty sweep 0-15, reset sequences, enable-hold sequences) where submission pwm_hi and pwm_lo exactly match the independently generated reference design's outputs.",
+        "direction": "maximize"
+      },
+      {
+        "name": "overlap_violation_count",
+        "description": "Number of clock cycles observed during simulation where pwm_hi and pwm_lo are simultaneously high; must be zero for the submission to pass regardless of other scores.",
+        "direction": "minimize"
+      },
+      {
+        "name": "deadtime_width_error",
+        "description": "Sum of absolute differences between the observed dead-time gap length (in cycles) and the required 2-cycle gap, measured at both period-start and duty-boundary transitions across all tested duty values.",
+        "direction": "minimize"
+      },
+      {
+        "name": "functional_equivalence",
+        "description": "Boolean pass/fail indicating whether the recovered RTL, when compiled and simulated, is behaviorally equivalent (bit-exact, cycle-exact) to the reference across the full FR1-FR4 and SR1-SR2 test suite.",
+        "direction": "maximize"
+      }
+    ]
+  },
+  "submission_contract": {
+    "kind": "analysis_report",
+    "answer_path": "submission/recovered_rtl.v",
+    "note": "Participants do not edit files under inputs/. They replace the placeholder at submission/recovered_rtl.v with their recovered design. The shipped starting file is a naive placeholder and is expected to fail evaluation."
+  }
+}

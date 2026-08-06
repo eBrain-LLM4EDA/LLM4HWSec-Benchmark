@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden solution is rejected by evaluate.py. The validation report shows golden_run FAIL on FR3 and SR2. FR3 fails because the regex in evaluate.py cannot match hierarchical names like 'top.lock_reg[0]' in the netlist text (the netlist uses 'lock_reg[0]' without the 'top.' prefix). SR2 fails because the behavioral cross-check hardcodes an expectation that the last 4 trace entries are all 1s, but the testbench drives data_in=0 on the last cycle, so functional output is 0, not 1. Additionally, no mutants were generated, so all 5 requirements (FR1-FR3, SR1-SR2) are untested and discrimination coverage is 0.0. The evaluator also does not compute the specified metrics (key_recovery_rate, key_gate_localization_accuracy). These are all evaluation framework bugs.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

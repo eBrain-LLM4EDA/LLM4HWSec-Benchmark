@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden/baseline run failed with a setup error. The evaluator (evaluate.py) cannot import the ground truth module due to a missing Python path, causing both golden and vulnerable runs to abort before any security requirement checks execute. This prevents SR1 and SR2 from being tested, leaves all requirements untested, and produces zero mutants. The primary fix is to correct the import path in evaluate.py so that the evaluator can load the ground truth and execute all requirement checks. Additionally, the oracle vectors file contains placeholder data that does not match the described format, but this is secondary to the evaluator crash.",
+  "retain_case": false,
+  "revision_instructions": "Fix evaluate.py so it can import the ground truth module. The current import statement fails with 'No module named 'evaluation''. Add the evaluation directory to the Python path at the top of evaluate.py, for example: 'import sys; import os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))'. Ensure that after this fix, the evaluator emits distinct [TEST] PASS/FAIL markers for every requirement (FR1, FR2, FR3, SR1, SR2) as specified in the requirement_map. The golden submission must pass with exit code 0, and the baseline vulnerable submission must fail with a clear requirement-level rejection (not a setup error). Also replace the oracle vectors file with actual input-output pairs that match the format described in the design brief (1-digit hex input, 1-digit hex output) and cover all input combinations that exercise each lock gate.",
+  "root_cause": "evaluation_issue",
+  "source_round": 0
+}

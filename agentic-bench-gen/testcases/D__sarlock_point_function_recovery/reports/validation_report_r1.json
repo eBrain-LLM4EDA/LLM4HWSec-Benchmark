@@ -1,0 +1,114 @@
+{
+  "case_files": [
+    "README.md",
+    "inputs/locked_netlist.v",
+    "inputs/locking_scheme_description.md",
+    "inputs/oracle_vectors.json",
+    "metadata.json",
+    "submission/recovered_key.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "03d95054b1ca746b9a8e3a32c402771aaf9ba9eb33f48b519d01a67ef5248213",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: net 'lock_comp/xor_0' not found in locked_netlist.v\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: recovered_key must be a non-empty string\n[TEST] PASS: FR3\n[TEST] FAIL: SR1: recovered_key '' does not match hidden key\n[TEST] FAIL: SR2: missing ground-truth nets: {'lock_comp/xor_4', 'lock_comp/xor_1', 'lock_comp/xor_3', 'lock_comp/xor_2', 'lock_comp/corrupt_xor', 'lock_comp/and_stage2', 'lock_comp/xor_5', 'lock_comp/and_stage1_0', 'lock_comp/and_stage1_1', 'lock_comp/xor_0'}\n"
+    }
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "expert_files": [
+    "golden/recovered_key.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "preflight": {
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "03d95054b1ca746b9a8e3a32c402771aaf9ba9eb33f48b519d01a67ef5248213",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true
+  },
+  "requirement_count": 5,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "776e543bfe5a17b09bf0b35793038636a3f5e72996e27e2a337752f2bbf96239",
+        "changed": true,
+        "golden": "golden/recovered_key.json",
+        "golden_sha256": "b075b9fc68fda485843e8ee6cca5a91cf416baa793437a2e479ca6b27af5bd6c",
+        "target": "submission/recovered_key.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_key.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/ground_truth.py"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "SR1",
+    "SR2"
+  ]
+}

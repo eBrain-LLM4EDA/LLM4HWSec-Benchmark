@@ -1,0 +1,88 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Evaluator cross-checks the infected field against the hidden ground-truth label (clean) per SR1's detection strategy; since ground truth is 'clean' (infected=false), a submission reporting infected=true must FAIL SR1 even though triggers/payloads are left empty and confidence/rationale look superficially plausible.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"triggers\": [],\n  \"payloads\": [],\n  \"confidence\": 0.9,\n  \"rationale\": \"After exhaustive review of pcu_core.v, no hardware Trojan trigger or payload structure was found. The debug_enable gating is exhaustive across all paths: every read of debug_sel and every write to debug_out passes through the debug_enable-controlled mux, and debug_out is registered to 8'h00 whenever debug_enable is deasserted, with no bypass path allowing debug_sel or debug_out to influence behavior while debug_enable is low. The watchdog/idle counter increments only during idle cycles and its rollover only sets the documented status[15] flag; it has no effect on ack, req arbitration, or debug_out, and is not gated by any hidden or rare undocumented input combination. There is no rare-value comparator against a hidden magic constant and no counter-driven mode change that alters primary output behavior reachable only through an undocumented sequence of inputs. The design is clean.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "rtl_trojan_detection_clean_debug_controller_001_SR1_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Evaluator parses triggers/payloads arrays and detects a non-empty entry referencing debug_enable/debug_sel/debug_out as a malicious finding, even though infected=false and ground truth confirms the debug path is fully gated with no bypass. This is a spurious finding against legitimate documented functionality, violating SR2 (and creating an internal inconsistency with FR2 since infected=false requires empty triggers/payloads).",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"triggers\": [\n    {\n      \"signal_or_expression\": \"debug_sel[1:0] == 2'b01 && debug_enable\",\n      \"description\": \"Suspicious rare-value comparator on debug_sel selecting the watchdog counter group; flagged as a potential undocumented trigger condition that could leak internal state through debug_out.\"\n    }\n  ],\n  \"payloads\": [\n    {\n      \"effect\": \"debug_out\",\n      \"description\": \"When the suspected trigger condition is met, debug_out is driven with watchdog_cnt contents, treated here as an unauthorized information leak payload.\"\n    }\n  ],\n  \"confidence\": 0.9,\n  \"rationale\": \"After review of pcu_core.v, the design is otherwise clean, but the debug_enable-gated mux path that exposes watchdog_cnt on debug_out via debug_sel selection is flagged as suspicious out of caution, since debug_sel is externally controllable and could theoretically be used to exfiltrate internal counter state. The watchdog counter itself only affects status[15] and has no other side effects.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "rtl_trojan_detection_clean_debug_controller_001_SR2_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Evaluator's rationale check should detect that the rationale is generic boilerplate lacking any specific reference to debug_enable gating exhaustiveness ('all paths', 'no bypass') or the watchdog counter's limited effect on status only; it merely asserts cleanliness without justification, failing SR3's requirement that the participant demonstrate actual verification of gating completeness.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"triggers\": [],\n  \"payloads\": [],\n  \"confidence\": 0.9,\n  \"rationale\": \"I looked at the design and it seems fine. Nothing suspicious jumped out at me during a quick read-through, so I am confident this is clean and safe to ship.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "rtl_trojan_detection_clean_debug_controller_001_SR3_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "evaluate.py schema validation for submission/trojan_report.json fails because the required top-level 'confidence' key is missing entirely, violating FR1's requirement that the JSON contain exactly the five specified top-level keys (infected, triggers, payloads, confidence, rationale).",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"triggers\": [],\n  \"payloads\": [],\n  \"rationale\": \"After exhaustive review of pcu_core.v, no hardware Trojan trigger or payload structure was found. The debug_enable gating is exhaustive across all paths: every read of debug_sel and every write to debug_out passes through the debug_enable-controlled mux, and debug_out is registered to 8'h00 whenever debug_enable is deasserted, with no bypass path allowing debug_sel or debug_out to influence behavior while debug_enable is low. The watchdog/idle counter increments only during idle cycles and its rollover only sets the documented status[15] flag; it has no effect on ack, req arbitration, or debug_out, and is not gated by any hidden or rare undocumented input combination. There is no rare-value comparator against a hidden magic constant and no counter-driven mode change that alters primary output behavior reachable only through an undocumented sequence of inputs. The design is clean.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "rtl_trojan_detection_clean_debug_controller_001_FR1_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Evaluator parses submission/trojan_report.json and checks FR2: if infected is false, triggers and payloads must both be empty arrays. This mutant sets infected=false but includes a non-empty triggers array (referencing debug_sel), violating FR2's consistency requirement between the verdict and the arrays, and should be rejected.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"triggers\": [\n    {\n      \"signal_or_expression\": \"debug_sel[1:0]\",\n      \"description\": \"Noted as a low-confidence observation during review; not believed to be malicious but included for completeness.\"\n    }\n  ],\n  \"payloads\": [],\n  \"confidence\": 0.9,\n  \"rationale\": \"After exhaustive review of pcu_core.v, no hardware Trojan trigger or payload structure was found. The debug_enable gating is exhaustive across all paths: every read of debug_sel and every write to debug_out passes through the debug_enable-controlled mux, and debug_out is registered to 8'h00 whenever debug_enable is deasserted, with no bypass path allowing debug_sel or debug_out to influence behavior while debug_enable is low. The watchdog/idle counter increments only during idle cycles and its rollover only sets the documented status[15] flag; it has no effect on ack, req arbitration, or debug_out, and is not gated by any hidden or rare undocumented input combination. The design is clean.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "rtl_trojan_detection_clean_debug_controller_001_FR2_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "FR3 requires the rationale field to explicitly reference at least one concrete design element from pcu_core.v (debug_enable gating, watchdog counter, or debug_sel/debug_out path). This mutant replaces the grounded rationale with generic boilerplate text that never mentions debug_enable, watchdog, debug_sel, or debug_out, so a keyword/semantic check for RTL-grounded justification must fail this submission even though infected/triggers/payloads/confidence remain otherwise correct.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"triggers\": [],\n  \"payloads\": [],\n  \"confidence\": 0.9,\n  \"rationale\": \"The design was reviewed and no malicious behavior was found. The code looks clean and follows good design practices overall, with no signs of tampering or hidden functionality. Standard verification techniques were applied and nothing suspicious came up during the audit process, so the design is considered safe to use in production.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "rtl_trojan_detection_clean_debug_controller_001_FR3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Evaluator checks FR4: confidence must be >= 0.6 when infected is false. This mutant sets confidence to 0.42, which is below the required threshold for a clean verdict, so it must FAIL FR4 even though the verdict and rationale are otherwise correct.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"triggers\": [],\n  \"payloads\": [],\n  \"confidence\": 0.42,\n  \"rationale\": \"After exhaustive review of pcu_core.v, no hardware Trojan trigger or payload structure was found. The debug_enable gating is exhaustive across all paths: every read of debug_sel and every write to debug_out passes through the debug_enable-controlled mux, and debug_out is registered to 8'h00 whenever debug_enable is deasserted, with no bypass path allowing debug_sel or debug_out to influence behavior while debug_enable is low. The watchdog/idle counter increments only during idle cycles and its rollover only sets the documented status[15] flag; it has no effect on ack, req arbitration, or debug_out, and is not gated by any hidden or rare undocumented input combination. There is no rare-value comparator against a hidden magic constant and no counter-driven mode change that alters primary output behavior reachable only through an undocumented sequence of inputs. The design is clean.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "rtl_trojan_detection_clean_debug_controller_001_FR4_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

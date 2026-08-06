@@ -1,0 +1,3 @@
+Key width: 2 bits
+The locked netlist uses cyclic locking: feedback edges are controlled by key bits.
+The oracle module is a cycle-free combinational reference implementing the correct function.

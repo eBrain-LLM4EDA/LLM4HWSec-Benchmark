@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"trojan_detected\": true,\n  \"findings\": [\n    {\n      \"module\": \"counter.v\",\n      \"signal\": \"counter_terminal\",\n      \"rationale\": \"This signal is asserted when the counter reaches a specific terminal count value. In isolation it appears as a normal counter feature, but it is routed to the top module where it is combined with other signals to form a rare-event trigger condition. Its presence as a dedicated output suggests it may serve as a trigger fragment for a hardware Trojan.\",\n      \"confidence\": 0.9\n    },\n    {\n      \"module\": \"command_decoder.v\",\n      \"signal\": \"command_match\",\n      \"rationale\": \"This signal is asserted when a specific command is decoded. While command matching is a standard function, this signal is exported to the top module and combined with other signals. The specific command value may be chosen to create a rare trigger condition, making it a likely trigger fragment.\",\n      \"confidence\": 0.9\n    },\n    {\n      \"module\": \"error_handler.v\",\n      \"signal\": \"sticky_error\",\n      \"rationale\": \"This signal latches high on any error and remains asserted until reset. It is a sticky error flag that, when combined with other signals at the top level, can contribute to a trigger condition. Its sticky nature ensures the trigger can be activated by a transient error, making it a plausible trigger fragment.\",\n      \"confidence\": 0.85\n    },\n    {\n      \"module\": \"top.v\",\n      \"signal\": \"mux selecting secret_reg[0] onto status_out\",\n      \"rationale\": \"A multiplexer or conditional assignment in the top module selects the least significant bit of secret_reg (secret_reg[0]) and drives it onto the status_out port when the combined trigger signal (AND of counter_terminal, command_match, and sticky_error) is active. This leaks internal secret data to an external observer, constituting the payload of a hardware Trojan.\",\n      \"confidence\": 0.95\n    }\n  ],\n  \"overall_confidence\": 0.9\n}",
+      "path": "golden/trojan_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/trojan_report.json",
+      "purpose": "The golden answer file for the rtl_trojan_detection analysis_report domain. It is a valid JSON object with fields: trojan_detected (boolean, true), overall_confidence (number, >=0.7), and findings (array of objects). Each finding has module, signal, rationale, and confidence. The findings must identify the three trigger fragments (counter_terminal in counter.v, command_match in command_decoder.v, sticky_error in error_handler.v) and the payload mechanism (mux selecting secret_reg[0] onto status_out in top.v). Rationales must explain why each signal is suspicious and its role in the distributed trigger. This file is placed at golden/trojan_report.json and will be overlaid onto submission/trojan_report.json during grading."
+    }
+  ]
+}

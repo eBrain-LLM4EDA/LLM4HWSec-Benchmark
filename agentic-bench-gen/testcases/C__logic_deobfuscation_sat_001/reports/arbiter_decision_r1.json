@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "evaluation_framework",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation status is fail because FR1 is untested (no targeting mutant, discrimination unproven). The mutation bundle shows a generation_failure for FR1: 'Mutator returned a mutant with no files.' This means the evaluator's ability to detect a missing or invalid submission file is not independently verified. The analyzer also flags this as a medium-severity issue. Since the mutation score is 1.0 but the validation fails due to an untested requirement, the case cannot be retained. The fix is to add a mutant that deletes or corrupts submission/recovered_key.json so FR1's harness discrimination can be proven.",
+  "retain_case": false,
+  "revision_instructions": "Add a mutant targeting FR1 that deletes or corrupts submission/recovered_key.json. The mutant must cause the evaluator to FAIL the FR1 check (file existence and valid JSON). For example, create a mutant that removes the submission file entirely, or replaces it with invalid JSON. This will independently verify that the FR1 harness correctly detects a missing or invalid submission. The generation_failure in the mutation bundle indicates the mutator could not produce a valid mutant for FR1; ensure the mutant is a valid, compilable change that the evaluator can detect.",
+  "root_cause": "evaluation_issue",
+  "source_round": 1
+}

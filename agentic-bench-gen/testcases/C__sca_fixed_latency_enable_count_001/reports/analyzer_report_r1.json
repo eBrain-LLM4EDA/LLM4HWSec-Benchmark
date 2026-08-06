@@ -1,0 +1,73 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + inputs/traces.csv",
+      "description": "evaluate.py's load_traces uses csv.DictReader keyed on header 'trial_id,secret_operand,cycle_index,mul_en,done', but inputs/traces.csv as shipped in the bundle embeds the CSV data inside a markdown/prose file with a code fence (```) wrapping the actual CSV content, preceded by explanatory text. DictReader chokes because the first parsed row is not the real header, producing KeyError: 'trial_id'. The differential harness confirms this: both golden and vulnerable runs fail identically with '[TEST] FAIL: FR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'', meaning the grader rejects even the correct/golden submission (golden_rejected failure class). This makes the benchmark completely unusable as shipped -- no submission, correct or not, can pass.",
+      "evidence": "differential.golden_run.stdout: '[TEST] FAIL: FR1: SETUP: failed to parse inputs/traces.csv: 'trial_id'' with expected 'pass' but got 'fail'; repeated identically on retry (repeated_preflight_failure).",
+      "severity": "high"
+    },
+    {
+      "artifact": "public_spec.input_artifacts / metadata.json",
+      "description": "input_artifacts list entries such as 'traces.csv' are not validated as plain filenames relative to inputs/ consistently with how they are referenced elsewhere, flagged by validator as 'input_artifact_not_filename'. Combined with the malformed traces.csv content, this indicates the artifact pipeline that generated/packaged inputs/traces.csv did not actually emit clean CSV.",
+      "evidence": "issues: [{'detail': \"input_artifacts entry is not a plain filename: 'traces.csv'\", 'issue': 'input_artifact_not_filename'}]",
+      "severity": "high"
+    },
+    {
+      "artifact": "mutation_score / discrimination_coverage",
+      "description": "Because the golden run cannot even be parsed, mutation_score is 0.0 and requirement_discrimination_coverage_score is 0.0 -- no requirement has been demonstrated to actually discriminate correct from incorrect submissions despite requirement_mapping_coverage_score being 1.0 (mapping exists on paper but is unverified in practice).",
+      "evidence": "mutation_score: 0.0, mutation_status: 'blocked_by_differential', requirement_discrimination_coverage_score: 0.0",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix inputs/traces.csv so it is a well-formed, directly-parsable CSV file (header row 'trial_id,secret_operand,cycle_index,mul_en,done' as the first line, no surrounding markdown/code-fence/prose text) that csv.DictReader can consume as-is.",
+    "Re-run the differential harness after the fix to confirm the golden vulnerability_report.json produces exit 0 / all PASS lines, and the shipped naive baseline submission produces exit 1 with FAIL on FR3, SR1, SR2, and SR3 as specified in acceptance_criteria.",
+    "Audit the artifact-generation pipeline that produced inputs/traces.csv to ensure future task bundles emit raw data files distinctly from narrative/derivation documents (the file's content here reads like an internal derivation scratchpad rather than a clean data artifact).",
+    "Address the input_artifact_not_filename validator warning by ensuring metadata.json/public_spec input_artifacts entries consistently reference plain relative filenames under inputs/.",
+    "After the CSV fix, re-verify mutation_score and requirement_discrimination_coverage_score are non-zero, confirming each FR/SR actually discriminates correct vs. incorrect submissions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Cannot be verified: evaluate.py fails at the CSV-loading setup step before any submission field is even inspected, for both golden and vulnerable submissions.",
+      "requirement": "FR1 structural validity",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same setup failure blocks evaluation.",
+      "requirement": "FR2 constant 8-cycle latency check",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same setup failure blocks evaluation.",
+      "requirement": "FR3 activity_analysis coverage/accuracy (>=16 operands, exact enable_count match)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same setup failure blocks evaluation.",
+      "requirement": "FR4 hardening_recommendations structural check (>=2 non-empty entries)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same setup failure blocks evaluation.",
+      "requirement": "SR1 enable_count == hamming_weight leakage identification",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same setup failure blocks evaluation.",
+      "requirement": "SR2 explicit acknowledgement that constant latency doesn't prevent leakage",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same setup failure blocks evaluation.",
+      "requirement": "SR3 activity-equalization hardening recommendation present",
+      "status": "unknown"
+    },
+    {
+      "evidence": "differential.status: 'fail'; golden_run.ok: false (expected pass, got fail); vulnerable_run.ok: true only because it also happened to fail, i.e. both pass and fail submissions produce the same 'fail' outcome via an unrelated setup error, so the check is not actually discriminating anything.",
+      "requirement": "Grader accepts golden and rejects baseline (differential correctness)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

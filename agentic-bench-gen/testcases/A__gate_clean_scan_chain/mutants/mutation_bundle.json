@@ -1,0 +1,76 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "The mutant falsely reports the scan_enable signal as a trigger node, violating SR1 which requires not flagging legitimate scan-chain control logic as Trojan trigger nodes. The evaluator should detect this false positive because the report incorrectly identifies a documented DFT signal as malicious.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"trigger_nodes\": [\"scan_enable\"],\n  \"payload_nodes\": [\"data_out[0]\"]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_SR1_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The mutant incorrectly reports a payload node (dff_q[0]) that does not leak or corrupt functional data under functional mode. This violates SR2 by falsely identifying an absence of payload nodes as a presence, producing a false positive that the evaluator must reject.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"trigger_nodes\": [\"test_mode\"],\n  \"payload_nodes\": [\"dff_q[0]\"]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_SR2_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The mutant produces a trojan_report.json that is not valid JSON (missing closing brace), so any standard JSON parser will fail to parse it. The FR1 check should reject this submission.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"trigger_nodes\": [],\n  \"payload_nodes\": []\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR1_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "The report is missing the required 'payload_nodes' field. FR2 mandates that the report must contain the exact fields infected, trigger_nodes, and payload_nodes with the correct types. A JSON parser will successfully parse the file (so FR1 passes), but the absence of the payload_nodes field violates FR2 and should cause the evaluation to reject the submission.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"trigger_nodes\": []\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR2_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The report sets infected=false but includes non-empty trigger_nodes and payload_nodes arrays, violating FR3 which requires empty arrays when infected is false.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"trigger_nodes\": [\"u_mux0\"],\n  \"payload_nodes\": [\"data_out[0]\"]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR3_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "The report lists a node name 'u_trigger_rare' in trigger_nodes that does not exist in the provided netlist scan_controller.v. This violates FR4 which requires all node names to be valid identifiers present in the netlist. The evaluator should reject this submission because the node name is not found in the netlist.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"trigger_nodes\": [\"u_trigger_rare\"],\n  \"payload_nodes\": [\"u_payload_leak\"]\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR4_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

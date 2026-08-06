@@ -1,0 +1,60 @@
+{
+  "task_id": "reverse_bidirectional_barrel_shifter_001",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover a bidirectional barrel shifter and fill semantics",
+  "evaluation_mode": "simulate",
+  "submission_kind": "analysis_report",
+  "input_artifacts": [
+    "inputs/net_shifter_flat.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_rtl.v"
+  ],
+  "interface": {
+    "module_name": "barrel_shifter_top",
+    "ports": [
+      { "name": "data_in",   "direction": "input",  "width": 8 },
+      { "name": "amount",    "direction": "input",  "width": 3 },
+      { "name": "direction", "direction": "input",  "width": 1 },
+      { "name": "mode",      "direction": "input",  "width": 2 },
+      { "name": "data_out",  "direction": "output", "width": 8 }
+    ],
+    "timing": "purely combinational, zero-latency, no clock or reset"
+  },
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "baselines": [
+    "HAL benchmarks",
+    "ISCAS'85",
+    "ITC'99"
+  ],
+  "evaluation": {
+    "metrics": [
+      {
+        "name": "functional_equivalence",
+        "direction": "maximize",
+        "description": "Fraction of exhaustively enumerated (data_in, amount, direction, mode) vectors for which submission data_out exactly matches the reference netlist's simulated data_out; PASS requires 100% match."
+      },
+      {
+        "name": "mode11_donotcare_match_rate",
+        "direction": "maximize",
+        "description": "Fraction of mode=11 vectors where submission output matches the reference netlist's resolved (non-X) behavior, isolating the don't-care resolution edge case."
+      },
+      {
+        "name": "structural_match_accuracy",
+        "direction": "maximize",
+        "description": "Optional secondary signal: percentage similarity between submitted RTL structure (case/mux decomposition) and the golden reference RTL structure, computed via Yosys equivalence-checking cell counts; informational only, not used for PASS/FAIL."
+      },
+      {
+        "name": "compile_success",
+        "direction": "maximize",
+        "description": "Whether iverilog successfully compiles the submission together with the generated testbench and reference netlist with zero errors."
+      }
+    ]
+  },
+  "notes": "Grading is purely behavioral: evaluate.py compiles inputs/net_shifter_flat.v together with submission/recovered_rtl.v and a generated testbench under iverilog/vvp, exhaustively driving all 2^13 = 8192 combinations of data_in x amount x direction x mode and comparing data_out bit-for-bit. The shipped submission/recovered_rtl.v is a naive placeholder that compiles but does not implement correct shifting/rotating logic and is expected to FAIL functional_equivalence."
+}

@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Evaluator resolves altered_net against the netlist and structurally traces back from tamper_count_q[*].CLR; rst_sync is a direct single-source net (output of the reset buffer, not the OR2 merge point) and does not correspond to the multi-input-driven net that actually carries the unauthorized clear signal, so SR1 fails even though other fields remain correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_gates\": [\"u_maint_alarm_and\", \"u_audit_clr_or\"],\n  \"altered_net\": \"rst_sync\",\n  \"affected_registers\": [\n    \"tamper_count_q_0\",\n    \"tamper_count_q_1\",\n    \"tamper_count_q_2\",\n    \"tamper_count_q_3\",\n    \"tamper_count_q_4\",\n    \"tamper_count_q_5\",\n    \"tamper_count_q_6\",\n    \"tamper_count_q_7\"\n  ],\n  \"trigger_condition\": \"maintenance_req & alarm\",\n  \"justification\": \"The counter's asynchronous clear network is not driven solely by the synchronized reset as documented in design_brief.md. Instance u_maint_alarm_and (AND2) combines the two operational, reset-unrelated inputs maintenance_req and alarm into net maint_alarm_hit. This net is then merged by instance u_audit_clr_or (OR2) with the legitimate synchronized reset net rst_sync. The net rst_sync is wired to the CLR pin of every one of the eight DFF_ASYNC_CLR register instances (tamper_count_q_0 through tamper_count_q_7) that hold tamper_count, and it is this net that carries the unauthorized clear condition into the register bank. Because OR2 asserts its output whenever either input is high, asserting maintenance_req and alarm simultaneously drives the clear signal high and asynchronously clears the entire tamper_count register bank even while rst_n remains deasserted-high (i.e., no genuine reset event occurs). This directly violates the documented contract that 'maintenance_req and alarm, individually or in any combination, have no effect on the value or clearing of tamper_count' and that 'the only signal that should participate in clearing the counter is the synchronized form of rst_n.' The correct, non-trojan implementation would connect rst_sync directly to the CLR pins of tamper_count_q_0..7 with no intervening OR2 gate, eliminating any path by which maintenance_req and alarm could erase accumulated tamper-event evidence.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr1_wrong_altered_net_rst_sync",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Evaluator checks suspect_gates against SR2: must include both u_maint_alarm_and (the AND2 with inputs maintenance_req and alarm) and u_audit_clr_or. This mutant omits u_maint_alarm_and, reporting only the OR2 gate, so the structural pattern match for the full malicious gate pair fails and the submission should be graded FAIL.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_gates\": [\"u_audit_clr_or\"],\n  \"altered_net\": \"audit_clr\",\n  \"affected_registers\": [\n    \"tamper_count_q_0\",\n    \"tamper_count_q_1\",\n    \"tamper_count_q_2\",\n    \"tamper_count_q_3\",\n    \"tamper_count_q_4\",\n    \"tamper_count_q_5\",\n    \"tamper_count_q_6\",\n    \"tamper_count_q_7\"\n  ],\n  \"trigger_condition\": \"maintenance_req & alarm\",\n  \"justification\": \"The counter's asynchronous clear network is not driven solely by the synchronized reset as documented in design_brief.md. Instance u_audit_clr_or (OR2) merges an internal combinational node derived from maintenance_req and alarm with the legitimate synchronized reset net rst_sync to produce net audit_clr. audit_clr, rather than rst_sync alone, is wired to the CLR pin of every one of the eight DFF_ASYNC_CLR register instances (tamper_count_q_0 through tamper_count_q_7) that hold tamper_count. Because OR2 asserts its output whenever either input is high, asserting maintenance_req and alarm simultaneously drives audit_clr high and asynchronously clears the entire tamper_count register bank even while rst_n remains deasserted-high (i.e., no genuine reset event occurs). This directly violates the documented contract that 'maintenance_req and alarm, individually or in any combination, have no effect on the value or clearing of tamper_count' and that 'the only signal that should participate in clearing the counter is the synchronized form of rst_n.' The correct, non-trojan implementation would connect rst_sync directly to the CLR pins of tamper_count_q_0..7 with no intervening OR2 gate, eliminating any path by which maintenance_req and alarm could erase accumulated tamper-event evidence.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr2_missing_maint_alarm_and_gate",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "evaluate.py performs truth-table equivalence checking (and/or iverilog simulation) of the reported trigger_condition against the reference (maintenance_req & alarm); since this mutant's expression (maintenance_req & alarm & ~rst_n) evaluates to 0 whenever rst_n=1, it is not equivalent to the ground truth and simulation with maintenance_req=1, alarm=1, rst_n=1 will show the counter clearing while the reported condition predicts no clear, causing SR3 to fail.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_gates\": [\"u_maint_alarm_and\", \"u_audit_clr_or\"],\n  \"altered_net\": \"audit_clr\",\n  \"affected_registers\": [\n    \"tamper_count_q_0\",\n    \"tamper_count_q_1\",\n    \"tamper_count_q_2\",\n    \"tamper_count_q_3\",\n    \"tamper_count_q_4\",\n    \"tamper_count_q_5\",\n    \"tamper_count_q_6\",\n    \"tamper_count_q_7\"\n  ],\n  \"trigger_condition\": \"maintenance_req & alarm & ~rst_n\",\n  \"justification\": \"The counter's asynchronous clear network is not driven solely by the synchronized reset as documented in design_brief.md. Instance u_maint_alarm_and (AND2) combines the two operational, reset-unrelated inputs maintenance_req and alarm into net maint_alarm_hit. This net is then merged by instance u_audit_clr_or (OR2) with the legitimate synchronized reset net rst_sync to produce net audit_clr. audit_clr, rather than rst_sync alone, is wired to the CLR pin of every one of the eight DFF_ASYNC_CLR register instances (tamper_count_q_0 through tamper_count_q_7) that hold tamper_count. The unauthorized clear only fires while rst_n is also deasserted, requiring the reset to be inactive for the condition to trigger, which is why the trigger expression includes the rst_n term above.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr3_trigger_condition_includes_rst_n",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Evaluator checks trojan_present field against ground truth (must be true for this artifact); submission reports false despite otherwise-correct findings, so SR4 direct boolean field check fails and the overall verdict must be FAIL.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": false,\n  \"suspect_gates\": [\"u_maint_alarm_and\", \"u_audit_clr_or\"],\n  \"altered_net\": \"audit_clr\",\n  \"affected_registers\": [\n    \"tamper_count_q_0\",\n    \"tamper_count_q_1\",\n    \"tamper_count_q_2\",\n    \"tamper_count_q_3\",\n    \"tamper_count_q_4\",\n    \"tamper_count_q_5\",\n    \"tamper_count_q_6\",\n    \"tamper_count_q_7\"\n  ],\n  \"trigger_condition\": \"maintenance_req & alarm\",\n  \"justification\": \"The counter's asynchronous clear network is not driven solely by the synchronized reset as documented in design_brief.md. Instance u_maint_alarm_and (AND2) combines the two operational, reset-unrelated inputs maintenance_req and alarm into net maint_alarm_hit. This net is then merged by instance u_audit_clr_or (OR2) with the legitimate synchronized reset net rst_sync to produce net audit_clr. audit_clr, rather than rst_sync alone, is wired to the CLR pin of every one of the eight DFF_ASYNC_CLR register instances (tamper_count_q_0 through tamper_count_q_7) that hold tamper_count. However, upon further review this path is considered part of normal expected operation and does not constitute an unauthorized clear mechanism, so no trojan is present in this design.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr4_trojan_present_false_flip",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "evaluate.py performs a structural/textual lookup of every instance name listed in suspect_gates and affected_registers, and the net name in altered_net, against actual declarations in inputs/audit_module_netlist.v. Because 'u_audit_clr_or2' and 'tamper_count_q_8' do not exist as instances in the netlist (the real names are 'u_audit_clr_or' and instances only run tamper_count_q_0..tamper_count_q_7), and 'audit_clr_net' is not a declared net (the real net is 'audit_clr'), FR2's lookup check fails, causing the submission to be rejected.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_gates\": [\"u_maint_alarm_and\", \"u_audit_clr_or2\"],\n  \"altered_net\": \"audit_clr_net\",\n  \"affected_registers\": [\n    \"tamper_count_q_0\",\n    \"tamper_count_q_1\",\n    \"tamper_count_q_2\",\n    \"tamper_count_q_3\",\n    \"tamper_count_q_4\",\n    \"tamper_count_q_5\",\n    \"tamper_count_q_6\",\n    \"tamper_count_q_8\"\n  ],\n  \"trigger_condition\": \"maintenance_req & alarm\",\n  \"justification\": \"The counter's asynchronous clear network is not driven solely by the synchronized reset as documented in design_brief.md. Instance u_maint_alarm_and (AND2) combines the two operational, reset-unrelated inputs maintenance_req and alarm into net maint_alarm_hit. This net is then merged by instance u_audit_clr_or2 (OR2) with the legitimate synchronized reset net rst_sync to produce net audit_clr_net. audit_clr_net, rather than rst_sync alone, is wired to the CLR pin of every one of the eight DFF_ASYNC_CLR register instances (tamper_count_q_0 through tamper_count_q_8) that hold tamper_count. Because OR2 asserts its output whenever either input is high, asserting maintenance_req and alarm simultaneously drives audit_clr_net high and asynchronously clears the entire tamper_count register bank even while rst_n remains deasserted-high (i.e., no genuine reset event occurs). This directly violates the documented contract that 'maintenance_req and alarm, individually or in any combination, have no effect on the value or clearing of tamper_count' and that 'the only signal that should participate in clearing the counter is the synchronized form of rst_n.' The correct, non-trojan implementation would connect rst_sync directly to the CLR pins of tamper_count_q_0..8 with no intervening OR2 gate, eliminating any path by which maintenance_req and alarm could erase accumulated tamper-event evidence.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "fr2_nonexistent_gate_and_register_names",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "FR3 requires that, when trojan_present is true, trigger_condition must be a syntactically valid boolean expression referencing only the primary input ports declared on module audit_top (clk, rst_n, maintenance_req, alarm, tamper_event). This mutant changes trigger_condition to reference 'maint_alarm_hit', which is an internal net name, not a top-level port of audit_top. Evaluate.py's FR3 structural/lexical check against the declared port list of audit_top should reject this submission for referencing a non-port identifier.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_gates\": [\"u_maint_alarm_and\", \"u_audit_clr_or\"],\n  \"altered_net\": \"audit_clr\",\n  \"affected_registers\": [\n    \"tamper_count_q_0\",\n    \"tamper_count_q_1\",\n    \"tamper_count_q_2\",\n    \"tamper_count_q_3\",\n    \"tamper_count_q_4\",\n    \"tamper_count_q_5\",\n    \"tamper_count_q_6\",\n    \"tamper_count_q_7\"\n  ],\n  \"trigger_condition\": \"maint_alarm_hit & alarm\",\n  \"justification\": \"The counter's asynchronous clear network is not driven solely by the synchronized reset as documented in design_brief.md. Instance u_maint_alarm_and (AND2) combines the two operational, reset-unrelated inputs maintenance_req and alarm into net maint_alarm_hit. This net is then merged by instance u_audit_clr_or (OR2) with the legitimate synchronized reset net rst_sync to produce net audit_clr. audit_clr, rather than rst_sync alone, is wired to the CLR pin of every one of the eight DFF_ASYNC_CLR register instances (tamper_count_q_0 through tamper_count_q_7) that hold tamper_count. Because OR2 asserts its output whenever either input is high, asserting maintenance_req and alarm simultaneously drives audit_clr high and asynchronously clears the entire tamper_count register bank even while rst_n remains deasserted-high (i.e., no genuine reset event occurs). This directly violates the documented contract that 'maintenance_req and alarm, individually or in any combination, have no effect on the value or clearing of tamper_count' and that 'the only signal that should participate in clearing the counter is the synchronized form of rst_n.' The correct, non-trojan implementation would connect rst_sync directly to the CLR pins of tamper_count_q_0..7 with no intervening OR2 gate, eliminating any path by which maintenance_req and alarm could erase accumulated tamper-event evidence.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "fr3_trigger_condition_references_undeclared_port",
+      "operator": "constant_change",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "evaluate.py checks that the justification field is non-empty (and <=2000 chars) per FR4. This mutant sets justification to an empty string, which must be flagged as a functional requirement violation (FR4 fails) even though all other fields (trojan_present, suspect_gates, altered_net, affected_registers, trigger_condition) remain substantively correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_present\": true,\n  \"suspect_gates\": [\"u_maint_alarm_and\", \"u_audit_clr_or\"],\n  \"altered_net\": \"audit_clr\",\n  \"affected_registers\": [\n    \"tamper_count_q_0\",\n    \"tamper_count_q_1\",\n    \"tamper_count_q_2\",\n    \"tamper_count_q_3\",\n    \"tamper_count_q_4\",\n    \"tamper_count_q_5\",\n    \"tamper_count_q_6\",\n    \"tamper_count_q_7\"\n  ],\n  \"trigger_condition\": \"maintenance_req & alarm\",\n  \"justification\": \"\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "fr4_justification_empty_string",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+// cells.lib
+// Technology library for gate-level Trojan detection task.
+// Defines primitive cell models used in design.v.
+
+// AOI21: AND-OR-INVERT, 3-input
+// Function: Y = !((A0 & A1) | B0)
+module AOI21 (
+    input  wire A0,
+    input  wire A1,
+    input  wire B0,
+    output wire Y
+);
+    assign Y = ~((A0 & A1) | B0);
+endmodule
+
+// OAI22: OR-AND-INVERT, 4-input
+// Function: Y = !((A0 | A1) & (B0 | B1))
+module OAI22 (
+    input  wire A0,
+    input  wire A1,
+    input  wire B0,
+    input  wire B1,
+    output wire Y
+);
+    assign Y = ~((A0 | A1) & (B0 | B1));
+endmodule
+
+// INV: Inverter
+module INV (
+    input  wire A,
+    output wire Y
+);
+    assign Y = ~A;
+endmodule
+
+// XOR: 2-input XOR
+module XOR (
+    input  wire A,
+    input  wire B,
+    output wire Y
+);
+    assign Y = A ^ B;
+endmodule
+
+// DFF: D flip-flop with active-low asynchronous reset
+module DFF (
+    input  wire D,
+    output reg  Q,
+    input  wire CLK,
+    input  wire RST
+);
+    always @(posedge CLK or negedge RST) begin
+        if (!RST)
+            Q <= 1'b0;
+        else
+            Q <= D;
+    end
+endmodule

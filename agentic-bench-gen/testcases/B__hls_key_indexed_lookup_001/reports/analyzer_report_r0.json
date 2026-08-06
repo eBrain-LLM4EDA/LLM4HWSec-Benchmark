@@ -1,0 +1,65 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 and SR4 are dead checks: no generated mutant targeting output-correctness (FR1/SR4) was detected as failing by these checks. The mutation validation report shows 0/1 mutants detected for both FR1 and SR4, meaning the exhaustive 65536-pair comparison never triggers a FAIL in the mutant corpus, so these requirements are unverified as discriminative.",
+      "evidence": "per_requirement_coverage: FR1 covered=false mutants_detected=0 mutants_targeting=1; SR4 covered=false mutants_detected=0 mutants_targeting=1; issues list flags 'dead_check' for FR1 and SR4",
+      "severity": "medium"
+    },
+    {
+      "artifact": "validation report",
+      "description": "Overall validation status is 'fail' due to the two uncovered requirements (FR1, SR4), even though differential testing (golden passes, vulnerable baseline fails) and baseline run behave correctly. This indicates the mutant suite used for scoring this case is incomplete for full confidence in FR1/SR4 despite the harness logic itself appearing correct by inspection.",
+      "evidence": "status: fail; mutation_score: 0.75; uncovered_requirements: [FR1, SR4]",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or fix a mutant that corrupts output correctness (e.g., off-by-one XOR mask, wrong table index formula, or scrambled table read order that still passes SR1-SR3 but returns wrong values) so that FR1 and SR4 have at least one detected targeting mutant, resolving the dead_check findings.",
+    "Explicitly compute and print the three named evaluation metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate) in evaluate.py's final output so the harness output directly matches the task specification's evaluation section rather than requiring external derivation from PASS/FAIL lines.",
+    "Consider adding a short comment or note in evaluation/README.md clarifying how the 8 FR/SR pass/fail results map onto the three headline metrics, to make grading fully transparent and reproducible.",
+    "Re-run the mutation/validation suite after adding an output-corrupting mutant to confirm mutation_score reaches 1.0 and overall validation status flips to pass."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.vulnerable_run: exit_code=1, status=fail, with FR3/SR1/SR2/SR3 all reporting [TEST] FAIL, matching expected discriminative behavior against the naive direct-index baseline.",
+      "requirement": "Baseline (insecure) submission must fail under evaluate.py",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code=0, status=pass, all 8 requirement lines show [TEST] PASS.",
+      "requirement": "Golden/correct hardened submission must pass under evaluate.py",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional) and SR1-SR4 (security) each with distinct expected_detection mechanisms and test_files; evaluate.py emits distinct PASS/FAIL markers per requirement id.",
+      "requirement": "Functional and security requirements are mapped and separately tested",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1/SR2/SR3 checks execute the compiled binary across swept key, swept value, and randomized joint pairs via TRACE_MODE instrumentation, directly exercising the memory access pattern rather than relying on static inspection alone.",
+      "requirement": "Security-relevant behaviors (secret-dependent access pattern) are actively triggered, not just checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, inputs/design_brief.md, and inputs/lookup_kernel.cpp use only plain engineering language ('uniform access pattern is a design goal', 'downstream physical designers') with no mention of CWE-208/385/200, SR1-SR4 ids, or explicit side-channel/threat-model terminology.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are concrete: exact oracle byte match over all inputs, clean g++ -O0/-O2 compile with synthesizable-subset constraints, exactly 16 ascending TRACE_ACCESS reads per call, and absence of secret-dependent branches \ness compness the pinned lookup() interface.",
+      "requirement": "Public functional requirements are concrete, machine-checkable, and domain-appropriate (not generic filler)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py emits per-requirement PASS/FAIL markers (FR1-FR4, SR1-SR4) which can be aggregated into the three named metrics, but the script itself does not explicitly compute or print cwe_violation_rate, information_flow_correctness, or synthesis_pass_rate as named values; an external aggregator would need to derive them from the FR/SR pass/fail lines.",
+      "requirement": "Evaluator measures all requested metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Validation report per_requirement_coverage shows FR1 and SR4 each have mutants_targeting=1 but mutants_detected=0, and issues array explicitly lists both as 'dead_check' with description 'provides no discrimination'.",
+      "requirement": "FR1 and SR4 checks are non-dead (verifiably discriminative against some mutant)",
+      "status": "fail"
+    }
+  ]
+}

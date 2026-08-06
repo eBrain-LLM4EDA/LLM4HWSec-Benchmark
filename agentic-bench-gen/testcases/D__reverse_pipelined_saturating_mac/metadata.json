@@ -1,0 +1,31 @@
+{
+  "task_id": "reverse_pipelined_saturating_mac",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover a pipelined signed saturating MAC",
+  "input_artifacts": [
+    "obfuscated_mac_netlist.v"
+  ],
+  "expected_output": "recovered_rtl.v",
+  "evaluation_metrics": [
+    {
+      "name": "word_recovery_rate",
+      "description": "Fraction of correctly identified high-level operations (multiply, accumulate, saturate) in the recovered RTL compared to the reference.",
+      "direction": "maximize"
+    },
+    {
+      "name": "structural_match_accuracy",
+      "description": "Similarity of the recovered RTL structure (pipeline stages, register boundaries) to the original design.",
+      "direction": "maximize"
+    },
+    {
+      "name": "functional_equivalence",
+      "description": "Binary pass/fail based on cycle-accurate simulation matching the golden reference model.",
+      "direction": "maximize"
+    }
+  ],
+  "baselines": [
+    "HAL benchmarks",
+    "ISCAS'85",
+    "ITC'99"
+  ]
+}

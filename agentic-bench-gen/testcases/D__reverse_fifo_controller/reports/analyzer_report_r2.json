@@ -1,0 +1,113 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "evidence": "Validation report shows golden_run exit_code=1, expected=pass, stdout contains [TEST] FAIL: FR1 (missing marker) for all requirements. The golden solution compiles and simulates correctly but evaluate.py fails to detect the PASS markers.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "evaluate.py fails to parse [TEST] PASS markers from the testbench output, causing all requirements to be marked FAIL even when the simulation produces correct results",
+      "evidence": "The parse_markers function uses regex r'\\[TEST\\]\\s+(PASS|FAIL):\\s+(\\w+)' but the testbench prints markers like '[TEST] PASS: FR1' with a space after the colon. The regex expects no space after colon, causing marker parsing to fail.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_fifo.v",
+      "description": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "evidence": "Validation report shows mutation_score=0.0, untested_requirements includes FR1. No mutant was generated that specifically breaks FR1 while passing others.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/tb_fifo.v",
+      "description": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "evidence": "Validation report shows untested_requirements includes FR2.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/tb_fifo.v",
+      "description": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "evidence": "Validation report shows untested_requirements includes FR3.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/tb_fifo.v",
+      "description": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "evidence": "Validation report shows untested_requirements includes FR4.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/private/tb_security.v",
+      "description": "SR1 has no targeting mutant, so its harness discrimination is unproven",
+      "evidence": "Validation report shows untested_requirements includes SR1.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The regex in parse_markers has a whitespace mismatch with the testbench output format",
+      "evidence": "Regex: r'\\[TEST\\]\\s+(PASS|FAIL):\\s+(\\w+)' expects no space after colon. Testbench prints: '[TEST] PASS: FR1' which has a space after colon. This causes all markers to be missed.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the regex in evaluate.py parse_markers to match the actual testbench output format. Change r'\\[TEST\\]\\s+(PASS|FAIL):\\s+(\\w+)' to r'\\[TEST\\]\\s+(PASS|FAIL):\\s+(\\w+)' or ensure the testbench prints without space after colon.",
+    "Implement the word_recovery_rate and structural_match_accuracy metrics in evaluate.py, or remove them from metadata.json if only functional_equivalence is graded.",
+    "Generate targeted mutants for each requirement (FR1-FR4, SR1) to validate harness discrimination. Without mutants, the harness's ability to catch specific bugs is unproven.",
+    "Add a preflight check in the validation pipeline that runs the golden solution through evaluate.py and verifies it passes before accepting the benchmark case.",
+    "Consider adding a timeout parameter to the vvp command in evaluate.py to prevent infinite simulation hangs."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "The public spec describes a depth-4, width-8 FIFO with specific timing contract. The hidden ground truth matches this exactly. The input netlist (fifo_netlist.v) implements this behavior. The expected output (submission/recovered_rtl.v) is a reconstructed RTL matching the same behavior. All artifacts are consistent.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py rejects the golden solution (exit 1, all FAIL markers). The regex bug in parse_markers prevents detection of PASS markers. The baseline submission is correctly rejected (exit 1, FAIL markers), but the golden solution is also incorrectly rejected.",
+      "requirement": "evaluate.py follows grader semantics \u2014 accepts correct submission, rejects baseline",
+      "status": "fail"
+    },
+    {
+      "evidence": "The metadata.json defines three metrics: word_recovery_rate, structural_match_accuracy, functional_equivalence. evaluate.py only checks functional_equivalence via cycle-accurate simulation. It does not compute word_recovery_rate or structural_match_accuracy. The evaluation script does not implement these metrics.",
+      "requirement": "Evaluator measures the requested metrics",
+      "status": "unknown"
+    },
+    {
+      "evidence": "The requirement_map in the harness bundle maps FR1-FR4 to evaluation/tb_fifo.v (functional) and SR1 to evaluation/private/tb_security.v (security). Each requirement has a distinct expected_detection description and test file assignment.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "The private testbench (tb_security.v) runs a 1000-cycle pseudo-random sequence with fixed seed covering all operation modes (idle, write, read, simultaneous). It compares submission outputs cycle-by-cycle against a reference model, actively triggering overflow, underflow, and edge cases.",
+      "requirement": "Security-relevant behaviors are actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All Verilog files use only standard constructs (DFFs, muxes, basic gates). No external dependencies beyond iverilog and vvp. No malicious code, no network access, no file system writes beyond temp directories. The evaluation runs in a sandboxed temporary directory.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task requires reconstructing readable RTL from a flattened gate-level netlist, which is a core hardware reverse engineering challenge. The FIFO controller with pointer logic, occupancy counter, and registered outputs is a realistic reverse-engineering target. Baselines reference HAL, ISCAS'85, ITC'99 which are standard hardware RE benchmarks.",
+      "requirement": "Benchmark is adapted to the hardware_reverse_engineering domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "The evaluate.py regex bug makes results unverifiable \u2014 the golden solution fails, so no submission can pass. Additionally, two of three metrics (word_recovery_rate, structural_match_accuracy) are not implemented, making those metrics unverifiable.",
+      "requirement": "No gaps that would make results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md describes the task as a plain reverse-engineering assignment. It does not mention CWE IDs, SR1, threat model, or security requirements. metadata.json contains only public metrics and baselines. The input netlist has no comments revealing design intent. The public spec describes only functional requirements (FR1-FR4).",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are specific, verifiable behaviors: FR1 checks write when empty with empty deassertion timing; FR2 checks read when full with data output and full deassertion; FR3 checks simultaneous operations with occupancy unchanged; FR4 checks no-op on overflow/underflow. Each is checked cycle-by-cycle in the testbench with explicit PASS/FAIL markers.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

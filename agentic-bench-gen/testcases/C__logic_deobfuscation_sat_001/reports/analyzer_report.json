@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 has no targeting mutant, so its harness discrimination is unproven. The requirement is covered by the evaluator but not validated through mutation testing.",
+      "evidence": "Validation report shows per_requirement_coverage.FR1.covered = false, mutants_targeting = 0.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Add a mutation test for FR1 to ensure the harness can detect a missing or malformed submission file.",
+    "Consider adding a test case where the netlist is actually locked to validate the evaluator's handling of true positives, though this is outside the scope of this negative control."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Public inputs (locked_netlist.v, locking_scheme.txt) describe a netlist that may or may not be locked. Hidden ground truth specifies locked=false, key_bits='', key_gates=[]. Expected output schema matches ground truth. The locking_scheme.txt is a red herring consistent with the task objective.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py reads submission/recovered_key.json and grades it. Golden run (correct answer) exits 0 with all PASS. Vulnerable run (baseline submission with locked=true) exits 1 with SR1 and SR2 FAIL. This matches the contract: accept correct, reject naive/incorrect.",
+      "requirement": "evaluate.py follows grader semantics for submission contract",
+      "status": "pass"
+    },
+    {
+      "evidence": "Metrics key_recovery_rate, key_gate_localization_accuracy, sat_iteration_reduction are listed in metadata.json and evaluation spec. evaluate.py checks key_bits and key_gates correctness, which directly measures key_recovery_rate and key_gate_localization_accuracy. sat_iteration_reduction is noted as not applicable (always 0) for this negative control, which is acceptable.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "pass"
+    },
+    {
+      "evidence": "Requirement map lists FR1-FR4 as functional and SR1-SR2 as security. evaluate.py emits separate [TEST] PASS/FAIL markers for each. Validation report shows check_activation for FR2, FR3, FR4, SR1, SR2.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 and SR2 are actively checked by evaluating key_gates and key_bits against empty values. The baseline submission triggers both failures, demonstrating active detection of false positives.",
+      "requirement": "Security-relevant behaviors are actively triggered",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are plain text (Verilog, JSON, Python, Markdown). No external network calls, no binary execution beyond iverilog/vvp (optional). No malicious code.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task is a logic deobfuscation SAT negative control. The netlist contains functional XORs and MUXes that could be mistaken for key gates. The locking_scheme.txt provides a plausible but false description. This directly tests the domain-specific skill of distinguishing locking logic from functional logic.",
+      "requirement": "Benchmark is adapted to the selected domain",
+      "status": "pass"
+    },
+    {
+      "evidence": "Ground truth is unambiguous (locked=false, key_bits='', key_gates=[]). Evaluator checks are deterministic. Differential testing confirms golden pass and vulnerable fail.",
+      "requirement": "No gaps that would make results unverifiable",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md describes the task as a plain logic deobfuscation assignment. It does not mention CWE-200, SR1, SR2, threat model, or that this is a negative control. metadata.json lists only task_id, domain_id, title, input_artifacts, expected_output, metrics. locking_scheme.txt describes a locking scheme without revealing it is false. locked_netlist.v has no comments indicating it is unlocked.",
+      "requirement": "No leak of hidden security intent in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1: file exists and is valid JSON. FR2: three required fields with correct types. FR3: if locked=false, key_bits='' and key_gates=[]. FR4: if locked=true, key_bits non-empty binary string and key_gates non-empty string array. All are checked by evaluate.py with specific error messages.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,56 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Baseline submission with empty strings passes FR1 and then fails FR2/FR3/SR1/SR2, but the validation report shows the baseline run unexpectedly passed all checks (exit 0, all PASS). This indicates the shipped baseline submission/vulnerability_report.json was overwritten with a correct answer before validation, so the evaluator's ability to reject a naive submission is unproven in the actual validation run.",
+      "evidence": "Validation report baseline_run: exit_code=0, stdout shows PASS for FR1-FR3, SR1-SR2. The shipped baseline file content was {\"common_mode_node\":\"\",\"failure_mechanism\":\"\"} which should fail FR2/FR3. The validation run must have used a different file.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 has no targeting mutant in the mutation analysis, so its harness discrimination is unproven. The requirement is listed as untested.",
+      "evidence": "Validation report: per_requirement_coverage.FR1.covered=false, mutants_targeting=0. untested_requirements includes FR1.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR2 keyword matching is brittle: it checks for exact substring presence of a limited set of phrases. A semantically correct but differently worded explanation could fail, reducing grading accuracy.",
+      "evidence": "evaluate.py EXPECTED_FAILURE_KEYWORDS list: ['both counters stall','counters remain equal','timeout prevented','timeout never asserts','equality monitor remains satisfied']. No semantic similarity or NLP fallback.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Ensure the baseline submission file shipped in the artifact bundle is the naive/empty version and is not overwritten before validation. Re-run validation with the original empty submission to confirm FR1-FR3/SR1-SR2 all fail as expected.",
+    "Add a mutant targeting FR1 (e.g., a submission with missing keys, malformed JSON, or wrong top-level structure) to prove FR1 discrimination in mutation testing.",
+    "Consider enhancing SR2 evaluation with a broader set of keywords or a lightweight semantic check (e.g., checking for co-occurrence of 'stall', 'both counters', 'timeout', 'equal') to reduce false negatives for correct but differently phrased answers."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Validation baseline run unexpectedly passed all checks, so FR1 discrimination against a naive submission could not be confirmed. Mutation analysis also shows FR1 untested (0 mutants).",
+      "requirement": "FR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Mutation score 1.0 for FR2; differential test shows vulnerable (empty string) submission correctly fails FR2 with 'FAIL: FR2: common_mode_node missing, null, empty, or whitespace-only'.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation score 1.0 for FR3; differential test shows vulnerable submission correctly fails FR3.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation score 1.0 for SR1; differential test shows vulnerable submission correctly fails SR1 with expected message.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation score 1.0 for SR2; differential test shows vulnerable submission correctly fails SR2.",
+      "requirement": "SR2",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

@@ -1,0 +1,67 @@
+{
+  "task_id": "rtl_trojan_detection_param_fifo_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Parameter-dependent Trojan in a configurable FIFO",
+  "objective": "Review the RTL source for a parameterized synchronous FIFO (param_fifo) and produce a security analysis report identifying any suspicious or malicious logic, including any parameterization under which the design's behavior deviates from the documented FIFO contract (full/empty flag correctness, no silent data corruption, no overwrite of unread data). Analysis must cover the legal parameter space (e.g. WIDTH = 8, 16, 24), not just the default configuration.",
+  "module_under_analysis": {
+    "name": "param_fifo",
+    "parameters": [
+      { "name": "WIDTH", "default": 8 },
+      { "name": "DEPTH_LOG2", "default": 4 }
+    ],
+    "ports": [
+      { "name": "clk", "direction": "input", "width": 1, "description": "single clock, posedge-triggered" },
+      { "name": "rst_n", "direction": "input", "width": 1, "description": "active-low synchronous reset" },
+      { "name": "wr_en", "direction": "input", "width": 1, "description": "write enable" },
+      { "name": "din", "direction": "input", "width": "WIDTH", "description": "write data" },
+      { "name": "full", "direction": "output", "width": 1, "description": "registered full flag" },
+      { "name": "rd_en", "direction": "input", "width": 1, "description": "read enable" },
+      { "name": "dout", "direction": "output", "width": "WIDTH", "description": "read data" },
+      { "name": "empty", "direction": "output", "width": 1, "description": "registered empty flag" }
+    ]
+  },
+  "input_artifacts": [
+    "inputs/param_fifo.v",
+    "inputs/fifo_spec.md",
+    "inputs/testbench_default.v"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "submission_kind": "analysis_report",
+  "constraints": [
+    "Participants must not edit files under inputs/; only submission/trojan_report.json is graded.",
+    "submission/trojan_report.json must be valid JSON with a top-level object containing 'findings' (array) and 'summary' (string).",
+    "Each element of 'findings' must include non-empty string fields 'trigger_condition', 'payload_effect', 'rationale', a numeric 'confidence' in [0.0, 1.0], and may optionally include 'affected_parameters'."
+  ],
+  "expected_outputs": {
+    "summary": "A single JSON report at submission/trojan_report.json listing trojan candidates (if any) found across the legal WIDTH parameter space of param_fifo, each with a specific triggering condition (including any parameter values and internal pointer/state patterns involved), a specific payload/effect described in terms of the FIFO's documented full/empty/data-integrity behavior, a confidence score, and a rationale.",
+    "artifacts": [
+      "submission/trojan_report.json"
+    ]
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of graded cases where the submitted report correctly identifies the anomalous parameterization and payload as required by the hidden acceptance criteria."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported findings that do not correspond to the true anomaly location (e.g., flagging benign generate branches, unrelated parameter values, or normal reset/init logic as malicious)."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Score (0-1) measuring how precisely the report localizes both the triggering condition and the payload/effect, based on keyword/semantic matching against the hidden ground truth and optional iverilog/vvp cross-simulation."
+    },
+    {
+      "name": "schema_validity",
+      "direction": "maximize",
+      "description": "Whether submission/trojan_report.json parses as JSON and conforms to the required field schema."
+    }
+  ],
+  "toolchain": ["iverilog", "vvp", "yosys"],
+  "evaluation_mode": "report_grading"
+}

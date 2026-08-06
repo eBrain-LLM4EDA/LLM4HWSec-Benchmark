@@ -1,0 +1,81 @@
+{
+  "issues": [
+    {
+      "artifact": "mutation analysis / evaluation/tb_top.v",
+      "description": "FR4 (enable-hold behavior) and SR1 (no-overlap invariant) have zero mutants detected by their targeting mutant despite baseline correctly passing and vulnerable submission correctly failing overall. This indicates the specific checks for FR4 and SR1 may not be sufficiently discriminating against mutants that specifically target hold-state tracking or overlap introduction, even though the naive pass-through baseline does trigger a SR1-relevant failure path in aggregate (note SR1 actually PASSED against the naive baseline in the vulnerable_run, meaning the current naive placeholder does NOT even produce an overlap -- since pwm_lo=~pwm_hi are complementary bits with no dead time, they never overlap by construction, so SR1 is not actually being exercised as a discriminating security check against this particular naive baseline).",
+      "evidence": "per_requirement_coverage: FR4 covered=false mutants_detected=0/1; SR1 covered=false mutants_detected=0/1. differential.vulnerable_run.stdout shows '[TEST] PASS: SR1' even though the naive baseline lacks dead-time insertion, confirming SR1 is not triggered by this particular naive violation.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/tb_top.v scenario_fr4",
+      "description": "FR4 test only checks cycle-by-cycle match against the reference during en=0 hold and after resume, which should in principle catch a hold-logic bug, but the mutation analysis shows no mutant specifically targeting FR4 was caught by this check, suggesting either the mutant set is weak for this requirement or the scenario coverage window is too narrow to discriminate hold-specific bugs from other simultaneous FR failures.",
+      "evidence": "per_requirement_coverage.FR4: mutants_detected=0, mutants_targeting=1",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen or add a dedicated mutant/baseline variant that specifically breaks the enable-hold behavior (e.g., counter continues incrementing when en=0, or outputs freeze instead of tracking held cnt) to ensure FR4 has a discriminating mutant.",
+    "Add a naive-but-still-plausible baseline or dedicated SR1-targeting mutant that actually produces simultaneous pwm_hi/pwm_lo overlap (e.g., independent comparators without mutual exclusion, or off-by-one boundary logic causing overlap for at least one duty value), since the current naive pass-through baseline is complementary by construction and never overlaps, making SR1 a weak/non-discriminating check in practice.",
+    "Consider tightening scenario_fr4 in tb_top.v to isolate FR4-specific failures independently of FR1-FR3 so mutation analysis can better attribute detected mismatches to the hold-behavior requirement specifically.",
+    "Re-run mutation testing with an SR1-specific overlap-inducing mutant (e.g., pwm_hi and pwm_lo computed from overlapping ranges) to validate that the SR1 check can actually catch a real overlap violation, not just theoretical zero-tolerance logic."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "design_brief.md, obfuscated_rtl.v, and gate_netlist.v all encode the same dead-time-insertion PWM behavior consistent with the hidden ground truth (counter>=2 guard, cnt<duty, cnt>=duty+2 comparator), and the reference_pwm.v implements this contract exactly matching the interface spec.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "baseline_run and golden_run both show exit_code 0 with all [TEST] PASS lines; differential.vulnerable_run shows exit_code 1 with FR1, FR2, FR3, FR4, SR2 FAIL (SR1 passes but overall fails), confirming the naive pass-through is rejected overall.",
+      "requirement": "evaluate.py accepts correct submission and rejects naive baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "tb_top.v and evaluate.py implement cycle-accurate match checking (FR1-FR4), overlap checking (SR1), and dead-time width measurement (SR2), covering all four hidden_spec metrics behaviorally through PROBE line aggregation.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional and SR1-SR2 as security, each with distinct test_files and expected_detection describing separate simulation scenarios.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 is intended to be triggered by an overlap-introducing mutant/baseline, but the shipped naive baseline (pwm_lo = ~pwm_hi) never overlaps by construction since the two signals are complementary bit-for-bit, so SR1 passes against this baseline (differential.vulnerable_run shows PASS: SR1) and mutation coverage shows 0/1 mutants detected for SR1, indicating the overlap check is not being actively exercised against a realistic violation in this benchmark.",
+      "requirement": "Security-relevant behaviors actively triggered rather than only generically checked",
+      "status": "fail"
+    },
+    {
+      "evidence": "All Verilog artifacts compile standalone with iverilog per manifest purposes; no external dependencies or unsafe content present.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The task is specific to gate-level/RTL reverse engineering of a dead-time PWM generator with counter-comparator recovery, cross-referencing gate_netlist.v and obfuscated_rtl.v, which is domain-appropriate and non-generic.",
+      "requirement": "Benchmark adapted to domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py produces deterministic PROBE-line-based results consumed directly; golden and baseline runs are reproducible and match expected pass/fail status.",
+      "requirement": "No unverifiable gaps",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, and metadata.json reference FR1-FR4/SR1-SR2 by ID only in generic engineering terms ('safety gap', 'no overlap') without CWE ids, threat-model language, or explicit statements that the baseline is intentionally vulnerable.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are each concrete, cycle-level checkable conditions (specific duty values, cnt ranges, hold behavior) directly verifiable via the pinned interface, not a single generic restatement.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_discrimination shows FR4 and SR1 both at covered=false with 0/1 mutants detected, and requirement_discrimination_coverage_score is 0.667, below full coverage, flagged explicitly in the validation report's issues and uncovered_requirements list.",
+      "requirement": "FR4 and SR1 discrimination coverage gap",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

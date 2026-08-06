@@ -1,0 +1,30 @@
+{
+  "trojan_detected": true,
+  "findings": [
+    {
+      "module": "counter.v",
+      "signal": "counter_terminal",
+      "rationale": "This signal is asserted when the counter reaches a specific terminal count value. In isolation it appears as a normal counter feature, but it is routed to the top module where it is combined with other signals to form a rare-event trigger condition. Its presence as a dedicated output suggests it may serve as a trigger fragment for a hardware Trojan.",
+      "confidence": 0.9
+    },
+    {
+      "module": "command_decoder.v",
+      "signal": "command_match",
+      "rationale": "This signal is asserted when a specific command is decoded. While command matching is a standard function, this signal is exported to the top module and combined with other signals. The specific command value may be chosen to create a rare trigger condition, making it a likely trigger fragment.",
+      "confidence": 0.9
+    },
+    {
+      "module": "error_handler.v",
+      "signal": "sticky_error",
+      "rationale": "This signal latches high on any error and remains asserted until reset. It is a sticky error flag that, when combined with other signals at the top level, can contribute to a trigger condition. Its sticky nature ensures the trigger can be activated by a transient error, making it a plausible trigger fragment.",
+      "confidence": 0.85
+    },
+    {
+      "module": "top.v",
+      "signal": "mux selecting secret_reg[0] onto status_out",
+      "rationale": "A multiplexer or conditional assignment in the top module selects the least significant bit of secret_reg (secret_reg[0]) and drives it onto the status_out port when the combined trigger signal (AND of counter_terminal, command_match, and sticky_error) is active. This leaks internal secret data to an external observer, constituting the payload of a hardware Trojan.",
+      "confidence": 0.95
+    }
+  ],
+  "overall_confidence": 0.9
+}

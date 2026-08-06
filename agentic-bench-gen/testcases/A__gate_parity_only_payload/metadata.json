@@ -1,0 +1,34 @@
+{
+  "task_id": "gate_parity_only_payload",
+  "domain_id": "gate_trojan_detection",
+  "title": "Integrity-status-only Trojan payload",
+  "input_artifacts": [
+    "design.v",
+    "design_tb.v",
+    "design_brief.md"
+  ],
+  "expected_output": {
+    "file": "submission/trojan_report.json",
+    "schema": {
+      "label": "string (Trojan or Trojan-Free)",
+      "suspect_nodes": "array of strings (hierarchical node names from design.v)"
+    }
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "description": "Proportion of Trojan-infected netlists correctly labeled as 'Trojan'.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "Proportion of Trojan-free netlists incorrectly labeled as 'Trojan'.",
+      "direction": "minimize"
+    },
+    {
+      "name": "node_identification_accuracy",
+      "description": "Jaccard similarity between the submitted suspect_nodes set and the ground truth suspect set.",
+      "direction": "maximize"
+    }
+  ]
+}

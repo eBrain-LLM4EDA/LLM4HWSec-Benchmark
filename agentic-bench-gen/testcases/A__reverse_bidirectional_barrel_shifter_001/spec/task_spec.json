@@ -1,0 +1,98 @@
+{
+  "domain_id": "hardware_reverse_engineering",
+  "evaluation": {
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of exhaustively enumerated (data_in, amount, direction, mode) vectors for which submission data_out exactly matches the reference netlist's simulated data_out; PASS requires 100% match.",
+        "direction": "maximize",
+        "name": "functional_equivalence"
+      },
+      {
+        "description": "Fraction of mode=11 vectors where submission output matches the reference netlist's resolved (non-X) behavior, isolating the don't-care resolution edge case.",
+        "direction": "maximize",
+        "name": "mode11_donotcare_match_rate"
+      },
+      {
+        "description": "Optional secondary signal: percentage similarity between submitted RTL structure (case/mux decomposition) and the golden reference RTL structure, computed via Yosys equivalence-checking cell counts; informational only, not used for PASS/FAIL.",
+        "direction": "maximize",
+        "name": "structural_match_accuracy"
+      },
+      {
+        "description": "Whether iverilog successfully compiles the submission together with the generated testbench and reference netlist with zero errors.",
+        "direction": "maximize",
+        "name": "compile_success"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "evaluate.py compiles inputs/net_shifter_flat.v and submission/recovered_rtl.v together with a generated testbench using iverilog, producing a vvp executable that runs under vvp without compile or elaboration errors.",
+      "The testbench exhaustively (or via dense pseudo-random sampling covering all 2^13 = 8192 combinations of data_in x amount x direction x mode, since 8+3+1+2=14 bits total is small enough for full exhaustion) drives both the reference netlist instance and the submitted barrel_shifter_top instance with identical vectors and asserts data_out equality every vector.",
+      "Any mismatch on any vector, including mode=11 don't-care resolution and sign-extension edge cases, causes FAIL with a reported first-failing vector.",
+      "The shipped baseline/naive submission (e.g., an empty or all-zero-output stub) must fail this exhaustive comparison.",
+      "A structurally different but behaviorally identical RTL implementation (e.g., using generate loops instead of case statements) must PASS, since grading is purely behavioral via simulation."
+    ],
+    "cwe_ids": [
+      "CWE-1120",
+      "CWE-758"
+    ],
+    "ground_truth": "The flattened netlist implements: mode=00 -> logical shift (left when direction=0 zero-filling low bits, right when direction=1 zero-filling high bits); mode=01 -> arithmetic behavior only distinguishes right shift (sign-extend using original MSB into vacated high bits when direction=1) from left shift which is identical to logical left shift (direction=0); mode=10 -> rotate left (direction=0) or rotate right (direction=1) by amount mod 8, with wrap-around bits re-entering on the opposite end; mode=11 is an unused/don't-care encoding in the original design intent, but the flattened netlist's staged MUX tree happens to resolve it identically to mode=00's logical-shift behavior because the MUX select decoding is only 2 bits wide and the tree was built by don't-care-filling the unused row with the logical-shift datapath. A correct reverse-engineered model must reproduce this same don't-care resolution for mode=11 to achieve bit-exact equivalence, even though it is not part of the documented 3 semantic modes.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Directed and exhaustive testbench vectors specifically targeting mode=11 across all amount/direction/data_in combinations, comparing submission output against the reference netlist's simulated output; any divergence or X-propagation mismatch fails.",
+        "id": "SR1",
+        "requirement": "The recovered RTL must not treat mode=11 as an unconstrained don't-care (e.g., via 'x' assignment or omitted case branch) in a way that produces a different resolved value than the reference netlist under 4-state or 2-state simulation; the evaluator instantiates the actual reference netlist and requires bit-exact match on mode=11 vectors, not merely 'compiles without warnings'."
+      },
+      {
+        "detection_strategy": "Testbench vectors with data_in having MSB=1 under mode=01, direction=0 (left), across all amounts; verify data_out low bits are zero-filled, not sign-extended, by comparing against the simulated reference netlist.",
+        "id": "SR2",
+        "requirement": "The recovered RTL must not conflate arithmetic-left-shift with sign-extension (a common reverse-engineering error given the mode=01 encoding ambiguity); left shifts under mode=01 must zero-fill exactly like mode=00, verified behaviorally rather than by inspecting shift operators in source."
+      }
+    ],
+    "threat_model": "An adversarial or legacy flattening pass removed all hierarchy and symbol names from a bit-manipulation IP block, making it impossible to tell from source alone whether the block performs shifting or rotation, which direction convention it uses, how it fills vacated bits (zero vs sign-extended), and what the reverse engineer assumes for the nominally 'unused' 4th mode encoding. An analyst who guesses wrong on any of these axes (e.g., assuming mode=11 is X/don't-care and leaving it unconstrained, or sign-extending on left shifts, or swapping the rotate direction convention) will produce RTL that appears functionally plausible but silently diverges from the fielded netlist on specific input classes, which is exactly the failure mode this benchmark targets."
+  },
+  "public_spec": {
+    "constraints": [
+      "The recovered RTL must be synthesizable Verilog-2001 or SystemVerilog compatible with iverilog/yosys, self-contained in a single file with no external includes.",
+      "The netlist in inputs/net_shifter_flat.v is fully acyclic combinational logic (no latches, no clock) composed of primitive gates and MUX cells only, with obfuscated/auto-generated net names.",
+      "The recovered module must declare exactly the pinned port list (barrel_shifter_top) with matching widths and directions; no additional ports may be added.",
+      "Do not modify inputs/net_shifter_flat.v or inputs/design_brief.md; only submission/recovered_rtl.v is graded.",
+      "The design must not rely on any vendor-specific or non-free simulation primitives; only constructs supported by iverilog/yosys are permitted."
+    ],
+    "expected_outputs": [
+      "submission/recovered_rtl.v containing a synthesizable Verilog module named barrel_shifter_top with ports matching the pinned interface, exhibiting bit-exact combinational equivalence with the reference netlist across the full input space"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "When mode=00 (logical shift): if direction=0, data_out = data_in << amount with zeros shifted into the vacated low bits; if direction=1, data_out = data_in >> amount (logical, unsigned) with zeros shifted into the vacated high bits. This must hold exactly for amount = 0 through 7."
+      },
+      {
+        "id": "FR2",
+        "requirement": "When mode=01: if direction=1 (right), data_out is the arithmetic right shift of data_in by amount, sign-extending using data_in[7] into the vacated high bits; if direction=0 (left), data_out is the logical left shift of data_in by amount (identical to FR1's left-shift case), zero-filling the low bits."
+      },
+      {
+        "id": "FR3",
+        "requirement": "When mode=10 (rotate): if direction=0, data_out is data_in rotated left by amount bits (bits shifted out the top re-enter at the bottom); if direction=1, data_out is data_in rotated right by amount bits (bits shifted out the bottom re-enter at the top), for all amount values 0 through 7, matching rotation by amount modulo 8."
+      },
+      {
+        "id": "FR4",
+        "requirement": "For every value of mode (00, 01, 10, and 11) and every combination of data_in, amount, and direction, submission/recovered_rtl.v's data_out must be bit-for-bit identical to the output produced by simulating inputs/net_shifter_flat.v on the same input vector, with zero additional propagation cycles (purely combinational match)."
+      }
+    ],
+    "input_artifacts": [
+      "net_shifter_flat.v",
+      "design_brief.md"
+    ],
+    "interface": "Module name: barrel_shifter_top. File: submission/recovered_rtl.v. Ports (all combinational, purely Mealy \u2014 every output is a combinational function of the CURRENT input values with ZERO clock cycles of latency; there is no clock or reset in this module):\n  input  [7:0] data_in,   // 8-bit operand to be shifted or rotated\n  input  [2:0] amount,    // shift/rotate amount, 0 through 7\n  input        direction, // 0 = left, 1 = right\n  input  [1:0] mode,      // 00 = logical shift, 01 = arithmetic shift (right) / logical shift (left), 10 = rotate, 11 = unspecified (must match reference netlist bit-for-bit; treat as pure combinational passthrough of whatever net_shifter_flat.v produces)\n  output [7:0] data_out   // result, valid combinationally in the same evaluation step as the inputs (no registers)\nThis module is purely combinational: data_out must settle to its final value within the same simulation time step as any change to data_in, amount, direction, or mode, with no clocked elements anywhere in the design. The evaluator will apply exhaustive (or densely sampled) input vectors to both the reference netlist and the submission within a single always@(*) style comparison per vector and require identical data_out for every vector.",
+    "objective": "The inputs directory contains a flattened, bit-level gate netlist (net_shifter_flat.v) implementing a combinational 8-bit variable shift/rotate unit, built as a staged multiplexer network with no readable hierarchy or meaningful signal names, plus a design brief describing the pinout and observed behavior categories. Your job is to reverse-engineer the flattened netlist into clean, readable word-level Verilog (submission/recovered_rtl.v) that is functionally identical to the original for every input combination. The recovered module must expose the exact same ports as the netlist and reproduce its bit-exact combinational output for all 8-bit data values, all 8 shift amounts, both directions, and all 4 mode encodings (only 3 of which are defined; the 4th must match whatever the netlist produces, which will be verified by simulation).",
+    "response_format": "A single Verilog file at submission/recovered_rtl.v defining module barrel_shifter_top(data_in, amount, direction, mode, data_out) exactly as specified in the interface section, synthesizable and simulatable with iverilog."
+  },
+  "task_id": "reverse_bidirectional_barrel_shifter_001",
+  "title": "Recover a bidirectional barrel shifter and fill semantics"
+}

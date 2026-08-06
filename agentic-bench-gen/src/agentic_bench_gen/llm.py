@@ -378,6 +378,7 @@ class OpenRouterLLM:
         max_tokens: int = 16000,
         retries: int | None = None,
         reasoning: dict[str, Any] | None = None,
+        escalation_cap: int | None = None,
     ) -> str:
         """Plain-text completion (no JSON envelope). Used for per-file bundle
         emission: file content is never JSON-escaped and never has to share a
@@ -392,6 +393,7 @@ class OpenRouterLLM:
             max_tokens=max_tokens,
             retries=retries,
             reasoning=reasoning,
+            escalation_cap=escalation_cap,
         )
 
     def _complete(
@@ -685,4 +687,3 @@ class OpenRouterLLM:
                 attempt += 1
                 time.sleep(2 ** (attempt - 1))
         raise RuntimeError(f"OpenRouter completion failed: {last_error}") from last_error
-

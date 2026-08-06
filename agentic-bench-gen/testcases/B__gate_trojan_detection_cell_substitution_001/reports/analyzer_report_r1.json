@@ -1,0 +1,77 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (FR1 check)",
+      "description": "FR1 is a dead check under mutation testing: no mutant targeting FR1 was detected, indicating the check does not meaningfully discriminate malformed submissions in the mutation suite, though the logic itself appears correct on manual inspection (checks verdict enum, suspect_instances array-of-strings, non-empty justification).",
+      "evidence": "dead_checks: ['FR1']; per_requirement_coverage.FR1: {covered: false, mutants_detected: 0, mutants_targeting: 1}",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR4 check)",
+      "description": "SR4 (dynamic simulation confirmation of mismatching_inputs) has no targeting mutant detected by its own check, leaving a coverage gap in verifying that the dynamic iverilog/vvp cross-check actually catches fabricated/incorrect mismatching_inputs claims under mutation.",
+      "evidence": "uncovered_requirements: ['FR1', 'SR4']; per_requirement_coverage.SR4: {covered: false, mutants_detected: 0, mutants_targeting: 1}",
+      "severity": "low"
+    },
+    {
+      "artifact": "mutation run",
+      "description": "One mutant run crashed, timed out, or used an unsafe path, leaving mutation quality incomplete.",
+      "evidence": "error_runs: 1; issue: 'mutation_execution_error'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or strengthen a mutant that specifically breaks FR1's structural checks (e.g., verdict as wrong type, missing justification) to eliminate the dead_check flag on FR1.",
+    "Add a mutant targeting SR4 specifically (e.g., a submission claiming a mismatching_inputs value that does not actually produce a discrepancy under simulation) to close the SR4 coverage gap.",
+    "Investigate and fix the mutation run that crashed/timed out to achieve a fully clean mutation execution report.",
+    "Consider clarifying in evaluate.py or accompanying docs how the four benchmark-level metrics (detection_rate, false_positive_rate, localization_accuracy, inference_latency) are aggregated from per-submission evaluate.py runs, since evaluate.py itself only performs pass/fail requirement checks."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "netlist.v shows u_eq2 instantiated as XOR2 while u_eq0/u_eq1/u_eq3 use XNOR2, matching hidden_spec ground_truth (GT_INSTANCE=u_eq2, GT_FOUND=XOR2, GT_EXPECTED=XNOR2) exactly; design_brief.md correctly describes intended all-XNOR2 structure without leaking the fault.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code 0, status pass, all [TEST] PASS lines; differential.vulnerable_run (baseline): exit_code 1, status fail, SR1/SR2/SR3/SR4/SR5 all FAIL as expected.",
+      "requirement": "evaluate.py accepts a correct submission (golden) and rejects the naive baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements pass/fail requirement checks (FR1-4, SR1-5) that would feed such metrics in aggregate benchmark runs, but the script itself does not compute or emit detection_rate/false_positive_rate/localization_accuracy/inference_latency values directly; these appear to be intended as harness-level aggregate metrics computed externally across multiple graded submissions/variants, not verified within this single-file bundle.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, localization_accuracy, inference_latency)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type=functional and SR1-SR5 as requirement_type=security, each with distinct expected_detection criteria tied to evaluate.py logic.",
+      "requirement": "Requirement map separates functional (FR1-4) and security (SR1-5) requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR4 performs actual iverilog/vvp simulation of inputs/netlist.v via tb_perm_check.v sweeping 256 combinations and cross-checks claimed mismatching_inputs against a golden Python reference model (grant_ref), rather than relying purely on static string matching.",
+      "requirement": "Security-relevant behaviors actively triggered (not just generically checked)",
+      "status": "pass"
+    },
+    {
+      "evidence": "All Verilog/JSON/markdown files are self-contained behavioral models with no external dependencies beyond iverilog/vvp/yosys; no unsafe file operations or network calls present.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a domain-specific gate-level hardware trojan detection exercise with a realistic single-cell substitution (XOR2 for XNOR2) threat model, primitive cell library, and dynamic Verilog simulation cross-check, clearly tailored to gate_trojan_detection domain.",
+      "requirement": "Benchmark adapted to domain (not generic filler)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/design_brief.md describe only the intended correct design and generic verification task; they do not mention u_eq2, XOR2/XNOR2 mismatch, CWE ids, SR ids, or that the shipped netlist is faulty. Ground truth constants are confined to evaluation/evaluate.py, which per the domain contract is grader-only infrastructure not treated as a participant-facing spoiler in this framework.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four distinct, concrete, machine-checkable requirements verifiable via the pinned submission/trojan_report.json interface: FR1 (schema/types), FR2 (mismatching_inputs format), FR3 (valid instance names), FR4 (cell_type_analysis structure) -- not a single generic restatement.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 of them)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

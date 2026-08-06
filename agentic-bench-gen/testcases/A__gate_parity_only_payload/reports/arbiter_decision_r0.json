@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden submission is rejected by the evaluator. The golden file uses hierarchical node names that do not exist in the flat netlist, causing FR3 to fail. Additionally, the evaluator does not compute any of the three required metrics (detection_rate, false_positive_rate, node_identification_accuracy). The netlist itself has multiple-driver issues that prevent simulation, and the payload gate uses an unsynthesizable '~trigger_match' construct. All five requirements (FR1-FR3, SR1-SR2) lack targeting mutants, so discrimination coverage is 0.0. The evaluator must be fixed to accept the correct golden submission, compute the specified metrics, and implement proper behavioral checks. The netlist must also be repaired to be synthesizable and simulatable.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

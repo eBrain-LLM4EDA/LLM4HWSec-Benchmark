@@ -1,0 +1,88 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "A naive submission with empty or incorrect register names and cycle index must fail all metrics."
+    ],
+    "metrics": [
+      {
+        "description": "Proportion of correctly identified vulnerable registers and cycles out of the total ground truth set.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Whether the reported vulnerability covers the critical fault injection point that leads to unauthorized access.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Precision of the hardening suggestions derived from the vulnerability report, measured as the ratio of correct suggestions to total suggestions.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "vulnerable_cycle equals the ground truth cycle index.",
+      "state_register equals 'state_q'.",
+      "result_register equals 'auth_result_q'."
+    ],
+    "cwe_ids": [
+      "CWE-1247",
+      "CWE-1269"
+    ],
+    "ground_truth": "Skipping auth_result_q while state_q advances at the compare-to-decide boundary leaves a stale pass value; redundant state/result encoding or fail-closed transition coupling blocks it.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if vulnerable_cycle matches the ground truth cycle index derived from the normal trace and fault model.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify the vulnerable cycle as the cycle where the state transitions from COMPARE to DECIDE."
+      },
+      {
+        "detection_strategy": "Check if state_register and result_register match the exact signal names in the ground truth.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify the state register as state_q and the result register as auth_result_q."
+      }
+    ],
+    "threat_model": "An attacker injects a narrow clock glitch during authentication and causes inconsistent updates that grant access without a valid comparison."
+  },
+  "public_spec": {
+    "constraints": [
+      "The analysis must be based solely on the provided input artifacts.",
+      "The fault model describes a single clock cycle where one register update is skipped while combinational logic continues to evaluate.",
+      "The normal trace represents the expected cycle-by-cycle behavior without faults."
+    ],
+    "expected_outputs": [
+      "A vulnerability_report.json file identifying the vulnerable cycle and the critical state/result signals."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON and parseable by a standard JSON parser."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must identify exactly one vulnerable_cycle as an integer."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must name a state_register and a result_register that exist as signal names in the provided auth_fsm.v file."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The explanation field must be a non-empty string describing the vulnerability mechanism."
+      }
+    ],
+    "input_artifacts": [
+      "auth_fsm.v",
+      "fault_model.json",
+      "normal_trace.txt"
+    ],
+    "interface": "The participant submits a single JSON file at submission/vulnerability_report.json. The file must contain an object with the following keys: \"vulnerable_cycle\" (integer, the clock cycle index where the fault is injected), \"state_register\" (string, the exact signal name of the state register in the RTL), \"result_register\" (string, the exact signal name of the result register in the RTL), and \"explanation\" (string, a brief description of the vulnerability mechanism).",
+    "objective": "Analyze the provided RTL design and fault model to locate the state and result registers where one skipped update can move an authentication controller from compare directly to grant.",
+    "response_format": "A JSON object with keys: vulnerable_cycle (integer), state_register (string), result_register (string), explanation (string)."
+  },
+  "task_id": "rtl_auth_clock_glitch_window",
+  "title": "Clock-glitch window in authentication state transition"
+}

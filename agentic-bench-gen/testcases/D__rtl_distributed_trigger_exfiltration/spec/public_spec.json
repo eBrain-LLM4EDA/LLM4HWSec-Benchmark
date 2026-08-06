@@ -1,0 +1,34 @@
+{
+  "constraints": [
+    "The design consists of a top module and three submodules, all synthesizable with iverilog -g2012.",
+    "Each module is locally plausible and performs a standard function.",
+    "The total design is under 250 lines of Verilog.",
+    "Do not modify the input RTL files. Submit only the analysis report."
+  ],
+  "expected_outputs": [
+    "A valid trojan_report.json file in the submission directory."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted trojan_report.json must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must contain the top-level fields 'trojan_detected', 'findings', and 'overall_confidence' with the correct types as specified in the interface."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Each entry in the 'findings' array must include the fields 'module', 'signal', 'rationale', and 'confidence' with the correct types."
+    }
+  ],
+  "input_artifacts": [
+    "top.v",
+    "counter.v",
+    "command_decoder.v",
+    "error_handler.v"
+  ],
+  "interface": "The submission is a JSON file at submission/trojan_report.json. The file must contain a JSON object with the following fields:\n- \"trojan_detected\" (boolean): true if any malicious or suspicious logic is found, false otherwise.\n- \"findings\" (array of objects): a list of identified suspicious logic blocks. Each object must have:\n  - \"module\" (string): the name of the module containing the finding.\n  - \"signal\" (string): the specific signal or logic path identified.\n  - \"rationale\" (string): a detailed explanation of why this logic is suspicious, including its potential impact.\n  - \"confidence\" (number): a score between 0.0 and 1.0 indicating confidence in the finding.\n- \"overall_confidence\" (number): a score between 0.0 and 1.0 indicating overall confidence in the analysis.",
+  "objective": "Analyze the provided RTL design and identify any suspicious logic that could leak internal state or cause unintended behavior. Submit a report detailing all findings.",
+  "response_format": "A JSON file named trojan_report.json with the schema defined in the interface."
+}

@@ -1,0 +1,50 @@
+{
+  "task_id": "reverse_hamming74_sec_decoder",
+  "domain_id": "hardware_reverse_engineering",
+  "title": "Recover a Hamming(7,4) single-error-correcting decoder",
+  "description": "Reverse engineer a flattened, obfuscated gate-level netlist of a combinational Hamming(7,4) single-error-correcting decoder and re-implement it as clean, independently written RTL that is behaviorally identical to the reference for all 128 possible 7-bit codeword inputs.",
+  "input_artifacts": [
+    "inputs/flattened_netlist.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/recovered_rtl.v"
+  ],
+  "interface": {
+    "module": "recovered_decoder",
+    "ports": [
+      { "name": "codeword", "direction": "input", "width": 7 },
+      { "name": "data", "direction": "output", "width": 4 },
+      { "name": "corrected_codeword", "direction": "output", "width": 7 },
+      { "name": "error_detected", "direction": "output", "width": 1 }
+    ],
+    "style": "purely combinational, no clocks or internal state"
+  },
+  "evaluation": {
+    "mode": "simulate",
+    "toolchain": ["iverilog", "vvp", "yosys"],
+    "test_vectors": "all 128 exhaustive values of codeword (7'b0000000 through 7'b1111111), each held for a #5 settling delay before sampling outputs",
+    "metrics": [
+      {
+        "name": "word_recovery_rate",
+        "description": "Fraction of the 128 exhaustive input codewords for which data[3:0] exactly matches the reference decoder output.",
+        "direction": "maximize"
+      },
+      {
+        "name": "structural_match_accuracy",
+        "description": "Fraction of the 128 exhaustive input codewords for which corrected_codeword[6:0] and error_detected exactly match the reference decoder output, verifying correct syndrome computation and bit-flip correction.",
+        "direction": "maximize"
+      },
+      {
+        "name": "functional_equivalence",
+        "description": "Boolean pass/fail: 1 if all three outputs (data, corrected_codeword, error_detected) match the reference for all 128 input codewords under iverilog/vvp simulation, else 0.",
+        "direction": "maximize"
+      }
+    ]
+  },
+  "baselines": [
+    "HAL benchmarks",
+    "ISCAS'85",
+    "ITC'99"
+  ]
+}

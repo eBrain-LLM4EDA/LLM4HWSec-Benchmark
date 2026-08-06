@@ -1,0 +1,76 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden_rejected). The golden run expected PASS but got FAIL for SR1 and SR2 because the simulation did not observe the trigger or payload persistence. This indicates a bug in the evaluator or testbench that prevents correct grading of a valid submission.",
+      "evidence": "Golden run stdout: [TEST] FAIL: SR1: simulation did not observe trigger; [TEST] FAIL: SR2: simulation did not observe payload persistence. The golden submission correctly identifies the Trojan, but the harness fails to validate it.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not correctly implement the submission contract for this domain. It reads the submission/trojan_report.json but the simulation-based checks (SR1, SR2) fail even for the correct golden answer, meaning the harness cannot distinguish a correct submission from an incorrect one.",
+      "evidence": "Both golden and vulnerable runs produce identical output: [TEST] FAIL: SR1 and SR2. The differential status is 'golden_rejected'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_trigger.v",
+      "description": "The testbench may not correctly exercise the trigger condition or the persistence behavior, causing the simulation to never observe protected_mode assertion. This leads to false negatives in grading.",
+      "evidence": "Simulation output shows no [PROBE] lines with protected_mode=1 for trigger_test or persistence_test, despite the golden submission correctly describing the trigger.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Several requirements (FR1, FR2, FR3, SR1, SR2) have no targeting mutants, so their harness discrimination is unproven. The mutation score is 0.0, meaning the evaluator's ability to reject incorrect submissions is not validated.",
+      "evidence": "Validation report shows untested_requirements: ['FR1', 'FR2', 'FR3', 'SR1', 'SR2'] and mutation_score: 0.0.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator's fuzzy matching threshold (0.6) may be too strict or too lenient, but since the simulation itself fails to detect the trigger, the matching logic is never effectively tested.",
+      "evidence": "Code uses SequenceMatcher with threshold 0.6, but SR1/SR2 fail due to simulation, not matching.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The public README does not leak hidden security intent (CWE, SR ids, threat model). It reads as a plain engineering assignment.",
+      "evidence": "README only describes objective, input artifacts, expected output, and functional requirements FR1-FR3. No mention of Trojan, CWE, or security requirements.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the testbench (tb_trigger.v) to correctly apply the two-cycle gap reset sequence and ensure protected_mode is properly sampled and reported via [PROBE] lines.",
+    "Verify that the simulation environment (iverilog, vvp) correctly elaborates and runs the design with the testbench, and that the probe output format matches what evaluate.py expects.",
+    "Add targeted mutants for each requirement (FR1, FR2, FR3, SR1, SR2) to validate harness discrimination and improve mutation score.",
+    "Ensure evaluate.py correctly handles the case where the simulation fails to produce expected probes, and does not incorrectly reject valid submissions.",
+    "Consider increasing the robustness of fuzzy matching or providing clearer guidance on expected description format in the participant instructions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "No mutant targets this requirement; harness discrimination unproven.",
+      "requirement": "FR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targets this requirement; harness discrimination unproven.",
+      "requirement": "FR2",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No mutant targets this requirement; harness discrimination unproven.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Golden submission rejected; simulation did not observe trigger. Evaluator bug.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden submission rejected; simulation did not observe payload persistence. Evaluator bug.",
+      "requirement": "SR2",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

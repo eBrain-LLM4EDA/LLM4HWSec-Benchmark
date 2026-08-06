@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "#include <cstdint>\n\n#ifndef TRACE_ACCESS\n#define TRACE_ACCESS(idx) do { (void)(idx); } while (0)\n#endif\n\nstatic const uint8_t table[16] = {\n    0x3E, 0x71, 0x0A, 0xC4, 0x5D, 0x92, 0x18, 0xF6,\n    0x27, 0xB3, 0x4C, 0x8D, 0x60, 0xDA, 0xE1, 0x55\n};\n\nuint8_t lookup(uint8_t value, uint8_t key)\n{\n    uint8_t idx = (value ^ key) & 0x0F;\n    uint8_t result = 0;\n\n    for (int i = 0; i < 16; ++i) {\n        TRACE_ACCESS(i);\n        uint8_t mask = (uint8_t)(-(int)(i == idx));\n        result |= table[i] & mask;\n    }\n\n    return result;\n}",
+      "path": "golden/lookup_kernel.cpp"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/lookup_kernel.cpp",
+      "purpose": "Hardened C++ file, must compile standalone (with harness-provided TRACE_ACCESS macro defaulting to no-op if undefined). Declares `static const uint8_t table[16]` (arbitrary fixed distinct byte values, unchanged in spirit from original) and defines `uint8_t lookup(uint8_t value, uint8_t key)` with the exact pinned signature. Implementation: compute `uint8_t idx = (value ^ key) & 0x0F;` then a single `for (int i = 0; i < 16; ++i) { TRACE_ACCESS(i); uint8_t mask = -(uint8_t)(i == idx); result |= table[i] & mask; }` using ascending fixed loop 0..15, no data-dependent branches, no early exit, accumulating into `uint8_t result = 0` via bitwise OR masking so exactly 16 reads always occur in order 0..15 regardless of value/key, and return result. Satisfies FR1-FR4 and SR1-SR4: identical trace every call, exactly 16 TRACE_ACCESS calls, output equals table[(value^key)&0x0F] for all 65536 pairs, no STL/heap/recursion, compiles clean under g++ -O0/-O2."
+    }
+  ]
+}

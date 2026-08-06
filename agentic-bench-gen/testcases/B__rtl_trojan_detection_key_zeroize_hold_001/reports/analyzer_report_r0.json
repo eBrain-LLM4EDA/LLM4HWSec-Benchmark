@@ -1,0 +1,87 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Mutation testing shows FR4 and SR2 have no targeting mutant detected by their own dedicated checks, meaning the discriminative power of these two checks against plausible near-miss submissions is unverified. FR4 (expected-value statement) and SR2 (root-cause description) could potentially be satisfied by superficial keyword presence without truly validating the substantive claim.",
+      "evidence": "per_requirement_coverage: FR4 covered=false (0/1 mutants detected), SR2 covered=false (0/1 mutants detected); mutation_score=0.75; uncovered_requirements: [FR4, SR2]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/key_loader_ctrl.v",
+      "description": "The construct is named 'zeroize_mask' and the always block is explicitly labeled 'zeroize_block', which are somewhat suggestive names for a hidden defect, though the comment merely says 'zeroize gating logic' without admitting a bug. This is a minor naming leak risk but is arguably plausible engineering naming and is explicitly the design's ground-truth location, not a stated hidden-spec leak.",
+      "evidence": "wire zeroize_mask; assign zeroize_mask = zeroize & ~bus_busy; always @(*) begin : zeroize_block ...",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR1/SR2 detection",
+      "description": "SR1 and SR2 detection rely heavily on keyword/substring matching (e.g. presence of 'bus_busy', 'mask', 'retain') rather than deeper semantic or simulation-based verification, despite the detection_strategy in the hidden spec suggesting an optional simulation cross-check with iverilog/vvp. This is acceptable for a deterministic stdlib-only grader but increases risk of both false accepts (a report using the right keywords without true understanding) and false rejects (a correct report phrased unusually).",
+      "evidence": "MASK_GATE_TERMS = ['mask','gate','gated','gating','and with','anded','combinational','&','suppress','suppresses','inhibit','inhibits','block','blocks','blocked']",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or strengthen mutants/tests that specifically target FR4 (e.g., a submission whose top candidate never states key_q should become 0/32'b0) and SR2 (e.g., a submission that mentions zeroize+bus_busy but attributes the cause to something other than masking/self-hold, or omits the self-hold description) to close the mutation coverage gap and confirm these checks are truly discriminative.",
+    "Have evaluate.py additionally emit or log the three requested metrics (detection_rate, false_positive_rate, trigger_payload_localization) as numeric values, even if derived post-hoc from the same PASS/FAIL signals, so the evaluation harness's declared metrics are actually measured and reported.",
+    "Add an explicit differential test run against the second shipped baseline (Trust-Hub-style keyword-grep flagging bare 'zeroize' with generic trigger_condition and no bus_busy mention) to confirm it fails SR1/FR3 as intended, since only the empty-candidates baseline was exercised in the validation report.",
+    "Consider adding a lightweight simulation-based confirmation step in evaluate.py (using the provided iverilog/vvp toolchain) as an optional cross-check to reduce reliance on purely textual/keyword-based SR1/SR2 detection, improving robustness against reports that use correct vocabulary without correct understanding."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "key_loader_ctrl.v contains exactly the zeroize_mask/zeroize_block construct described in ground_truth; design_brief.md documents the unconditional zeroize contract matching the threat model; expected output trojan_report.json schema matches FR1/FR2.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code 0, all PASS lines, status pass, expected pass, ok true.",
+      "requirement": "Grader accepts a correct submission (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code 1, FR1 FAIL ('candidates' missing, not a list, or empty') cascading to all other FAILs, status fail, expected fail, ok true. Baseline shipped file has candidates=[] causing this failure as designed.",
+      "requirement": "Grader rejects the naive/empty baseline submission (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task spec explicitly names this baseline but no differential run against it appears in the validation report; only the empty-candidates baseline was exercised in differential testing. Logic in evaluate.py (FR3/SR1 require both zeroize AND bus_busy terms) appears designed to reject it, but this was not directly validated by an executed test run.",
+      "requirement": "Grader rejects the keyword-grep 'zeroize asserted' baseline (SR1 fail)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "evaluate.py only emits PASS/FAIL per requirement id and an exit code; it does not compute or output numeric detection_rate, false_positive_rate, or trigger_payload_localization metrics anywhere in the script, despite these being specified in evaluation.metrics of the task spec.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trigger_payload_localization)",
+      "status": "fail"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 with requirement_type='functional' and SR1-SR4 with requirement_type='security', each with distinct expected_detection logic in evaluate.py.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py performs purely static/textual analysis of the submitted JSON report and does not itself execute iverilog/vvp simulation to confirm the zeroize/bus_busy hold behavior; the RTL simulation cross-check is described only as optional for participants, not enforced by the grader. This is somewhat inherent to a report-grading task type, but reduces confidence that SR1/SR2 checks can't be gamed by keyword-stuffed text without real understanding, which mutation coverage gaps (FR4, SR2 uncovered) partially confirm.",
+      "requirement": "Security-relevant behaviors actively triggered rather than only checked generically",
+      "status": "fail"
+    },
+    {
+      "evidence": "All files are plain text/JSON/Verilog with no external dependencies, no unsafe operations, and the RTL is under 150 lines as required by constraints.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a domain-specific RTL hardware trojan (zeroize masking) with realistic Verilog, port interface, and cryptographic key-erase threat model, not a generic templated task.",
+      "requirement": "Benchmark adapted to domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/ files do not mention CWE ids, SR/FR ids beyond plain-language restatement, or explicitly flag the defect as intentional; design_brief.md frames it purely as intended specification without hinting at the bug.",
+      "requirement": "No leakage of hidden security intent in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four distinct, concrete, machine-checkable requirements (JSON schema validity, per-candidate field types, zeroize+bus_busy conjunction in trigger_condition, expected-zero statement for top candidate), each verifiable via the pinned interface/schema.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 of them)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,24 @@
+{
+  "task_id": "rtl_stream_handshake_trojan",
+  "domain_id": "rtl_trojan_detection",
+  "input_artifacts": [
+    "stream_pipeline.v",
+    "design_brief.md"
+  ],
+  "expected_output": {
+    "file": "submission/trojan_report.json",
+    "fields": {
+      "trojan_present": "boolean",
+      "trigger_condition": "string",
+      "payload_effect": "string",
+      "trigger_signals": "array of strings",
+      "payload_signals": "array of strings",
+      "confidence": "number (0.0 to 1.0)"
+    }
+  },
+  "metrics": [
+    "detection_rate",
+    "false_positive_rate",
+    "trigger_payload_localization"
+  ]
+}

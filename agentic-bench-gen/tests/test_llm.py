@@ -284,6 +284,16 @@ def test_complete_text_escalates_on_truncation():
     assert llm.client.chat.completions.calls == [16000, 32000]
 
 
+def test_complete_text_honors_per_file_escalation_cap():
+    llm = _make_llm([("partial file", "length")])
+    with pytest.raises(RuntimeError, match="output is too large"):
+        llm.complete_text(
+            model="m", messages=[], label="f", max_tokens=16000,
+            escalation_cap=16000,
+        )
+    assert llm.client.chat.completions.calls == [16000]
+
+
 def test_per_call_reasoning_overrides_instance_default():
     llm = _make_llm([('{"ok": 1}', "stop")], reasoning={"enabled": False})
     _call(llm, reasoning={"max_tokens": 500})

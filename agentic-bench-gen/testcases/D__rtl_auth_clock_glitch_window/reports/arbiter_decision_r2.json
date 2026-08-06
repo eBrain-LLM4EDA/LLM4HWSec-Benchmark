@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden run is rejected (SR1 FAIL) and no targeting mutants were executed, yielding a mutation score of 0.0 that is not meaningful. The evaluator must be fixed to accept the correct golden solution and to implement active PASS/FAIL checks for every requirement, after which the mutation testing framework must be re-run to prove discrimination.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

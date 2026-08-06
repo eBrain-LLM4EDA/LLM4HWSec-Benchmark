@@ -1,0 +1,25 @@
+{
+  "acceptance_criteria": [
+    "vulnerable_cycle equals the ground truth cycle index.",
+    "state_register equals 'state_q'.",
+    "result_register equals 'auth_result_q'."
+  ],
+  "cwe_ids": [
+    "CWE-1247",
+    "CWE-1269"
+  ],
+  "ground_truth": "Skipping auth_result_q while state_q advances at the compare-to-decide boundary leaves a stale pass value; redundant state/result encoding or fail-closed transition coupling blocks it.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if vulnerable_cycle matches the ground truth cycle index derived from the normal trace and fault model.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify the vulnerable cycle as the cycle where the state transitions from COMPARE to DECIDE."
+    },
+    {
+      "detection_strategy": "Check if state_register and result_register match the exact signal names in the ground truth.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify the state register as state_q and the result register as auth_result_q."
+    }
+  ],
+  "threat_model": "An attacker injects a narrow clock glitch during authentication and causes inconsistent updates that grant access without a valid comparison."
+}

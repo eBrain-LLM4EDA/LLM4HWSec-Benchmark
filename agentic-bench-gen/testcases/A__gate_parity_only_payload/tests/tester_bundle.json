@@ -1,0 +1,112 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for Gate-Level Trojan Detection\n\n## Layout\n\n```\nevaluation/\n\u251c\u2500\u2500 README.md              # This file\n\u251c\u2500\u2500 evaluate.py            # Main entry point \u2013 grades submission/trojan_report.json\n\u251c\u2500\u2500 private/\n\u2502   \u2514\u2500\u2500 ground_truth.json  # Hidden ground truth for security requirement checks\n\u2514\u2500\u2500 tests/\n    \u251c\u2500\u2500 check_fr1.py       # FR1: JSON structure and required keys\n    \u251c\u2500\u2500 check_fr2.py       # FR2: Label validity\n    \u251c\u2500\u2500 check_fr3.py       # FR3: Suspect node identifiers exist in design.v\n    \u2514\u2500\u2500 private/\n        \u251c\u2500\u2500 check_sr1.py   # SR1: Payload gate identification\n        \u2514\u2500\u2500 check_sr2.py   # SR2: Trigger cone gate identification\n```\n\n## How It Works\n\n`evaluate.py` is the single entry point. It:\n\n1. Reads the participant's answer from `submission/trojan_report.json`.\n2. Runs each checker in `tests/` to verify the functional requirements (FR1\u2013FR3).\n3. Loads the hidden ground truth from `evaluation/private/ground_truth.json` and runs the security requirement checkers (SR1\u2013SR2) to verify substantive correctness of the reported suspect nodes.\n4. Emits a `[TEST] PASS: <id>` or `[TEST] FAIL: <id>: <reason>` line for every requirement.\n5. Exits with code **0** if all requirements pass, or **non-zero** if any requirement fails.\n\nThe participant never sees `private/ground_truth.json`; it is used only by the evaluation harness to grade the submitted report against the true Trojan structure.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"evaluate.py \u2013 grades submission/trojan_report.json for gate_parity_only_payload.\"\"\"\n\nimport os\nimport subprocess\nimport sys\n\nREQUIREMENT_IDS = [\"FR1\", \"FR2\", \"FR3\", \"SR1\", \"SR2\"]\nRESULTS = []\n\n\ndef emit(rid, passed, reason=\"\"):\n    \"\"\"Record and print a single requirement verdict.\"\"\"\n    if passed:\n        line = f\"[TEST] PASS: {rid}\"\n    else:\n        line = f\"[TEST] FAIL: {rid}: {reason}\"\n    print(line)\n    RESULTS.append((rid, passed))\n\n\ndef run_checker(script_path):\n    \"\"\"Run a checker script and return (passed, reason).\"\"\"\n    try:\n        proc = subprocess.run(\n            [sys.executable, script_path],\n            capture_output=True,\n            text=True,\n            timeout=30,\n        )\n        stdout = proc.stdout.strip()\n        stderr = proc.stderr.strip()\n\n        # Look for the [TEST] marker in stdout\n        for line in stdout.splitlines():\n            line = line.strip()\n            if line.startswith(\"[TEST] PASS:\") or line.startswith(\"[TEST] FAIL:\"):\n                # Parse the verdict\n                if line.startswith(\"[TEST] PASS:\"):\n                    return True, \"\"\n                else:\n                    # Extract reason after the requirement id\n                    parts = line.split(\":\", 2)\n                    reason = parts[2].strip() if len(parts) > 2 else \"checker failed\"\n                    return False, reason\n\n        # If no marker found, treat as failure\n        return False, f\"no [TEST] marker in output: {stdout[:200]}\"\n    except subprocess.TimeoutExpired:\n        return False, \"checker timed out\"\n    except Exception as exc:\n        return False, f\"checker execution error: {exc}\"\n\n\ndef main():\n    # Run FR checkers\n    fr_checkers = [\n        (\"FR1\", os.path.join(\"evaluation\", \"tests\", \"check_fr1.py\")),\n        (\"FR2\", os.path.join(\"evaluation\", \"tests\", \"check_fr2.py\")),\n        (\"FR3\", os.path.join(\"evaluation\", \"tests\", \"check_fr3.py\")),\n    ]\n    for rid, script in fr_checkers:\n        passed, reason = run_checker(script)\n        emit(rid, passed, reason)\n\n    # Run SR checkers\n    sr_checkers = [\n        (\"SR1\", os.path.join(\"evaluation\", \"tests\", \"private\", \"check_sr1.py\")),\n        (\"SR2\", os.path.join(\"evaluation\", \"tests\", \"private\", \"check_sr2.py\")),\n    ]\n    for rid, script in sr_checkers:\n        passed, reason = run_checker(script)\n        emit(rid, passed, reason)\n\n    # Ensure every requirement emitted a verdict\n    for rid in REQUIREMENT_IDS:\n        if not any(r[0] == rid for r in RESULTS):\n            emit(rid, False, \"no verdict emitted (internal error)\")\n\n    all_pass = all(passed for _, passed in RESULTS)\n    sys.exit(0 if all_pass else 1)\n\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "{\n  \"label\": \"Trojan\",\n  \"payload_gate\": \"u_payload_and\",\n  \"trigger_cone_gates\": [\n    \"u_xnor0\",\n    \"u_xnor1\",\n    \"u_xnor2\",\n    \"u_xnor3\",\n    \"u_xnor4\",\n    \"u_xnor5\",\n    \"u_xnor6\",\n    \"u_xnor7\",\n    \"u_and0\",\n    \"u_and1\",\n    \"u_and2\",\n    \"u_and3\",\n    \"u_and4\",\n    \"u_and5\",\n    \"u_and6\"\n  ]\n}",
+      "path": "evaluation/private/ground_truth.json"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"FR1 checker: validate JSON structure and required keys.\"\"\"\n\nimport json\nimport os\nimport sys\n\n\ndef check_fr1():\n    sub_path = os.path.join(\"submission\", \"trojan_report.json\")\n    if not os.path.isfile(sub_path):\n        print(f\"[TEST] FAIL: FR1: {sub_path} not found\")\n        return False\n\n    try:\n        with open(sub_path, \"r\", encoding=\"utf-8\") as f:\n            data = json.load(f)\n    except (json.JSONDecodeError, OSError) as exc:\n        print(f\"[TEST] FAIL: FR1: invalid JSON: {exc}\")\n        return False\n\n    if not isinstance(data, dict):\n        print(\"[TEST] FAIL: FR1: top-level JSON is not an object\")\n        return False\n\n    keys = set(data.keys())\n    required = {\"label\", \"suspect_nodes\"}\n    if keys != required:\n        print(f\"[TEST] FAIL: FR1: expected keys {sorted(required)}, got {sorted(keys)}\")\n        return False\n\n    print(\"[TEST] PASS: FR1\")\n    return True\n\n\nif __name__ == \"__main__\":\n    success = check_fr1()\n    sys.exit(0 if success else 1)",
+      "path": "evaluation/tests/check_fr1.py"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"FR2 checker: validate that 'label' is 'Trojan' or 'Trojan-Free'.\"\"\"\n\nimport json\nimport os\nimport sys\n\n\ndef check_fr2():\n    sub_path = os.path.join(\"submission\", \"trojan_report.json\")\n    if not os.path.isfile(sub_path):\n        print(f\"[TEST] FAIL: FR2: {sub_path} not found\")\n        return False\n\n    try:\n        with open(sub_path, \"r\", encoding=\"utf-8\") as f:\n            data = json.load(f)\n    except (json.JSONDecodeError, OSError) as exc:\n        print(f\"[TEST] FAIL: FR2: invalid JSON: {exc}\")\n        return False\n\n    label = data.get(\"label\")\n    if not isinstance(label, str):\n        print(f\"[TEST] FAIL: FR2: 'label' must be a string, got {type(label).__name__}\")\n        return False\n\n    if label not in (\"Trojan\", \"Trojan-Free\"):\n        print(f\"[TEST] FAIL: FR2: 'label' must be 'Trojan' or 'Trojan-Free', got '{label}'\")\n        return False\n\n    print(\"[TEST] PASS: FR2\")\n    return True\n\n\nif __name__ == \"__main__\":\n    success = check_fr2()\n    sys.exit(0 if success else 1)",
+      "path": "evaluation/tests/check_fr2.py"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"FR3 checker: validate suspect_nodes identifiers exist in design.v.\"\"\"\n\nimport json\nimport os\nimport re\nimport sys\n\n\ndef extract_identifiers(verilog_path):\n    \"\"\"Return a set of all wire/gate instance names found in the Verilog file.\"\"\"\n    identifiers = set()\n    try:\n        with open(verilog_path, \"r\", encoding=\"utf-8\") as f:\n            text = f.read()\n    except OSError as exc:\n        print(f\"WARNING: cannot read {verilog_path}: {exc}\", file=sys.stderr)\n        return identifiers\n\n    # Instance names: module_name instance_name ( ... );\n    for m in re.finditer(r'\\b\\w+\\s+(\\w+)\\s*\\(', text):\n        identifiers.add(m.group(1))\n    # Wire declarations: wire name;\n    for m in re.finditer(r'wire\\s+(\\w+)\\s*;', text):\n        identifiers.add(m.group(1))\n    # Multi-bit wires: wire [7:0] name;\n    for m in re.finditer(r'wire\\s+\\[\\d+:\\d+\\]\\s+(\\w+)\\s*;', text):\n        identifiers.add(m.group(1))\n    # Output port declarations: output wire name;\n    for m in re.finditer(r'output\\s+(?:wire\\s+)?(\\w+)\\s*;', text):\n        identifiers.add(m.group(1))\n    # Input port declarations: input wire name;\n    for m in re.finditer(r'input\\s+(?:wire\\s+)?(\\w+)\\s*;', text):\n        identifiers.add(m.group(1))\n    return identifiers\n\n\ndef check_fr3():\n    sub_path = os.path.join(\"submission\", \"trojan_report.json\")\n    if not os.path.isfile(sub_path):\n        print(f\"[TEST] FAIL: FR3: {sub_path} not found\")\n        return False\n\n    try:\n        with open(sub_path, \"r\", encoding=\"utf-8\") as f:\n            data = json.load(f)\n    except (json.JSONDecodeError, OSError) as exc:\n        print(f\"[TEST] FAIL: FR3: invalid JSON: {exc}\")\n        return False\n\n    nodes = data.get(\"suspect_nodes\")\n    if not isinstance(nodes, list):\n        print(f\"[TEST] FAIL: FR3: 'suspect_nodes' must be an array, got {type(nodes).__name__}\")\n        return False\n    if not all(isinstance(n, str) for n in nodes):\n        print(\"[TEST] FAIL: FR3: all entries in 'suspect_nodes' must be strings\")\n        return False\n\n    design_path = os.path.join(\"inputs\", \"design.v\")\n    if not os.path.isfile(design_path):\n        print(f\"[TEST] FAIL: FR3: {design_path} not found\")\n        return False\n\n    valid_ids = extract_identifiers(design_path)\n    invalid = [n for n in nodes if n not in valid_ids]\n    if invalid:\n        print(f\"[TEST] FAIL: FR3: invalid identifiers: {', '.join(invalid)}\")\n        return False\n\n    print(\"[TEST] PASS: FR3\")\n    return True\n\n\nif __name__ == \"__main__\":\n    success = check_fr3()\n    sys.exit(0 if success else 1)",
+      "path": "evaluation/tests/check_fr3.py"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"SR1 checker: verify suspect_nodes contains the payload AND gate.\"\"\"\n\nimport json\nimport os\nimport sys\n\n\ndef check_sr1():\n    sub_path = os.path.join(\"submission\", \"trojan_report.json\")\n    if not os.path.isfile(sub_path):\n        print(f\"[TEST] FAIL: SR1: {sub_path} not found\")\n        return False\n\n    try:\n        with open(sub_path, \"r\", encoding=\"utf-8\") as f:\n            data = json.load(f)\n    except (json.JSONDecodeError, OSError) as exc:\n        print(f\"[TEST] FAIL: SR1: invalid JSON: {exc}\")\n        return False\n\n    nodes = data.get(\"suspect_nodes\", [])\n    if not isinstance(nodes, list):\n        print(\"[TEST] FAIL: SR1: 'suspect_nodes' is not an array\")\n        return False\n\n    gt_path = os.path.join(\"evaluation\", \"private\", \"ground_truth.json\")\n    try:\n        with open(gt_path, \"r\", encoding=\"utf-8\") as f:\n            gt = json.load(f)\n    except (OSError, json.JSONDecodeError) as exc:\n        print(f\"[TEST] FAIL: SR1: cannot load ground truth: {exc}\")\n        return False\n\n    required = gt.get(\"payload_gate\")\n    if not required:\n        print(\"[TEST] FAIL: SR1: ground truth missing payload_gate\")\n        return False\n\n    if required in nodes:\n        print(\"[TEST] PASS: SR1\")\n        return True\n    else:\n        print(f\"[TEST] FAIL: SR1: missing required payload gate '{required}'\")\n        return False\n\n\nif __name__ == \"__main__\":\n    success = check_sr1()\n    sys.exit(0 if success else 1)",
+      "path": "evaluation/tests/private/check_sr1.py"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\"\"\"SR2 checker: verify suspect_nodes contains at least one trigger cone gate.\"\"\"\n\nimport json\nimport os\nimport sys\n\n\ndef check_sr2():\n    sub_path = os.path.join(\"submission\", \"trojan_report.json\")\n    if not os.path.isfile(sub_path):\n        print(f\"[TEST] FAIL: SR2: {sub_path} not found\")\n        return False\n\n    try:\n        with open(sub_path, \"r\", encoding=\"utf-8\") as f:\n            data = json.load(f)\n    except (json.JSONDecodeError, OSError) as exc:\n        print(f\"[TEST] FAIL: SR2: invalid JSON: {exc}\")\n        return False\n\n    nodes = data.get(\"suspect_nodes\", [])\n    if not isinstance(nodes, list):\n        print(\"[TEST] FAIL: SR2: 'suspect_nodes' is not an array\")\n        return False\n\n    gt_path = os.path.join(\"evaluation\", \"private\", \"ground_truth.json\")\n    try:\n        with open(gt_path, \"r\", encoding=\"utf-8\") as f:\n            gt = json.load(f)\n    except (OSError, json.JSONDecodeError) as exc:\n        print(f\"[TEST] FAIL: SR2: cannot load ground truth: {exc}\")\n        return False\n\n    trigger_cone = gt.get(\"trigger_cone_gates\", [])\n    if not trigger_cone:\n        print(\"[TEST] FAIL: SR2: ground truth missing trigger_cone_gates\")\n        return False\n\n    if any(g in nodes for g in trigger_cone):\n        print(\"[TEST] PASS: SR2\")\n        return True\n    else:\n        print(\"[TEST] FAIL: SR2: no trigger cone gate found in suspect_nodes\")\n        return False\n\n\nif __name__ == \"__main__\":\n    success = check_sr2()\n    sys.exit(0 if success else 1)",
+      "path": "evaluation/tests/private/check_sr2.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness layout: evaluate.py is the single entry point; private/ holds the hidden ground-truth JSON; tests/ holds individual requirement checkers. Explain that evaluate.py grades submission/trojan_report.json against the hidden ground truth and exits 0 on all-pass, non-zero on any failure."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading script. Reads submission/trojan_report.json; runs FR1-FR3 checkers from tests/ and SR1-SR2 checkers from tests/private/ (which load private/ground_truth.json). Emits [TEST] PASS/FAIL markers per requirement. Exits 0 if all pass, 1 otherwise. Does NOT contain inline checking logic \u2014 delegates to individual checker scripts."
+    },
+    {
+      "path": "evaluation/private/ground_truth.json",
+      "purpose": "Hidden ground truth for SR checks. Contains the required label ('Trojan'), the exact hierarchical name of the payload AND gate (u_payload_and), and a list of acceptable trigger cone gate names (u_xnor0 through u_xnor7, u_and0 through u_and6). Used by SR1 and SR2 checkers to verify substantive correctness of the submitted suspect_nodes."
+    },
+    {
+      "path": "evaluation/tests/check_fr1.py",
+      "purpose": "FR1 checker: validates that submission/trojan_report.json is parseable JSON and contains exactly the two top-level keys 'label' and 'suspect_nodes'. Returns PASS/FAIL verdict via [TEST] markers."
+    },
+    {
+      "path": "evaluation/tests/check_fr2.py",
+      "purpose": "FR2 checker: validates that the 'label' field is a string equal to either 'Trojan' or 'Trojan-Free'. Returns PASS/FAIL verdict via [TEST] markers."
+    },
+    {
+      "path": "evaluation/tests/check_fr3.py",
+      "purpose": "FR3 checker: validates that 'suspect_nodes' is an array of strings, and each string matches a wire or gate instance name present in inputs/design.v (extracted via regex from instance and wire declarations). Returns PASS/FAIL verdict via [TEST] markers."
+    },
+    {
+      "path": "evaluation/tests/private/check_sr1.py",
+      "purpose": "SR1 checker: loads private/ground_truth.json and verifies that the submitted suspect_nodes list contains the required payload gate (u_payload_and). Returns PASS if present, FAIL otherwise via [TEST] markers."
+    },
+    {
+      "path": "evaluation/tests/private/check_sr2.py",
+      "purpose": "SR2 checker: loads private/ground_truth.json and verifies that the submitted suspect_nodes list contains at least one gate from the trigger comparator cone (any of u_xnor0-u_xnor7 or u_and0-u_and6). Returns PASS if at least one match, FAIL otherwise via [TEST] markers."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "FAIL on baseline if submission missing or malformed; PASS on correct JSON with exactly 'label' and 'suspect_nodes' keys.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/tests/check_fr1.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if label not 'Trojan' or 'Trojan-Free'; PASS on valid label string.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/tests/check_fr2.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline if suspect_nodes contains invalid identifiers; PASS when all nodes exist in design.v.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/tests/check_fr3.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline (empty or missing payload gate); PASS when suspect_nodes includes u_payload_and.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/tests/private/check_sr1.py"
+      ]
+    },
+    {
+      "expected_detection": "FAIL on baseline (empty or missing trigger gate); PASS when suspect_nodes includes at least one trigger cone gate.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/tests/private/check_sr2.py"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "The mutant reports an incorrect recombination_net value ('share0_q' instead of 'recombine_xor'), which violates SR1 because the analysis fails to correctly identify the primary first-order leakage point. The evaluator should detect this by checking that the submitted recombination_net does not match the ground truth 'recombine_xor'.",
+      "files": [
+        {
+          "content": "{\n  \"recombination_net\": \"share0_q\",\n  \"recombination_register\": \"recombined_sbox_q\",\n  \"leakage_type\": \"first-order switching leakage\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "MUT-SR1-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The mutant incorrectly identifies the recombination register as 'share0_q' instead of 'recombined_sbox_q', violating SR2 which requires exact identification of the register capturing the recombined value. The evaluator should detect this because the submitted 'recombination_register' field does not match the ground truth 'recombined_sbox_q'.",
+      "files": [
+        {
+          "content": "{\n  \"recombination_net\": \"recombine_xor\",\n  \"recombination_register\": \"share0_q\",\n  \"leakage_type\": \"first-order switching leakage\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "MUT-SR2-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The mutant incorrectly flags an isolated share register (share0_q) as the recombination register, violating SR3 which requires no isolated share registers be flagged as primary leakage points. The evaluator should detect this because the submitted recombination_register is not the ground truth recombined_sbox_q but a benign share register.",
+      "files": [
+        {
+          "content": "{\n  \"recombination_net\": \"recombine_xor\",\n  \"recombination_register\": \"share0_q\",\n  \"leakage_type\": \"first-order switching leakage\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "MUT-SR3-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "The evaluator should detect that the submitted vulnerability_report.json is not valid JSON because the closing brace is missing, causing a parse error and violating FR1.",
+      "files": [
+        {
+          "content": "{\n  \"recombination_net\": \"recombine_xor\",\n  \"recombination_register\": \"recombined_sbox_q\",\n  \"leakage_type\": \"first-order switching leakage\"\n",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "MUT-FR1-001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "The mutant removes the 'leakage_type' field from the JSON report, violating FR2 which requires all three fields with non-empty string values. The evaluator should reject this submission because it fails to provide the required field.",
+      "files": [
+        {
+          "content": "{\n  \"recombination_net\": \"recombine_xor\",\n  \"recombination_register\": \"recombined_sbox_q\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "MUT-FR2-001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The evaluator should reject this submission because the 'recombination_net' value 'recombine_xor_wrong' is not a valid hierarchical identifier present in the provided RTL netlist, violating FR3.",
+      "files": [
+        {
+          "content": "{\n  \"recombination_net\": \"recombine_xor_wrong\",\n  \"recombination_register\": \"recombined_sbox_q\",\n  \"leakage_type\": \"first-order switching leakage\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "MUT-FR3-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    }
+  ]
+}

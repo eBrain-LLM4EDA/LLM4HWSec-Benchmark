@@ -1,0 +1,63 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR3 mutation coverage failed (uncovered) - a mutant left the FR3 undocumented-deviation check untriggered, suggesting FR3 detection logic may have a gap in the mutation test though differential run shows expected FAIL behavior on vulnerable baseline.",
+      "evidence": "per_requirement_coverage.FR3.covered=false, mutants_detected=0/1; however differential vulnerable_run shows 'FAIL: FR3: undocumented deviation 0xE7 undocumented in report' correctly triggered",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 and FR2 are marked as dead_checks by the harness (no mutant specifically causes only these to fail in isolation), though they still function correctly in baseline/differential runs.",
+      "evidence": "dead_checks: [FR1, FR2]; both show PASS in golden and vulnerable runs since decode_ctrl.v is fixed input, so these checks are largely invariant given fixed RTL, which is expected for this submission-contract style task.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Consider adding a mutation test that specifically isolates FR3's undocumented-deviation-reporting logic (e.g., a submission that reports a different undocumented opcode but not 0xE7) to raise its mutation coverage above 0.",
+    "No security-sensitive information (CWE ids, SR ids, or trojan hints) leaks into README.md, metadata.json, or inputs/ files; the public task reads as a plain RTL analysis assignment, which is appropriate."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run PASS; vulnerable run also PASS since decode_ctrl.v is fixed and always compiles cleanly.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; documented opcodes match table in both baseline and vulnerable submission runs (RTL is fixed, only report content varies).",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline (empty candidates) correctly FAILs FR3 in differential vulnerable_run: 'undocumented deviation 0xE7 undocumented in report'.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Schema validity check passes on golden submission and would fail on malformed JSON per evaluate.py logic.",
+      "requirement": "FR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; vulnerable/baseline run FAILs SR1 as expected: 'no candidate identifies payload_signal as privilege_ok for the 0xE7 trigger'.",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; baseline FAILs SR2 as expected.",
+      "requirement": "SR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "Per-candidate false-positive check implemented and mutation-covered (mutants_detected=1/1).",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS; baseline correctly FAILs SR4: 'no substantive evidence-based rationale for the correct finding'.",
+      "requirement": "SR4",
+      "status": "pass"
+    }
+  ]
+}

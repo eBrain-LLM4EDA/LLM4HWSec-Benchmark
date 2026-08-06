@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The recovered RTL must be synthesizable Verilog-2001 or SystemVerilog compatible with iverilog/yosys, self-contained in a single file with no external includes.",
+    "The netlist in inputs/net_shifter_flat.v is fully acyclic combinational logic (no latches, no clock) composed of primitive gates and MUX cells only, with obfuscated/auto-generated net names.",
+    "The recovered module must declare exactly the pinned port list (barrel_shifter_top) with matching widths and directions; no additional ports may be added.",
+    "Do not modify inputs/net_shifter_flat.v or inputs/design_brief.md; only submission/recovered_rtl.v is graded.",
+    "The design must not rely on any vendor-specific or non-free simulation primitives; only constructs supported by iverilog/yosys are permitted."
+  ],
+  "expected_outputs": [
+    "submission/recovered_rtl.v containing a synthesizable Verilog module named barrel_shifter_top with ports matching the pinned interface, exhibiting bit-exact combinational equivalence with the reference netlist across the full input space"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "When mode=00 (logical shift): if direction=0, data_out = data_in << amount with zeros shifted into the vacated low bits; if direction=1, data_out = data_in >> amount (logical, unsigned) with zeros shifted into the vacated high bits. This must hold exactly for amount = 0 through 7."
+    },
+    {
+      "id": "FR2",
+      "requirement": "When mode=01: if direction=1 (right), data_out is the arithmetic right shift of data_in by amount, sign-extending using data_in[7] into the vacated high bits; if direction=0 (left), data_out is the logical left shift of data_in by amount (identical to FR1's left-shift case), zero-filling the low bits."
+    },
+    {
+      "id": "FR3",
+      "requirement": "When mode=10 (rotate): if direction=0, data_out is data_in rotated left by amount bits (bits shifted out the top re-enter at the bottom); if direction=1, data_out is data_in rotated right by amount bits (bits shifted out the bottom re-enter at the top), for all amount values 0 through 7, matching rotation by amount modulo 8."
+    },
+    {
+      "id": "FR4",
+      "requirement": "For every value of mode (00, 01, 10, and 11) and every combination of data_in, amount, and direction, submission/recovered_rtl.v's data_out must be bit-for-bit identical to the output produced by simulating inputs/net_shifter_flat.v on the same input vector, with zero additional propagation cycles (purely combinational match)."
+    }
+  ],
+  "input_artifacts": [
+    "net_shifter_flat.v",
+    "design_brief.md"
+  ],
+  "interface": "Module name: barrel_shifter_top. File: submission/recovered_rtl.v. Ports (all combinational, purely Mealy \u2014 every output is a combinational function of the CURRENT input values with ZERO clock cycles of latency; there is no clock or reset in this module):\n  input  [7:0] data_in,   // 8-bit operand to be shifted or rotated\n  input  [2:0] amount,    // shift/rotate amount, 0 through 7\n  input        direction, // 0 = left, 1 = right\n  input  [1:0] mode,      // 00 = logical shift, 01 = arithmetic shift (right) / logical shift (left), 10 = rotate, 11 = unspecified (must match reference netlist bit-for-bit; treat as pure combinational passthrough of whatever net_shifter_flat.v produces)\n  output [7:0] data_out   // result, valid combinationally in the same evaluation step as the inputs (no registers)\nThis module is purely combinational: data_out must settle to its final value within the same simulation time step as any change to data_in, amount, direction, or mode, with no clocked elements anywhere in the design. The evaluator will apply exhaustive (or densely sampled) input vectors to both the reference netlist and the submission within a single always@(*) style comparison per vector and require identical data_out for every vector.",
+  "objective": "The inputs directory contains a flattened, bit-level gate netlist (net_shifter_flat.v) implementing a combinational 8-bit variable shift/rotate unit, built as a staged multiplexer network with no readable hierarchy or meaningful signal names, plus a design brief describing the pinout and observed behavior categories. Your job is to reverse-engineer the flattened netlist into clean, readable word-level Verilog (submission/recovered_rtl.v) that is functionally identical to the original for every input combination. The recovered module must expose the exact same ports as the netlist and reproduce its bit-exact combinational output for all 8-bit data values, all 8 shift amounts, both directions, and all 4 mode encodings (only 3 of which are defined; the 4th must match whatever the netlist produces, which will be verified by simulation).",
+  "response_format": "A single Verilog file at submission/recovered_rtl.v defining module barrel_shifter_top(data_in, amount, direction, mode, data_out) exactly as specified in the interface section, synthesizable and simulatable with iverilog."
+}

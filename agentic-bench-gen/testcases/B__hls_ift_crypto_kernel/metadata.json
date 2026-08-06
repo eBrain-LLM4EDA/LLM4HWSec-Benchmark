@@ -1,0 +1,41 @@
+{
+  "task_id": "hls_ift_crypto_kernel",
+  "domain_id": "hls_security_codegen",
+  "title": "Information-flow hardened crypto HLS kernel",
+  "submission_kind": "hardened_artifact",
+  "objective": "Complete and harden the HLS-synthesizable crypto_kernel function so that it correctly encrypts a 16-byte block and reports a fixed operation-status code, using only constructs compatible with PandA-Bambu style high-level synthesis.",
+  "input_artifacts": [
+    "inputs/crypto_kernel.cpp",
+    "inputs/crypto_kernel.h",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "summary": "A hardened inputs/crypto_kernel.cpp that compiles cleanly with g++/gcc against a hidden test harness, preserves the exact function signature declared in inputs/crypto_kernel.h, and passes a compile-and-run behavioral evaluation: correct known-answer and randomized ciphertext outputs, a status byte that is always 0x00 regardless of key content, stable execution timing across differing keys, and no stdout/stderr output produced by the kernel.",
+    "artifact_to_modify": "inputs/crypto_kernel.cpp",
+    "signature_must_not_change": "void crypto_kernel(const unsigned char plaintext[16], const unsigned char key[16], unsigned char ciphertext[16], unsigned char *status);"
+  },
+  "evaluation": {
+    "mode": "compile_and_run",
+    "toolchain": [
+      "g++",
+      "gcc"
+    ],
+    "metrics": [
+      {
+        "name": "cwe_violation_rate",
+        "direction": "minimize",
+        "description": "Fraction of targeted robustness/security requirements that the submitted crypto_kernel.cpp fails under the compiled-and-run harness (status-invariance test, timing consistency test, unexpected-output exposure test, debug-output test)."
+      },
+      {
+        "name": "information_flow_correctness",
+        "direction": "maximize",
+        "description": "Binary/aggregate score reflecting whether all observable public outputs (status, timing, stdout/stderr) remain invariant across randomized and adversarial test vectors, while the ciphertext output correctly reflects the intended byte-wise XOR combination of plaintext and key."
+      },
+      {
+        "name": "synthesis_pass_rate",
+        "direction": "maximize",
+        "description": "Fraction of functional requirements that pass, including successful g++/gcc compilation against the generated harness and correct known-answer/random-vector ciphertext outputs."
+      }
+    ]
+  }
+}

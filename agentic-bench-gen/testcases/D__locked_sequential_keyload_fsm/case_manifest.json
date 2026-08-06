@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "fff1dfd29dc9e0d20aec72f9e1431e20ce96eab421916a8d072b8687d942fac3",
+    "expert/expert_bundle.json": "730a23f714598b138f7457d961db7cc34cf4d28d1902841b6c741fa522221931",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "9b835cc5af96cbc82fd335d04f644a07f7ecb79e2bef4fb1bbe8fb5fab40abf6",
+    "reports/quality_report.json": "a6df164b33ed99bcb95e37d883687c21244a96b66d165c9d12810cac1b41e1c5",
+    "reports/validation_report.json": "8f09eea8da39fc168da1a1224199f1f44cf813936e5f8d93a7653685008a36ec",
+    "spec/task_spec.json": "7674eab9474197cc490fb3515fc0423fe2483c4707e8c8e4b2dccff040327f57",
+    "tests/tester_bundle.json": "44c570a8c4986296f5e35cf1ec6ae66aa23d01d329143351ea87f4035a30c0f0"
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "locked_sequential_keyload_fsm"
+}

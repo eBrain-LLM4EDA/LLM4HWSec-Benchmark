@@ -1,0 +1,74 @@
+{
+  "files": [
+    {
+      "content": "# Evaluation Harness for Mixed XOR and MUX Lock Classification\n\n## Overview\n\nThis directory contains the evaluation harness for the `locked_mixed_xor_mux` task. The task requires participants to analyze a logic-locked netlist, locate all lock gates, classify each as XOR/XNOR or MUX-based, and recover the complete key. The participant submits a single answer file at `submission/recovered_key.json`.\n\n## Evaluation Contract\n\nThis task follows the **report_grading** contract:\n\n- The participant does **not** modify the input artifacts under `inputs/`.\n- The participant produces a separate answer file at `submission/recovered_key.json`.\n- `evaluate.py` reads the input artifacts for reference (e.g., `public_key_width.txt`, `oracle_vectors.txt`) and grades the submitted answer file against hidden ground truth.\n- The toolchain (`iverilog`, `vvp`) is available for optional cross-checks on the input netlist, but the PASS/FAIL verdicts are based solely on the content of the submitted answer file.\n\n## Files\n\n| Path | Purpose |\n|------|---------|\n| `evaluation/evaluate.py` | Main grading script. Validates the submission format (FR1\u2013FR3) and checks substantive correctness against hidden ground truth (SR1\u2013SR2). |\n| `evaluation/private/ground_truth.py` | Private module containing the hidden correct answers (lock gate labels, classifications, key bits, and full key string). Never exposed to participants. |\n| `evaluation/README.md` | This file. |\n\n## Requirements Graded\n\n- **FR1**: Submission file exists, is valid JSON, and contains the required top-level keys.\n- **FR2**: `recovered_key` is a binary string of the correct length (4).\n- **FR3**: `lock_gates` array contains exactly four objects with valid fields.\n- **SR1**: Each lock gate is correctly classified as XOR, XNOR, MUX_0, or MUX_1.\n- **SR2**: The recovered key exactly matches the hidden correct key `0101`, and each gate's `key_bit` is correct.\n\n## Usage\n\n```bash\npython3 evaluation/evaluate.py\n```\n\nExit code 0 indicates all requirements passed; non-zero indicates at least one failure.",
+      "path": "evaluation/README.md"
+    },
+    {
+      "content": "#!/usr/bin/env python3\n\nimport json\nimport os\nimport sys\nimport re\n\n# ----------------------------------------------------------------------\n# Helper: read input artifacts\n# ----------------------------------------------------------------------\ndef read_public_key_width():\n    path = \"inputs/public_key_width.txt\"\n    if not os.path.exists(path):\n        print(f\"[TEST] FAIL: SETUP: {path} not found\")\n        sys.exit(1)\n    with open(path, \"r\") as f:\n        content = f.read().strip()\n    try:\n        return int(content)\n    except ValueError:\n        print(f\"[TEST] FAIL: SETUP: {path} does not contain a valid integer\")\n        sys.exit(1)\n\n# ----------------------------------------------------------------------\n# Main grading logic\n# ----------------------------------------------------------------------\ndef main():\n    submission_path = \"submission/recovered_key.json\"\n    if not os.path.exists(submission_path):\n        print(f\"[TEST] FAIL: FR1: {submission_path} not found\")\n        sys.exit(1)\n\n    # Read expected key width\n    expected_key_width = read_public_key_width()\n\n    # Load submission JSON\n    try:\n        with open(submission_path, \"r\") as f:\n            submission = json.load(f)\n    except (json.JSONDecodeError, ValueError) as e:\n        print(f\"[TEST] FAIL: FR1: invalid JSON: {e}\")\n        sys.exit(1)\n\n    # --- FR1: Top-level keys exist ---\n    if not isinstance(submission, dict):\n        print(\"[TEST] FAIL: FR1: submission is not a JSON object\")\n        sys.exit(1)\n    if \"lock_gates\" not in submission or \"recovered_key\" not in submission:\n        print(\"[TEST] FAIL: FR1: missing required top-level keys 'lock_gates' and/or 'recovered_key'\")\n        sys.exit(1)\n    print(\"[TEST] PASS: FR1\")\n\n    # --- FR2: recovered_key format ---\n    recovered_key = submission[\"recovered_key\"]\n    if not isinstance(recovered_key, str):\n        print(\"[TEST] FAIL: FR2: recovered_key is not a string\")\n        sys.exit(1)\n    if len(recovered_key) != expected_key_width:\n        print(f\"[TEST] FAIL: FR2: recovered_key length {len(recovered_key)} != expected {expected_key_width}\")\n        sys.exit(1)\n    if not re.fullmatch(r'[01]+', recovered_key):\n        print(\"[TEST] FAIL: FR2: recovered_key contains characters other than '0' and '1'\")\n        sys.exit(1)\n    print(\"[TEST] PASS: FR2\")\n\n    # --- FR3: lock_gates array structure ---\n    lock_gates = submission[\"lock_gates\"]\n    if not isinstance(lock_gates, list):\n        print(\"[TEST] FAIL: FR3: lock_gates is not an array\")\n        sys.exit(1)\n    if len(lock_gates) != 4:\n        print(f\"[TEST] FAIL: FR3: lock_gates array length {len(lock_gates)} != 4\")\n        sys.exit(1)\n\n    allowed_classifications = {\"XOR\", \"XNOR\", \"MUX_0\", \"MUX_1\"}\n    for i, gate in enumerate(lock_gates):\n        if not isinstance(gate, dict):\n            print(f\"[TEST] FAIL: FR3: lock_gates[{i}] is not an object\")\n            sys.exit(1)\n        if \"gate_label\" not in gate or not isinstance(gate[\"gate_label\"], str) or gate[\"gate_label\"].strip() == \"\":\n            print(f\"[TEST] FAIL: FR3: lock_gates[{i}] missing or invalid gate_label\")\n            sys.exit(1)\n        if \"classification\" not in gate or gate[\"classification\"] not in allowed_classifications:\n            print(f\"[TEST] FAIL: FR3: lock_gates[{i}] missing or invalid classification\")\n            sys.exit(1)\n        if \"key_bit\" not in gate or gate[\"key_bit\"] not in (0, 1):\n            print(f\"[TEST] FAIL: FR3: lock_gates[{i}] missing or invalid key_bit\")\n            sys.exit(1)\n    print(\"[TEST] PASS: FR3\")\n\n    # --- SR1: Correct classification of each lock gate ---\n    # Build a lookup from gate_label to classification\n    submitted_gates = {g[\"gate_label\"]: g for g in lock_gates}\n\n    # Import hidden ground truth (private module)\n    try:\n        from evaluation.private.ground_truth import GROUND_TRUTH_LOCK_GATES\n    except ImportError as e:\n        print(f\"[TEST] FAIL: SETUP: cannot import ground truth: {e}\")\n        sys.exit(1)\n\n    for gt_gate in GROUND_TRUTH_LOCK_GATES:\n        label = gt_gate[\"gate_label\"]\n        expected_class = gt_gate[\"classification\"]\n        if label not in submitted_gates:\n            print(f\"[TEST] FAIL: SR1: missing gate_label '{label}' in submission\")\n            sys.exit(1)\n        actual_class = submitted_gates[label][\"classification\"]\n        if actual_class != expected_class:\n            print(f\"[TEST] FAIL: SR1: gate '{label}' classified as '{actual_class}', expected '{expected_class}'\")\n            sys.exit(1)\n    print(\"[TEST] PASS: SR1\")\n\n    # --- SR2: Correct key recovery ---\n    try:\n        from evaluation.private.ground_truth import GROUND_TRUTH_KEY\n    except ImportError as e:\n        print(f\"[TEST] FAIL: SETUP: cannot import ground truth: {e}\")\n        sys.exit(1)\n\n    # Check full recovered_key string\n    if recovered_key != GROUND_TRUTH_KEY:\n        print(f\"[TEST] FAIL: SR2: recovered_key '{recovered_key}' != ground truth '{GROUND_TRUTH_KEY}'\")\n        sys.exit(1)\n\n    # Check each gate's key_bit\n    for gt_gate in GROUND_TRUTH_LOCK_GATES:\n        label = gt_gate[\"gate_label\"]\n        expected_bit = gt_gate[\"key_bit\"]\n        actual_bit = submitted_gates[label][\"key_bit\"]\n        if actual_bit != expected_bit:\n            print(f\"[TEST] FAIL: SR2: gate '{label}' key_bit {actual_bit} != expected {expected_bit}\")\n            sys.exit(1)\n    print(\"[TEST] PASS: SR2\")\n\n    # All checks passed\n    sys.exit(0)\n\nif __name__ == \"__main__\":\n    main()",
+      "path": "evaluation/evaluate.py"
+    },
+    {
+      "content": "# Hidden ground truth for the mixed XOR/MUX lock classification task.\n# This file is private and must never be exposed to participants.\n\nGROUND_TRUTH_LOCK_GATES = [\n    {\"gate_label\": \"lock_gate_0\", \"classification\": \"XOR\", \"key_bit\": 0},\n    {\"gate_label\": \"lock_gate_1\", \"classification\": \"XNOR\", \"key_bit\": 1},\n    {\"gate_label\": \"lock_gate_2\", \"classification\": \"MUX_0\", \"key_bit\": 0},\n    {\"gate_label\": \"lock_gate_3\", \"classification\": \"MUX_1\", \"key_bit\": 1},\n]\n\nGROUND_TRUTH_KEY = \"0101\"\nGROUND_TRUTH_KEY_BITS = [0, 1, 0, 1]",
+      "path": "evaluation/private/ground_truth.py"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "evaluation/README.md",
+      "purpose": "Document the evaluation harness: describe the report_grading contract, list the files, explain that evaluate.py grades submission/recovered_key.json against hidden ground truth, and note that the toolchain (iverilog/vvp) is available for optional cross-checks but verdicts are based on the submitted answer file."
+    },
+    {
+      "path": "evaluation/evaluate.py",
+      "purpose": "Main grading entry point. Reads inputs/public_key_width.txt and inputs/oracle_vectors.txt for reference. Opens submission/recovered_key.json, validates JSON schema and field presence (FR1, FR2, FR3), then checks substantive correctness: gate labels match the four lock sites from the hidden ground truth, classifications match XOR/XNOR/MUX_0/MUX_1, key bits match the hidden key '0101', and recovered_key string equals '0101'. Emits [TEST] PASS/FAIL markers for each requirement. Exits 0 on all-pass, non-zero on any failure. The baseline empty/malformed submission must fail; a correct answer must pass."
+    },
+    {
+      "path": "evaluation/private/ground_truth.py",
+      "purpose": "Private module containing the hidden ground truth constants: the four lock gate labels (lock_gate_0, lock_gate_1, lock_gate_2, lock_gate_3), their correct classifications (XOR, XNOR, MUX_0, MUX_1), the correct key bits (0,1,0,1), and the full recovered key string '0101'. Imported by evaluate.py for SR checks. Never exposed to participants."
+    }
+  ],
+  "requirement_map": [
+    {
+      "expected_detection": "Check that submission/recovered_key.json exists, is valid JSON, and contains the top-level keys 'lock_gates' and 'recovered_key'. Missing file, invalid JSON, or missing keys \u2192 FAIL.",
+      "requirement_id": "FR1",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that recovered_key is a string of length equal to the integer in inputs/public_key_width.txt (4) and consists only of '0' and '1' characters. Wrong length or invalid characters \u2192 FAIL.",
+      "requirement_id": "FR2",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Check that lock_gates is an array of exactly four objects, each with a non-empty gate_label string, a classification from {XOR, XNOR, MUX_0, MUX_1}, and a key_bit of 0 or 1. Wrong count, missing fields, or invalid values \u2192 FAIL.",
+      "requirement_id": "FR3",
+      "requirement_type": "functional",
+      "test_files": [
+        "evaluation/evaluate.py"
+      ]
+    },
+    {
+      "expected_detection": "Compare each submitted lock_gate classification against the hidden ground truth (lock_gate_0\u2192XOR, lock_gate_1\u2192XNOR, lock_gate_2\u2192MUX_0, lock_gate_3\u2192MUX_1). Any mismatch \u2192 FAIL. This verifies the participant correctly distinguished XOR/XNOR from MUX-based key gates.",
+      "requirement_id": "SR1",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    },
+    {
+      "expected_detection": "Compare the submitted recovered_key string against the hidden ground truth '0101'. Any bit mismatch \u2192 FAIL. Also verify each lock_gate's key_bit matches the corresponding ground truth bit. This verifies complete key recovery for all mixed locking styles.",
+      "requirement_id": "SR2",
+      "requirement_type": "security",
+      "test_files": [
+        "evaluation/evaluate.py",
+        "evaluation/private/ground_truth.py"
+      ]
+    }
+  ]
+}

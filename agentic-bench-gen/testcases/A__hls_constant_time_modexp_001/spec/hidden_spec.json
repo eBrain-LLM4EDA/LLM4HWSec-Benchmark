@@ -1,0 +1,33 @@
+{
+  "acceptance_criteria": [
+    "All FR1-FR4 behavioral tests pass when compiled and executed against the harness.",
+    "SR1 counting-hook test shows exactly 32 multiply-stub invocations per call for every tested exponent (0, 1, max, random), with zero variance.",
+    "SR2 iteration-count trace is identical across all tested exponents for fixed base/modulus.",
+    "SR3 static scan finds no banned I/O or exponent-derived global leakage.",
+    "The baseline insecure modexp_kernel.cpp (classic branchy square-and-multiply) fails at least one of SR1/SR2 while still passing FR1-FR3, demonstrating the harness discriminates correctly."
+  ],
+  "cwe_ids": [
+    "CWE-208",
+    "CWE-385",
+    "CWE-200"
+  ],
+  "ground_truth": "A correct hardened submission runs the exact same control-flow path and the exact same schedule of multiply/square/reduce operations for every possible 32-bit exponent value (only the returned residue and the accumulator's numeric contents depend on the exponent); the vulnerable baseline instead uses a square-and-multiply loop with a data-dependent branch that skips the multiply step when the current exponent bit is 0, producing an input-dependent number of multiply operations and, in an instrumented/timing-sensitive build, an input-dependent execution profile.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Harness instruments the compiled binary via a build-time counter injected into a stub multiply function; the evaluator recompiles the submission with the counting stub linked in place of normal multiply and asserts the count equals exactly 32 * NUM_TEST_EXPONENTS regardless of exponent Hamming weight (0x00000000 vs 0xFFFFFFFF vs random exponents all yield identical counts).",
+      "id": "SR1",
+      "requirement": "The multiply-accumulate step must be performed unconditionally on every one of the 32 loop iterations; if the corresponding exponent bit is 0, the computed multiply result must be discarded (e.g. via constant-time select) rather than the multiply being skipped by a branch."
+    },
+    {
+      "detection_strategy": "Behavioral differential test: run the compiled binary under a wall-clock/instruction-count proxy (loop counter probe) across widely different exponents (0, 1, 0xFFFFFFFF, random) with fixed base/modulus, and require the observed iteration-count / operation-count trace to be statistically identical (exact match, since iteration count is deterministic and exposed via the counting hook) across all exponents.",
+      "id": "SR2",
+      "requirement": "No secret-dependent branch, loop bound, or array index derived directly from the raw exponent value may exist in the control flow (only fixed-index, fixed-trip-count operations reading exponent bits are allowed)."
+    },
+    {
+      "detection_strategy": "Static fail-on-presence scan (grep) for banned I/O calls (printf, cout, fprintf) and global mutable variables referencing 'exponent' or 'exp' outside the function scope; presence causes automatic FAIL regardless of functional correctness.",
+      "id": "SR3",
+      "requirement": "The kernel must not leak the exponent through any output other than the defined public return value (no debug prints, no side-channel-visible global state depending on the exponent)."
+    }
+  ],
+  "threat_model": "An attacker with access to a shared HLS accelerator or its power/EM/timing side channel observes per-iteration operation counts, instruction trace length, or timing to distinguish 'square-only' iterations from 'square-and-multiply' iterations of the classic left-to-right square-and-multiply algorithm, thereby recovering the private exponent bit-by-bit (a classic RSA private-key extraction via simple timing/power analysis)."
+}

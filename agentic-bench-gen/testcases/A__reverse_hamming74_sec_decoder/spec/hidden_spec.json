@@ -1,0 +1,27 @@
+{
+  "acceptance_criteria": [
+    "evaluate.py compiles inputs/flattened_netlist.v (wrapped as the golden reference) and submission/recovered_rtl.v together with a generated testbench under evaluation/ using iverilog, and runs vvp.",
+    "The testbench drives all 128 values of codeword (7'b0000000 through 7'b1111111) sequentially with a #5 settling delay between each, sampling data, corrected_codeword, and error_detected from both the reference and the submission each cycle.",
+    "PASS requires 128/128 exact matches on all three output signals between submission and reference; any single mismatch causes FAIL.",
+    "A submission that fails to compile under iverilog is graded FAIL with a compile-error diagnostic.",
+    "The shipped baseline/naive submission (e.g., all outputs hardwired to 0) must produce fewer than 128/128 matches and must FAIL."
+  ],
+  "cwe_ids": [
+    "CWE-1201",
+    "CWE-704"
+  ],
+  "ground_truth": "The flattened netlist implements an even-parity Hamming(7,4) single-error-correcting decoder. Using 1-indexed bit positions (position 1 = codeword[0] ... position 7 = codeword[6]), parity bits occupy positions 1, 2, and 4, and data bits occupy positions 3, 5, 6, and 7 (mapped to data[3:0] = {pos7, pos6, pos5, pos3} i.e. data[3]=codeword[6](pos7), data[2]=codeword[5](pos6), data[1]=codeword[4](pos5), data[0]=codeword[2](pos3)). Syndrome bits are computed as s0 = codeword[0] XOR codeword[2] XOR codeword[4] XOR codeword[6] (covers positions 1,3,5,7), s1 = codeword[1] XOR codeword[2] XOR codeword[5] XOR codeword[6] (covers positions 2,3,6,7), s2 = codeword[3] XOR codeword[4] XOR codeword[5] XOR codeword[6] (covers positions 4,5,6,7). The syndrome {s2,s1,s0} as a 3-bit binary number gives the 1-indexed position of the single erroneous bit (0 = no error). error_detected = (s2|s1|s0) i.e. nonzero syndrome. corrected_codeword flips the bit at the position indicated by the syndrome (if nonzero); otherwise corrected_codeword = codeword. data is then extracted from the corrected codeword's positions 3,5,6,7 as described. This is the standard textbook even-parity Hamming(7,4) SEC code with parity-position convention {1,2,4}.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Exhaustively simulate all 128 input codewords (16 valid codewords plus all 112 single-bit-error variants) and compare data, corrected_codeword, and error_detected bit-for-bit against the reference netlist simulation; any parity/data confusion will manifest as mismatches on the 112 error-injected cases even if the 16 clean codewords pass.",
+      "id": "SR1",
+      "requirement": "The recovered RTL must correctly identify all three parity bit positions (1, 2, 4) and never confuse a parity bit with a data bit in the data[3:0] extraction, since a swapped mapping would appear functionally plausible for error-free codewords but fail on corrected single-bit-error codewords."
+    },
+    {
+      "detection_strategy": "For each of the 7 single-bit-error injections per valid codeword (7*16=112 cases), check that corrected_codeword exactly reverses the injected error at the correct bit position; a permuted syndrome ordering will cause corrected_codeword to flip the wrong bit for a detectable subset of these cases.",
+      "id": "SR2",
+      "requirement": "The syndrome-to-bit-position mapping (s2 s1 s0 as binary position index) must exactly match the reference's internal XOR grouping order; a reversed or permuted syndrome bit order silently produces a different but internally-consistent-looking decoder that corrects the wrong bit."
+    }
+  ],
+  "threat_model": "An undocumented storage interface embeds a Hamming(7,4) SEC decoder whose bit-position convention and syndrome-to-position mapping are not documented. A reverse engineer must recover the exact parity convention, syndrome bit ordering, and data-bit extraction order from the flattened gate-level netlist before the storage subsystem can be safely replaced, audited, or interfaced with new firmware. An incorrect recovery (e.g., swapped syndrome bit order, wrong parity position assignment, or off-by-one data extraction) would silently corrupt recovered data or miscorrect errors in the field."
+}

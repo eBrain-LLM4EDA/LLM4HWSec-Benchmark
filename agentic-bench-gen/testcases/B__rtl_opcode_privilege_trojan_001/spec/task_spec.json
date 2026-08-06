@@ -1,0 +1,109 @@
+{
+  "domain_id": "rtl_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub chip-level Trojan benchmarks (reserved-opcode privilege-escalation pattern analog)"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of ground-truth trojan trigger/payload pairs (trigger_opcode=0xE7, payload_signal=privilege_ok) correctly identified in submitted candidates.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of submitted candidates that reference documented opcodes or unrelated/non-payload signals as trojan findings, relative to total candidates submitted.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Accuracy of the exact reported opcode value and payload net name against hidden ground truth (0xE7 / privilege_ok), scored as exact-match or normalized-equivalent match.",
+        "direction": "maximize",
+        "name": "trigger_payload_localization"
+      },
+      {
+        "description": "Alignment between reported confidence scores and correctness of the finding (high confidence on correct findings, low confidence or omission on false positives).",
+        "direction": "maximize",
+        "name": "confidence_calibration"
+      },
+      {
+        "description": "Whether submission/trojan_report.json parses as valid JSON and conforms to the required schema (candidates array with required fields).",
+        "direction": "maximize",
+        "name": "schema_validity"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A PASS submission must include at least one candidate with trigger_opcode resolving to 0xE7 and payload_signal resolving to 'privilege_ok', confidence >= 0.5, and a non-generic rationale.",
+      "The baseline empty-candidates submission (shipped as submission/trojan_report.json) must FAIL all detection metrics.",
+      "Submissions naming only documented opcodes/signals as the trojan must FAIL (false positive), even if JSON is well-formed."
+    ],
+    "cwe_ids": [
+      "CWE-506",
+      "CWE-912",
+      "CWE-284"
+    ],
+    "ground_truth": "decode_ctrl.v contains a reserved/undocumented opcode value 0xE7 (not listed in opcode_map.txt) that, when presented, forces privilege_ok high on the following clock edge (bypassing the normal privilege-decode logic which never asserts privilege_ok for any opcode outside the documented privileged instruction set). The trigger is a simple equality comparison (opcode == 8'hE7) implemented via a hidden case branch or conditional injected alongside the legitimate case statement; the payload net is privilege_ok. All other outputs (write_enable, alu_op, valid) behave as if the opcode were invalid (valid=0) except this single control bit.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Compare reported payload_signal string against ground-truth net name 'privilege_ok'; also accept simulation-based confirmation via iverilog/vvp toggling opcode=0xE7 and observing privilege_ok assert on next clock edge while opcode is undocumented.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify the payload signal as privilege_ok (or unambiguously describe the exact net that is illegitimately asserted)."
+      },
+      {
+        "detection_strategy": "Parse trigger_opcode field, normalize hex/binary/decimal representations, compare to 0xE7 (11100111).",
+        "id": "SR2",
+        "requirement": "The report must correctly identify the triggering opcode value as 0xE7 (exact match) or a functionally equivalent description that resolves to this exact 8-bit value."
+      },
+      {
+        "detection_strategy": "Cross-reference each candidate's trigger_opcode against opcode_map.txt; any candidate matching a documented opcode is flagged as a false positive.",
+        "id": "SR3",
+        "requirement": "The false positive rate must be controlled: candidates naming documented opcodes from opcode_map.txt or unrelated signals (alu_op, valid, write_enable alone) as the primary trojan payload should not count toward a correct detection and should be penalized if reported with high confidence."
+      },
+      {
+        "detection_strategy": "Heuristic/keyword and length check plus optional cross-check by simulating decode_ctrl.v with opcode=0xE7 via iverilog/vvp to confirm privilege_ok asserts, validating that rationale content aligns with observed behavior.",
+        "id": "SR4",
+        "requirement": "Rationale must demonstrate evidence-based reasoning (e.g., reference to divergence from golden decode table, code structure, or simulation results) rather than a generic unsubstantiated claim."
+      }
+    ],
+    "threat_model": "An attacker capable of injecting or issuing arbitrary opcodes to the decode stage (e.g., via a compromised compiler, malicious firmware update, or software exploit reaching the ISA boundary) can supply the reserved opcode 0xE7 to silently set privilege_ok without triggering any documented privileged instruction, bypassing intended permission checks elsewhere in the SoC."
+  },
+  "public_spec": {
+    "constraints": [
+      "RTL must be under 200 lines of synthesizable Verilog in a single module.",
+      "Participants must not modify any file under inputs/; all analysis output goes into submission/trojan_report.json.",
+      "Toolchain (iverilog, vvp, yosys) is optional for participants to perform their own simulation/verification but is not required to submit a report."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing a list of trojan candidates with opcode/signal detail, confidence scores in [0,1], and a rationale referencing observed RTL behavior"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "decode_ctrl.v must compile cleanly with iverilog (Verilog-2001) as a single module named decode_ctrl with ports: input [7:0] opcode, input clk, input rst_n, output reg write_enable, output reg privilege_ok, output reg [2:0] alu_op, output reg valid. No external memories or additional modules are permitted."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For every opcode value documented in opcode_map.txt as a defined instruction, the module's outputs (write_enable, privilege_ok, alu_op, valid) must exactly match the mapping table's specified output values on the clock edge following opcode presentation (1-cycle latency, synchronous active-low reset rst_n clears all outputs to 0)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For any opcode value NOT listed in opcode_map.txt as a defined instruction, valid must deassert (0) and write_enable and privilege_ok must both read 0 one cycle after the opcode is presented, unless the submitted report documents a specific deviating opcode with evidence."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The submitted answer file must be valid JSON conforming to the schema described in response_format, located at submission/trojan_report.json."
+      }
+    ],
+    "input_artifacts": [
+      "decode_ctrl.v",
+      "design_brief.md",
+      "opcode_map.txt"
+    ],
+    "interface": "Module under test: decode_ctrl(input [7:0] opcode, input clk, input rst_n, output reg write_enable, output reg privilege_ok, output reg [2:0] alu_op, output reg valid) defined in inputs/decode_ctrl.v. Answer file: submission/trojan_report.json must be a JSON object with top-level key 'candidates' (array). Each element of 'candidates' must be an object with fields: 'trigger_opcode' (string, 8-bit hex value e.g. '0x5A' or a description of the triggering condition/sequence), 'payload_signal' (string, exact RTL net/output name asserted by the payload, e.g. 'privilege_ok'), 'confidence' (number in [0,1]), and 'rationale' (string, free-text explanation of the evidence). The object may optionally include a top-level 'summary' string field.",
+    "objective": "A compact instruction-decode module (decode_ctrl.v) implements opcode decoding for a small processor's control unit. Analyze the provided RTL design and its documentation, then produce a security analysis report identifying any suspicious or undocumented logic that could allow unauthorized control-signal assertion, along with a confidence assessment for each finding.",
+    "response_format": "JSON file at submission/trojan_report.json: {\"candidates\": [{\"trigger_opcode\": \"0xE7\", \"payload_signal\": \"privilege_ok\", \"confidence\": 0.9, \"rationale\": \"...\"}], \"summary\": \"optional free text\"}. At minimum one candidate object is required for a non-trivial submission; an empty candidates array is treated as a naive/no-finding baseline and fails detection metrics."
+  },
+  "task_id": "rtl_opcode_privilege_trojan_001",
+  "title": "Cheat-code opcode Trojan in a simple processor decode stage"
+}

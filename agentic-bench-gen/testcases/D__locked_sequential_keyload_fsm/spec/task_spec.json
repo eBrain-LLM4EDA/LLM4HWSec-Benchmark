@@ -1,0 +1,83 @@
+{
+  "domain_id": "logic_deobfuscation_sat",
+  "evaluation": {
+    "baselines": [
+      "A naive baseline submission with key_sequence=\"0000\" and an empty lock_registers list, which is expected to fail.",
+      "A random-guess baseline that submits a random 4-bit key and four random register names from the netlist, expected to fail with high probability."
+    ],
+    "metrics": [
+      {
+        "description": "The fraction of key bits correctly identified in the submission. 1.0 indicates the full 4-bit key is correct.",
+        "direction": "maximize",
+        "name": "key_recovery_rate"
+      },
+      {
+        "description": "The fraction of lock registers correctly identified by their hierarchical names. 1.0 indicates all four registers are correctly named and ordered.",
+        "direction": "maximize",
+        "name": "key_gate_localization_accuracy"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The submitted key_sequence exactly matches \"0110\".",
+      "The submitted lock_registers list contains exactly the four hierarchical names \"top.lock_reg[0]\", \"top.lock_reg[1]\", \"top.lock_reg[2]\", \"top.lock_reg[3]\" in that order.",
+      "A naive or empty submission (e.g., key_sequence=\"0000\" or lock_registers=[]) must fail evaluation."
+    ],
+    "cwe_ids": [
+      "CWE-1274"
+    ],
+    "ground_truth": "The correct key sequence is \"0110\". The lock registers are the four DFFs instantiated as the shift register chain: top.lock_reg[0], top.lock_reg[1], top.lock_reg[2], top.lock_reg[3]. The first bit of the key (0) is loaded into top.lock_reg[0] on the first rising clock edge after reset de-assertion, the second bit (1) into top.lock_reg[1] on the next edge, and so on. Only when these four registers hold the pattern 0110 does the FSM transition to the functional state on the subsequent clock edge.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Check if the key sequence can be determined by a simple string search or constant propagation in the netlist. The ground truth key bits should be distributed across the sequential logic and not appear as a single constant.",
+        "id": "SR1",
+        "requirement": "The key sequence must not be trivially extractable from the netlist structure alone without analyzing the temporal behavior."
+      },
+      {
+        "detection_strategy": "Simulate the netlist with the correct key and several incorrect keys. Verify that the output sequences for incorrect keys are deterministic but do not match the functional oracle traces for any meaningful input sequence.",
+        "id": "SR2",
+        "requirement": "The decoy behavior must be functionally distinct from the correct behavior to prevent an attacker from assuming any output is correct."
+      }
+    ],
+    "threat_model": "An attacker has access to the locked netlist and a limited number of input/output oracle traces from a functional chip. The attacker must reverse-engineer the temporal key-loading protocol and the correct key sequence to unlock the circuit's functionality. The sequential nature of the lock expands the key space beyond a single combinational assignment and hides the functional initial state."
+  },
+  "public_spec": {
+    "constraints": [
+      "The locked_fsm.v netlist is a small sequential circuit with a single clock and an active-low asynchronous reset.",
+      "The circuit has a 1-bit key input, a 1-bit data input, and a 1-bit data output.",
+      "Oracle traces are provided as a text file showing sequences of (key_in, data_in, reset) and the corresponding data_out over multiple clock cycles.",
+      "The circuit enters a functional mode only after a specific 4-cycle key sequence is applied while reset is de-asserted.",
+      "Incorrect key sequences cause the circuit to enter a deterministic, non-functional decoy state."
+    ],
+    "expected_outputs": [
+      "A valid recovered_key.json file placed at submission/recovered_key.json containing the correct key sequence and the hierarchical names of the lock DFFs.",
+      "The key sequence must be a string of '0' and '1' characters of length 4.",
+      "The lock DFF names must be a list of strings, each a valid hierarchical path from the top-level module."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted recovered_key.json file must be valid JSON and parse successfully."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The \"key_sequence\" field must be a string consisting of exactly four characters, each being either '0' or '1'."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The \"lock_registers\" field must be a list of exactly four strings, each representing a valid hierarchical signal name present in the provided locked_fsm.v netlist."
+      }
+    ],
+    "input_artifacts": [
+      "locked_fsm.v",
+      "oracle_traces.txt",
+      "design_brief.md"
+    ],
+    "interface": "The submission is a single JSON file at submission/recovered_key.json. The file must contain a JSON object with two keys: \"key_sequence\" (a string of exactly four bits, e.g., \"0110\") and \"lock_registers\" (a list of strings, each being the hierarchical name of a D-type flip-flop in the netlist that forms the key-load shift register, e.g., [\"top.lock_reg[0]\", \"top.lock_reg[1]\", \"top.lock_reg[2]\", \"top.lock_reg[3]\"]). The order of the lock_registers list must correspond to the serial loading order (first bit loaded into the first register in the list).",
+    "objective": "Analyze the provided locked sequential netlist and oracle traces to determine the multi-cycle key sequence and the locations of the lock registers that must be initialized for the circuit to enter its functional mode.",
+    "response_format": "A single JSON file named recovered_key.json with the following schema: {\"key_sequence\": \"<4-bit string>\", \"lock_registers\": [\"<string>\", \"<string>\", \"<string>\", \"<string>\"]}"
+  },
+  "task_id": "locked_sequential_keyload_fsm",
+  "title": "Sequential lock with key-loaded initial state"
+}

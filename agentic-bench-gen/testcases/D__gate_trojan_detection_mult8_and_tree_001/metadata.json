@@ -1,0 +1,48 @@
+{
+  "task_id": "gate_trojan_detection_mult8_and_tree_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Combinational AND-tree Trojan in a synthesized multiplier netlist",
+  "description": "Review a synthesized gate-level Verilog netlist for an 8x8 unsigned combinational multiplier and produce a written analysis report classifying the design as clean or infected, summarizing its gate composition, and (if infected) localizing any anomalous suspect gates and the rare input condition that activates them.",
+  "input_artifacts": [
+    "inputs/mult8_netlist.v",
+    "inputs/port_list.txt",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_output_summary": "A single JSON file submission/trojan_report.json containing: a top-level 'classification' string ('clean' or 'infected'); a 'netlist_summary' object with 'total_gates' and 'gate_type_counts' matching the actual gate composition of inputs/mult8_netlist.v; if classification is 'infected', a non-empty 'suspect_nodes' array of {instance_name, role} objects identifying the anomalous gate instances (role one of 'trigger' or 'payload') by their exact names in the netlist; and if classification is 'infected', a 'trigger_condition' string describing the specific primary-input bit assignment(s) on a[7:0]/b[7:0] that activate the anomalous logic, consistent with simulating the netlist against the declared condition.",
+  "evaluation_mode": "report_grading",
+  "submission_kind": "analysis_report",
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ],
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of required suspect nodes (trigger and payload) correctly identified by instance name and role, relative to the hidden reference set."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported suspect_nodes entries that do not correspond to any actual anomalous gate in the hidden reference set."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds taken to grade the submitted report, including any optional toolchain cross-check simulation."
+    },
+    {
+      "name": "classification_accuracy",
+      "direction": "maximize",
+      "description": "Binary correctness of the top-level 'clean'/'infected' classification against the hidden reference label."
+    }
+  ],
+  "baselines": [
+    "Trust-Hub",
+    "CASlab GAINESIS"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "task_id": "rtl_trojan_detection_rollback_seq_0001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Sequence-activated anti-rollback counter Trojan",
+  "input_artifacts": [
+    "inputs/version_ctrl.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs": "A single JSON report at submission/trojan_report.json containing a list of candidate anomalies (each with id, description, confidence, trigger_condition, payload_effect), an overall summary string, and a tool_version string. The report is graded on how precisely and confidently it localizes any true deviation from the documented monotonic max-based version update behavior.",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "description": "Fraction of hidden security requirements satisfied by the submitted report, computed via keyword/structural matching against the ground-truth trigger sequence, state signal, and decrement payload."
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "Proportion of submitted candidates that do not correspond to the actual planted anomaly (i.e., spurious or unsubstantiated candidates), penalizing report spam."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "description": "Accuracy of the report in pinpointing the exact triggering nibble sequence and the exact payload expression versus vague or incorrect descriptions."
+    },
+    {
+      "name": "confidence_calibration",
+      "description": "Whether the confidence score assigned to the true-positive candidate is the highest (or tied-highest) among all reported candidates, and exceeds the threshold required for a PASS."
+    }
+  ]
+}

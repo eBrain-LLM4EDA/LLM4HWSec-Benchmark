@@ -1,0 +1,29 @@
+{
+  "acceptance_criteria": [
+    "FR1-FR4 all pass on the submitted JSON structure and field-level numeric checks against inputs/traces.csv.",
+    "SR1 passes: reported enable_count values match popcount(secret_operand) for all analyzed trials (cross-checked against traces.csv and, optionally, via iverilog/vvp simulation of inputs/mult_ctrl.v).",
+    "SR2 passes: report explicitly states constant latency does not prevent leakage.",
+    "SR3 passes: at least one hardening recommendation addresses activity equalization rather than only delay/timing obfuscation.",
+    "The baseline empty/naive submission (e.g., report claiming 'no vulnerability, latency is constant' with no activity_analysis) fails FR3, SR1, and SR2."
+  ],
+  "cwe_ids": [],
+  "ground_truth": "mult_ctrl always asserts done exactly 8 cycles after start (constant, secret-independent latency), satisfying naive timing-based constant-time expectations. However, mul_en is asserted on cycle k (1<=k<=8) if and only if bit (8-k) of secret_operand is 1, meaning the total number of cycles with mul_en=1 during a transaction equals popcount(secret_operand) -- the Hamming weight of the secret byte. An observer monitoring switching activity (e.g. power consumption correlated with mul_en-gated accumulator toggling) during the fixed 8-cycle window can count active cycles and directly recover the Hamming weight of secret_operand, leaking ~3 bits of information per byte despite constant timing. A correct hardening recommendation must equalize the number of active (switching) cycles regardless of operand value -- e.g., by making mul_en assert unconditionally every cycle and instead gating the accumulator's *value update* internally with data-independent dummy operations for zero bits, or by using a constant-Hamming-weight encoding of intermediate control signals -- rather than simply padding or delaying the done signal, which does nothing to hide the enable_count leakage.",
+  "security_requirements": [
+    {
+      "detection_strategy": "For each entry in activity_analysis, check that enable_count == hamming_weight (popcount of the secret_operand field) and that hamming_weight itself is computed correctly from the operand's bit pattern; flag reports that only discuss done/product timing without connecting mul_en activity to the operand's bit pattern.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that mul_en assertion count (enable_count) equals the Hamming weight (popcount) of secret_operand for every analyzed trial, not just note constant done timing."
+    },
+    {
+      "detection_strategy": "Scan 'summary' and 'timing_analysis' free text (case-insensitive keyword and semantic check) for an explicit statement that latency being constant is insufficient / does not eliminate leakage; a report claiming the design is secure solely because latency is fixed should fail this SR.",
+      "id": "SR2",
+      "requirement": "The report must explicitly recognize that constant done latency alone does NOT prevent side-channel leakage, since mul_en activity varies with the secret."
+    },
+    {
+      "detection_strategy": "Inspect each string in hardening_recommendations for keywords/semantics indicating activity-equalization (dummy operations, always-toggle enable, masking, constant Hamming-weight encoding) versus keywords indicating only timing-delay countermeasures (random delay, extra wait cycles after done, latency jitter); require at least one recommendation of the former type and penalize/fail reports whose only recommendations are of the latter type.",
+      "id": "SR3",
+      "requirement": "Hardening recommendations must target equalizing per-cycle switching/enable activity (e.g., unconditional mul_en assertion with internally masked/dummy updates, constant-weight recoding) rather than only proposing to add delay, randomize done timing, or insert no-op wait states after done."
+    }
+  ],
+  "threat_model": "A power/EM side-channel observer monitors switching activity of the design during each fixed-duration 8-cycle multiplication transaction. The observer cannot see internal signals directly but can count high-activity cycles (correlated with mul_en toggling the accumulator) within the known-length window. Because latency is constant, timing-only countermeasures are insufficient; the observer directly recovers popcount(secret_operand), the Hamming weight of the secret operand, cycle-by-cycle, without needing thousands of traces -- a single transaction leaks the weight with high confidence via simple activity counting."
+}

@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "RTL must be under 200 lines of synthesizable Verilog in a single module.",
+    "Participants must not modify any file under inputs/; all analysis output goes into submission/trojan_report.json.",
+    "Toolchain (iverilog, vvp, yosys) is optional for participants to perform their own simulation/verification but is not required to submit a report."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a list of trojan candidates with opcode/signal detail, confidence scores in [0,1], and a rationale referencing observed RTL behavior"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "decode_ctrl.v must compile cleanly with iverilog (Verilog-2001) as a single module named decode_ctrl with ports: input [7:0] opcode, input clk, input rst_n, output reg write_enable, output reg privilege_ok, output reg [2:0] alu_op, output reg valid. No external memories or additional modules are permitted."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For every opcode value documented in opcode_map.txt as a defined instruction, the module's outputs (write_enable, privilege_ok, alu_op, valid) must exactly match the mapping table's specified output values on the clock edge following opcode presentation (1-cycle latency, synchronous active-low reset rst_n clears all outputs to 0)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For any opcode value NOT listed in opcode_map.txt as a defined instruction, valid must deassert (0) and write_enable and privilege_ok must both read 0 one cycle after the opcode is presented, unless the submitted report documents a specific deviating opcode with evidence."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The submitted answer file must be valid JSON conforming to the schema described in response_format, located at submission/trojan_report.json."
+    }
+  ],
+  "input_artifacts": [
+    "decode_ctrl.v",
+    "design_brief.md",
+    "opcode_map.txt"
+  ],
+  "interface": "Module under test: decode_ctrl(input [7:0] opcode, input clk, input rst_n, output reg write_enable, output reg privilege_ok, output reg [2:0] alu_op, output reg valid) defined in inputs/decode_ctrl.v. Answer file: submission/trojan_report.json must be a JSON object with top-level key 'candidates' (array). Each element of 'candidates' must be an object with fields: 'trigger_opcode' (string, 8-bit hex value e.g. '0x5A' or a description of the triggering condition/sequence), 'payload_signal' (string, exact RTL net/output name asserted by the payload, e.g. 'privilege_ok'), 'confidence' (number in [0,1]), and 'rationale' (string, free-text explanation of the evidence). The object may optionally include a top-level 'summary' string field.",
+  "objective": "A compact instruction-decode module (decode_ctrl.v) implements opcode decoding for a small processor's control unit. Analyze the provided RTL design and its documentation, then produce a security analysis report identifying any suspicious or undocumented logic that could allow unauthorized control-signal assertion, along with a confidence assessment for each finding.",
+  "response_format": "JSON file at submission/trojan_report.json: {\"candidates\": [{\"trigger_opcode\": \"0xE7\", \"payload_signal\": \"privilege_ok\", \"confidence\": 0.9, \"rationale\": \"...\"}], \"summary\": \"optional free text\"}. At minimum one candidate object is required for a non-trivial submission; an empty candidates array is treated as a naive/no-finding baseline and fails detection metrics."
+}

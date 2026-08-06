@@ -1,0 +1,10 @@
+[
+  {"input": "00", "output": "00"},
+  {"input": "11", "output": "02"},
+  {"input": "22", "output": "04"},
+  {"input": "33", "output": "06"},
+  {"input": "44", "output": "08"},
+  {"input": "55", "output": "0A"},
+  {"input": "66", "output": "0C"},
+  {"input": "77", "output": "0E"}
+]

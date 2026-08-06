@@ -1,0 +1,42 @@
+{
+  "acceptance_criteria": [
+    "evaluate.py returns PASS only if FR1-FR4 are structurally satisfied AND SR1, SR2, SR3 are all satisfied by at least one high-confidence candidate each (possibly overlapping) AND SR4 ranking constraint holds.",
+    "The shipped baseline empty/naive trojan_report.json must be graded FAIL with detection_rate=0.",
+    "Optional simulation cross-check: evaluate.py may compile lockstep_alu.v with iverilog, drive the trigger vector (opcode=2'b10, operand_a=8'h5a, operand_b=8'ha5) plus several benign vectors, and confirm architectural_result[3] flips and mismatch reads 0 despite internal channel disagreement, to corroborate that the ground truth trigger is genuinely present in the shipped artifact."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-696",
+    "CWE-670",
+    "CWE-693"
+  ],
+  "ground_truth": "lockstep_alu.v contains a hidden trigger comparator (internal wire/reg often named something like `rare_trig` or embedded inline) that evaluates true only when opcode==2'b10 && operand_a==8'h5a && operand_b==8'ha5. When this trigger fires: (1) a result-corruption mux (e.g. named `res_mux` or inlined into the architectural_result assignment) flips bit [3] of the otherwise-correct architectural_result before it is registered, and (2) a mismatch-mask expression (e.g. `mismatch_mask` or an inline AND/XOR gating term) forces the registered mismatch output to 0 even though the two internal ALU channels' raw outputs actually differ at that cycle, thereby hiding the corruption from the lockstep checker. Both the mux and the mask are payload nodes driven by the same trigger comparator, making this a classic trigger+dual-payload compensating Trojan: it simultaneously corrupts data and forges the very integrity signal meant to catch the corruption.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse submission JSON candidates' rationale text for the trigger opcode value (10 or 2'b10 or 'AND') combined with both hex/decimal forms of 0x5a (90) and 0xa5 (165); require co-occurrence of opcode reference and both operand values in at least one candidate.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify the exact rare trigger condition (opcode=2'b10 AND operand_a=8'h5a AND operand_b=8'ha5) as the activation condition for the anomaly, not merely state 'rare input causes error' without specifying values."
+    },
+    {
+      "detection_strategy": "Search candidate rationale/signal_or_line fields for bit-index references (e.g. 'bit 3', '[3]', 'architectural_result[3]') co-located with corruption/flip/xor language; optionally cross-validate via iverilog simulation comparing golden vs DUT output bit-by-bit at the trigger vector.",
+      "id": "SR2",
+      "requirement": "The report must identify that architectural_result is corrupted specifically at bit position 3 under the trigger condition, distinguishing this from a generic 'wrong result' claim."
+    },
+    {
+      "detection_strategy": "Search for candidates whose rationale mentions 'mismatch' together with masking/forcing/suppression language (e.g. 'forced to 0', 'masked', 'suppressed', 'hidden from checker') and confidence >= 0.5; cross-check via simulation that raw channel outputs differ while mismatch reads 0 at the trigger vector.",
+      "id": "SR3",
+      "requirement": "The report must identify that the mismatch signal is being forced/masked to a false-negative (low) value at the same trigger condition, i.e. that the integrity checker itself is compromised, not just the data path."
+    },
+    {
+      "detection_strategy": "Rank candidates by confidence descending; verify at least one of the top-2 candidates (by confidence) satisfies SR1+SR2 or SR1+SR3 combined criteria.",
+      "id": "SR4",
+      "requirement": "The overall_confidence and per-candidate confidences for the true payload signals (result mux and mismatch mask) must exceed a minimum threshold (>=0.6), and the report must not bury the correct finding beneath a higher-confidence false lead."
+    },
+    {
+      "detection_strategy": "Baseline empty submission is included as the shipped default; evaluate.py must assign it detection_rate=0 and overall FAIL.",
+      "id": "SR5",
+      "requirement": "A naive/empty submission (empty candidates array, zero confidence, generic summary) must fail all above checks and receive a FAIL verdict."
+    }
+  ],
+  "threat_model": "An attacker with RTL insertion capability (e.g. a malicious IP vendor or compromised CAD flow) embeds a rare-condition trigger into an otherwise-correct dual-channel lockstep ALU. The attacker controls or predicts the opcode/operand values supplied by software or an adjacent core, and can therefore intentionally issue the rare tuple (opcode=AND, operand_a=0x5a, operand_b=0xa5) to cause a single-bit corruption of the ALU result while the lockstep mismatch flag is simultaneously forced low, defeating the safety/security monitor and allowing the corrupted value to be silently accepted downstream."
+}

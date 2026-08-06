@@ -1,0 +1,27 @@
+{
+  "task_id": "rtl_auth_clock_glitch_window",
+  "domain_id": "side_channel_fault_analysis",
+  "input_artifacts": [
+    "auth_fsm.v",
+    "fault_model.json",
+    "normal_trace.txt"
+  ],
+  "expected_output": "A vulnerability_report.json file identifying the vulnerable cycle and the critical state/result signals.",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Proportion of correctly identified vulnerable registers and cycles out of the total ground truth set.",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Whether the reported vulnerability covers the critical fault injection point that leads to unauthorized access.",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Precision of the hardening suggestions derived from the vulnerability report, measured as the ratio of correct suggestions to total suggestions.",
+      "direction": "maximize"
+    }
+  ]
+}

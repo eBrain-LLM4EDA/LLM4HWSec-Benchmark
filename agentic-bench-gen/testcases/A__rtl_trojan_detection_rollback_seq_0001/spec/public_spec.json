@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The RTL must be self-contained Verilog-2001 compatible with no external module dependencies, synthesizable with yosys and simulatable with iverilog/vvp.",
+    "version_ctrl.v must implement an 8-bit monotonic version register (version_q) that on each accepted request normally updates to the maximum of its current value and the presented candidate_version.",
+    "version_ctrl.v must include a compact internal sequence-tracking state machine driven only by the low nibble of candidate_version on accepted requests, with no more than 8 internal states.",
+    "design_brief.md must describe the module's intended behavior (monotonic anti-rollback versioning) in purely functional terms without disclosing any anomaly."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a list of candidate anomalies, per-candidate confidence scores, and rationale referencing specific signals/states in version_ctrl.v"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json MUST be valid JSON with top-level fields: 'candidates' (array), 'summary' (string), and 'tool_version' (string)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Each element of 'candidates' MUST include the fields: 'id' (string), 'description' (string), 'confidence' (number in [0,1]), 'trigger_condition' (string), and 'payload_effect' (string)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "At least one candidate entry MUST reference the specific register(s)/state variable(s) in version_ctrl.v responsible for tracking the sequence of accepted requests (i.e., name the internal signal(s) used, not just 'some internal logic')."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report MUST state, for the highest-confidence candidate, the exact update expression asserted in the terminal/triggering condition (e.g., what value version_q is assigned to instead of the expected max(version_q, candidate_version))."
+    }
+  ],
+  "input_artifacts": [
+    "version_ctrl.v",
+    "design_brief.md"
+  ],
+  "interface": "Module under analysis: version_ctrl, defined in inputs/version_ctrl.v. Ports: input wire clk (system clock, rising-edge sequential), input wire rst_n (active-low asynchronous reset), input wire req_valid (asserted for one cycle to present a candidate update request), input wire [7:0] candidate_version (public candidate firmware version presented with req_valid), input wire req_accept (external signal indicating the request passed signature/authenticity checks; only accepted requests may affect state), output reg [7:0] version_q (the current, publicly-observable committed firmware version register), output wire update_ack (asserted for one cycle the cycle after an accepted request is processed, Mealy-style relative to req_valid/req_accept AND one-cycle delayed registered output). All ports are public (no secret-bearing signals). The participant does NOT modify version_ctrl.v. The participant's deliverable is a single JSON file at submission/trojan_report.json conforming to the schema given in response_format. evaluate.py reads inputs/version_ctrl.v for reference (and may optionally simulate it with iverilog/vvp or analyze it with yosys) and grades the content of submission/trojan_report.json against hidden ground truth.",
+  "objective": "A firmware update controller module manages an 8-bit monotonic firmware version register used to prevent installation of older, vulnerable firmware images. Analyze the provided RTL implementation of this version-control module and produce an analysis report describing its update logic, including any conditions under which the version register could be set to a value other than the maximum of the current and candidate version (as required for correct anti-rollback behavior). Identify any suspicious internal state tracking, undocumented signal dependencies, or conditions that cause non-monotonic or unexpected updates to the version register, and report them as candidate anomalies with supporting rationale.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

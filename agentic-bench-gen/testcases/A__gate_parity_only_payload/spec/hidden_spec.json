@@ -1,0 +1,25 @@
+{
+  "acceptance_criteria": [
+    "The submitted label is 'Trojan'.",
+    "The suspect_nodes list contains the hierarchical name of the final AND gate that drives parity_error.",
+    "The suspect_nodes list contains at least one gate from the trigger comparator cone."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-1262"
+  ],
+  "ground_truth": "The netlist contains a Trojan. The trigger is a rare-value comparator on the data bus. The payload is an AND gate that forces the parity_error output low when the trigger condition is met. The main data outputs are unmodified. The correct report label is 'Trojan'. The suspect_nodes list must include the final AND gate in the parity_error path and at least one gate from the trigger comparator cone.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Trace the fan-in cone of the parity_error output and identify any gate not part of the standard parity tree. The final AND gate combining the parity result with a trigger signal is the payload.",
+      "id": "SR1",
+      "requirement": "The detection method must identify the gate that masks the parity error signal."
+    },
+    {
+      "detection_strategy": "Identify a comparator structure (e.g., a tree of XNOR and AND gates) whose output does not affect any primary data output but converges on the parity_error masking gate.",
+      "id": "SR2",
+      "requirement": "The detection method must identify at least one gate from the trigger logic."
+    }
+  ],
+  "threat_model": "An attacker inserts a Trojan that suppresses the parity error signal for a specific rare data pattern, allowing corrupted data to be accepted by downstream logic without detection. The main datapath remains functionally correct under normal testing."
+}

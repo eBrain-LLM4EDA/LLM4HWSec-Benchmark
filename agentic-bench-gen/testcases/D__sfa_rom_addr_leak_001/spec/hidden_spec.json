@@ -1,0 +1,34 @@
+{
+  "acceptance_criteria": [
+    "A submission that reports leaking_signals=[] or omits rom_addr_q/lookup_index, or that names only table_data as leaking, FAILS SR1.",
+    "A submission whose recovered_secret_key does not satisfy observed_rom_addr == public_index XOR recovered_secret_key for every entry in address_traces.json FAILS SR2 and FR2.",
+    "A submission whose mitigation_patch still computes lookup_index = public_index ^ secret_key and uses it as a ROM/array index FAILS SR3, even if leaking_signals and recovered_secret_key are correct.",
+    "The shipped baseline (naive/empty) submission, e.g. an all-empty-array/zero-valued vulnerability_report.json, must fail FR2, FR3, SR1, SR2, and SR3.",
+    "A fully correct submission identifies rom_addr_q and lookup_index as leaking, table_data as non-leaking, recovers the exact secret_key consistent with all trace entries, states the XOR relationship, and supplies a full-scan or bit-sliced mitigation verified functionally equivalent via simulation."
+  ],
+  "cwe_ids": [
+    "CWE-203",
+    "CWE-208",
+    "CWE-385",
+    "CWE-200"
+  ],
+  "ground_truth": "rom_addr_q (the registered address fed to the ROM) and lookup_index (the combinational XOR of public_index and secret_key that drives rom_addr_q) are the signals whose observable transitions on the address bus reveal secret_key: for every captured cycle, observed_rom_addr == public_index XOR secret_key, so an attacker who observes rom_addr_q (or any bus/memory trace equal to it) and knows public_index recovers secret_key exactly via secret_key = observed_rom_addr XOR public_index. table_data (the ROM's combinational output register/wire) is NOT the leakage source in this address-observation threat model: an attacker monitoring only bus/address lines never sees table_data's value, and table_data alone (without address visibility) does not directly disclose secret_key. A conforming mitigation must avoid computing any secret-dependent index used to select a memory location; e.g., a full-scan/bit-sliced implementation that evaluates all 16 ROM entries in parallel combinational logic and selects table_data via a secret-independent-address boolean function keyed on secret_key and public_index directly (no address bus toggling correlated with secret_key) removes the leakage while preserving table_data's original truth table.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check leaking_signals contains 'rom_addr_q' (or an equivalent exact identifier from the netlist for the registered address) and 'lookup_index' (or the XOR-producing wire); check that 'table_data' appears in non_leaking_signals rather than leaking_signals.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify rom_addr_q and lookup_index as the address-bus-observable signals that leak secret_key, and must NOT rely on table_data as the leaking signal in this threat model."
+    },
+    {
+      "detection_strategy": "Parse leakage_relationship for an XOR relation between public_index and secret_key/rom_addr_q; recompute secret_key = observed_rom_addr XOR public_index for every trace entry and confirm it matches recovered_secret_key for all entries (100% consistency required, not majority).",
+      "id": "SR2",
+      "requirement": "The report must state the precise leakage relationship observed_addr = public_index XOR secret_key (or equivalent algebraic form) in leakage_relationship, and recovered_secret_key must be independently verifiable against address_traces.json."
+    },
+    {
+      "detection_strategy": "Static text scan of mitigation_patch for indexing patterns (e.g., mem[idx], case(idx)) where idx is derived from an XOR of public_index and secret_key; optionally instantiate both original and patched modules in a testbench via iverilog/vvp, drive all 256 input combinations, and assert table_data outputs are bit-identical, while confirming the patched module contains no single signal equal to public_index^secret_key driving a memory address port (checked via yosys signal fan-in trace or textual pattern match).",
+      "id": "SR3",
+      "requirement": "The proposed mitigation_patch must eliminate the secret-dependent memory address entirely (no signal computed as public_index XOR secret_key, or any function thereof, may be used to index an array/case-select memory) and instead use a full-scan or bit-sliced boolean evaluation strategy that produces identical table_data outputs to the original ROM for all 256 (public_index, secret_key) combinations."
+    }
+  ],
+  "threat_model": "An attacker with physical or logical access to on-chip memory address lines, an instruction/address bus trace, or power/EM side-channel measurements correlated with address-bus toggling can observe the value driven onto the ROM's address port (rom_addr_q) each cycle. Because rom_addr_q = public_index XOR secret_key and public_index is known/public (e.g., a known plaintext byte index in a cipher context), the attacker directly computes secret_key = rom_addr_q XOR public_index for every observed trace, achieving full key-nibble recovery without ever needing to observe table_data or ROM contents."
+}

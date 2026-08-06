@@ -1,0 +1,81 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/trojan_report.json) with FR4 failures, indicating the netlist parser does not correctly extract all cell and net names from design.v. This makes the benchmark unusable because a correct submission cannot pass.",
+      "evidence": "Golden run stdout: [TEST] FAIL: FR4: cell 'aoi21_trigger' not found in netlist; [TEST] FAIL: FR4: cell 'oai22_trigger' not found in netlist; [TEST] FAIL: FR4: net 'trigger_internal' not found in netlist; [TEST] FAIL: FR4: net 'trigger_to_xor' not found in netlist. The golden file contains instance names aoi_trig, oai_trig, xor_payload and nets n_trigger_internal, n_payload_out, which do exist in design.v, but the parser fails to recognize them.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The netlist parser in evaluate.py uses overly restrictive regex patterns that fail to match valid Verilog instance declarations and net names, causing false FR4 failures for correct submissions.",
+      "evidence": "The cell_pattern regex requires the instance name to be immediately followed by whitespace and an opening parenthesis on the same line, but the golden submission's expected instance names (aoi_trig, oai_trig, xor_payload) are present in design.v and should be matched. The parser's port_conn_pattern only captures identifiers matching ^[a-z_]\\w*$, which may exclude valid net names or fail to capture all nets.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not correctly handle the golden submission file path. The validation report shows the golden run tested a file with instance names 'aoi21_trigger', 'oai22_trigger', etc., which do not match the actual golden/trojan_report.json content. This suggests a file mapping or path resolution issue.",
+      "evidence": "Golden run stdout shows FR4 failures for cells 'aoi21_trigger' and 'oai22_trigger', but the golden/trojan_report.json in the tester bundle contains 'aoi_trig' and 'oai_trig'. The evaluator appears to be grading a different file than the intended golden submission.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator fails to correctly compute detection_rate and false_positive_rate metrics when the submission is partially correct, leading to unreliable metric reporting.",
+      "evidence": "Golden run output shows detection_rate: 0.2 and false_positive_rate: 0.8 despite the golden submission containing the correct instance names. This indicates the metric computation is based on the parser's incorrect extraction of netlist names, making the metrics meaningless.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/private/ground_truth.json",
+      "description": "The ground truth file contains instance names (aoi_trig, oai_trig, xor_payload) that match the design.v netlist, but the evaluator's parser cannot validate them, making the ground truth effectively unreachable.",
+      "evidence": "Ground truth specifies trigger_cells: ['aoi_trig', 'oai_trig'], payload_cells: ['xor_payload'], but the parser fails to find these in the netlist, causing FR4 failures even for correct submissions.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The public README does not leak CWE identifiers, security requirements, or threat model details. It reads as a plain engineering assignment.",
+      "evidence": "README.md describes the task as analyzing a netlist to identify logic that could flip control_out under a rare input condition, without mentioning CWE-1245, SR1/SR2, or the specific threat model about technology mapping obscuring AND-tree shapes.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the netlist parser in evaluate.py to correctly extract all cell instance names and net names from design.v. Test the parser against the actual design.v content to ensure it captures aoi_trig, oai_trig, xor_payload, n_trigger_internal, and n_payload_out.",
+    "Ensure the golden submission file (golden/trojan_report.json) is correctly mapped and graded by the evaluator. The validation report suggests the wrong file was tested; verify the submission_invariants mapping.",
+    "Create targeted mutants for each requirement (FR1-FR4, SR1-SR2) to prove harness discrimination. Without mutants, we cannot confirm the evaluator correctly distinguishes passing from failing submissions.",
+    "Add integration tests that verify a correct submission passes all checks and the shipped baseline (empty arrays) fails, ensuring the evaluator behaves as expected for both extremes.",
+    "Consider simplifying the netlist parser or using a proper Verilog parser library to avoid regex-based extraction issues that lead to false negatives."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "No targeting mutant exists for FR1, so harness discrimination is unproven. The evaluator does check for file existence and valid JSON, but without a mutant that specifically violates FR1, we cannot confirm the check works correctly.",
+      "requirement": "FR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No targeting mutant exists for FR2. The evaluator checks for the four required top-level keys, but without a mutant missing or adding keys, discrimination is unproven.",
+      "requirement": "FR2",
+      "status": "unknown"
+    },
+    {
+      "evidence": "No targeting mutant exists for FR3. The evaluator checks for non-empty arrays of strings, but without a mutant with empty arrays or non-string elements, discrimination is unproven.",
+      "requirement": "FR3",
+      "status": "unknown"
+    },
+    {
+      "evidence": "The evaluator's netlist parser fails to correctly extract cell and net names from design.v, causing false FR4 failures for correct submissions. The golden run shows FR4 failures for instance names that do exist in the netlist.",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "The evaluator cannot correctly validate SR1 because the FR4 check fails first, preventing the security check from being meaningfully evaluated. Additionally, no targeting mutant exists for SR1.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "The evaluator cannot correctly validate SR2 because the FR4 check fails first. Additionally, no targeting mutant exists for SR2.",
+      "requirement": "SR2",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

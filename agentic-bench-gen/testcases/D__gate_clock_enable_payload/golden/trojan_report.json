@@ -1,0 +1,7 @@
+{
+  "trojan_detected": true,
+  "suspect_nodes": [
+    "trigger_nand4_out",
+    "payload_gate_update_en"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "Use the fixed 16-entry uint8_t table named `table` provided in inputs/lookup_kernel.cpp; do not change its size or contents.",
+    "Keep the lookup(uint8_t value, uint8_t key) signature exactly as declared; do not add extra parameters or overloads.",
+    "No dynamic memory allocation, no STL containers, no recursion, no exceptions in the kernel body.",
+    "All loops must have compile-time-constant trip counts (no while(cond-on-secret) or loops bounded by a secret-derived value).",
+    "The TRACE_ACCESS(idx) macro must be invoked exactly once per logical table element touched, using the literal index 0..15 being read, so the harness can record the access sequence; do not call it on values not read from table."
+  ],
+  "expected_outputs": [
+    "A hardened inputs/lookup_kernel.cpp that compiles standalone and preserves the documented input/output behavior of lookup()",
+    "Identical numeric results to the original kernel for all 256x16 (value,key) input combinations",
+    "A lookup() implementation whose internal control flow and table-read sequence do not vary with the key or value arguments"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For every value in 0..255 and key in 0..255, lookup(value, key) must return exactly table[(value ^ key) & 0x0F], matching a reference oracle byte-for-byte."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The function must compile cleanly as ISO C++ with g++ -O0 and -O2 without warnings-as-errors, using only fixed-bound for-loops (trip count known at compile time), no heap allocation (no new/malloc), and no STL containers or iterators in the kernel body."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Every call to lookup() must perform exactly 16 reads of the table array (each index 0..15 read exactly once, in ascending order 0,1,...,15), instrumented via TRACE_ACCESS(idx), regardless of the values of value and key."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The kernel body must contain no data-dependent conditional branch (if/else, ternary, or switch keyed on value, key, or any value derived from them) that alters control flow; branch structure must be static across all inputs."
+    }
+  ],
+  "input_artifacts": [
+    "lookup_kernel.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/lookup_kernel.cpp. The submission must define exactly this function, keeping the signature unchanged: `uint8_t lookup(uint8_t value, uint8_t key);` where `value` is a public 8-bit input, `key` is an 8-bit input treated as sensitive (its bits must not be inferable from the kernel's control flow or access pattern), and the return value is the public declassified output byte. The function must use a static/global fixed 16-entry `uint8_t` table named `table` (already declared in the provided file; you may keep its name and contents unchanged) as the substitution source. The harness includes inputs/lookup_kernel.cpp directly (via `#include` or compiled object linkage) and calls `lookup(value, key)` for many (value, key) pairs, comparing return values against a reference implementation and separately instrumenting the compiled binary's table-access trace via a build-time macro `TRACE_ACCESS(idx)` that the submission must invoke exactly once per table[] element access (the harness redefines this macro when compiling an instrumented build; in the non-instrumented build it must compile to a no-op with zero overhead).",
+  "objective": "The file inputs/lookup_kernel.cpp implements a small substitution kernel used in an HLS design: it combines a public input value with a key byte and returns a result from a fixed 16-entry table. Your job is to rewrite the kernel body so it produces exactly the same outputs as the reference behavior for all inputs, while restructuring the table access so that the pattern of memory operations performed each call (which addresses are touched, in what order, and how many times) is identical no matter what key or value is supplied. The rewritten kernel must still be synthesizable HLS-style C++: fixed-trip-count loops only, no dynamic memory allocation, no STL containers, and no data-dependent early exits.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

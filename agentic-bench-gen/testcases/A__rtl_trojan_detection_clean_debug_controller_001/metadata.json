@@ -1,0 +1,65 @@
+{
+  "task_id": "rtl_trojan_detection_clean_debug_controller_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Trojan Audit of a Compact Peripheral Controller with Debug Hooks",
+  "objective": "Perform a hardware Trojan audit of a small peripheral control unit (PCU) RTL design and submit a structured findings report stating whether the design is infected, with any suspected triggers/payloads, a confidence score, and a rationale grounded in the RTL.",
+  "submission_kind": "analysis_report",
+  "evaluation_mode": "report_grading",
+  "input_artifacts": [
+    "inputs/pcu_core.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "interface": {
+    "module": "pcu_core",
+    "ports": [
+      "input clk",
+      "input rst_n",
+      "input req",
+      "output ack",
+      "input debug_enable",
+      "input [7:0] debug_sel",
+      "output [7:0] debug_out",
+      "output [15:0] status"
+    ]
+  },
+  "expected_output_summary": {
+    "description": "A single JSON file at submission/trojan_report.json containing a Trojan infection verdict for pcu_core.v.",
+    "fields": {
+      "infected": "boolean verdict of whether the design contains a hardware Trojan",
+      "triggers": "array of suspected trigger signal/expression findings; must be empty when infected is false",
+      "payloads": "array of suspected payload effect findings; must be empty when infected is false",
+      "confidence": "number in [0,1] reflecting certainty of the verdict",
+      "rationale": "non-empty string explaining the verdict, grounded in concrete RTL elements actually examined"
+    }
+  },
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of ground-truth Trojan trigger/payload pairs correctly identified. For this clean-design case, ground truth has zero triggers/payloads, so this metric is trivially satisfied (1.0) only if the submission also reports zero true findings; used mainly for cross-case aggregation."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported trigger/payload findings that reference legitimate design elements (debug_enable-gated debug path, watchdog/idle counter) with no actual malicious behavior. Computed as (spurious findings) / (total reported findings), with a fully empty correct report scoring 0."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Not applicable for this clean case beyond checking that no localization is fabricated; scored as 1.0 (perfect) only when both triggers and payloads arrays are empty and non-empty otherwise."
+    },
+    {
+      "name": "verdict_accuracy",
+      "direction": "maximize",
+      "description": "Binary correctness of the infected/clean classification against hidden ground truth (clean)."
+    }
+  ]
+}

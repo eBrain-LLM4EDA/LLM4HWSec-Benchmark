@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "d971f8d44bd54da86fccec92f75d6e28b1c91fc3527fa18d9b4004b3f79f0d36",
+    "expert/expert_bundle.json": "28d1412b709f191624a2f2beeecdbdc341b68fbcf8c861f9fa2c909070d38e26",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "4f336db28e77b4e9deb7044fa9726d27dbbadc6d077ce2501c36b3308ef1d353",
+    "reports/quality_report.json": "a6df164b33ed99bcb95e37d883687c21244a96b66d165c9d12810cac1b41e1c5",
+    "reports/validation_report.json": "828841169ca23ccb6cc61bcb2dd358b2ff5c18b61beb295defa1556193f62450",
+    "spec/task_spec.json": "ee766c10991f19d58378b675ee20d39718dfcb6bbb7745ac568e897da1c0256a",
+    "tests/tester_bundle.json": "82135f0273cc99377baf49c2f089df216d31a7cf3520406a17ef6cb63d582123"
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "complete",
+  "task_id": "sarlock_point_function_recovery"
+}

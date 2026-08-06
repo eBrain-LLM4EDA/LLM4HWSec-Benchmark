@@ -79,11 +79,13 @@ Static PASS-on-presence checks — "the source must contain a loop shaped like X
 **simulate ((System)Verilog submissions):**
 - Ship a testbench (e.g. `evaluation/tb_top.v`) instantiating the module by the pinned module name/ports from `public_spec.interface`.
 - Compile and run via `subprocess`: `iverilog -g2012 -o <tmpdir>/sim.vvp <submission file> evaluation/tb_top.v` then `vvp <tmpdir>/sim.vvp`, with timeouts; parse the testbench's printed probe lines.
+- Include every declared source/library input needed by the design in the compile command (for example, both `inputs/design.v` and `inputs/cells.lib` when the design instantiates those cells).
 
 **report_grading (answer-file submissions):** grade the submitted report/labels against the hidden ground truth: FR checks verify structure/format (required fields, well-formed, valid node/key references); SR checks verify substantive correctness (reported trigger nodes match the true ones, recovered key bits correct). The toolchain is available for optional cross-checks on inputs/, but verdicts grade the submission.
+- Resolve every hidden ground-truth role to identifiers that actually exist in `artifact_bundle_json`; never require conceptual placeholder names absent from the generated input. Build valid-name sets from the real parser/netlist syntax, including indexed and hierarchical identifiers allowed by the submission contract. The independently generated Expert sees the same public artifacts, so exact-name checks must be grounded in those artifacts rather than guessed naming conventions.
 
 **Build/run failure protocol (matters for mutation scoring):**
-- If the submission fails to compile/elaborate, emit `[TEST] FAIL: <id>: compile failed: <first error line>` for every behaviorally-graded requirement — a mutant that breaks the build must count as detected. Do NOT emit `SETUP` for compile failures.
+- If the submission fails to compile/elaborate, emit `[TEST] FAIL: <id>: compile failed: <concise error summary>` for every behaviorally-graded requirement — include enough compiler stderr to identify the actual file and diagnostic, not only an `In file included from ...` preamble. A mutant that breaks the build must count as detected. Do NOT emit `SETUP` for compile failures.
 - `[TEST] FAIL: SETUP: ...` is reserved for infrastructure problems only (a required file missing, your own harness file absent). SETUP failures are excluded from mutation scoring.
 - If the binary/simulation times out or crashes, treat it like a failing behavioral probe (`[TEST] FAIL: <id>: run crashed/timed out`), not SETUP.
 

@@ -1,0 +1,16 @@
+{
+  "models": {
+    "first_order_hamming_distance": {
+      "description": "Models single-register transitions as the Hamming distance between consecutive values. Used for individual first-order analysis.",
+      "measurement_type": "hamming_distance",
+      "physical_observable": "power",
+      "statistical_method": "correlation"
+    },
+    "pairwise_hamming_distance": {
+      "description": "Models joint transitions of register pairs as the sum of their individual Hamming distances. Used for second-order analysis.",
+      "measurement_type": "pairwise_hamming_distance",
+      "physical_observable": "power",
+      "statistical_method": "correlation"
+    }
+  }
+}

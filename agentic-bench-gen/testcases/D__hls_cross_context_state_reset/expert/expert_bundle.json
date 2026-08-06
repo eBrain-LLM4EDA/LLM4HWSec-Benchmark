@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "content": "#include \"stream_accumulator.h\"\n\nint process_sample(int context_id, int input, int reset) {\n    static int accumulators[256] = {0};\n    static int last_context_id = -1;\n\n    if (reset != 0) {\n        for (int i = 0; i < 256; ++i) {\n            accumulators[i] = 0;\n        }\n        last_context_id = -1;\n    }\n\n    if (context_id != last_context_id) {\n        accumulators[context_id] = 0;\n    }\n\n    accumulators[context_id] += input;\n    last_context_id = context_id;\n    return accumulators[context_id];\n}",
+      "path": "golden/stream_accumulator.cpp"
+    },
+    {
+      "content": "#ifndef STREAM_ACCUMULATOR_H\n#define STREAM_ACCUMULATOR_H\n\nint process_sample(int context_id, int input, int reset);\n\n#endif",
+      "path": "golden/stream_accumulator.h"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/stream_accumulator.cpp",
+      "purpose": "Hardened implementation of process_sample that clears per-context accumulator state on context_id change or reset. Maintains a static array of accumulators indexed by context_id (0..255) and a static last_context_id variable. On entry: if reset is non-zero, zero all accumulators and set last_context_id to -1; if context_id differs from last_context_id, zero the accumulator for the new context_id. Then add input to the current context's accumulator, update last_context_id, and return the accumulator value. Compiles with g++ -std=c++17 -Wall -Werror. Satisfies FR1-FR4 and SR1-SR2."
+    },
+    {
+      "path": "golden/stream_accumulator.h",
+      "purpose": "Unchanged header declaring int process_sample(int context_id, int input, int reset). Preserved exactly as shipped in the baseline to maintain interface contract. The evaluator overlays this file from the baseline; we emit it unchanged to satisfy the submission contract that golden files mirror input artifacts."
+    }
+  ]
+}

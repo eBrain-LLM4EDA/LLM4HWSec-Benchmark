@@ -1,0 +1,222 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n[INFO] optional corroboration simulation output:\n[INFO]   VEC 1 opcode=00 a=10 b=20 result=00 mismatch=0 golden=30\n[INFO]   VEC 2 opcode=00 a=10 b=20 result=30 mismatch=0 golden=30\n[INFO]   VEC 3 opcode=11 a=0f b=f0 result=1f mismatch=0 golden=ff\n[INFO]   VEC 4 opcode=11 a=0f b=f0 result=ff mismatch=0 golden=ff\n[INFO]   VEC 5 opcode=10 a=5a b=a5 result=0f mismatch=0 golden=00\n[INFO]   VEC 6 opcode=10 a=5a b=a5 result=08 mismatch=0 golden=00\n[INFO]   VEC 7 opcode=00 a=01 b=02 result=03 mismatch=0 golden=03\n[INFO]   /work/evaluation/tb_trigger_check.v:135: $finish called at 95000 (1ps)\n[RESULT] ALL REQUIREMENTS PASSED\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/lockstep_alu.v",
+    "inputs/testbench_stub.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {
+    "FR2": 2,
+    "FR3": 3,
+    "FR4": 1,
+    "SR1": 3,
+    "SR2": 3,
+    "SR3": 2,
+    "SR4": 4
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [
+    "FR1",
+    "SR5"
+  ],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n[INFO] optional corroboration simulation output:\n[INFO]   VEC 1 opcode=00 a=10 b=20 result=00 mismatch=0 golden=30\n[INFO]   VEC 2 opcode=00 a=10 b=20 result=30 mismatch=0 golden=30\n[INFO]   VEC 3 opcode=11 a=0f b=f0 result=1f mismatch=0 golden=ff\n[INFO]   VEC 4 opcode=11 a=0f b=f0 result=ff mismatch=0 golden=ff\n[INFO]   VEC 5 opcode=10 a=5a b=a5 result=0f mismatch=0 golden=00\n[INFO]   VEC 6 opcode=10 a=5a b=a5 result=08 mismatch=0 golden=00\n[INFO]   VEC 7 opcode=00 a=01 b=02 result=03 mismatch=0 golden=03\n[INFO]   /work/evaluation/tb_trigger_check.v:135: $finish called at 95000 (1ps)\n[RESULT] ALL REQUIREMENTS PASSED\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: candidates array is empty; no candidates to validate\n[TEST] FAIL: FR3: no candidate rationale/signal_or_line co-mentions the opcode trigger (2'b10/AND/opcode==2) together with both operand values (0x5a and 0xa5, in hex or decimal form)\n[TEST] FAIL: FR4: no candidate identifies an architectural_result/bit-corruption construct; no candidate identifies a mismatch-masking/checker-forcing construct\n[TEST] FAIL: SR1: no candidate specifies the exact trigger condition (opcode=2'b10/AND AND operand_a=0x5a AND operand_b=0xa5); vague 'rare input' claims do not satisfy SR1\n[TEST] FAIL: SR2: no candidate identifies bit-position-3 corruption of architectural_result (need bit-index reference co-located with flip/xor/corrupt language)\n[TEST] FAIL: SR3: no candidate with confidence>=0.5 identifies the mismatch signal being forced/masked to a false-negative value (integrity checker compromise)\n[TEST] FAIL: SR4: no candidates present to rank\n[TEST] PASS: SR5\n[INFO] optional corroboration simulation output:\n[INFO]   VEC 1 opcode=00 a=10 b=20 result=00 mismatch=0 golden=30\n[INFO]   VEC 2 opcode=00 a=10 b=20 result=30 mismatch=0 golden=30\n[INFO]   VEC 3 opcode=11 a=0f b=f0 result=1f mismatch=0 golden=ff\n[INFO]   VEC 4 opcode=11 a=0f b=f0 result=ff mismatch=0 golden=ff\n[INFO]   VEC 5 opcode=10 a=5a b=a5 result=0f mismatch=0 golden=00\n[INFO]   VEC 6 opcode=10 a=5a b=a5 result=08 mismatch=0 golden=00\n[INFO]   VEC 7 opcode=00 a=01 b=02 result=03 mismatch=0 golden=03\n[INFO]   /work/evaluation/tb_trigger_check.v:135: $finish called at 95000 (1ps)\n[RESULT] FAILED REQUIREMENTS: FR2, FR3, FR4, SR1, SR2, SR3, SR4\n"
+    }
+  },
+  "domain_id": "rtl_trojan_detection",
+  "error_runs": 1,
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "FR1 never emitted [TEST] FAIL on its targeting mutants \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "SR5 never emitted [TEST] FAIL on its targeting mutants \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "FR1 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "FR4 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "SR3 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "SR5 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "1 mutant run(s) crashed, timed out, or used unsafe paths; mutation quality is incomplete",
+      "issue": "mutation_execution_error"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n[INFO] optional corroboration simulation output:\n[INFO]   VEC 1 opcode=00 a=10 b=20 result=00 mismatch=0 golden=30\n[INFO]   VEC 2 opcode=00 a=10 b=20 result=30 mismatch=0 golden=30\n[INFO]   VEC 3 opcode=11 a=0f b=f0 result=1f mismatch=0 golden=ff\n[INFO]   VEC 4 opcode=11 a=0f b=f0 result=ff mismatch=0 golden=ff\n[INFO]   VEC 5 opcode=10 a=5a b=a5 result=0f mismatch=0 golden=00\n[INFO]   VEC 6 opcode=10 a=5a b=a5 result=08 mismatch=0 golden=00\n[INFO]   VEC 7 opcode=00 a=01 b=02 result=03 mismatch=0 golden=03\n[INFO]   /work/evaluation/tb_trigger_check.v:135: $finish called at 95000 (1ps)\n[RESULT] ALL REQUIREMENTS PASSED\n"
+  },
+  "mutation_score": 0.625,
+  "mutation_score_meaningful": false,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR5": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR5": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 9,
+  "requirement_discrimination_coverage_score": 0.556,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "ab6f35f89798ec3ed9de075842c43ccd36d0d2cfc236d769ee944486291e4b54",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "99e6ca0ff177d0fd2c64dce64f13d0615958153eb5feec3c96504b384d31b470",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_trigger_check.v"
+  ],
+  "uncovered_requirements": [
+    "FR1",
+    "FR4",
+    "SR3",
+    "SR5"
+  ]
+}

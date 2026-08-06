@@ -1,0 +1,18 @@
+{
+  "task_id": "locked_mixed_xor_mux",
+  "domain_id": "logic_deobfuscation_sat",
+  "title": "Mixed XOR and MUX lock classification",
+  "input_artifacts": [
+    "locked_netlist.v",
+    "oracle_vectors.txt",
+    "public_key_width.txt",
+    "design_brief.md"
+  ],
+  "expected_output": "submission/recovered_key.json",
+  "evaluation_metrics": [
+    "key_recovery_rate",
+    "key_gate_localization_accuracy",
+    "scheme_classification_accuracy"
+  ],
+  "submission_kind": "analysis_report"
+}

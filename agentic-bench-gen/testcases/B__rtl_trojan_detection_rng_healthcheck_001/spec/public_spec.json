@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "The RTL must be synthesizable Verilog-2001 compatible with iverilog for simulation-based cross-checks.",
+    "The LFSR must be exactly 8 bits wide with a synchronous active-low reset loading seed 8'hA5.",
+    "The health monitor must be implemented as a compact repetition counter (not a full statistical test) counting consecutive identical rand_out samples.",
+    "design_brief.md must name the intended feedback polynomial and tap positions but must not include the actual Verilog feedback or alarm expressions.",
+    "All submitted claims about cycle period or alarm timing must be verifiable by simulating inputs/lfsr_rng.v with iverilog/vvp using testbench_stub.v as a starting point."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a candidate list of structural findings with locations, descriptions, and confidence scores",
+    "A rationale explaining how each finding was identified (e.g. via manual RTL review, simulation trace comparison, or structural diffing against the documented polynomial)"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The report JSON must contain the top-level fields 'findings' (array), 'summary' (string), and 'tool_version' (string); each element of 'findings' must include 'id', 'location' (RTL construct or line reference), 'description', and 'confidence' (a number in [0,1])."
+    },
+    {
+      "id": "FR2",
+      "requirement": "At least one finding must reference the feedback/tap logic of the LFSR (the always block or continuous assignment computing the next-state feedback bit) by name or line number as it appears in inputs/lfsr_rng.v."
+    },
+    {
+      "id": "FR3",
+      "requirement": "At least one finding must reference the health-check/repetition-monitor logic (the always block or signal computing health_error) by name or line number as it appears in inputs/lfsr_rng.v."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must state, as part of a finding or the summary, the effective period (number of distinct states before repetition) of rand_out observed or computed for the design when enable is held high after reset, expressed as an integer number of clock cycles."
+    }
+  ],
+  "input_artifacts": [
+    "lfsr_rng.v",
+    "design_brief.md",
+    "testbench_stub.v"
+  ],
+  "interface": "Module under test: lfsr_rng, defined in inputs/lfsr_rng.v. Ports: input wire clk (system clock, posedge-active), input wire rst_n (active-low synchronous reset; while rst_n==0, on the next posedge clk the internal 8-bit LFSR register 'state' must be loaded with the fixed seed 8'hA5, output_valid must be 0, and health_error must be 0), input wire enable (when 1, the LFSR advances one step per clock edge; when 0, state is held), output wire [7:0] rand_out (combinationally equal to the current 'state' register value), output wire output_valid (registered signal that goes high exactly 1 clock cycle after enable is first asserted following reset, and stays high thereafter while enable remains 1), output wire health_error (registered signal that must go high within at most 3 clock cycles of the internal repetition-count monitor observing more than 4 consecutive identical rand_out samples while output_valid is high, and must stay high until the next reset). The design_brief.md documents the intended feedback polynomial x^8+x^6+x^5+x^4+1 (Fibonacci LFSR, taps at bits 8,6,5,4). The submission answer file is submission/trojan_report.json; it is graded against the hidden ground truth by evaluate.py, which may also invoke iverilog/vvp on inputs/lfsr_rng.v to cross-check any reported cycle length or alarm-trace claims.",
+  "objective": "Review the supplied RTL implementation of an 8-bit LFSR-based random number generator with an output-valid handshake and a built-in repetition-count health monitor. Analyze the design against its design brief and report any structural discrepancies between the documented behavior and the implemented logic, including their location, nature, and your confidence that each discrepancy represents an intentional, security-relevant defect (as opposed to benign coding style). Your analysis must be delivered strictly as an answer file; you must not modify any of the provided RTL files.",
+  "response_format": "submission/trojan_report.json must be a single JSON object with keys: 'findings' (array of objects each with 'id':string, 'location':string, 'description':string, 'confidence':number 0-1), 'summary':string, 'tool_version':string. No other files are graded."
+}

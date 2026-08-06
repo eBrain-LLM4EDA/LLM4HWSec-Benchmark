@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [
+    "PASS requires FR1-FR4 satisfied AND SR1, SR2, SR3 all detected as true AND SR4 holds (correct candidate is top-ranked with confidence >= 0.5).",
+    "A report that only generically flags 'possible non-monotonic update' without naming the sequence state, the 3-c-5 nibble trigger, and the decrement payload FAILS.",
+    "An empty or boilerplate baseline submission (empty candidates list, or single vague candidate with no reference to sequence state/nibbles/decrement) FAILS."
+  ],
+  "cwe_ids": [
+    "CWE-694",
+    "CWE-841",
+    "CWE-1039"
+  ],
+  "ground_truth": "version_ctrl.v contains a 3-state (plus idle) sequence recognizer, seq_state_q, that advances only on accepted requests (req_valid && req_accept) whose candidate_version[3:0] matches specific nibbles in order: state S0->S1 on nibble 4'h3, S1->S2 on nibble 4'hc, S2->S3(terminal) on nibble 4'h5. Any accepted request whose nibble does not match the next expected value in the sequence resets seq_state_q to S0 (except a nibble equal to 4'h3 which restarts the sequence at S1 from any state). On the same clock edge that seq_state_q reaches the terminal state S3, the normal update expression version_q <= (candidate_version > version_q) ? candidate_version : version_q is bypassed and replaced with version_q <= version_q - 8'd1, silently decrementing the version register instead of applying the candidate/max logic, then seq_state_q resets to S0. This allows an attacker who controls three consecutive accepted (signed) update requests with low nibbles 3, c, 5 to roll the firmware version back by one, re-enabling a previously patched vulnerable firmware image to pass future version checks.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check that the submitted report explicitly names an internal state register (e.g., seq_state_q or equivalent) as influencing version_q updates, distinct from the documented max-comparison logic.",
+      "id": "SR1",
+      "requirement": "The report must identify that version_q update logic is NOT purely a function of (version_q, candidate_version, req_valid, req_accept) but depends on hidden sequential state accumulated across multiple prior accepted requests."
+    },
+    {
+      "detection_strategy": "Parse the report's trigger_condition field(s) for the highest-confidence candidate and check for presence of nibble values 3, c/C, 5 in a sequence-implying order (textual or structured); allow equivalent hex/decimal representations.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify the three specific low-nibble trigger values (0x3, 0xC, 0x5) and their required order as the activation condition."
+    },
+    {
+      "detection_strategy": "Check payload_effect field of the top candidate for language indicating subtraction/decrement by one from the current version register value, not merely 'wrong value' or 'reset to zero'.",
+      "id": "SR3",
+      "requirement": "The report must correctly identify that the payload effect is a decrement (version_q - 1) of the version register on the triggering cycle, rather than a no-op, a jump to a fixed value, or a generic 'incorrect update' description."
+    },
+    {
+      "detection_strategy": "Compute rank of the candidate matching SR1/SR2/SR3 by confidence; verify it is the max or tied-max confidence among all submitted candidates, and that confidence >= 0.5.",
+      "id": "SR4",
+      "requirement": "The report's overall confidence for the correct candidate must be substantively higher than for any unrelated/spurious candidates, and the report must not bury the correct finding under a large number of unsubstantiated low-value candidates (spam evasion)."
+    }
+  ],
+  "threat_model": "An attacker who can get update manifests signed/accepted (e.g., via a compromised or tricked signing oracle, or by replaying legitimately-signed but low-value candidate versions) submits a crafted sequence of three otherwise-valid, individually-legal update requests whose low nibbles are 0x3, 0xC, 0x5 in order. On the third request, instead of correctly computing max(version_q, candidate_version), the hidden logic decrements version_q by one, silently lowering the enforced minimum firmware version and allowing reinstallation of a previously deprecated/vulnerable firmware image."
+}

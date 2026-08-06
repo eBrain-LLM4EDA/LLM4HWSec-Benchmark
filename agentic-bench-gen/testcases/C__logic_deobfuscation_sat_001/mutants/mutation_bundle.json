@@ -1,0 +1,70 @@
+{
+  "generation_failures": [
+    {
+      "error": "Mutator returned a mutant with no files.",
+      "target_requirement_id": "FR1"
+    }
+  ],
+  "mutants": [
+    {
+      "expected_detection": "The mutant reports a non-empty key_gates list containing false key gate instance names, violating SR1 which requires no false key gates. The evaluator should detect this as a security requirement violation because the submission claims the netlist is locked (locked=true) and lists ordinary functional logic as key gates, when in fact the netlist has no locking logic.",
+      "files": [
+        {
+          "content": "{\n  \"locked\": true,\n  \"key_bits\": \"10101010\",\n  \"key_gates\": [\"xor_gate_0\", \"xor_gate_1\", \"xor_parity_01\", \"nor_eq_0\"]\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "SR1-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The evaluator should detect that key_bits is non-empty when locked is false, violating SR2 which requires no false key recovery. The mutant reports a fabricated 8-bit key '10101010' despite the netlist having no key logic.",
+      "files": [
+        {
+          "content": "{\n  \"locked\": false,\n  \"key_bits\": \"10101010\",\n  \"key_gates\": []\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "SR2-001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The submission file is missing the required 'locked' field, causing JSON schema validation to fail. The evaluator should reject this because FR2 mandates that the JSON must contain the three required fields: 'locked', 'key_bits', and 'key_gates'.",
+      "files": [
+        {
+          "content": "{\n  \"key_bits\": \"\",\n  \"key_gates\": []\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "FR2-001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The submission violates FR3: locked is false but key_bits is not empty and key_gates is not an empty array. The evaluator must reject this submission because it fails the structural constraint that when locked is false, both key_bits must be empty string and key_gates must be empty array.",
+      "files": [
+        {
+          "content": "{\n  \"locked\": false,\n  \"key_bits\": \"10101010\",\n  \"key_gates\": [\"xor_gate_0\", \"xor_gate_1\"]\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "FR3-001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "The mutant violates FR4 because locked is true but key_bits is an empty string, which FR4 explicitly forbids (key_bits must be non-empty when locked is true). The evaluator should reject this submission.",
+      "files": [
+        {
+          "content": "{\n  \"locked\": true,\n  \"key_bits\": \"\",\n  \"key_gates\": [\"xor_gate_0\"]\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "FR4-001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

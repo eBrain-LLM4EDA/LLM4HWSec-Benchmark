@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "// packet_kernel.cpp\n//\n// Hardened packet transformation kernel.\n//\n// Security property: every invocation of process_packet writes all 32\n// bytes of out_buf, unconditionally. Bytes at indices >= length are\n// always explicitly set to 0x00, never left containing stale data from\n// a previous call that may have used a longer length. This prevents\n// cross-invocation leakage of confidential data through a shared\n// output buffer (CWE-459 / CWE-200 / CWE-212).\n//\n// The loop has a fixed trip count of 32 iterations (bounded by the\n// array size), and `length` is used only as a per-iteration\n// conditional (i < length), never as a loop bound. No dynamic memory\n// allocation, no recursion, no global or static state.\n\nvoid process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32])\n{\n    for (int i = 0; i < 32; ++i) {\n        bool valid = (i < length);\n        unsigned char transformed = (unsigned char)(((in_buf[i] ^ 0xA5) + i) & 0xFF);\n        out_buf[i] = valid ? transformed : (unsigned char)0x00;\n    }\n}",
+      "path": "golden/packet_kernel.cpp"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/packet_kernel.cpp",
+      "purpose": "Hardened reference implementation matching exact interface: void process_packet(const unsigned char in_buf[32], int length, unsigned char out_buf[32]). Uses a single fixed-trip-count loop (32 iterations, index i from 0 to 31, bounded by array size) with no early exit. On each iteration, computes a boolean valid = (i < length) using length only as a per-iteration conditional, then writes out_buf[i] = valid ? ((in_buf[i] ^ 0xA5) + i) & 0xFF : 0x00, unconditionally writing every one of the 32 output bytes on every call regardless of length or prior call history. No global/static state, no dynamic allocation, no recursion. Compiles cleanly with g++ -Wall -Wextra -std=c++11. Satisfies FR1-FR4 and SR1-SR3: full 32-byte write every call eliminates stale-BRAM-data leakage (CWE-459/CWE-200/CWE-212) since output beyond length is always freshly set to 0x00, never left over from a previous invocation's buffer contents."
+    }
+  ]
+}

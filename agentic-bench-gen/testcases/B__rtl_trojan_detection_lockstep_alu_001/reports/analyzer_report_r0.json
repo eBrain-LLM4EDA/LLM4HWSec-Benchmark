@@ -1,0 +1,89 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 and SR5 are dead checks per mutation analysis - no mutant targeting them was ever detected as FAIL, meaning these checks provide no real discrimination power. FR1's structural validation is too permissive (baseline empty JSON already satisfies it) and SR5's logic is circular/vacuous (it passes by construction rather than independently verifying baseline failure).",
+      "evidence": "dead_checks: [\"FR1\", \"SR5\"]; per_requirement_coverage shows FR1 and SR5 both have mutants_detected=0 out of mutants_targeting=1",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR4 and SR3 requirements are uncovered by mutation testing - mutants specifically targeting these checks were not detected, suggesting the regex patterns may be too permissive or the mutants didn't sufficiently perturb the targeted behavior to be caught.",
+      "evidence": "uncovered_requirements: [\"FR1\", \"FR4\", \"SR3\", \"SR5\"]; requirement_discrimination_coverage_score: 0.556",
+      "severity": "medium"
+    },
+    {
+      "artifact": "mutation run",
+      "description": "One mutant run crashed, timed out, or used unsafe paths during mutation testing, indicating incomplete mutation quality assessment.",
+      "evidence": "error_runs: 1; issue: 'mutation_execution_error' - 1 mutant run(s) crashed, timed out, or used unsafe paths",
+      "severity": "low"
+    },
+    {
+      "artifact": "inputs/lockstep_alu.v",
+      "description": "Comments in the RTL use language like 'rare diagnostic condition used internally for corner-case calibration' which is a plausible-sounding cover story but could be seen as a mild wink toward the hidden trigger; however this is standard trojan-benchmark practice and does not leak CWE ids, SR ids, or explicit security framing, so it stays within acceptable bounds for a hardened_artifact domain.",
+      "evidence": "inputs/lockstep_alu.v comments: 'Rare diagnostic condition used internally for corner-case calibration of the compare stage' and 'Mismatch qualification stage... under the rare diagnostic condition the compare output is gated off.'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen FR1's structural check or add a distinguishing mutant so it is not a dead check -- e.g. require overall_confidence to be present with correct type even when candidates is non-empty, and test with a mutant that removes/corrupts only the top-level 'summary' field without touching candidates.",
+    "Revise SR5's implementation so it independently verifies the empty-baseline-must-fail property rather than relying on the other checks (any_substantive_pass) for its own pass/fail; add a dedicated mutant that keeps candidates non-empty but sets overall_confidence=0 to test whether SR5 logic behaves correctly in edge cases.",
+    "Add or strengthen mutants targeting FR4 and SR3 specifically (e.g. a mutant that removes only the mismatch-masking-related rationale text while keeping other candidates intact) to close the coverage gap shown in per_requirement_coverage.",
+    "Investigate and fix the mutation run that crashed/timed out (error_runs=1) to ensure full mutation quality assessment.",
+    "Consider having evaluate.py emit or a wrapping harness compute the four named metrics (detection_rate, false_positive_rate, trigger_payload_localization, confidence_calibration) explicitly, since the task_spec advertises these as the evaluation metrics but the current evaluator only produces binary PASS/FAIL per requirement."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run: exit_code=0, status=pass, all FR1-FR4/SR1-SR5 show [TEST] PASS",
+      "requirement": "evaluate.py accepts a correct/golden submission (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run (baseline empty candidates): exit_code=1, status=fail, FAILED REQUIREMENTS: FR2, FR3, FR4, SR1, SR2, SR3, SR4",
+      "requirement": "evaluate.py rejects the naive/empty baseline submission (exit non-zero, FAIL)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py only emits PASS/FAIL per requirement id and an overall exit code; it does not compute or output detection_rate, false_positive_rate, trigger_payload_localization, or confidence_calibration as named numeric metrics. These appear intended as scoring metrics computed by a higher-level harness from the PASS/FAIL results, but no artifact in the bundle demonstrates this aggregation.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trigger_payload_localization, confidence_calibration)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type='functional' and SR1-SR5 as requirement_type='security', each with distinct expected_detection logic",
+      "requirement": "Requirement map covers functional (FR1-FR4) and security (SR1-SR5) requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_trigger_check.v drives the exact trigger vector (opcode=2'b10, operand_a=8'h5a, operand_b=8'ha5) plus benign vectors and confirms bit[3] deviation and mismatch=0 despite disagreement (VEC 5/6 show result=0f vs golden=00, mismatch=0), corroborating the RTL ground truth; however this simulation is explicitly informational only and does not gate any PASS/FAIL, so grading itself remains purely textual/regex-based over the submitted JSON, appropriate for an analysis_report submission_kind",
+      "requirement": "Security-relevant behaviors are actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are plain Verilog/JSON/Markdown with no external dependencies beyond iverilog/vvp (optional); no unsafe operations or network calls present",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "The lockstep_alu.v design, trigger condition, dual-payload (res_mux + mismatch_mask) structure, and CWE-1245/696/670/693 mapping are specific to RTL hardware trojan detection with a genuine compensating trojan pattern, not generic filler",
+      "requirement": "Benchmark is domain-adapted rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "public_spec interface matches inputs/lockstep_alu.v port list exactly; hidden_spec ground truth (rare_trig, res_mux bit[3] flip, mismatch_mask forcing) matches the actual RTL constructs verified by baseline_run simulation output (VEC 5/6: result=0f/08 vs golden=00, mismatch=0)",
+      "requirement": "Public inputs, hidden ground truth, and expected outputs are coherent",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and testbench_stub.v contain no CWE ids, SR ids, or explicit statements that the RTL is intentionally trojaned; manifest confirms 'No mention of CWE/SR ids or hints that the RTL is intentionally trojaned beyond analyze for suspicious logic'",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each specify precise, distinct, checkable conditions (JSON schema fields, candidate object fields, trigger-condition co-mention, dual-role result/mismatch coverage) rather than a single generic restatement of the objective",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

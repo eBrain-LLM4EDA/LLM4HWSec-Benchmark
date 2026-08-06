@@ -1,0 +1,88 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator rejects the expert golden solution (golden/trojan_report.json) because the golden file contains placeholder instance names (aoi21_trigger, oai22_trigger, trigger_internal, trigger_to_xor) that do not exist in the netlist, causing FR4 failures. The golden file must match the actual instance/net names in design.v (aoi_trig, oai_trig, n_trigger_internal, n_payload_out, xor_payload).",
+      "evidence": "Validation report golden_run stdout: [TEST] FAIL: FR4: cell 'aoi21_trigger' not found in netlist; [TEST] FAIL: FR4: cell 'oai22_trigger' not found in netlist; [TEST] FAIL: FR4: net 'trigger_internal' not found in netlist; [TEST] FAIL: FR4: net 'trigger_to_xor' not found in netlist; [TEST] FAIL: SR1: missing trigger cells: ['aoi_trig', 'oai_trig']; [TEST] FAIL: SR1: missing trigger nets: ['n_trigger_internal']; [TEST] FAIL: SR2: missing payload nets: ['n_payload_out']",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure the required metrics (detection_rate, false_positive_rate, inference_latency). It only produces binary PASS/FAIL per requirement and exits with 0 or 1. The task specification requires these metrics to be computed and reported.",
+      "evidence": "evaluate.py contains no code to compute detection_rate, false_positive_rate, or inference_latency. It only checks exact set membership and exits with sys.exit(0) or sys.exit(1).",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator's FR4 check uses a heuristic netlist parser that may miss valid net names or include false positives, making the check unreliable. The parser relies on regex patterns that may not capture all net declarations or port connections correctly.",
+      "evidence": "parse_netlist() uses regex patterns for wire declarations and port connections. The port connection heuristic only adds identifiers matching r'^[a-z_]\\w*$' that are not already known cells, which could miss nets with uppercase letters or include non-net identifiers.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/private/ground_truth.json",
+      "description": "The ground truth file is correct but the golden submission file (golden/trojan_report.json) does not match it, causing the golden_rejected failure. The golden file must be updated to contain the exact instance/net names from the ground truth.",
+      "evidence": "ground_truth.json contains: trigger_cells: ['aoi_trig', 'oai_trig'], trigger_nets: ['n_trigger_internal'], payload_cells: ['xor_payload'], payload_nets: ['n_payload_out']. The golden file contains different names.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "submission/trojan_report.json",
+      "description": "The shipped baseline submission contains empty arrays for all four required keys, which correctly fails FR3. However, the baseline should also fail FR4 and SR1/SR2 to fully demonstrate the evaluator's discrimination. The current baseline only fails FR3.",
+      "evidence": "Baseline submission: {'trigger_cells': [], 'trigger_nets': [], 'payload_cells': [], 'payload_nets': []}. Vulnerable run stdout shows only FR3 failures.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The evaluator does not measure inference_latency as required by the task specification. The evaluation metrics section lists inference_latency as a metric to minimize, but no timing code exists.",
+      "evidence": "evaluate.py has no timing instrumentation (e.g., time.time() or timeit). The task spec requires inference_latency measurement.",
+      "severity": "low"
+    },
+    {
+      "artifact": "README.md",
+      "description": "The README mentions evaluation metrics (detection_rate, false_positive_rate, inference_latency) but the evaluator does not compute them. This creates a mismatch between participant expectations and actual grading behavior.",
+      "evidence": "README.md: 'The evaluation metrics include: Detection rate, False positive rate, Inference latency'. evaluate.py does not compute any of these.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix golden/trojan_report.json to contain the exact instance names from ground_truth.json: trigger_cells=['aoi_trig', 'oai_trig'], trigger_nets=['n_trigger_internal'], payload_cells=['xor_payload'], payload_nets=['n_payload_out'].",
+    "Update evaluate.py to compute and report the required metrics: detection_rate, false_positive_rate, and inference_latency. The script should output these metrics in a machine-readable format (e.g., JSON) in addition to the PASS/FAIL markers.",
+    "Improve the netlist parser in evaluate.py to reliably extract all cell instances and net names. Consider using a proper Verilog parser (e.g., pyverilog or yosys-based extraction) instead of regex heuristics.",
+    "Update the baseline submission to include plausible but incorrect instance/net names (e.g., ['u_trigger'], ['n_trig']) so that it fails FR4 and SR1/SR2, better demonstrating the evaluator's discrimination.",
+    "Ensure the README accurately describes the evaluation process. If metrics are not computed, remove them from the README or add the computation to evaluate.py.",
+    "Add timing instrumentation to evaluate.py to measure inference_latency as specified in the task requirements."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py checks file existence and JSON parseability. Both golden and baseline runs pass FR1.",
+      "requirement": "FR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py checks for exactly the four required top-level keys. Both golden and baseline runs pass FR2.",
+      "requirement": "FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py checks non-empty arrays of strings. Baseline correctly fails FR3; golden passes FR3.",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py checks that reported names exist in netlist. Golden fails FR4 because golden file uses placeholder names not in design.v. The netlist parser may also be unreliable.",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py checks trigger components against ground truth. Golden fails SR1 because golden file uses wrong instance/net names. Baseline fails SR1 because arrays are empty.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py checks payload components against ground truth. Golden fails SR2 because golden file uses wrong net name. Baseline fails SR2 because arrays are empty.",
+      "requirement": "SR2",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

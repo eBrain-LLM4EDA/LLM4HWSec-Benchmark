@@ -1,0 +1,104 @@
+{
+  "domain_id": "hardware_reverse_engineering",
+  "evaluation": {
+    "baselines": [
+      "HAL benchmarks",
+      "ISCAS'85",
+      "ITC'99",
+      "naive stub submission tying rdata0/rdata1 to zero (must fail)"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of simulated clock cycles across all randomized test sequences (writes, reads, collisions, resets) in which rdata0 and rdata1 from the submission exactly match the independently generated reference design.",
+        "direction": "maximize",
+        "name": "cycle_accurate_match_rate"
+      },
+      {
+        "description": "Fraction of the four architecturally distinct register entries (0-3) for which the submission demonstrably recovers correct read/write mapping under targeted single-address write-then-read test vectors.",
+        "direction": "maximize",
+        "name": "word_recovery_rate"
+      },
+      {
+        "description": "Static structural check (fail-on-presence only) confirming the submission uses explicit clocked storage (no latches/no combinational feedback loops) and purely combinational read multiplexing, used only to flag disallowed constructs, never to grant a PASS.",
+        "direction": "maximize",
+        "name": "structural_match_accuracy"
+      },
+      {
+        "description": "Boolean pass/fail per test scenario (basic read/write, collision, reset-then-read, dual-port independence) indicating whether the submission's simulated I/O behavior is functionally equivalent to the reference across the full randomized regression.",
+        "direction": "maximize",
+        "name": "functional_equivalence"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A reference design (authored independently from public_spec.interface only) and the submission produce bit-identical rdata0/rdata1 waveforms cycle-by-cycle under randomized write/read/collision/reset sequences for at least 500 simulated clock cycles across multiple random seeds.",
+      "The submission compiles cleanly with iverilog against the generated testbench with zero errors and zero unresolved references.",
+      "The empty/naive baseline submission (a stub module that ties rdata0/rdata1 to constant 0 or passes through raw inputs) must fail the cycle-accurate comparison.",
+      "No submission that adds a one-cycle read latency, a combinational-bypass-only collision fix that glitches, or an asynchronous reset passes the behavioral simulation."
+    ],
+    "cwe_ids": [
+      "CWE-1245",
+      "CWE-203"
+    ],
+    "ground_truth": "The gate-level netlist and obfuscated wrapper implement a 4x8 register file: an internal reg [7:0] mem[0:3] array updated synchronously (synchronous active-high reset clears all entries to 0, else on we=1 mem[waddr] <= wdata), with two fully combinational read ports assign rdata0 = mem[raddr0]; assign rdata1 = mem[raddr1]; so that same-address reads observe the newly written value starting the cycle after the write edge (standard synchronous-write, combinational-read register file with natural write-forwarding via the registered array read after the clock edge, i.e. no explicit bypass mux is needed or should be added).",
+    "security_requirements": [
+      {
+        "detection_strategy": "Testbench toggles raddr0/raddr1 mid-cycle (without a clock edge) after a write has committed and checks that rdata updates within the same simulation time step, with no dependency on an additional posedge clk.",
+        "id": "SR1",
+        "requirement": "The recovered design must not introduce any extra pipeline latency on the read ports (they must remain purely combinational with zero cycles from address change to data observation), since a hidden extra register stage would desynchronize any downstream logic depending on immediate read-after-write visibility."
+      },
+      {
+        "detection_strategy": "Testbench applies back-to-back same-address write-then-read collisions across many random seeds and checks the read value transitions cleanly to the new data with no intermediate glitch value observed via zero-delay sampling immediately after the clock edge.",
+        "id": "SR2",
+        "requirement": "The recovered design must not implement the write-forwarding/collision case using a combinational bypass multiplexer that could race with the clocked update and produce nondeterministic or glitchy output; the correct fix is that the read simply observes the already-updated synchronous register on the next delta cycle after the edge."
+      },
+      {
+        "detection_strategy": "Testbench writes distinct nonzero patterns to all 4 addresses, asserts rst for one cycle, then immediately samples all reads (without any intervening write) and requires 0x00 on every address for both read ports.",
+        "id": "SR3",
+        "requirement": "Reset must clear all four entries synchronously and must not leave stale data observable on any read port even transiently after reset is asserted and before the first post-reset write, avoiding disclosure of previously stored bytes."
+      }
+    ],
+    "threat_model": "An undocumented register-file block cannot be safely reused or replaced in a larger design when its exact port timing (write latency, reset semantics, and read/write collision policy) is concealed by gate-level flattening. A reverse engineer who infers the wrong collision policy (e.g. assuming the read returns the OLD value on a same-cycle collision, or adding an unnecessary one-cycle read latency) will produce a drop-in replacement that silently corrupts data paths relying on immediate write-visibility, and could also introduce inconsistent reads (e.g. combinational races) that leak stale bytes to a read port under adversarial address toggling."
+  },
+  "public_spec": {
+    "constraints": [
+      "The submitted file must define exactly one module named reg_file_recovered with the port list given in the interface section, synthesizable with iverilog/yosys.",
+      "Internal storage must be modeled as explicit clocked registers (e.g. a reg [7:0] array of 4 entries updated in an always @(posedge clk) block), not as latches or combinational feedback loops.",
+      "Read ports must be implemented as purely combinational multiplexers over the register array (assign or always @(*) blocks), introducing no additional pipeline registers or clock-cycle delays.",
+      "The module must not include any $stop, $finish, or non-synthesizable simulation-only constructs that would prevent it from running in a testbench.",
+      "Do not instantiate or depend on any external module other than standard Verilog primitives; the recovered RTL must be fully self-contained in the single submitted file."
+    ],
+    "expected_outputs": [
+      "submission/recovered_rtl.v containing a synthesizable Verilog module named reg_file_recovered with the exact port list given in the interface section"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "Given a sequence of writes to distinct addresses with we=1, subsequent combinational reads (raddr0/raddr1) of those addresses must return the exact written byte values with zero cycles of extra latency, for all 4 addresses (0..3) and representative data values including 0x00, 0xFF, 0xA5, 0x3C."
+      },
+      {
+        "id": "FR2",
+        "requirement": "When rst=1 is asserted for one or more rising edges, all four entries must read back as 0x00 on both read ports immediately after the first such edge, regardless of prior contents, and remain 0x00 until a subsequent write occurs."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For same-address read/write collisions (raddr0==waddr or raddr1==waddr with we=1 on the same rising edge), the read data on that port must equal the NEW data value from the cycle immediately following the edge onward, not the previous stored value."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The two read ports must operate fully independently: driving raddr0 and raddr1 to different addresses in the same cycle must return the correct, independent contents of each addressed entry simultaneously, with no interference between ports."
+      }
+    ],
+    "input_artifacts": [
+      "gate_netlist.v",
+      "obfuscated_wrapper.v",
+      "design_brief.md"
+    ],
+    "interface": "Module name: reg_file_recovered. File: submission/recovered_rtl.v. Ports (all synchronous to clk unless noted): input clk; input rst (synchronous, active-high); input we (write enable, active-high); input [1:0] waddr (write address, 4 entries); input [7:0] wdata (write data); input [1:0] raddr0 (read port 0 address, combinational); input [1:0] raddr1 (read port 1 address, combinational); output [7:0] rdata0 (read port 0 data); output [7:0] rdata1 (read port 1 data). TIMING CONTRACT: (1) Write behavior: on each rising edge of clk where rst=0 and we=1, the 8-bit entry at waddr is updated to wdata; this is the ONLY write mechanism, exactly one write per enabled edge, no other addresses change. (2) Reset: synchronous, active-high. When rst=1 at a rising edge, all four internal storage entries are cleared to 8'h00 on that edge (rdata0/rdata1 reflect all-zero entries starting from the NEXT rising edge after rst was sampled high, i.e. reset is Moore-timed exactly like a write). While rst=1 is held, we is ignored (no write occurs even if asserted). (3) Read ports are Mealy/combinational: rdata0 and rdata1 at any simulation time equal the CURRENT contents of the internal storage array indexed by raddr0 and raddr1 respectively, with zero clock cycles of latency -- they change immediately (same delta-cycle) whenever the addressed entry's stored value changes, and also immediately track address changes with no clock edge required. (4) Write-forwarding / collision rule: if a read address (raddr0 or raddr1) equals waddr during a cycle in which a write commits on the rising edge, the read data for that port must show the OLD value up until and including the moment just before the edge, and must show the NEWLY WRITTEN value starting immediately after that same rising edge (i.e. read ports observe the post-edge, updated register state with zero extra cycles of delay -- there is no one-cycle-old read-after-write hazard). (5) No other latency: rdata0/rdata1 must never lag the internal state by any clock cycle; they are pure combinational reads of the current registers, only the registers themselves are clocked.",
+    "objective": "You are given a flattened gate-level netlist and a partially obfuscated RTL wrapper describing a small four-entry by eight-bit storage block with one synchronous write port and two independent combinational read ports. The original word-level intent has been lost during flattening (individual DFFs, address decoders, and output multiplexers were expanded into primitive gates). Recover a clean, word-level Verilog implementation of this block that reproduces its exact input/output timing behavior, including how a read port behaves when it targets the same address that is being written on the same clock edge.",
+    "response_format": "A single Verilog file at submission/recovered_rtl.v containing exactly one module named reg_file_recovered matching the pinned port list, synthesizable and simulatable with iverilog."
+  },
+  "task_id": "hwre_dualport_regfile_recovery_001",
+  "title": "Recover a dual-read register file and collision behavior"
+}

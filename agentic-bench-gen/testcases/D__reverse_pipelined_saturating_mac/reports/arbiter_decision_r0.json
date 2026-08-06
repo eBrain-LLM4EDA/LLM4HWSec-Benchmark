@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The benchmark is completely non-functional: both the golden and vulnerable baseline runs fail with compilation errors due to syntax errors in the testbench (evaluation/tb_mac_top.v line 178) and in the shipped baseline submission (submission/recovered_rtl.v line 51). The mutation score is 0.0 and not meaningful because no simulation can run. All six requirements (FR1-FR4, SR1-SR2) are untested because no targeting mutants were provided. The evaluator also fails to measure the specified metrics (word_recovery_rate, structural_match_accuracy). The golden solution is rejected due to the testbench syntax error, not because of a genuine behavioral mismatch. The root cause is evaluation_issue: the evaluation framework (testbench and evaluate.py) must be fixed to compile and run correctly, and targeting mutants must be provided to prove harness discrimination.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

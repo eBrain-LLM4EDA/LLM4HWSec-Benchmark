@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The mutation score is 0.0 and not meaningful because the golden baseline run failed. The golden submission (correct key '101101' and correct hierarchical net names) is rejected by evaluate.py due to a bug in the extract_net_names() function, which cannot parse hierarchical net names like 'lock_comp/xor_0' from the Verilog netlist. This causes FR3 to fail for the correct answer. Additionally, no mutants were generated, so all requirements are untested. The primary issue is the evaluator bug that rejects the golden solution, making the benchmark unusable. The oracle vectors format is also ambiguous but secondary.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 0
+}

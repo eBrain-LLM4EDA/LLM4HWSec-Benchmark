@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "{\n  \"vulnerable_cycle\": 3,\n  \"state_register\": \"state_q\",\n  \"result_register\": \"auth_result_q\",\n  \"explanation\": \"A clock glitch injected at the cycle where the FSM transitions from COMPARE to DECIDE can cause the auth_result_q register to skip its update while the state_q register advances. This leaves a stale pass value in auth_result_q from a previous successful authentication, granting unauthorized access without a valid comparison.\"\n}",
+      "path": "golden/vulnerability_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/vulnerability_report.json",
+      "purpose": "The golden answer file for the analysis_report submission. Contains the exact ground-truth values: vulnerable_cycle (integer cycle index where state transitions from COMPARE to DECIDE), state_register (string 'state_q'), result_register (string 'auth_result_q'), and explanation (non-empty string describing the clock-glitch vulnerability mechanism where skipping auth_result_q update while state_q advances leaves a stale pass value). Must be valid JSON parseable by standard parsers. This file is overlaid onto submission/vulnerability_report.json during grading."
+    }
+  ]
+}

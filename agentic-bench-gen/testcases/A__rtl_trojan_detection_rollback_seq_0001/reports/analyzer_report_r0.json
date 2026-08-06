@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/private/sr_checks.py / report_checks.py",
+      "description": "FR3 requirement has zero mutants detected by its own targeting mutant (per validation report), indicating the FR3 check may be weak or the mutant designed to test it isn't actually distinguishing correct vs incorrect behavior at that boundary, despite the differential test showing FR3 does trigger on the vulnerable/naive submission.",
+      "evidence": "per_requirement_coverage.FR3: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: ['FR3']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/version_ctrl.v comments",
+      "description": "Comments describe the sequence-tracking logic as an 'audit counter' for 'future logging/telemetry hooks', which is a benign-sounding cover story consistent with hardened_artifact-style obfuscation, but this is appropriate for the task and does not leak hidden spec details (no CWE/SR ids present).",
+      "evidence": "'Also maintains a small internal request-pattern audit counter used for future logging/telemetry hooks on the low-order bits of accepted candidate versions. This bookkeeping has no documented externally visible effect.'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why the FR3-targeting mutant achieved 0/1 detection despite the differential test showing FR3 fires correctly on the vulnerable/naive submission; consider strengthening or replacing that specific mutant so mutation testing accurately reflects FR3's discriminative power.",
+    "Consider adding a mutant that specifically tests FR3 in isolation (e.g., a submission with candidates that reference version_q/candidate_version/req_valid/req_accept only, omitting any state-signal naming) to properly validate the FR3 check boundary in mutation testing.",
+    "Overall the benchmark is usable: baseline correctly fails, golden correctly passes, security requirements are substantively and specifically checked against ground truth (nibble sequence and decrement payload), and no hidden spec details leak into public artifacts. The single mutation coverage gap on FR3 is a minor testing-infrastructure issue rather than a functional flaw in evaluate.py itself."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.vulnerable_run exit_code=1, status=fail, FR3 onward fail as expected; baseline_run also passes trivially since it corresponds to golden report matching, and mutation_baseline_run passes all \u2014 confirms golden passes, naive baseline fails.",
+      "requirement": "Baseline (empty/naive) submission must FAIL",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code=0, status=pass, all FR/SR PASS lines present.",
+      "requirement": "Golden/correct submission must PASS (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1-SR4 checks map conceptually to these metrics: SR1/FR3 to detection_rate and hidden-state identification, SR2/SR3 to trigger_payload_localization, SR4 to confidence_calibration and implicitly false_positive_rate via spam guard.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trigger_payload_localization, confidence_calibration)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type functional and SR1-SR4 as requirement_type security, each with distinct expected_detection and test_files.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR2/SR3 checks require exact nibble sequence (0x3,0xC,0x5) ordering and decrement payload phrasing tied to the specific ground truth in version_ctrl.v, not generic anomaly flagging; Trust-Hub-style baseline is explicitly designed to fail SR2/SR3.",
+      "requirement": "Security-relevant behaviors actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "version_ctrl.v is self-contained Verilog, no external deps; README/metadata/design_brief are plain text with no unsafe content.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task involves a concrete Verilog module with FSM-based trigger sequence and decrement payload, domain-specific interface signals (clk, rst_n, req_valid, candidate_version, req_accept, version_q, update_ack), and grading tied to RTL semantics.",
+      "requirement": "Benchmark adapted to domain (RTL trojan detection) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR3 shows 0/1 mutants detected in per_requirement_coverage despite appearing to work correctly in the differential test; this suggests the FR3-targeting mutant used in mutation testing does not actually exercise the FR3 boundary distinctly, creating a minor verifiability gap for that specific functional requirement's discriminative power, though overall mutation_score is high (0.875).",
+      "requirement": "Gaps that would make results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md contain no CWE ids, SR ids, or explicit mention of trojans/backdoors/malicious intent; design_brief.md vaguely mentions 'internal bookkeeping' for audit purposes without disclosing the nibble sequence or decrement payload.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are concrete: FR1 checks top-level JSON schema, FR2 checks per-candidate field types, FR3 checks for internal state signal naming, FR4 checks exact terminal update expression in top candidate \u2014 all machine-checkable via evaluate.py against the pinned interface.",
+      "requirement": "Public functional requirements concrete and machine-checkable (2-4 of them)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

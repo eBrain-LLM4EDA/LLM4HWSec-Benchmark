@@ -1,0 +1,30 @@
+{
+  "acceptance_criteria": [
+    "The submitted vulnerability_report.json passes all functional requirements (FR1-FR4).",
+    "The submitted vulnerability_report.json satisfies all security requirements (SR1-SR3).",
+    "A naive/empty submission (e.g., empty JSON object or missing fields) must fail evaluation."
+  ],
+  "cwe_ids": [
+    "CWE-203",
+    "CWE-1245"
+  ],
+  "ground_truth": "share0_stage2_q and share1_stage2_q are updated in the same cycle and their joint transition correlates with the unmasked value; retiming one share breaks the alignment.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Exact string match against the ground truth register names in the \"leaking_register_pair\" array.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify the pair (share0_stage2_q, share1_stage2_q) as the leaking register pair."
+    },
+    {
+      "detection_strategy": "Check that the \"first_order_analysis\" array contains entries for both registers with \"safe\": true.",
+      "id": "SR2",
+      "requirement": "The report must state that both registers appear safe under individual first-order Hamming-distance analysis."
+    },
+    {
+      "detection_strategy": "Check that the \"alignment_condition\" field contains a description matching the ground truth temporal alignment, and that \"second_order_analysis.leaking\" is true.",
+      "id": "SR3",
+      "requirement": "The report must correctly identify that the joint transition leaks when both registers update in the same clock cycle."
+    }
+  ],
+  "threat_model": "An attacker combines two centered power samples to cancel masking randomness and recover a secret-dependent intermediate."
+}

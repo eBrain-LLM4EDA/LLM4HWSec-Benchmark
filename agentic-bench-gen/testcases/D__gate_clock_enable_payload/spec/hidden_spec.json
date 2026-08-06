@@ -1,0 +1,24 @@
+{
+  "acceptance_criteria": [
+    "The submitted report correctly identifies trojan_detected as true.",
+    "The suspect_nodes list contains the exact hierarchical name of the trigger cone's output net and the payload gate that drives the suppressed clock enable signal.",
+    "The suspect_nodes list does not contain any false positives (nodes unrelated to the Trojan)."
+  ],
+  "cwe_ids": [
+    "CWE-1245"
+  ],
+  "ground_truth": "A rare four-input NAND cone drives the labeled enable mask; when active it forces update_en low and freezes the authentication state register.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if the submitted suspect_nodes list includes the hierarchical name of the output net of the 4-input NAND gate that forms the trigger.",
+      "id": "SR1",
+      "requirement": "The detection method must identify the rare trigger cone composed of a four-input NAND gate with specific net connections."
+    },
+    {
+      "detection_strategy": "Check if the submitted suspect_nodes list includes the hierarchical name of the gate that drives the update_en net low when the trigger is activated.",
+      "id": "SR2",
+      "requirement": "The detection method must identify the payload gate that suppresses the clock enable signal."
+    }
+  ],
+  "threat_model": "A denial-of-service Trojan freezes security state updates while leaving combinational outputs apparently normal."
+}

@@ -1,0 +1,54 @@
+{
+  "files": [
+    {
+      "content": "# Clock-Glitch Vulnerability Analysis in Authentication FSM\n\n## Objective\n\nYou are given a Verilog RTL design of a simple authentication finite-state machine (FSM), a fault model describing a single-cycle clock glitch, and a normal-operation trace. Your task is to analyze these artifacts and identify the vulnerable clock cycle and the critical registers where a skipped register update can allow an attacker to bypass authentication and gain unauthorized access.\n\n## Input Artifacts\n\nAll input files are located in the `inputs/` directory:\n\n- **`auth_fsm.v`** \u2013 Verilog RTL of the authentication FSM. It contains the state register and a result register that control the authentication flow.\n- **`fault_model.json`** \u2013 A JSON file describing the fault injection capability: a single clock glitch that causes exactly one register update to be skipped during a chosen clock cycle, while combinational logic continues to evaluate normally.\n- **`normal_trace.txt`** \u2013 A cycle-by-cycle trace of the FSM operating under normal conditions (no fault) for a successful authentication sequence. It shows the values of the state and result registers at each cycle.\n\n## Expected Output\n\nYou must produce a single JSON file at `submission/vulnerability_report.json` with the following structure:\n\n```json\n{\n  \"vulnerable_cycle\": <integer>,\n  \"state_register\": \"<string>\",\n  \"result_register\": \"<string>\",\n  \"explanation\": \"<string>\"\n}\n```\n\n- **`vulnerable_cycle`** \u2013 The clock cycle index (integer) where injecting the glitch causes the authentication bypass.\n- **`state_register`** \u2013 The exact signal name (string) of the state register in `auth_fsm.v` whose update, if skipped, contributes to the vulnerability.\n- **`result_register`** \u2013 The exact signal name (string) of the result register in `auth_fsm.v` whose stale value enables the bypass.\n- **`explanation`** \u2013 A non-empty string briefly describing the mechanism by which the skipped update leads to unauthorized access.\n\n## Constraints\n\n- Your analysis must be based solely on the provided input artifacts.\n- The fault model describes a single clock cycle where one register update is skipped while combinational logic continues to evaluate.\n- The normal trace represents the expected cycle-by-cycle behavior without faults.\n\n## Submission\n\nPlace your answer in `submission/vulnerability_report.json`. A starter file with placeholder values is provided; replace it with your findings.",
+      "path": "README.md"
+    },
+    {
+      "content": "{\n  \"task_id\": \"rtl_auth_clock_glitch_window\",\n  \"domain_id\": \"side_channel_fault_analysis\",\n  \"input_artifacts\": [\n    \"auth_fsm.v\",\n    \"fault_model.json\",\n    \"normal_trace.txt\"\n  ],\n  \"expected_output\": \"A vulnerability_report.json file identifying the vulnerable cycle and the critical state/result signals.\",\n  \"metrics\": [\n    {\n      \"name\": \"leakage_detection_accuracy\",\n      \"description\": \"Proportion of correctly identified vulnerable registers and cycles out of the total ground truth set.\",\n      \"direction\": \"maximize\"\n    },\n    {\n      \"name\": \"fault_coverage\",\n      \"description\": \"Whether the reported vulnerability covers the critical fault injection point that leads to unauthorized access.\",\n      \"direction\": \"maximize\"\n    },\n    {\n      \"name\": \"hardening_precision\",\n      \"description\": \"Precision of the hardening suggestions derived from the vulnerability report, measured as the ratio of correct suggestions to total suggestions.\",\n      \"direction\": \"maximize\"\n    }\n  ]\n}",
+      "path": "metadata.json"
+    },
+    {
+      "content": "module auth_fsm (\n    input  wire        clk,\n    input  wire        rst_n,\n    input  wire [7:0]  password,\n    output reg         access_granted\n);\n\n    // State encoding\n    localparam IDLE    = 3'd0;\n    localparam COMPARE = 3'd1;\n    localparam DECIDE  = 3'd2;\n    localparam GRANT   = 3'd3;\n    localparam DENY    = 3'd4;\n\n    // Stored password (hardcoded for simplicity)\n    localparam [7:0] STORED_PASSWORD = 8'hA5;\n\n    // Registers\n    reg [2:0] state_q;\n    reg       auth_result_q;\n\n    // Next-state logic\n    reg [2:0] state_next;\n    reg       auth_result_next;\n\n    always @* begin\n        // Defaults\n        state_next = state_q;\n        auth_result_next = auth_result_q;\n\n        case (state_q)\n            IDLE: begin\n                state_next = COMPARE;\n                auth_result_next = 1'b0;\n            end\n\n            COMPARE: begin\n                if (password == STORED_PASSWORD)\n                    auth_result_next = 1'b1;\n                else\n                    auth_result_next = 1'b0;\n                state_next = DECIDE;\n            end\n\n            DECIDE: begin\n                if (auth_result_q)\n                    state_next = GRANT;\n                else\n                    state_next = DENY;\n                // auth_result_next is not updated here; it retains its value\n            end\n\n            GRANT: begin\n                state_next = IDLE;\n                auth_result_next = 1'b0;\n            end\n\n            DENY: begin\n                state_next = IDLE;\n                auth_result_next = 1'b0;\n            end\n\n            default: begin\n                state_next = IDLE;\n                auth_result_next = 1'b0;\n            end\n        endcase\n    end\n\n    // Sequential update\n    always @(posedge clk or negedge rst_n) begin\n        if (!rst_n) begin\n            state_q <= IDLE;\n            auth_result_q <= 1'b0;\n        end else begin\n            state_q <= state_next;\n            auth_result_q <= auth_result_next;\n        end\n    end\n\n    // Output assignment\n    always @* begin\n        access_granted = (state_q == GRANT);\n    end\n\nendmodule",
+      "path": "inputs/auth_fsm.v"
+    },
+    {
+      "content": "{\n  \"fault_type\": \"clock_glitch\",\n  \"description\": \"A single narrow clock pulse is injected during a chosen clock cycle, causing exactly one register update to be skipped while all combinational logic continues to evaluate normally.\",\n  \"capabilities\": {\n    \"target\": \"any single register in the design\",\n    \"effect\": \"the targeted register retains its previous value for that cycle; all other registers update as usual\",\n    \"injection_timing\": \"attacker can choose any clock cycle to inject the glitch\"\n  },\n  \"assumptions\": [\n    \"The glitch does not affect combinational logic evaluation.\",\n    \"Only one register update is skipped per injection.\",\n    \"The attacker can observe the system's output (access_granted) to determine success.\"\n  ]\n}",
+      "path": "inputs/fault_model.json"
+    },
+    {
+      "content": "Cycle 0: state_q=IDLE, auth_result_q=0, password=0x00\nCycle 1: state_q=COMPARE, auth_result_q=0, password=0xA5\nCycle 2: state_q=DECIDE, auth_result_q=1, password=0xA5\nCycle 3: state_q=GRANT, auth_result_q=1, password=0x00\nCycle 4: state_q=IDLE, auth_result_q=0, password=0x00",
+      "path": "inputs/normal_trace.txt"
+    },
+    {
+      "content": "{\n  \"vulnerable_cycle\": -1,\n  \"state_register\": \"none\",\n  \"result_register\": \"none\",\n  \"explanation\": \"\"\n}",
+      "path": "submission/vulnerability_report.json"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "README.md",
+      "purpose": "Participant-facing instructions for the RTL authentication clock-glitch analysis task. Describes the objective: analyze auth_fsm.v, fault_model.json, and normal_trace.txt to identify the vulnerable cycle and critical registers where a skipped update can bypass authentication. Lists the three input artifacts, the expected output format (submission/vulnerability_report.json with keys vulnerable_cycle, state_register, result_register, explanation), and constraints (analysis based solely on provided artifacts, single-cycle fault model). Does NOT mention CWE-1247, CWE-1269, SR1, SR2, threat model, or any security intent."
+    },
+    {
+      "path": "metadata.json",
+      "purpose": "Task metadata: task_id 'rtl_auth_clock_glitch_window', domain_id 'side_channel_fault_analysis', lists input artifacts ['auth_fsm.v', 'fault_model.json', 'normal_trace.txt'], expected output summary 'A vulnerability_report.json file identifying the vulnerable cycle and the critical state/result signals.', and the three metrics: leakage_detection_accuracy, fault_coverage, hardening_precision with their descriptions and maximize direction. No hidden spec content."
+    },
+    {
+      "path": "inputs/auth_fsm.v",
+      "purpose": "Verilog RTL of a simple authentication FSM with states IDLE, COMPARE, DECIDE, GRANT, DENY. Uses two registers: state_q (state register) and auth_result_q (result register). The FSM reads a password input and compares it against a stored value; on match it transitions COMPARE->DECIDE->GRANT. The vulnerability: in the DECIDE state, auth_result_q is assigned but state_q advances unconditionally; a clock glitch skipping auth_result_q update while state_q advances leaves auth_result_q holding a stale GRANT value from a prior cycle. Must elaborate cleanly with iverilog -g2012. No security comments or CWE references."
+    },
+    {
+      "path": "inputs/fault_model.json",
+      "purpose": "JSON describing the fault model: a single clock glitch that causes one register update to be skipped while combinational logic continues evaluating. Specifies the attacker can inject a narrow clock pulse during any cycle, causing exactly one register to miss its update. The model is generic and does not name specific registers or cycles. Used by participants to understand the fault injection capability."
+    },
+    {
+      "path": "inputs/normal_trace.txt",
+      "purpose": "Cycle-by-cycle trace of the auth_fsm.v simulation under normal operation (no fault). Shows state_q and auth_result_q values at each clock cycle for a successful authentication sequence: IDLE->COMPARE->DECIDE->GRANT. Includes cycle index, state_q value, auth_result_q value, and password input. The ground-truth vulnerable cycle is the COMPARE-to-DECIDE transition where auth_result_q is set to GRANT but could be skipped. Format is plain text, human-readable."
+    },
+    {
+      "path": "submission/vulnerability_report.json",
+      "purpose": "Naive baseline submission that MUST fail all metrics. Contains empty/incorrect values: vulnerable_cycle set to -1 (invalid cycle index), state_register set to 'none', result_register set to 'none', explanation set to empty string. This is the starter file participants replace with their real answer. The evaluator grades this and it must fail leakage_detection_accuracy, fault_coverage, and hardening_precision."
+    }
+  ]
+}

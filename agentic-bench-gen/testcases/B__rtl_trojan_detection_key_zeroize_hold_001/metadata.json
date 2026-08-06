@@ -1,0 +1,38 @@
+{
+  "task_id": "rtl_trojan_detection_key_zeroize_hold_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Busy-state key-zeroization inhibition Trojan in key-loading controller",
+  "input_artifacts": [
+    "key_loader_ctrl.v",
+    "design_brief.md"
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "evaluation_mode": "report_grading",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of graded cases where the submitted report's top-confidence candidate satisfies SR1, SR2, and SR4 (correct trigger condition, root cause, and localization)."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported candidates (across all candidates in the report) that do not correspond to any real defect in the RTL and are unrelated to the zeroize/bus_busy coincidence, penalizing noisy over-reporting."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Score in [0,1] measuring how precisely the report's location_hint and trigger_condition pinpoint the actual zeroize_mask/zeroize_block construct and the exact zeroize&bus_busy trigger, versus vague or generic statements."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "constraints": [
+    "Provide a synchronous serial-bit interface with enable and synchronous active-high reset.",
+    "Pin that crc_out reflects current registered state after each enabled rising edge and is stable when enable is low.",
+    "Grade known messages and random bit streams cycle by cycle."
+  ],
+  "expected_outputs": [
+    "A synthesizable Verilog module named crc16_serial that matches the cycle-accurate behavior of the provided netlist on all input sequences.",
+    "The module must pass a simulation testbench that compares its crc_out against the netlist's crc_out cycle by cycle for a set of known messages and random bit streams."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "When reset (rst_n=0) is sampled at a rising clock edge, crc_out must equal 16'hFFFF in the same cycle."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For the 8-bit message 0x31 (MSB-first, 0x31 = 8'b00110001), after shifting in all 8 bits with enable=1 and then holding enable=0, crc_out must equal 16'hC0A7."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For the 16-bit message 0x1234 (MSB-first), after shifting in all 16 bits with enable=1 and then holding enable=0, crc_out must equal 16'hDFB3."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The module must compile without errors using iverilog and must be synthesizable (no simulation-only constructs)."
+    }
+  ],
+  "input_artifacts": [
+    "crc16_netlist.v"
+  ],
+  "interface": "Module name: crc16_serial\nPort list:\n- input wire clk\n- input wire rst_n (synchronous active-low reset)\n- input wire enable\n- input wire data_in (serial bit, MSB-first per message)\n- output wire [15:0] crc_out\n\nTiming contract:\n- All outputs are Moore-type: crc_out is a function of the current registered state only.\n- On the rising edge of clk when rst_n is low (reset asserted), the internal state must return to the seed value and crc_out must reflect that seed state in the same cycle (the cycle reset is sampled active).\n- On the rising edge of clk when rst_n is high and enable is high, data_in is sampled and the CRC state updates. crc_out reflects the updated state on the SAME rising edge (it is the registered output of the new state).\n- On the rising edge of clk when rst_n is high and enable is low, the state holds and crc_out remains stable.\n- crc_out is always the current CRC state; there is no additional latency or handshake. The output changes exactly one cycle after the input that caused the transition (Moore behavior).",
+  "objective": "Reconstruct a serial CRC-16 generator from a flattened XOR/DFF network, including polynomial, seed, reflection, and output convention.",
+  "response_format": "A single Verilog file named recovered_rtl.v placed under submission/. The file must contain the module crc16_serial with the exact port list and name specified in the interface. No other files are accepted."
+}

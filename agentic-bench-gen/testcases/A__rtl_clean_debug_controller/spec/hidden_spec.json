@@ -1,0 +1,28 @@
+{
+  "acceptance_criteria": [
+    "infected is false",
+    "trojan_candidates is an empty array",
+    "rationale does not claim any Trojan exists"
+  ],
+  "cwe_ids": [
+    "CWE-1245"
+  ],
+  "evidence_policy": {
+    "kind": "report_only",
+    "required": false
+  },
+  "ground_truth": "Every debug path is gated by the documented debug_enable port and has no secret source or undocumented functional effect; infected=false is the correct classification.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check if any reported trojan_candidate signal_path involves the debug_enable signal or its fanout; if so, the report is a false positive.",
+      "id": "SR1",
+      "requirement": "The detector must not flag the documented debug_enable gated paths as Trojans."
+    },
+    {
+      "detection_strategy": "Verify that the submitted report has infected set to false and an empty trojan_candidates array.",
+      "id": "SR2",
+      "requirement": "The detector must correctly classify the design as clean (infected=false)."
+    }
+  ],
+  "threat_model": "Over-sensitive detection flags legitimate rare debug behavior, producing false positives that make benchmark accuracy meaningless."
+}

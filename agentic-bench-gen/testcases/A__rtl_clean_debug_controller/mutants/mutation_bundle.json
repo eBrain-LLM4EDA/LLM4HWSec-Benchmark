@@ -1,0 +1,76 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "The mutant report falsely flags the documented debug_enable gated path as a Trojan, violating SR1 which requires the detector not to flag these paths. The evaluator should detect this as a false positive because the reported signal_path involves debug_enable or its fanout.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"trojan_candidates\": [\n    {\n      \"signal_path\": \"debug_enable -> state_machine -> alert\",\n      \"trigger_condition\": \"counter == 16'hDEAD && debug_enable asserted\",\n      \"payload_effect\": \"Sets alert high, potentially indicating a malicious condition\",\n      \"confidence\": 0.85\n    }\n  ],\n  \"rationale\": \"Analysis identified a suspicious rare-event trigger path. The debug_enable signal gates a state machine that can assert the alert output when the internal counter reaches 0xDEAD. This combination of a rare counter value and a debug enable creates a potential covert trigger mechanism. The alert signal could be used as a malicious payload indicator. Therefore, the design is classified as infected.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_SR1_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "The mutant incorrectly sets infected to true and provides a non-empty trojan_candidates array, violating SR2 which requires infected=false and an empty trojan_candidates array for this clean design. The evaluator should detect this false positive classification.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"trojan_candidates\": [\n    {\n      \"signal_path\": \"debug_controller.counter\",\n      \"trigger_condition\": \"counter == 16'hDEAD\",\n      \"payload_effect\": \"alert asserted\",\n      \"confidence\": 0.85\n    }\n  ],\n  \"rationale\": \"The design was analyzed for hardware Trojans by examining all rare-event logic and debug paths. The debug_enable input gates a set of low-activity counters and diagnostic outputs; however, the rare alert condition when counter reaches 16'hDEAD appears suspicious and could be triggered by an attacker. The debug paths are controlled by the debug_enable port, but the alert mechanism may constitute a covert side-channel. Therefore, the design is classified as infected with a potential hardware Trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_SR2_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "The mutant produces a trojan_report.json that is not valid JSON because it contains a trailing comma in the object, violating FR1 which requires the report to be parseable by a standard JSON parser.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"trojan_candidates\": [],\n  \"rationale\": \"The design was analyzed for hardware Trojans by examining all rare-event logic and debug paths. The debug_enable input gates a set of low-activity counters and diagnostic outputs; this is documented functionality with no hidden trigger condition or malicious payload. All debug paths are transparently controlled by the debug_enable port, and no undocumented side-effects or secret data leaks were found. Therefore, the design is clean and contains no hardware Trojan.\",\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR1_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "The mutant removes the required 'trojan_candidates' field from the JSON report. FR2 mandates that the report must contain both 'infected' (boolean) and 'trojan_candidates' (array). Without this field, the JSON is still valid (FR1 passes) but the structural requirement FR2 is violated. The evaluator should detect the missing required field and reject the submission.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"rationale\": \"The design was analyzed for hardware Trojans by examining all rare-event logic and debug paths. The debug_enable input gates a set of low-activity counters and diagnostic outputs; this is documented functionality with no hidden trigger condition or malicious payload. All debug paths are transparently controlled by the debug_enable port, and no undocumented side-effects or secret data leaks were found. Therefore, the design is clean and contains no hardware Trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR2_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "The mutant submission has infected set to true but trojan_candidates is an empty array, violating FR3 which requires at least one candidate object with non-empty signal_path, trigger_condition, and payload_effect when infected is true.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": true,\n  \"trojan_candidates\": [],\n  \"rationale\": \"The design was analyzed for hardware Trojans by examining all rare-event logic and debug paths. The debug_enable input gates a set of low-activity counters and diagnostic outputs; this is documented functionality with no hidden trigger condition or malicious payload. All debug paths are transparently controlled by the debug_enable port, and no undocumented side-effects or secret data leaks were found. Therefore, the design is clean and contains no hardware Trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR3_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "The mutant submission has an empty string for the rationale field, violating FR4 which requires a non-empty string explaining the analysis methodology and conclusion. The evaluator should reject this submission.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"trojan_candidates\": [],\n  \"rationale\": \"\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "MUT_FR4_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

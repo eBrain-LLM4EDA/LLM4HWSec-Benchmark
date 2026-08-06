@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected because evaluate.py cannot resolve hierarchical net names like 'lock_comp/xor_0' that are present in the netlist. This causes FR3 to fail for a perfectly correct answer, making the benchmark unusable. Additionally, the evaluator does not compute the required metrics (key_recovery_rate and key_gate_localization_accuracy), and the naive baseline passes FR3 vacuously because an empty array trivially satisfies the net-name check. The mutation score is 0.0 because no mutants were generated, so discrimination is unproven. The oracle vectors also lack the protected input pattern, but the primary blocker is the broken evaluator.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 1
+}

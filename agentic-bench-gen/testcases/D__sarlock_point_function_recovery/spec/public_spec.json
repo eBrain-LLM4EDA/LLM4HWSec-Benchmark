@@ -1,0 +1,33 @@
+{
+  "constraints": [
+    "The netlist is a small combinational circuit.",
+    "The locking scheme uses a key comparator whose output corrupts one functional output on a single protected input pattern.",
+    "The key width and a set of sparse oracle vectors are provided publicly.",
+    "The comparator nodes and the correct key value are hidden and must be recovered."
+  ],
+  "expected_outputs": [
+    "A JSON file containing the recovered key bits and the list of key-gate net names."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted recovered_key.json file must be valid JSON and parseable by a standard JSON parser."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The \"recovered_key\" field must be a non-empty string consisting only of the characters '0' and '1'."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The \"key_gate_nets\" field must be an array of strings, where each string is a valid net name present in the provided locked_netlist.v file."
+    }
+  ],
+  "input_artifacts": [
+    "locked_netlist.v",
+    "oracle_vectors.json",
+    "locking_scheme_description.md"
+  ],
+  "interface": "The participant does not modify the input artifacts. The evaluation script reads the submission/submitted_key.json file and grades its content against the hidden ground truth. The input artifacts under inputs/ are available for reference and optional cross-checking using the provided toolchain (yosys, iverilog, vvp).",
+  "objective": "Analyze the provided logic-locked netlist and oracle vectors to localize the key comparator cone and recover the protected input pattern that corrupts a functional output.",
+  "response_format": "The submission must be a single JSON file named recovered_key.json placed in the submission/ directory. The file must contain a JSON object with the following fields: \"recovered_key\" (a string of '0' and '1' characters representing the key bits, e.g., \"101101\"), and \"key_gate_nets\" (an array of strings, each being the hierarchical name of a net in the netlist that is part of the key comparator logic, e.g., [\"top.key_xor_0\", \"top.key_and_out\"])."
+}

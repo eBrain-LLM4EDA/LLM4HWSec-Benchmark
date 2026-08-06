@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "case_artifacts",
+  "observed_mutation_score": 0.0,
+  "rationale": "The golden submission is rejected because the testbench template (evaluation/tb_check.v) contains invalid Verilog syntax: 'assign key = 2'b{key_val};' uses curly braces as a placeholder, which Verilog interprets as a concatenation operator with an undefined identifier, causing a compile error. This prevents FR3 from passing for any submission, including the correct golden key '10'. The mutation score is 0.0 and not meaningful because the baseline/golden run failed. Additionally, no mutants were generated, so all requirements are untested. The evaluator must be fixed to use valid Verilog parameter substitution so that the golden submission passes and mutation testing can proceed.",
+  "retain_case": false,
+  "revision_instructions": "A Tester repair reproduced the identical golden rejection. Regenerate the Expert golden and case artifacts against the pinned interface; do not weaken the evaluator to accommodate a noncompliant golden.",
+  "root_cause": "artifact_issue",
+  "source_round": 2
+}

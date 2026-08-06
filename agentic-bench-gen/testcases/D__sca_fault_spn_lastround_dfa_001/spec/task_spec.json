@@ -1,0 +1,113 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Binary correctness of identifying the vulnerable register, fault cycle offset, and affected nibble index against hidden ground truth (all three must match for full credit).",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Whether the reported analysis method, when cross-checked by re-simulating the fault at the reported location/cycle via iverilog/vvp, reproduces the differential ciphertext patterns present in trace_pairs.json.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Fraction of submitted hardening_recommendations entries that are semantically valid, concrete fault-hardening techniques applicable to the identified register (vs. generic/irrelevant advice).",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      },
+      {
+        "description": "Whether the recovered subkey nibble index and value exactly match the unique survivor of brute-force differential elimination over the 16 candidate nibble values against trace_pairs.json.",
+        "direction": "maximize",
+        "name": "key_recovery_correctness"
+      },
+      {
+        "description": "Whether the submitted vulnerability_report.json satisfies all structural/type/format functional requirements (FR1-FR4).",
+        "direction": "maximize",
+        "name": "schema_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "PASS requires exact match on vulnerable_register == 'state_q', vulnerable_cycle_offset == 1, affected_nibble_index == 0, recovered_subkey_nibble_index == 0, recovered_subkey_nibble_value == '9' (case-insensitive hex), plus at least 2 valid hardening recommendations and a non-trivial analysis_method description referencing the trace data.",
+      "A naive/empty baseline submission (missing fields, placeholder values, or wrong register/nibble/key value) must FAIL all SR checks and at least one FR check.",
+      "Partial credit is not awarded on the binary PASS/FAIL security checks; hardening_detection_precision and other metrics may still report partial/graded scores for analysis quality."
+    ],
+    "cwe_ids": [
+      "CWE-1254",
+      "CWE-1247",
+      "CWE-203"
+    ],
+    "ground_truth": "Faulting state_q[3:0] (nibble index 0) exactly one clock cycle before the final output (vulnerable_cycle_offset = 1) causes a differential propagation through only the final S-box application to that nibble's contribution to the ciphertext's nibble 0. Performing a differential fault analysis (DFA) over the provided correct/faulty ciphertext pairs by testing each of the 16 candidate values for final_key[3:0] and checking which candidate produces, for every trace pair, an S-box input difference consistent with the observed output difference through the inverse S-box, uniquely narrows the surviving candidate to final_key[3:0] = 4'h9. All other 15 candidates are eliminated by at least one trace pair. recovered_subkey_nibble_index must be 0 and recovered_subkey_nibble_value must be '9'.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String/exact-match comparison of 'vulnerable_register' against the ground-truth identifier 'state_q' (case-sensitive match against the actual signal name declared in spn_core.v).",
+        "id": "SR1",
+        "requirement": "The report must correctly identify state_q as the exploitable register (not an unrelated register such as the key register or plaintext input register)."
+      },
+      {
+        "detection_strategy": "Exact integer match of 'vulnerable_cycle_offset' == 1 and 'affected_nibble_index' == 0 against hidden ground truth; optional cross-check by re-simulating spn_top.v with iverilog/vvp, injecting the reported fault at the reported location/cycle, and confirming the simulated faulty ciphertexts reproduce the differential pattern in trace_pairs.json.",
+        "id": "SR2",
+        "requirement": "The report must correctly localize the fault to one clock cycle before the final output and to nibble index 0 of the register."
+      },
+      {
+        "detection_strategy": "Exact match of recovered_subkey_nibble_index == 0 and recovered_subkey_nibble_value == '9'; evaluator independently re-derives the surviving candidate set by brute-forcing all 16 nibble values against trace_pairs.json through the documented inverse S-box and checks the submitted value is the unique survivor.",
+        "id": "SR3",
+        "requirement": "The report must correctly recover the final-round subkey nibble consistent with all provided differential trace pairs, not merely assert a plausible-looking but unverified value."
+      },
+      {
+        "detection_strategy": "Keyword/semantic check that at least 2 of the submitted hardening_recommendations entries reference concrete fault-hardening techniques (TMR, redundancy, parity/ECC, duplicate-and-compare, sensor-based glitch detection, randomized timing/delay) applied to the identified register; entries that only discuss algorithmic/cryptographic strength are not credited.",
+        "id": "SR4",
+        "requirement": "Hardening recommendations must be technically applicable to a register-level transient fault vulnerability (e.g. redundancy, error-detection coding, temporal/spatial redundancy) rather than generic or irrelevant advice (e.g. 'use a stronger cipher', 'increase key length')."
+      }
+    ],
+    "threat_model": "An attacker with physical or logical access to the device can inject a localized transient fault (e.g. via voltage glitch, laser, or clock glitch) that flips or corrupts exactly one 4-bit nibble of an internal register during a chosen clock cycle near the end of encryption, and can obtain both the resulting faulty ciphertext and a corresponding fault-free ciphertext for the same plaintext/key. The attacker does not have read access to internal registers or the key directly; all information is inferred purely from comparing correct and faulty output pairs (classic differential fault analysis, Biham-Shamir style)."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not modify any files under inputs/; submit only the answer file under submission/.",
+      "The RTL model provided (spn_core.v, spn_top.v) implements a 16-bit, 4-round SPN cipher with a documented 4-bit S-box table, operating on 16-bit blocks and a 16-bit key, with a registered internal state pipeline including a penultimate-round state register before the final substitution/output stage.",
+      "trace_pairs.json contains multiple correct/faulty 16-bit ciphertext pairs generated by injecting a nonzero single-nibble transient fault into the design at a fixed (but undisclosed) location and cycle relative to encryption completion; each pair also records the plaintext and key-independent round constants used.",
+      "Key-candidate enumeration for the recovered nibble is restricted to the 16 possible nibble values (0x0-0xF); the report's recovered value must be justified by elimination against the trace pairs, not asserted without support.",
+      "All artifacts must be self-contained and simulatable with iverilog/vvp without proprietary IP."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/vulnerability_report.json must be valid JSON and contain all seven required top-level fields with the exact types specified in the interface (string, integer, string, integer, string, string, array of strings)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The 'affected_nibble_index' and 'recovered_subkey_nibble_index' fields must each be integers in the range 0-3 inclusive."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The 'recovered_subkey_nibble_value' field must be exactly one hexadecimal character (0-9, a-f, or A-F)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The 'hardening_recommendations' array must contain at least 2 distinct non-empty strings, each at least 10 characters long, and 'analysis_method' must be at least 20 characters long."
+      }
+    ],
+    "input_artifacts": [
+      "spn_core.v",
+      "spn_top.v",
+      "fault_model.md",
+      "trace_pairs.json",
+      "design_brief.md"
+    ],
+    "interface": "The submission is a single JSON file at submission/vulnerability_report.json (UTF-8, no trailing comments). Top-level object MUST contain exactly these fields: (1) 'vulnerable_register' : string, the exact RTL identifier (as it appears in spn_core.v, e.g. 'state_q') of the register the report identifies as exploitable; (2) 'vulnerable_cycle_offset' : integer, the number of clock cycles before the final output cycle at which the fault must be injected into that register (0 = the register's value on the last clock edge before output, 1 = one cycle earlier, etc.); (3) 'affected_nibble_index' : integer 0-3, indicating which 4-bit nibble of the 16-bit register (0 = bits[3:0], 1 = bits[7:4], 2 = bits[11:8], 3 = bits[15:12]) the fault model injects into; (4) 'recovered_subkey_nibble_index' : integer 0-3, which nibble of the 16-bit final round key the analysis claims to recover; (5) 'recovered_subkey_nibble_value' : string, the recovered 4-bit hex nibble value written as a single hex digit, e.g. '9'; (6) 'analysis_method' : string, free-text description (min 20 characters) of the differential technique used, referencing trace_pairs.json; (7) 'hardening_recommendations' : array of at least 2 strings, each a concrete, distinct hardening technique (e.g. 'triple modular redundancy on state_q', 'parity check before final substitution', 'random delay insertion') targeted at the identified register. Any additional fields are ignored. evaluate.py reads inputs/*.v, inputs/fault_model.md and inputs/trace_pairs.json for reference/optional cross-check via iverilog+vvp simulation, and grades solely the content of submission/vulnerability_report.json.",
+    "objective": "Analyze the supplied 16-bit substitution-permutation network (SPN) RTL implementation and its accompanying fault-injection trace data to determine which internal register(s) are structurally exposed to transient single-nibble faults near the end of encryption, and to what extent an attacker who can inject such a fault and observe correct/faulty ciphertext pairs can recover bits of the final-round subkey. Produce a vulnerability report identifying the vulnerable register, characterizing the fault effect through the differential trace pairs provided, and proposing concrete hardening measures (e.g. redundancy, parity, masking) for the identified register(s).",
+    "response_format": "A single JSON file at submission/vulnerability_report.json matching the schema described in public_spec.interface. No other files are graded."
+  },
+  "task_id": "sca_fault_spn_lastround_dfa_001",
+  "title": "Last-round differential fault analysis on a toy SPN"
+}

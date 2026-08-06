@@ -1,0 +1,38 @@
+{
+  "acceptance_criteria": [
+    "All FR1-FR4 checks pass via compiled-and-executed harness (not static analysis).",
+    "SR1 and SR2 pass: instrumented trace sequences are identical across all sampled key and value variations.",
+    "SR3 passes: exactly 16 TRACE_ACCESS calls per invocation, every invocation.",
+    "SR4 passes: zero output mismatches over the full 65536-pair exhaustive test.",
+    "The shipped insecure baseline (naive table[(value^key)&0x0F] direct index with no full-table scan) fails SR1/SR2/SR3 under the same harness, demonstrating discriminative power."
+  ],
+  "cwe_ids": [
+    "CWE-208",
+    "CWE-385",
+    "CWE-200"
+  ],
+  "ground_truth": "A correct hardened kernel reads all 16 table entries every call in fixed ascending order 0..15 using TRACE_ACCESS(i), accumulates the correct result via constant-time selection (e.g., masking/summation: result |= table[i] & -(uint8_t)(i == ((value^key)&0x0F))), and returns table[(value^key)&0x0F] with no secret-dependent branch, array index computed from a secret used only as an equality-mask operand rather than as a direct memory address selector, and no early exit.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compile an instrumented build where TRACE_ACCESS(idx) appends idx to a global trace buffer. Run lookup() for a fixed value across many distinct key values (covering all 256) and assert that the recorded access-index sequence is byte-identical across all runs (same length, same order).",
+      "id": "SR1",
+      "requirement": "The table access pattern (sequence of indices touched and their count) must not depend on the value of key."
+    },
+    {
+      "detection_strategy": "With key fixed, vary value across all 256 possibilities and assert the recorded TRACE_ACCESS sequence is identical across all runs; then cross-check invariance holds jointly by sampling random (value,key) pairs and confirming all traces equal a single canonical sequence [0,1,2,...,15].",
+      "id": "SR2",
+      "requirement": "The table access pattern must also be independent of the plaintext value argument (full data-obliviousness of memory trace), not only the key."
+    },
+    {
+      "detection_strategy": "Count TRACE_ACCESS invocations per call across randomized (value,key) pairs; reject if count varies from the fixed value of 16, or if disassembly-independent black-box timing (measured as loop iteration count proxy) differs.",
+      "id": "SR3",
+      "requirement": "No secret-dependent branch or short-circuit logic may alter the number of instructions/table reads executed (constant work per call)."
+    },
+    {
+      "detection_strategy": "Exhaustively compare lookup(value,key) against reference oracle table[(value^key)&0x0F] for all 65536 (value,key) pairs; any mismatch fails.",
+      "id": "SR4",
+      "requirement": "Output correctness must be preserved exactly despite the constant-time restructuring."
+    }
+  ],
+  "threat_model": "An attacker with access to on-chip memory address traces, cache timing, or power/EM side channels observes which table entries are read (address pattern) and in what order/count during each invocation of lookup(). By correlating the observed access pattern with known plaintext 'value' inputs across many invocations, the attacker can recover bits of the secret 'key' even without observing the returned output directly. The kernel must therefore exhibit an access pattern that is provably independent of key (and independent of value in isolation) so that no such correlation is possible."
+}

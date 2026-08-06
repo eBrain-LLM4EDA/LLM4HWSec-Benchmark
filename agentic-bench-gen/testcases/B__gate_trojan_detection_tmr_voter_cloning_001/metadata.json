@@ -1,0 +1,54 @@
+{
+  "task_id": "gate_trojan_detection_tmr_voter_cloning_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "TMR Voter Defeated by Cloned Replica Input",
+  "objective": "Analyze a gate-level TMR (Triple Modular Redundancy) netlist to determine whether the wiring between the three replica outputs and the majority voter's three inputs matches the intended one-replica-per-voter-input topology, and report any wiring anomalies that would allow a single replica fault to corrupt the top-level voted output.",
+  "input_artifacts": [
+    "inputs/tmr_voter_netlist.v",
+    "inputs/fault_harness_tb.v",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_output": {
+    "description": "A single JSON file at submission/trojan_report.json containing a trojan classification (trojan_present), lists of suspect gate-level instance names and net names implicated in the wiring anomaly, the name of the top-level output port vulnerable to a single-replica fault, a free-text root-cause explanation, and a confidence score.",
+    "required_fields": [
+      "trojan_present",
+      "suspect_instances",
+      "suspect_nets",
+      "affected_output",
+      "root_cause",
+      "confidence"
+    ]
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of required ground-truth elements (cloning instance, aliased voter net, dangling replica output net, affected output, trojan_present) correctly identified in the submitted report."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of submitted suspect_instances/suspect_nets that do not correspond to any real anomaly-related node in the ground truth."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds taken by evaluate.py to parse the netlist, optionally run yosys/iverilog/vvp cross-checks, and grade the submitted trojan_report.json."
+    },
+    {
+      "name": "schema_validity",
+      "direction": "maximize",
+      "description": "Binary indicator of whether submission/trojan_report.json parses as valid JSON and satisfies all required field types."
+    }
+  ],
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ],
+  "submission_kind": "analysis_report",
+  "evaluation_mode": "report_grading"
+}

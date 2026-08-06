@@ -1,0 +1,85 @@
+{
+  "issues": [
+    {
+      "artifact": "inputs/port_map.txt",
+      "description": "The port map lists internal net/instance names of interest (rst_sync, maint_alarm_hit, audit_clr, u_maint_alarm_and, u_audit_clr_or) which, while framed neutrally, effectively points participants directly at the exact trojan gates/nets. This slightly reduces the analytical challenge but does not leak CWE ids, SR ids, or explicit statements that a trojan exists.",
+      "evidence": "\"audit_clr             net           Internal combinational node feeding the counter register bank's clear inputs.\" and \"u_maint_alarm_and     instance      Gate instance combining two operational input signals.\"",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py / requirement_map",
+      "description": "SR3 truth-table check only tests over {maintenance_req, alarm, rst_n} and treats clk/tamper_event as always False, which is fine given the ground truth, but the FR3 whitelist allows clk and tamper_event to appear in trigger_condition without them affecting the SR3 truth-table check meaningfully, which could allow a submission referencing tamper_event trivially to still pass if logically reducible \u2014 minor robustness gap, not a correctness blocker given current test coverage passed cleanly in differential validation.",
+      "evidence": "varnames = [\"maintenance_req\", \"alarm\", \"rst_n\"] in check_sr3, while PRIMARY_INPUTS includes clk and tamper_event.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider making inputs/port_map.txt slightly less specific about which nets/instances are 'ahead of the counter's clear inputs' to preserve more of the intended analytical challenge, though this is a minor stylistic concern and not a correctness issue.",
+    "Optionally extend SR3's truth-table check to also vary clk and tamper_event (even though they are structurally irrelevant to the trigger condition) to make the equivalence check more rigorous against submissions that spuriously reference those identifiers.",
+    "No blocking changes required; the benchmark case is coherent, the baseline fails as required, the golden passes, and mutation/discrimination coverage is complete (1.0) across all 8 requirements."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline passes FR1 (valid JSON, correct types); differential vulnerable_run also shows FR1 PASS, confirming the check is purely structural and correctly implemented.",
+      "requirement": "FR1 (schema/type validity)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows FR2 FAIL with reason 'unresolved identifier(s) not found in netlist: altered_net:\\'\\'' \u2014 correctly rejects baseline's empty altered_net.",
+      "requirement": "FR2 (identifier resolution against netlist)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline (trojan_present=false) auto-passes FR3 per spec; golden run also passes FR3, confirming conditional logic works as intended.",
+      "requirement": "FR3 (trigger_condition syntactic validity, conditional)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline's justification field is non-empty ('No trojan detected...') so it independently passes FR4 while still failing overall via SR1/SR2/SR4, consistent with acceptance criteria.",
+      "requirement": "FR4 (justification non-empty, <=2000 chars)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows SR1 FAIL: 'altered_net is empty/missing'; golden_run shows SR1 PASS. Confirms discrimination.",
+      "requirement": "SR1 (altered_net correctness)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows SR2 FAIL listing missing u_maint_alarm_and and u_audit_clr_or; golden passes.",
+      "requirement": "SR2 (suspect_gates correctness)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows SR3 FAIL ('trojan_present is not true'); golden passes via truth-table check over maintenance_req/alarm independent of rst_n.",
+      "requirement": "SR3 (trigger_condition truth-table equivalence)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows SR4 FAIL ('trojan_present reported as False; ground truth requires true'); golden passes.",
+      "requirement": "SR4 (trojan_present boolean)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.status = 'pass'; vulnerable_run exit_code=1 (expected fail, ok=true); golden_run exit_code=0 (expected pass, ok=true).",
+      "requirement": "Baseline must fail overall / golden must pass overall (acceptance criteria)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and port_map.txt contain no CWE ids, SR ids, threat-model language, or statements indicating the baseline is intentionally vulnerable; port_map.txt is neutral/descriptive per its own disclaimer ('does not assert which signals are part of the intended reset architecture').",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are each independently verifiable via the pinned interface (JSON schema/types, identifier resolution against netlist, conditional boolean-expression syntax check, justification length/non-emptiness) and are mirrored exactly in evaluate.py's check_fr1-4 functions.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (FR1-FR4)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py's per-requirement PASS/FAIL structure directly supports computing detection_rate (SR1-SR4 fraction) and schema_conformance (FR1-FR4 fraction); false_positive_rate is derivable by cross-referencing suspect_gates/altered_net against the structurally-identified ground-truth set (g1_inst, g2_inst, clr_net) already computed in find_malicious_gates/find_dff_clr_net; inference_latency is trivially measurable as wall-clock time of the script.",
+      "requirement": "Metrics from task spec (detection_rate, false_positive_rate, inference_latency, schema_conformance) are measurable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}
