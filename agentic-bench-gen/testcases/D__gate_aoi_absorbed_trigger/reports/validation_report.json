@@ -1,4 +1,12 @@
 {
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2"
+  ],
   "case_files": [
     "README.md",
     "inputs/cells.lib",
@@ -11,7 +19,7 @@
   "dead_checks": [],
   "differential": {
     "failure_class": "golden_rejected",
-    "failure_signature": "c7d1768fd601b6cfb5fb05f95cbd078f6d1dba476accc5af89fd05c5c55ebf9d",
+    "failure_signature": "e4f001a5e3b1345109aacb3398687a2ecff5f6d73e5e6c0428655aa3afa47aa8",
     "golden_run": {
       "exit_code": 1,
       "expected": "pass",
@@ -27,7 +35,7 @@
       "ok": true,
       "status": "fail",
       "stderr": "",
-      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: 'trigger_cells' is not a non-empty array\n[TEST] FAIL: FR3: 'payload_cells' is not a non-empty array\n[TEST] FAIL: FR3: 'payload_nets' is not a non-empty array\n[TEST] FAIL: FR3: 'trigger_nets' is not a non-empty array\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: missing trigger cells: ['aoi_trig', 'oai_trig']\n[TEST] FAIL: SR1: missing trigger nets: ['n_trigger_internal']\n[TEST] FAIL: SR2: missing payload cells: ['xor_payload']\n[TEST] FAIL: SR2: missing payload nets: ['n_payload_out']\n"
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: 'trigger_nets' is not a non-empty array\n[TEST] FAIL: FR3: 'payload_nets' is not a non-empty array\n[TEST] FAIL: FR3: 'payload_cells' is not a non-empty array\n[TEST] FAIL: FR3: 'trigger_cells' is not a non-empty array\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: missing trigger cells: ['aoi_trig', 'oai_trig']\n[TEST] FAIL: SR1: missing trigger nets: ['n_trigger_internal']\n[TEST] FAIL: SR2: missing payload cells: ['xor_payload']\n[TEST] FAIL: SR2: missing payload nets: ['n_payload_out']\n"
     }
   },
   "domain_id": "gate_trojan_detection",
@@ -38,47 +46,14 @@
     {
       "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
       "issue": "golden_rejected"
-    },
-    {
-      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
     }
   ],
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
-  "preflight": {
-    "attempts": 1,
-    "failure_class": "golden_rejected",
-    "failure_signature": "2e8e1e947bfe4c8b2fb89851608bae5968d87e97fe686ffce4004db3bb6f3ce7",
-    "repair_paths": [
-      "evaluation/evaluate.py"
-    ],
-    "repeated_signature": false
-  },
+  "mutation_status": "blocked_by_differential",
   "requirement_count": 6,
   "requirement_discrimination_coverage_score": 0.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 0,
   "status": "fail",
   "submission_invariants": {
     "issues": [],
@@ -103,13 +78,5 @@
     "evaluation/private/ground_truth.json",
     "evaluation/private/netlist_parser.py"
   ],
-  "uncovered_requirements": [],
-  "untested_requirements": [
-    "FR1",
-    "FR2",
-    "FR3",
-    "FR4",
-    "SR1",
-    "SR2"
-  ]
+  "uncovered_requirements": []
 }

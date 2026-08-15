@@ -71,6 +71,30 @@
       "mutant_id": "sca_fia_secure_boot_bypass_001_FR2_constant_change",
       "operator": "constant_change",
       "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py checks that 'fsm_states' lists every distinct state encoding/parameter defined in secure_boot_check.v's state machine (IDLE, LOAD, COMPARE, DONE). This mutant removes the 'COMPARE' entry from fsm_states, leaving only 3 of the 4 declared localparam states, which must be flagged as incomplete/failing FR3.",
+      "files": [
+        {
+          "content": "{\n  \"analyzed_registers\": [\n    { \"name\": \"state\", \"width\": 2, \"line\": 18 },\n    { \"name\": \"auth_ok\", \"width\": 1, \"line\": 19 },\n    { \"name\": \"sig_shift\", \"width\": 32, \"line\": 20 },\n    { \"name\": \"expected_sig\", \"width\": 32, \"line\": 21 },\n    { \"name\": \"byte_count\", \"width\": 2, \"line\": 22 },\n    { \"name\": \"done\", \"width\": 1, \"line\": 23 }\n  ],\n  \"fsm_states\": [\"IDLE\", \"LOAD\", \"DONE\"],\n  \"critical_nodes\": [\n    {\n      \"signal\": \"auth_ok\",\n      \"reason\": \"auth_ok is the flip-flop that directly gates the module's boot-allowed/access-granted output. It is set in the COMPARE state as the result of comparing sig_shift against expected_sig, and is read combinationally/registered to produce the final grant decision.\",\n      \"exploit_scenario\": \"An attacker injects a single-cycle transient fault that forces auth_ok to 1 either before or independently of the COMPARE state's assignment (auth_ok <= (sig_shift == expected_sig)). Because the boot-allowed output is driven directly from auth_ok once state reaches DONE, forcing auth_ok=1 grants boot access without the signature comparison ever matching. This is a primary, non-data-path bypass vector; it is prioritized above sig_shift/expected_sig/byte_count, which only feed the legitimate comparison and cannot alone flip the final grant.\"\n    },\n    {\n      \"signal\": \"state\",\n      \"reason\": \"state is the FSM control register whose encoding selects which branch of the always @(posedge clk) block executes, including whether COMPARE ever runs before DONE is reached. The DONE state directly drives the boot-allowed/done output based on auth_ok.\",\n      \"exploit_scenario\": \"An attacker with fault-injection access forces the state register directly into the DONE encoding for one clock cycle while byte_count/sig_shift are still mid-load or garbage, skipping the COMPARE state entirely so auth_ok <= (sig_shift == expected_sig) is never (re)evaluated on valid data. If auth_ok still holds a stale or forced value of 1, done/boot-allowed asserts immediately with no valid signature ever compared. This is a second, independent primary bypass vector, distinct from data-path registers such as sig_shift or byte_count, which merely feed the comparison and cannot themselves cause a skip of COMPARE.\"\n    }\n  ],\n  \"hardening_recommendations\": [\n    {\n      \"target_signal\": \"auth_ok\",\n      \"technique\": \"TMR (triple modular redundancy) with majority-voting across three independently-clocked copies of auth_ok\",\n      \"rationale\": \"A single transient bit-flip in one auth_ok replica is masked by majority voting across the other two copies, so a single-bit fault can no longer silently flip the security-critical pass/fail decision that directly gates the boot-allowed output.\"\n    },\n    {\n      \"target_signal\": \"auth_ok\",\n      \"technique\": \"Dual complementary comparators: compute both a match signal (sig_shift == expected_sig) and a mismatch signal (sig_shift != expected_sig) and require match=1 AND mismatch=0 before asserting boot-allowed\",\n      \"rationale\": \"Forcing auth_ok/match high via a single-bit fault no longer bypasses the check alone because the complementary mismatch invariant must also be independently satisfied; a lone bit-flip that sets match=1 will not simultaneously clear mismatch=0, so the fault is detected rather than silently accepted, directly hardening against the auth_ok bypass scenario.\"\n    },\n    {\n      \"target_signal\": \"state\",\n      \"technique\": \"Checksum-based state validation with a complementary encoding check (store state alongside its bitwise complement in a shadow register and flag an error if state != ~shadow_state)\",\n      \"rationale\": \"A single-bit fault that forces state directly into the DONE encoding will not simultaneously produce the correct complementary value in the shadow register, so the encoding-consistency check fails and the FSM can be forced into a lockdown/error path instead of asserting boot-allowed, closing the skip-COMPARE bypass vector.\"\n    },\n    {\n      \"target_signal\": \"state\",\n      \"technique\": \"Redundant majority-voting (TMR) on the FSM state register across three parallel state machines\",\n      \"rationale\": \"A single-bit transient fault that flips one state copy into DONE is outvoted by the two unaffected replicas, preventing the FSM from ever externally reporting a DONE transition that skipped COMPARE, providing the redundancy required to resist single-event upsets per the fault model.\"\n    }\n  ]\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_fia_secure_boot_bypass_001_FR3_assignment_removal",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "FR4 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr4_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
     }
   ]
 }

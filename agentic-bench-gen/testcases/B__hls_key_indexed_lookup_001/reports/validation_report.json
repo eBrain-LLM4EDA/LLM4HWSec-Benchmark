@@ -24,6 +24,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
+    "failure_class": null,
+    "failure_signature": null,
     "golden_run": {
       "exit_code": 0,
       "expected": "pass",
@@ -52,8 +54,15 @@
       "issue": "uncovered_requirement"
     }
   ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: SR4\n[TEST] PASS: FR4\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
   "mutation_score": 0.875,
   "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
   "per_requirement_coverage": {
     "FR1": {
       "covered": false,
@@ -96,8 +105,69 @@
       "mutants_targeting": 1
     }
   },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
   "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.875,
+  "requirement_mapping_coverage_score": 1.0,
   "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "4c66c5f1e47bf041566d7321412117371fa4503a8c2b9c31aad7479e165a8214",
+        "changed": true,
+        "golden": "golden/lookup_kernel.cpp",
+        "golden_sha256": "6c2b5336af7cc357235a9bbe66cdc67b46142be058115de0e6ecb017e405611e",
+        "target": "inputs/lookup_kernel.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/lookup_kernel.cpp"
+    ],
+    "unmapped_targets": []
+  },
   "tester_files": [
     "evaluation/README.md",
     "evaluation/evaluate.py",

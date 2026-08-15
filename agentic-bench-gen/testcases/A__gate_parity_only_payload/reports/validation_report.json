@@ -48,8 +48,15 @@
     "golden/trojan_report.json"
   ],
   "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
   "mutation_score": 1.0,
   "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
   "per_requirement_coverage": {
     "FR1": {
       "covered": true,
@@ -107,7 +114,6 @@
   "requirement_count": 5,
   "requirement_discrimination_coverage_score": 1.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 2,
   "status": "pass",
   "submission_invariants": {
     "issues": [],

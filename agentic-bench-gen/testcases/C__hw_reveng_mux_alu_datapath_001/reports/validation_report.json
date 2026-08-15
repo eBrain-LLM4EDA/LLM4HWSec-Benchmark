@@ -24,6 +24,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
+    "failure_class": null,
+    "failure_signature": null,
     "golden_run": {
       "exit_code": 0,
       "expected": "pass",
@@ -46,9 +48,25 @@
   "expert_files": [
     "golden/recovered_rtl.v"
   ],
-  "issues": [],
+  "issues": [
+    {
+      "detail": "public_spec.interface does not pin sequential timing \u2014 for a design graded by cycle-accurate simulation it must state the output timing discipline (Moore/Mealy) for each output and the exact output/reset/handshake latency in clock cycles, so the independently authored reference and golden land on the identical waveform (otherwise a one-cycle latency difference fails the case)",
+      "issue": "missing_timing_discipline"
+    },
+    {
+      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+  },
   "mutation_score": 1.0,
   "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
   "per_requirement_coverage": {
     "FR1": {
       "covered": true,
@@ -81,8 +99,59 @@
       "mutants_targeting": 1
     }
   },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
   "requirement_count": 6,
-  "status": "pass",
+  "requirement_discrimination_coverage_score": 0.833,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "0448785833e4383ff4c754c1a6cc0a5eaa357a01c03e3805e22196b116474b8e",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "9602da04533ad585fe82fbf0d32da1df015cb3d9f12824bc7f3a544b3363d2b2",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
   "tester_files": [
     "evaluation/README.md",
     "evaluation/evaluate.py",

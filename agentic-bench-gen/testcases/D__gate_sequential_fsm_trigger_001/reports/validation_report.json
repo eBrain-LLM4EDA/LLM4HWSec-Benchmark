@@ -1,4 +1,12 @@
 {
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
   "case_files": [
     "README.md",
     "inputs/controller_netlist.v",
@@ -37,51 +45,14 @@
     {
       "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
       "issue": "golden_rejected"
-    },
-    {
-      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR3 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
-      "issue": "repeated_preflight_failure"
     }
   ],
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
-  "preflight": {
-    "attempts": 1,
-    "failure_class": "golden_rejected",
-    "failure_signature": "fc2b328c6bdea3f541ece2d1b8072fd73fa70b7c25d5d985682c7bef1b359d9d",
-    "repair_paths": [
-      "evaluation/evaluate.py"
-    ],
-    "repeated_signature": true
-  },
+  "mutation_status": "blocked_by_differential",
   "requirement_count": 6,
   "requirement_discrimination_coverage_score": 0.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 0,
   "status": "fail",
   "submission_invariants": {
     "issues": [],
@@ -105,13 +76,5 @@
     "evaluation/evaluate.py",
     "evaluation/private/ground_truth.py"
   ],
-  "uncovered_requirements": [],
-  "untested_requirements": [
-    "FR1",
-    "FR2",
-    "FR3",
-    "SR1",
-    "SR2",
-    "SR3"
-  ]
+  "uncovered_requirements": []
 }

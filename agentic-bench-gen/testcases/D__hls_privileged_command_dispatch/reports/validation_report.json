@@ -1,4 +1,14 @@
 {
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
   "case_files": [
     "README.md",
     "inputs/dispatcher.cpp",
@@ -9,14 +19,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
-    "evidence": {
-      "golden_passed": true,
-      "kind": "behavioral_test",
-      "required": false,
-      "vulnerable_passed": true
-    },
     "failure_class": "golden_rejected",
-    "failure_signature": "f827376393b40f0e78fe5506b6f0502a9be540af953e07fafa3fa548407fba46",
+    "failure_signature": "8b06f1f0b7f277a4ed99af5309a8a29bd345b1a86ba0a2169e13ec25415eaf22",
     "golden_run": {
       "exit_code": 1,
       "expected": "pass",
@@ -44,56 +48,14 @@
     {
       "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
       "issue": "golden_rejected"
-    },
-    {
-      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR3 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR4 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
-      "issue": "repeated_preflight_failure"
     }
   ],
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
-  "preflight": {
-    "attempts": 1,
-    "failure_class": "golden_rejected",
-    "failure_signature": "f827376393b40f0e78fe5506b6f0502a9be540af953e07fafa3fa548407fba46",
-    "repeated_signature": true
-  },
+  "mutation_status": "blocked_by_differential",
   "requirement_count": 8,
   "requirement_discrimination_coverage_score": 0.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 0,
   "status": "fail",
   "submission_invariants": {
     "issues": [],
@@ -126,15 +88,5 @@
     "evaluation/harness_main.cpp",
     "evaluation/private/security_checks.cpp"
   ],
-  "uncovered_requirements": [],
-  "untested_requirements": [
-    "FR1",
-    "FR2",
-    "FR3",
-    "FR4",
-    "SR1",
-    "SR2",
-    "SR3",
-    "SR4"
-  ]
+  "uncovered_requirements": []
 }

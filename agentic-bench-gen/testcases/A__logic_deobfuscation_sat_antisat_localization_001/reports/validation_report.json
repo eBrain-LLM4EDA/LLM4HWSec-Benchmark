@@ -1,0 +1,175 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/locked_netlist.v",
+    "inputs/locking_description.md",
+    "inputs/primary_io.txt",
+    "metadata.json",
+    "submission/recovered_key.json"
+  ],
+  "check_activation": {
+    "FR1": 2,
+    "FR2": 1,
+    "FR3": 1,
+    "FR4": 1,
+    "SR1": 1,
+    "SR2": 3,
+    "SR3": 2,
+    "SR4": 1
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: key_bits is missing, not an array, or empty\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: only 0 of 3 required Anti-SAT gate names found in key_gate_locations (need >= 2)\n[TEST] FAIL: SR2: missing entries for: ['key[4]', 'key[9]']\n[TEST] PASS: SR3\n[TEST] FAIL: SR4: topology_summary rubric failed: does not mention 'func_out_masked'; does not mention primary output net 'out' as a standalone token; does not describe a two-branch/complementary structure (expected one of: ['branch', 'complement', 'mirror', 'two'])\n"
+    }
+  },
+  "domain_id": "logic_deobfuscation_sat",
+  "expert_files": [
+    "golden/recovered_key.json"
+  ],
+  "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "ae29f097124b86e853dad0a09906b720a645c93e492b55f78ebe2df18fcea0dd",
+        "changed": true,
+        "golden": "golden/recovered_key.json",
+        "golden_sha256": "c094df0ce070abea7288482eb073e31278159a99e57aac85ef9b8a7b47e2ef4e",
+        "target": "submission/recovered_key.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_key.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/checks.py",
+    "evaluation/private/ground_truth.py"
+  ],
+  "uncovered_requirements": []
+}

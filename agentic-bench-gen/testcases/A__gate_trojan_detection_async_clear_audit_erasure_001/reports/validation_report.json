@@ -147,7 +147,6 @@
   "requirement_count": 8,
   "requirement_discrimination_coverage_score": 1.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 0,
   "status": "pass",
   "submission_invariants": {
     "issues": [],

@@ -25,6 +25,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
+    "failure_class": null,
+    "failure_signature": null,
     "golden_run": {
       "exit_code": 0,
       "expected": "pass",
@@ -49,12 +51,19 @@
   ],
   "issues": [
     {
-      "detail": "SR1 has no mutant that was detected \u2014 vulnerability coverage gap",
+      "detail": "SR1 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
       "issue": "uncovered_requirement"
     }
   ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
   "mutation_score": 0.875,
   "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
   "per_requirement_coverage": {
     "FR1": {
       "covered": true,
@@ -97,8 +106,69 @@
       "mutants_targeting": 1
     }
   },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
   "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.875,
+  "requirement_mapping_coverage_score": 1.0,
   "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "901f75ee6ff3ce4cf82261298da568804eeda27916e4d617eb8a2100e2c909bc",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "ca2553170c28c456612aabcd1f641e3f77c3e85136ced10ca122eb69b69ad4bf",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
   "tester_files": [
     "evaluation/README.md",
     "evaluation/evaluate.py",

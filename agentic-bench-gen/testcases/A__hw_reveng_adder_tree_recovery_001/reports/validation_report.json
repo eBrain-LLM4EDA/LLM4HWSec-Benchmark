@@ -1,0 +1,153 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: FR3\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/flattened_netlist.v",
+    "inputs/primitive_cells.v",
+    "metadata.json",
+    "submission/recovered_rtl.v"
+  ],
+  "check_activation": {
+    "FR1": 6,
+    "FR2": 6,
+    "FR3": 4,
+    "FR4": 4,
+    "SR1": 1,
+    "SR2": 1
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: FR3\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: FR3\n[TEST] FAIL: FR1: vector idx 0 mismatched: recovered=0x00000000 expected=0x0000000a (netlist_observed=0x0000000a)\n[TEST] FAIL: FR2: idx 0 (a=1,b=2,c=3,d=4) expected sum=0x0000000a, got 0x00000000; idx 1 (a=b=c=d=ffff) expected sum=0x0003fffc, got 0x00000000\n[TEST] PASS: FR4\n"
+    }
+  },
+  "domain_id": "hardware_reverse_engineering",
+  "expert_files": [
+    "golden/recovered_rtl.v"
+  ],
+  "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: FR3\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR4\n"
+  },
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 6,
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "cda03d6c0f85d3d4ffd79dc1b071a0c9850d23b212c1520dd87f3e7615d5d087",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "0e75eb35154c0909da1cb62b098853eaac23a4f14ed540f1ac4bf2eb9dbdab8e",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/security_checks.py",
+    "evaluation/tb_top.v"
+  ],
+  "uncovered_requirements": []
+}

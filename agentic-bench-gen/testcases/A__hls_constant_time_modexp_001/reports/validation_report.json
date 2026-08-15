@@ -23,6 +23,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
+    "failure_class": null,
+    "failure_signature": null,
     "golden_run": {
       "exit_code": 0,
       "expected": "pass",
@@ -47,8 +49,15 @@
     "golden/modexp_kernel_insecure.cpp"
   ],
   "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
   "mutation_score": 1.0,
   "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
   "per_requirement_coverage": {
     "FR1": {
       "covered": true,
@@ -86,8 +95,64 @@
       "mutants_targeting": 1
     }
   },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
   "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
   "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "9e8c260b0803b7fde74cf3de3106cc0260efb2168e2147371e5c35108eb629f8",
+        "changed": true,
+        "golden": "golden/modexp_kernel.cpp",
+        "golden_sha256": "2c16c92852a8fb838ae2350759f46a9d6b8e49c3a3c7dd55f98f6ba76c4fff04",
+        "target": "inputs/modexp_kernel.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/modexp_kernel.cpp"
+    ],
+    "unmapped_targets": []
+  },
   "tester_files": [
     "evaluation/README.md",
     "evaluation/evaluate.py",

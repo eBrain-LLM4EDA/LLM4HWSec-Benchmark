@@ -163,7 +163,6 @@
   "requirement_count": 9,
   "requirement_discrimination_coverage_score": 0.889,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 2,
   "status": "fail",
   "submission_invariants": {
     "issues": [],

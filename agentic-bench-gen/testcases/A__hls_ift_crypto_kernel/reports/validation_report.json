@@ -1,0 +1,183 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/crypto_kernel.cpp",
+    "inputs/crypto_kernel.h",
+    "inputs/design_brief.md",
+    "metadata.json"
+  ],
+  "check_activation": {
+    "FR1": 6,
+    "FR2": 3,
+    "FR3": 4,
+    "FR4": 1,
+    "SR1": 4,
+    "SR2": 2,
+    "SR3": 6,
+    "SR4": 2
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: pair #1: status=0x01 (expected 0x00)\n[TEST] FAIL: SR1: status varied across 200 distinct keys: observed {0x00, 0x01}\n[TEST] PASS: SR2\n[TEST] FAIL: SR3: pair #1: status=0x01 correlates with key content (expected constant 0x00)\n[TEST] FAIL: SR4: unexpected output on stdout/stderr: stdout=b'' stderr=b'[crypto_kernel] key checksum=0xb1\\n[crypto_kernel] key checksum=0x61\\n[crypto_kernel] key checksum=0x25\\n[crypto_kernel] key checksum=0x0d\\n[crypto_kernel] key checksum=0xa3\\n[crypto_kernel] key checksum=0xf9\\n[crypto_kernel] key checksum=0x75\\n[crypto_kernel] key checksum=0x6b\\n[crypto_kernel] key checksum=0x4f\\n[crypto_kernel] key checksum=0x26\\n[crypto_kernel] key checksum=0xda\\n[crypto_kernel] key checksum=0x2f\\n[crypto_kernel] key checksum=0xa1\\n[crypto_kernel] key checksum=0xd1\\n[crypto_kernel] key checksum=0xc4\\n[crypto_kernel] key checksum=0xc5\\n[crypto_kernel] key checksum=0x6e\\n[crypto_kernel] key checksum=0x44\\n[crypto_kernel] key checksum=0xc2\\n[crypto_kernel] key checksum=0xea\\n[crypto_kernel] key checksum=0x00\\n[crypto_kernel] key checksum=0xf0\\n[crypto_kernel] key checksum=0xf8\\n[crypto_kernel] key checksum=0xf8\\n'\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/crypto_kernel.cpp",
+    "golden/crypto_kernel.h"
+  ],
+  "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "7da7c891c40f5d6593cb957ef64b25586b9ccb91926f3383148294c0bbbb8d9f",
+        "changed": true,
+        "golden": "golden/crypto_kernel.cpp",
+        "golden_sha256": "3329be30c56be390e05dc3418adccae60ac918e831d5d1888c6e0e0ba1ab29d7",
+        "target": "inputs/crypto_kernel.cpp"
+      },
+      {
+        "baseline_sha256": "cc5bac8688ef17c574425f26afa47e6861288c12f71a408931a8e445dde83de5",
+        "changed": true,
+        "golden": "golden/crypto_kernel.h",
+        "golden_sha256": "0079771f49eedbc49fe1ad04ca18989d454f5de626725fd0a6ae2dede5dd78e9",
+        "target": "inputs/crypto_kernel.h"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/crypto_kernel.cpp",
+      "inputs/crypto_kernel.h"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp",
+    "evaluation/private/harness_support.py"
+  ],
+  "uncovered_requirements": []
+}

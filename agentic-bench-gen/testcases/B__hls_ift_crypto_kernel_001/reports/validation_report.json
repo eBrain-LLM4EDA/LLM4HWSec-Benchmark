@@ -11,17 +11,21 @@
     "metadata.json"
   ],
   "check_activation": {
-    "FR1": 3,
+    "FR1": 4,
     "FR2": 3,
-    "FR3": 2,
+    "FR3": 3,
     "SR1": 2,
     "SR2": 2,
     "SR3": 1,
-    "SR4": 3
+    "SR4": 4
   },
   "coverage_score": 1.0,
-  "dead_checks": [],
+  "dead_checks": [
+    "FR4"
+  ],
   "differential": {
+    "failure_class": null,
+    "failure_signature": null,
     "golden_run": {
       "exit_code": 0,
       "expected": "pass",
@@ -47,9 +51,25 @@
     "golden/metadata.json",
     "golden/mutants/mutant_variant_early_exit.c"
   ],
-  "issues": [],
-  "mutation_score": 1.0,
+  "issues": [
+    {
+      "detail": "FR4 never emitted [TEST] FAIL on its targeting mutants \u2014 provides no discrimination",
+      "issue": "dead_check"
+    },
+    {
+      "detail": "FR4 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "mutation_score": 0.875,
   "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
   "per_requirement_coverage": {
     "FR1": {
       "covered": true,
@@ -62,14 +82,56 @@
       "mutants_targeting": 1
     },
     "FR3": {
-      "covered": false,
-      "mutants_detected": 0,
-      "mutants_targeting": 0
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
     },
     "FR4": {
       "covered": false,
       "mutants_detected": 0,
-      "mutants_targeting": 0
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
     },
     "SR1": {
       "covered": true,
@@ -93,16 +155,33 @@
     }
   },
   "requirement_count": 8,
-  "status": "pass",
+  "requirement_discrimination_coverage_score": 0.875,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "1d715f0cc6f0b36ac46dd47898b2cf2ddb073c09849539be8893bffe0439ca4f",
+        "changed": true,
+        "golden": "golden/kernel.c",
+        "golden_sha256": "9a54a76cbc2dd87f72815fcbc2bb6ec0a83561d6d6fd97f375ea5c02c1ccd5a7",
+        "target": "inputs/kernel.c"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/kernel.c"
+    ],
+    "unmapped_targets": []
+  },
   "tester_files": [
     "evaluation/README.md",
     "evaluation/evaluate.py",
     "evaluation/harness_main.cpp",
     "evaluation/private/security_notes.md"
   ],
-  "uncovered_requirements": [],
-  "untested_requirements": [
-    "FR3",
+  "uncovered_requirements": [
     "FR4"
   ]
 }

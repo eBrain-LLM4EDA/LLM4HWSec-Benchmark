@@ -1,0 +1,112 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Harness calls kernel_access with op=READ and negative indices (e.g., -1, -1000, INT_MIN) on a scratchpad pre-filled with sentinel values. The mutated bounds check only rejects index >= BUFFER_SIZE, so negative indices pass validation and scratchpad[index] is read out-of-bounds (into adjacent memory before the buffer), violating status/return-value expectations and potentially crashing or leaking adjacent memory contents, which SR1's memcmp/status/return checks will detect.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // NOTE: only the upper bound is checked here; negative indices are\n    // incorrectly treated as in-range and allowed through to the array\n    // access below.\n    if (index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_sr1_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Harness calls kernel_access with op=WRITE and index == BUFFER_SIZE (64), which should be rejected per SR2/FR3 (index must be strictly < BUFFER_SIZE). With the off-by-one bound, the check index > BUFFER_SIZE lets index==64 pass validation, causing scratchpad[64] = write_val to write one int32_t past the end of the buffer into adjacent (canary) memory. memcmp of the canary region will show corruption, and status will incorrectly be 0 instead of 1.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index > BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_sr2_offbyone_constant_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Harness probes extreme int32 values (e.g. INT_MIN, INT_MAX, and values like 65536+5) and finds that truncating index to a 16-bit value before bounds-checking allows out-of-range indices whose low 16 bits fall within [0,BUFFER_SIZE) to bypass validation, causing an out-of-bounds read/write on the underlying scratchpad array.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. For \"efficiency\" the bounds check is performed on a truncated\n    // 16-bit view of the index, which is assumed to be equivalent to the\n    // full 32-bit value for all legitimate callers.\n    int16_t truncated_index = (int16_t)index;\n    if (truncated_index < 0 || truncated_index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_sr3_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Harness calls kernel_access with op values other than 0/1 (e.g., 2, -1, 999) on valid in-range indices; the mutant treats any unrecognized op as an implicit WRITE, so scratchpad is modified and the write_val is returned with status=0 instead of status=1/return 0/no modification, causing SR4 behavioral checks to fail.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else {\n        // BUG: any non-READ op (including unrecognized ones like 2, -1, 999)\n        // falls through to a write, instead of only OP_WRITE being handled\n        // and other values being rejected.\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_sr4_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "Harness performs an in-range WRITE at index i with write_val, then reads back scratchpad[i] or checks the returned value; because the write stores write_val+1 instead of write_val, the returned value and stored buffer contents mismatch the expected write_val, failing the in-range functional/side-effect check (SR5).",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val + 1;\n        *status = STATUS_SUCCESS;\n        return write_val + 1;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_sr5_operator_swap_001",
+      "operator": "operator_swap",
+      "target_requirement_id": "SR5"
+    },
+    {
+      "expected_detection": "In-range READ test vectors (e.g., index=0) will fail: kernel_access returns scratchpad[index+1] instead of scratchpad[index], producing a wrong value for FR1-covered functional test vectors, and can also read out of bounds when index==BUFFER_SIZE-1.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index + 1];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_fr1_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "SR5/FR2 functional test vector: in-range WRITE at a valid index expects scratchpad[index] to be updated to write_val and the same value returned with status=0; this mutant removes the actual store to scratchpad[index] so the buffer retains its old value while still returning write_val and status=0, causing a mismatch when the harness reads back the written index or memcmp's the buffer against expected post-write state.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        // NOTE: store to scratchpad[index] intentionally omitted here.\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_fr2_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "SR1/SR2/FR3 behavioral tests: harness calls kernel_access with an out-of-range index (e.g. index == BUFFER_SIZE, or negative) and asserts status==1 and return value==0. With this mutant, out-of-range accesses report *status = STATUS_SUCCESS (stuck at 0) instead of STATUS_ERROR_OUT_OF_RANGE, so the status output is always 0 regardless of range validity, causing the out-of-range test vectors to fail on the status field even though the array itself is not touched.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 64;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index >= BUFFER_SIZE) {\n        // BUG (stuck_at_signal): status is stuck at SUCCESS (0) instead of\n        // being set to the error code, even though the array access is\n        // still correctly skipped. Callers can no longer distinguish a\n        // rejected out-of-range request from a real successful operation.\n        *status = STATUS_SUCCESS;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_fr3_stuck_at_signal_001",
+      "operator": "stuck_at_signal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Harness compiles against BUFFER_SIZE=64 contract; with BUFFER_SIZE redefined to 32 in the kernel file, in-range functional test vectors using indices 32-63 (valid under the required BUFFER_SIZE=64 interface) will be incorrectly rejected as out-of-range (status=1, return 0) instead of performing the expected read/write, causing FR1/FR2/FR4 behavioral checks to fail and revealing the interface/capacity contract violation.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n\n#ifndef BUFFER_SIZE\nconstexpr int32_t BUFFER_SIZE = 32;\n#endif\n\nstatic const int32_t STATUS_SUCCESS = 0;\nstatic const int32_t STATUS_ERROR_OUT_OF_RANGE = 1;\n\nstatic const int32_t OP_READ = 0;\nstatic const int32_t OP_WRITE = 1;\n\nint kernel_access(int32_t scratchpad[BUFFER_SIZE], int32_t index, int32_t op,\n                   int32_t write_val, int32_t *status) {\n    // Validate index strictly within [0, BUFFER_SIZE) before touching the\n    // array. Both bounds are checked explicitly and independently to avoid\n    // any reliance on unsigned wraparound or pointer arithmetic tricks.\n    if (index < 0 || index >= BUFFER_SIZE) {\n        *status = STATUS_ERROR_OUT_OF_RANGE;\n        return 0;\n    }\n\n    if (op == OP_READ) {\n        *status = STATUS_SUCCESS;\n        return scratchpad[index];\n    } else if (op == OP_WRITE) {\n        scratchpad[index] = write_val;\n        *status = STATUS_SUCCESS;\n        return write_val;\n    }\n\n    // Unrecognized op value: reject without touching scratchpad.\n    *status = STATUS_ERROR_OUT_OF_RANGE;\n    return 0;\n}",
+          "path": "inputs/scratchpad_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_bram_bounds_fr4_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

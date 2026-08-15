@@ -59,6 +59,30 @@
       "mutant_id": "gate_trojan_detection-fr2-domain_specific-001",
       "operator": "domain_specific",
       "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Evaluator checks FR3: if infected is false, suspect_nodes must be an empty array. This mutant sets infected=false but populates suspect_nodes with entries, violating the consistency rule and should be rejected.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"suspect_nodes\": [\"rst_sync1\", \"init_done_latched\", \"sat_cmp_ge_max\"],\n  \"rationale\": \"Structural review of gate_netlist.v found three low-toggle-probability regions that superficially resemble trojan trigger circuitry but are fully explained by design_brief.md. (1) The async reset synchronizer chain (rst_sync1/rst_sync2 feeding rst_sync_n) toggles only once per power-on or external reset event; this is a standard active-low reset deassertion synchronizer, not a rare-trigger AND-tree, and every downstream flop's reset pin is driven by it as documented. (2) init_done_latched (the power-on initialization counter's held terminal-count output) transitions exactly once per boot; this is the documented one-time initialization sequencer gating internal state load, not a hidden payload enable. (3) The saturation/overflow comparator sat_cmp_ge_max feeding the clamp mux on the datapath adder output only fires when the accumulator would overflow, a rare but fully specified and reachable functional condition (saturating arithmetic) called out explicitly in design_brief.md. None of these nets exhibit the hallmark trojan pattern of a high fan-in AND of many unrelated, otherwise-unused control signals gating a payload that corrupts a primary output outside documented behavior; all three are reachable under normal, specified operation and their fan-in/fan-out matches the design brief's described reset, init, and saturation behavior. Verdict: clean, no hardware Trojan present, though these three nets are noted here for completeness of the rare-activity review.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection-fr3-domain_specific-001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Grader checks that the rationale references at least one specific net/module/instance name that actually appears verbatim in inputs/gate_netlist.v (e.g. rst_sync1, init_cnt, sat_cmp_ge_max, U_ADD_XOR0). This mutant replaces all such concrete identifiers with generic, non-existent placeholder terms ('the reset logic', 'the counter block', 'the overflow comparator'), so no token in the rationale matches any identifier in gate_netlist.v, violating FR4's requirement that the rationale demonstrate actual inspection of the provided netlist.",
+      "files": [
+        {
+          "content": "{\n  \"infected\": false,\n  \"suspect_nodes\": [],\n  \"rationale\": \"Structural review of the netlist found three low-toggle-probability regions that superficially resemble trojan trigger circuitry but are fully explained by the design brief. (1) The reset logic toggles only once per power-on or external reset event; this is a standard active-low reset deassertion synchronizer, not a rare-trigger AND-tree, and every downstream flop's reset pin is driven by it as documented. (2) The counter block counts up once from reset and its terminal-count comparator output transitions exactly once per boot; this is the documented one-time initialization sequencer gating internal state load, not a hidden payload enable. (3) The overflow comparator only fires when the accumulator would overflow, a rare but fully specified and reachable functional condition (saturating arithmetic) called out explicitly in the design brief, and it feeds directly into the documented clamp logic rather than an unused or covert output. None of these signals exhibit the hallmark trojan pattern of a high fan-in AND of many unrelated, otherwise-unused control signals gating a payload that corrupts a primary output outside documented behavior; all three are reachable under normal, specified operation and their fan-in/fan-out matches the design brief's described reset, init, and saturation behavior. No unused/dead logic paths, no additional rare-condition combinational cones feeding primary outputs or state elements were found. Verdict: clean, no hardware Trojan present.\",\n  \"confidence\": 0.95\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection-fr4-constant_change-001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
     }
   ]
 }

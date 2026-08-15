@@ -59,6 +59,30 @@
       "mutant_id": "mutant_fr2_assignment_removal_001",
       "operator": "assignment_removal",
       "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py counts the entries in key_gates and compares against the number of keymux instances actually present in inputs/locked_netlist.v (4). This mutant only reports 3 entries (u_keymux3 dropped), so the count mismatch (3 != 4) must trigger FR3 failure and also degrade key_gate_localization_accuracy/key_recovery_rate causing FAIL.",
+      "files": [
+        {
+          "content": "{\n  \"key_bits\": \"0100\",\n  \"key_gates\": [\n    {\n      \"instance_name\": \"u_keymux0\",\n      \"key_bit_index\": 0,\n      \"resolved_value\": 0\n    },\n    {\n      \"instance_name\": \"u_keymux1\",\n      \"key_bit_index\": 1,\n      \"resolved_value\": 1\n    },\n    {\n      \"instance_name\": \"u_keymux2\",\n      \"key_bit_index\": 2,\n      \"resolved_value\": 0\n    }\n  ],\n  \"notes\": \"Traced each u_keymuxN instance in inputs/locked_netlist.v back to the internal wire it intercepts (N10, N11, N16) and identified the mux2x1 primitive's actual select polarity by inspecting its gate-level definition: Y = (S & B) | (~S & A), meaning S=0 forwards input A and S=1 forwards input B. Only three lock loci were enumerated in this pass; the fourth locus (u_keymux3 on N19) was inadvertently swapped out of the final result set during report assembly, leaving key_gates with 3 entries instead of the expected 4 documented in locking_description.md.\"\n}",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "mutant_fr3_operator_swap_001",
+      "operator": "operator_swap",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "FR4 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/recovered_key.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr4_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
     }
   ]
 }

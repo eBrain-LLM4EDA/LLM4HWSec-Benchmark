@@ -1,4 +1,13 @@
 {
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
   "case_files": [
     "README.md",
     "inputs/design_brief.md",
@@ -12,6 +21,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "6dd9a35ada00a3e055974f94afdf6c2aca3b8b52a6dd78879aa1b928b1cb94e3",
     "golden_run": {
       "exit_code": 1,
       "expected": "pass",
@@ -42,8 +53,28 @@
   ],
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
   "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
   "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "89b7ebcf5f878b57427af5aa7ccc64215e5a3490079967c71a2c1efc283d4016",
+        "changed": true,
+        "golden": "golden/recovered_rtl.v",
+        "golden_sha256": "1d305bb1deffe9adb81e2f231feff1f4294b4833fba2db75ddfd6907c34b895c",
+        "target": "submission/recovered_rtl.v"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/recovered_rtl.v"
+    ],
+    "unmapped_targets": []
+  },
   "tester_files": [
     "evaluation/README.md",
     "evaluation/evaluate.py",

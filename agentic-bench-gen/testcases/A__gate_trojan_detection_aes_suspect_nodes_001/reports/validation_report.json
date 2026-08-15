@@ -1,0 +1,185 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[EVALUATOR SELF-TEST] OK: naive baseline fixture independently fails SR1-SR4 as expected\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/aes_sub_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/port_map.json",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 2,
+    "FR3": 2,
+    "FR4": 3,
+    "SR1": 3,
+    "SR2": 5,
+    "SR3": 5,
+    "SR4": 3,
+    "SR5": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[EVALUATOR SELF-TEST] OK: naive baseline fixture independently fails SR1-SR4 as expected\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[EVALUATOR SELF-TEST] OK: naive baseline fixture independently fails SR1-SR4 as expected\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: reported infected=False but ground truth infected=True\n[TEST] FAIL: SR2: only 0/4 trigger-tree nodes covered (need >= 3): covered=[]; payload node 'payload_xor' not present in suspect_nodes\n[TEST] FAIL: SR3: primary_output_affected='' does not match ground truth 'sbox_out'\n[TEST] FAIL: SR4: rationale touches only 0 of the required semantic keyword groups (need >= 2)\n[TEST] FAIL: SR5: submission is functionally equivalent to the naive/empty baseline (infected=false, suspect_nodes=[], primary_output_affected='') and does not independently satisfy SR1-SR4\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[EVALUATOR SELF-TEST] OK: naive baseline fixture independently fails SR1-SR4 as expected\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n"
+  },
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR5": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR5": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 9,
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "a6b5d56a7eed98a4a9f36fa78e63d68bfea429eafc2185d141fe7149b45ff11e",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "a24a2574a45eaf40b0c10c099c3dd3c52f09afb2fd9e93acb103ccb9f40ab596",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/gold_truth.py"
+  ],
+  "uncovered_requirements": []
+}

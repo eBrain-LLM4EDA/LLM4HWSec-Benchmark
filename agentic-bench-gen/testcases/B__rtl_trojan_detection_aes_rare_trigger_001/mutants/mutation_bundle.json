@@ -71,6 +71,30 @@
       "mutant_id": "mutant_fr2_assignment_removal_001",
       "operator": "assignment_removal",
       "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py checks that every signal_name in findings appears verbatim as an identifier in inputs/aes_core.v. 'trig_comparator_net' is not a real identifier in aes_core.v (the actual signals are trig_cnt and trojan_en/trig_hit), so FR3 verification should fail this submission.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [\n    {\n      \"signal_name\": \"trig_comparator_net\",\n      \"activation_condition\": \"trig_comparator_net is a free-running 16-bit register incremented every clock cycle with no legitimate functional role in the documented round/state datapath. When trig_comparator_net reaches the rare fixed constant 16'hBEEF while simultaneously round_cnt (or the internal round-state register) equals a specific documented round value, a hidden comparator asserts an internal enable signal that drives a payload multiplexer feeding out_data. This condition is exceedingly rare under normal operation/regression testing but deterministically reachable after ~48815 cycles of continuous clocking, at which point the payload activates.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.97\n    },\n    {\n      \"signal_name\": \"trig_hit\",\n      \"activation_condition\": \"trig_hit is the output of the comparator combining the rare counter match with the round-state match condition; when asserted it drives a payload mux that XORs exactly one bit of the ciphertext output register for a single clock cycle before returning to normal (correct) output, silently corrupting one bit of out_data with no effect on any documented control or status signal.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.9\n    }\n  ],\n  \"overall_assessment\": \"The RTL contains a hidden hardware trojan: an undocumented 16-bit free-running counter with no legitimate role in the documented AES round/state logic is compared against a rare constant (16'hBEEF) in conjunction with an existing round-state condition. When both conditions hold simultaneously, a payload multiplexer XORs a single bit of the out_data output for one cycle, silently corrupting one bit of the ciphertext while leaving all other documented functionality intact. This is a classic rare-trigger counter+comparator+payload-mux trojan pattern; no legitimate documented signal (e.g. round_cnt, state_reg used for normal AES round computation) exhibits this anomalous behavior, and those signals are not flagged as suspicious.\",\n  \"is_trojan_present\": true\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_fr3_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "FR4 checker validates that every string in affected_outputs for each finding is one of the declared output ports of aes_core (out_data, done) as listed verbatim in inputs/aes_core.v. 'ciphertext_out' is not a declared port name in the module, so this submission must fail FR4 schema/port conformance.",
+      "files": [
+        {
+          "content": "{\n  \"findings\": [\n    {\n      \"signal_name\": \"trig_cnt\",\n      \"activation_condition\": \"trig_cnt is a free-running 16-bit register incremented every clock cycle with no legitimate functional role in the documented round/state datapath. When trig_cnt reaches the rare fixed constant 16'hBEEF while simultaneously round_cnt (or the internal round-state register) equals a specific documented round value, a hidden comparator asserts an internal enable signal that drives a payload multiplexer feeding out_data. This condition is exceedingly rare under normal operation/regression testing but deterministically reachable after ~48815 cycles of continuous clocking, at which point the payload activates.\",\n      \"affected_outputs\": [\"ciphertext_out\"],\n      \"confidence\": 0.97\n    },\n    {\n      \"signal_name\": \"trig_hit\",\n      \"activation_condition\": \"trig_hit is the output of the comparator combining trig_cnt==16'hBEEF with the round-state match condition; when asserted it drives a payload mux that XORs exactly one bit of the ciphertext output register for a single clock cycle before returning to normal (correct) output, silently corrupting one bit of out_data with no effect on any documented control or status signal.\",\n      \"affected_outputs\": [\"out_data\"],\n      \"confidence\": 0.9\n    }\n  ],\n  \"overall_assessment\": \"The RTL contains a hidden hardware trojan: an undocumented 16-bit free-running counter (trig_cnt) with no legitimate role in the documented AES round/state logic is compared against a rare constant (16'hBEEF) in conjunction with an existing round-state condition. When both conditions hold simultaneously, a payload multiplexer XORs a single bit of the out_data output for one cycle, silently corrupting one bit of the ciphertext while leaving all other documented functionality intact. This is a classic rare-trigger counter+comparator+payload-mux trojan pattern; no legitimate documented signal (e.g. round_cnt, state_reg used for normal AES round computation) exhibits this anomalous behavior, and those signals are not flagged as suspicious.\",\n  \"is_trojan_present\": true\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "mutant_fr4_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
     }
   ]
 }

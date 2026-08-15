@@ -1,4 +1,12 @@
 {
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2"
+  ],
   "case_files": [
     "README.md",
     "inputs/stream_accumulator.cpp",
@@ -9,14 +17,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
-    "evidence": {
-      "golden_passed": true,
-      "kind": "behavioral_test",
-      "required": false,
-      "vulnerable_passed": true
-    },
     "failure_class": "multiple",
-    "failure_signature": "0bb71f3822df8e7f31eca1f38ded2771cf302316175ca5d8ebccbba97ff377dd",
+    "failure_signature": "d91d992960125a34f61251bd19d10621068889115cbabee1bb48a179a6ab3367",
     "golden_run": {
       "exit_code": 1,
       "expected": "pass",
@@ -50,50 +52,16 @@
       "issue": "requirement_id_mismatch"
     },
     {
-      "detail": "evaluate.py accepts the known-insecure baseline input (FAIL expected) \u2014 security checks are inverted, no-ops, or absent",
-      "issue": "vulnerable_accepted"
-    },
-    {
-      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "FR4 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR1 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
-      "issue": "untested_requirement"
-    },
-    {
-      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
-      "issue": "repeated_preflight_failure"
+      "detail": "The baseline exited non-zero, but not as a valid requirement-level rejection (for example, setup or runtime failed)",
+      "issue": "vulnerable_rejection_invalid"
     }
   ],
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
-  "preflight": {
-    "attempts": 1,
-    "failure_class": "multiple",
-    "failure_signature": "0bb71f3822df8e7f31eca1f38ded2771cf302316175ca5d8ebccbba97ff377dd",
-    "repeated_signature": true
-  },
+  "mutation_status": "blocked_by_differential",
   "requirement_count": 6,
   "requirement_discrimination_coverage_score": 0.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 0,
   "status": "fail",
   "submission_invariants": {
     "issues": [],
@@ -125,13 +93,5 @@
     "evaluation/evaluate.py",
     "evaluation/harness_main.cpp"
   ],
-  "uncovered_requirements": [],
-  "untested_requirements": [
-    "FR1",
-    "FR2",
-    "FR3",
-    "FR4",
-    "SR1",
-    "SR2"
-  ]
+  "uncovered_requirements": []
 }

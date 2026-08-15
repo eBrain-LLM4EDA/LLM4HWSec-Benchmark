@@ -71,6 +71,30 @@
       "mutant_id": "gate_trojan_detection_counter_timebomb_001_FR2_constant_change",
       "operator": "constant_change",
       "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py should check that every net name in suspect_nodes and stage_labels is a valid identifier appearing in inputs/netlist.v (as a wire, reg, or gate output). The mutant introduces 'cnt_reg[4]' (a nonexistent bit, since cnt_reg is only 4 bits wide, indices 0-3) and 'trigger_gate_out' (a fabricated name not present anywhere in netlist.v) into suspect_nodes and stage_labels, which should cause FR3 validation to fail.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[4]\",\n    \"trig_and\",\n    \"trigger_gate_out\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[4]\": \"counter\",\n    \"trig_and\": \"comparator\",\n    \"trigger_gate_out\": \"payload\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  },\n  \"summary\": \"Static gate-level tracing revealed an undocumented free-running 4-bit counter (cnt_reg[0..3]) with no connection to the documented adder/accumulator datapath. Its bits feed an AND-tree comparator node (trig_and) that asserts once the counter reaches its terminal count, and trig_and gates a payload gate spliced onto the primary output path, silently corrupting the true output after prolonged operation. This subcircuit is absent from the design_brief functional specification. The legitimate datapath nodes (sum_bit, carry) were verified against the documented adder/accumulator behavior and are not part of the trojan.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_FR3_domain_specific",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "evaluate.py schema check (FR4) must detect that the 'summary' field is absent from the submitted JSON object and mark schema_validity=0 / FAIL, since FR1-FR4 requires a non-empty summary string of at least 20 characters describing the analysis method.",
+      "files": [
+        {
+          "content": "{\n  \"design_name\": \"datapath_top\",\n  \"is_trojan_detected\": true,\n  \"suspect_nodes\": [\n    \"cnt_reg[0]\",\n    \"cnt_reg[1]\",\n    \"cnt_reg[2]\",\n    \"cnt_reg[3]\",\n    \"trig_and\",\n    \"payload_xor\"\n  ],\n  \"stage_labels\": {\n    \"cnt_reg[0]\": \"counter\",\n    \"cnt_reg[1]\": \"counter\",\n    \"cnt_reg[2]\": \"counter\",\n    \"cnt_reg[3]\": \"counter\",\n    \"trig_and\": \"comparator\",\n    \"payload_xor\": \"payload\",\n    \"sum_bit\": \"datapath\",\n    \"carry\": \"datapath\"\n  }\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_counter_timebomb_001_FR4_assignment_removal",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
     }
   ]
 }

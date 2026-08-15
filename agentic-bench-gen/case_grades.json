@@ -1,382 +1,499 @@
 {
- "runs/demo/A__hw_reveng_quadrature_decoder_001": {
-  "case": "hw_reveng_quadrature_decoder_001",
-  "grade": "A"
- },
- "runs/demo/A__reverse_bidirectional_barrel_shifter_001": {
-  "case": "reverse_bidirectional_barrel_shifter_001",
-  "grade": "A"
- },
- "runs/demo/A__reverse_hamming74_sec_decoder": {
-  "case": "reverse_hamming74_sec_decoder",
-  "grade": "A"
- },
- "runs/demo/B__hre_pwm_deadtime_001": {
-  "case": "hre_pwm_deadtime_001",
-  "grade": "B"
- },
- "runs/demo/C__sca_fixed_latency_enable_count_001": {
-  "case": "sca_fixed_latency_enable_count_001",
-  "grade": "C"
- },
- "runs/demo/D__hwre_dualport_regfile_recovery_001": {
-  "case": "hwre_dualport_regfile_recovery_001",
-  "grade": "D"
- },
- "runs/demo/D__sca_fault_secded_double_fault_miscorrection_001": {
-  "case": "sca_fault_secded_double_fault_miscorrection_001",
-  "grade": "D"
- },
- "runs/demo/D__sca_fault_spn_lastround_dfa_001": {
-  "case": "sca_fault_spn_lastround_dfa_001",
-  "grade": "D"
- },
- "runs/demo/D__sfa_rom_addr_leak_001": {
-  "case": "sfa_rom_addr_leak_001",
-  "grade": "D"
- },
- "runs/demo_gen1/D__hls_ift_crypto_kernel_001": {
-  "case": "hls_ift_crypto_kernel_001",
-  "grade": "D"
- },
- "runs/demo_gen2/B__gate_trojan_detection_aes_suspect_nodes_001": {
-  "case": "gate_trojan_detection_aes_suspect_nodes_001",
-  "grade": "B"
- },
- "runs/demo_gen2/B__hls_ift_crypto_kernel": {
-  "case": "hls_ift_crypto_kernel",
-  "grade": "B"
- },
- "runs/demo_gen2/B__rtl_trojan_detection_aes_rare_trigger_001": {
-  "case": "rtl_trojan_detection_aes_rare_trigger_001",
-  "grade": "B"
- },
- "runs/demo_gen2/C__hw_reveng_adder_tree_recovery_001": {
-  "case": "hw_reveng_adder_tree_recovery_001",
-  "grade": "C"
- },
- "runs/demo_gen3/B__hls_stale_bram_data_clearing_001": {
-  "case": "hls_stale_bram_data_clearing_001",
-  "grade": "B"
- },
- "runs/demo_gen4/A__gate_clean_scan_chain": {
+ "testcases/A__gate_clean_scan_chain": {
   "case": "gate_clean_scan_chain",
-  "grade": "A"
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_gen4/A__hls_dma_range_overflow_001": {
-  "case": "hls_dma_range_overflow_001",
-  "grade": "A"
- },
- "runs/demo_gen4/A__rtl_clean_debug_controller": {
-  "case": "rtl_clean_debug_controller",
-  "grade": "A"
- },
- "runs/demo_gen4/A__rtl_trojan_detection_clean_debug_controller_001": {
-  "case": "rtl_trojan_detection_clean_debug_controller_001",
-  "grade": "A"
- },
- "runs/demo_gen4/A__rtl_trojan_detection_param_fifo_001": {
-  "case": "rtl_trojan_detection_param_fifo_001",
-  "grade": "A"
- },
- "runs/demo_gen4/B__hls_key_indexed_lookup_001": {
-  "case": "hls_key_indexed_lookup_001",
-  "grade": "B"
- },
- "runs/demo_gen4/D__hls_cross_context_state_reset": {
-  "case": "hls_cross_context_state_reset",
-  "grade": "D"
- },
- "runs/demo_gen4/D__hls_privileged_command_dispatch": {
-  "case": "hls_privileged_command_dispatch",
-  "grade": "D"
- },
- "runs/demo_gen5/A__gate_parity_only_payload": {
+ "testcases/A__gate_parity_only_payload": {
   "case": "gate_parity_only_payload",
-  "grade": "A"
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_gen5/A__rtl_second_order_share_leakage": {
-  "case": "rtl_second_order_share_leakage",
-  "grade": "A"
- },
- "runs/demo_gen5/A__rtl_stream_handshake_trojan": {
-  "case": "rtl_stream_handshake_trojan",
-  "grade": "A"
- },
- "runs/demo_gen5/A__rtl_variable_latency_divider": {
-  "case": "rtl_variable_latency_divider",
-  "grade": "A"
- },
- "runs/demo_gen5/A__scfa-001": {
-  "case": "scfa-001",
-  "grade": "A"
- },
- "runs/demo_gen5/C__logic_deobfuscation_sat_001": {
-  "case": "logic_deobfuscation_sat_001",
-  "grade": "C"
- },
- "runs/demo_gen5/C__rtl_redundant_counter_common_mode_fault": {
-  "case": "rtl_redundant_counter_common_mode_fault",
-  "grade": "C"
- },
- "runs/demo_gen5/D__gate_aoi_absorbed_trigger": {
-  "case": "gate_aoi_absorbed_trigger",
-  "grade": "D"
- },
- "runs/demo_gen5/D__gate_clock_enable_payload": {
-  "case": "gate_clock_enable_payload",
-  "grade": "D"
- },
- "runs/demo_gen5/D__gate_sequential_fsm_trigger_001": {
-  "case": "gate_sequential_fsm_trigger_001",
-  "grade": "D"
- },
- "runs/demo_gen5/D__locked_cyclic_feedback": {
-  "case": "locked_cyclic_feedback",
-  "grade": "D"
- },
- "runs/demo_gen5/D__locked_mixed_xor_mux": {
-  "case": "locked_mixed_xor_mux",
-  "grade": "D"
- },
- "runs/demo_gen5/D__locked_sequential_keyload_fsm": {
-  "case": "locked_sequential_keyload_fsm",
-  "grade": "D"
- },
- "runs/demo_gen5/D__reverse_crc16_serial": {
-  "case": "reverse_crc16_serial",
-  "grade": "D"
- },
- "runs/demo_gen5/D__reverse_fifo_controller": {
-  "case": "reverse_fifo_controller",
-  "grade": "D"
- },
- "runs/demo_gen5/D__reverse_pipelined_saturating_mac": {
-  "case": "reverse_pipelined_saturating_mac",
-  "grade": "D"
- },
- "runs/demo_gen5/D__rtl_auth_clock_glitch_window": {
-  "case": "rtl_auth_clock_glitch_window",
-  "grade": "D"
- },
- "runs/demo_gen5/D__rtl_distributed_trigger_exfiltration": {
-  "case": "rtl_distributed_trigger_exfiltration",
-  "grade": "D"
- },
- "runs/demo_gen5/D__rtl_reset_order_trojan": {
-  "case": "rtl_reset_order_trojan",
-  "grade": "D"
- },
- "runs/demo_gen5/D__sarlock_point_function_recovery": {
-  "case": "sarlock_point_function_recovery",
-  "grade": "D"
- },
- "runs/demo_gen6/A__gate_trojan_detection_async_clear_audit_erasure_001": {
-  "case": "gate_trojan_detection_async_clear_audit_erasure_001",
-  "grade": "A"
- },
- "runs/demo_gen6/B__gate_trojan_detection_addr_decoder_alias_001": {
-  "case": "gate_trojan_detection_addr_decoder_alias_001",
-  "grade": "B"
- },
- "runs/demo_gen6/B__gate_trojan_detection_cell_substitution_001": {
-  "case": "gate_trojan_detection_cell_substitution_001",
-  "grade": "B"
- },
- "runs/demo_gen6/B__gate_trojan_detection_power_isolation_bypass_001": {
-  "case": "gate_trojan_detection_power_isolation_bypass_001",
-  "grade": "B"
- },
- "runs/demo_gen6/B__gate_trojan_detection_tmr_voter_cloning_001": {
-  "case": "gate_trojan_detection_tmr_voter_cloning_001",
-  "grade": "B"
- },
- "runs/demo_newgen/A__hls_constant_time_modexp_001": {
-  "case": "hls_constant_time_modexp_001",
-  "grade": "A"
- },
- "runs/demo_newgen/A__rtl_trojan_detection_rollback_seq_0001": {
-  "case": "rtl_trojan_detection_rollback_seq_0001",
-  "grade": "A"
- },
- "runs/demo_newgen/B__rtl_nmi_priority_suppression_trojan_v1": {
-  "case": "rtl_nmi_priority_suppression_trojan_v1",
-  "grade": "B"
- },
- "runs/demo_newgen/B__rtl_opcode_privilege_trojan_001": {
-  "case": "rtl_opcode_privilege_trojan_001",
-  "grade": "B"
- },
- "runs/demo_newgen/B__rtl_trojan_detection_key_zeroize_hold_001": {
-  "case": "rtl_trojan_detection_key_zeroize_hold_001",
-  "grade": "B"
- },
- "runs/demo_newgen/B__rtl_trojan_detection_lockstep_alu_001": {
-  "case": "rtl_trojan_detection_lockstep_alu_001",
-  "grade": "B"
- },
- "runs/demo_newgen/B__rtl_trojan_detection_rng_healthcheck_001": {
-  "case": "rtl_trojan_detection_rng_healthcheck_001",
-  "grade": "B"
- },
- "runs/demo_newgen/D__gate_trojan_detection_mult8_and_tree_001": {
-  "case": "gate_trojan_detection_mult8_and_tree_001",
-  "grade": "D"
- },
- "runs/demo_proper/A__hls_stale_bram_data_clearing_001": {
-  "case": "hls_stale_bram_data_clearing_001",
-  "grade": "A"
- },
- "runs/demo_proper/B__gate_clean_netlist_fp_001": {
-  "case": "gate_clean_netlist_fp_001",
-  "grade": "B"
- },
- "runs/demo_proper/B__gate_trojan_detection_aes_suspect_nodes_001": {
+ "testcases/A__gate_trojan_detection_aes_suspect_nodes_001": {
   "case": "gate_trojan_detection_aes_suspect_nodes_001",
-  "grade": "B"
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__gate_trojan_detection_counter_timebomb_001": {
-  "case": "gate_trojan_detection_counter_timebomb_001",
-  "grade": "B"
+ "testcases/A__gate_trojan_detection_async_clear_audit_erasure_001": {
+  "case": "gate_trojan_detection_async_clear_audit_erasure_001",
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__hls_bram_bounds_enforcement_001": {
+ "testcases/A__hls_bram_bounds_enforcement_001": {
   "case": "hls_bram_bounds_enforcement_001",
-  "grade": "B"
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__hls_constant_time_compare_001": {
+ "testcases/A__hls_constant_time_compare_001": {
   "case": "hls_constant_time_compare_001",
-  "grade": "B"
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__hls_ift_crypto_kernel_001": {
-  "case": "hls_ift_crypto_kernel_001",
-  "grade": "B"
+ "testcases/A__hls_constant_time_modexp_001": {
+  "case": "hls_constant_time_modexp_001",
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__hw_reveng_adder_tree_recovery_001": {
+ "testcases/A__hls_dma_range_overflow_001": {
+  "case": "hls_dma_range_overflow_001",
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__hls_ift_crypto_kernel": {
+  "case": "hls_ift_crypto_kernel",
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__hls_stale_bram_data_clearing_001": {
+  "case": "hls_stale_bram_data_clearing_001",
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__hw_reveng_adder_tree_recovery_001": {
   "case": "hw_reveng_adder_tree_recovery_001",
-  "grade": "B"
+  "domain": "hardware_reverse_engineering",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__logic_deobfuscation_sat_antisat_localization_001": {
+ "testcases/A__hw_reveng_quadrature_decoder_001": {
+  "case": "hw_reveng_quadrature_decoder_001",
+  "domain": "hardware_reverse_engineering",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__logic_deobfuscation_sat_antisat_localization_001": {
   "case": "logic_deobfuscation_sat_antisat_localization_001",
-  "grade": "B"
+  "domain": "logic_deobfuscation_sat",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__logic_deobfuscation_sat_locked_c880_xor_keys": {
+ "testcases/A__logic_deobfuscation_sat_locked_c880_xor_keys": {
   "case": "logic_deobfuscation_sat_locked_c880_xor_keys",
-  "grade": "B"
+  "domain": "logic_deobfuscation_sat",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__logic_deobfuscation_sat_muxlock_keygates_001": {
-  "case": "logic_deobfuscation_sat_muxlock_keygates_001",
-  "grade": "B"
+ "testcases/A__reverse_bidirectional_barrel_shifter_001": {
+  "case": "reverse_bidirectional_barrel_shifter_001",
+  "domain": "hardware_reverse_engineering",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__rtl_trojan_detection_aes_rare_trigger_001": {
-  "case": "rtl_trojan_detection_aes_rare_trigger_001",
-  "grade": "B"
+ "testcases/A__reverse_hamming74_sec_decoder": {
+  "case": "reverse_hamming74_sec_decoder",
+  "domain": "hardware_reverse_engineering",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__rtl_trojan_detection_bus_arbiter_dos_fsm_001": {
-  "case": "rtl_trojan_detection_bus_arbiter_dos_fsm_001",
-  "grade": "B"
+ "testcases/A__rtl_clean_debug_controller": {
+  "case": "rtl_clean_debug_controller",
+  "domain": "rtl_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__rtl_uart_leak_trojan_001": {
+ "testcases/A__rtl_second_order_share_leakage": {
+  "case": "rtl_second_order_share_leakage",
+  "domain": "side_channel_fault_analysis",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__rtl_stream_handshake_trojan": {
+  "case": "rtl_stream_handshake_trojan",
+  "domain": "rtl_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__rtl_trojan_detection_clean_debug_controller_001": {
+  "case": "rtl_trojan_detection_clean_debug_controller_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__rtl_trojan_detection_param_fifo_001": {
+  "case": "rtl_trojan_detection_param_fifo_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__rtl_trojan_detection_rollback_seq_0001": {
+  "case": "rtl_trojan_detection_rollback_seq_0001",
+  "domain": "rtl_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__rtl_uart_leak_trojan_001": {
   "case": "rtl_uart_leak_trojan_001",
-  "grade": "B"
+  "domain": "rtl_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__sca_fia_secure_boot_bypass_001": {
-  "case": "sca_fia_secure_boot_bypass_001",
-  "grade": "B"
+ "testcases/A__rtl_variable_latency_divider": {
+  "case": "rtl_variable_latency_divider",
+  "domain": "side_channel_fault_analysis",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
- "runs/demo_proper/B__seu_tmr_candidate_identification_v1": {
+ "testcases/A__scfa-001": {
+  "case": "scfa-001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__seu_tmr_candidate_identification_v1": {
   "case": "seu_tmr_candidate_identification_v1",
-  "grade": "B"
- },
- "runs/demo_proper/B__side_channel_fault_analysis_rtl_dpa_leaky_sbox": {
-  "case": "side_channel_fault_analysis_rtl_dpa_leaky_sbox",
-  "grade": "B"
- },
- "runs/demo_proper/C__hls_security_codegen_xor_cipher_kernel_v1": {
-  "case": "hls_security_codegen_xor_cipher_kernel_v1",
-  "grade": "C"
- },
- "runs/demo_proper/C__hw_reveng_mux_alu_datapath_001": {
-  "case": "hw_reveng_mux_alu_datapath_001",
-  "grade": "C"
- },
- "runs/demo_proper/D__hw_reveng_fsm_recovery_001": {
-  "case": "hw_reveng_fsm_recovery_001",
-  "grade": "D"
+  "domain": "side_channel_fault_analysis",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
  },
  "testcases/B__gate_clean_netlist_fp_001": {
   "case": "gate_clean_netlist_fp_001",
-  "grade": "B"
+  "domain": "gate_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.714,
+  "reason": "discrimination gaps: dead_check,uncovered_requirement"
  },
- "testcases/B__gate_trojan_detection_aes_suspect_nodes_001": {
-  "case": "gate_trojan_detection_aes_suspect_nodes_001",
-  "grade": "B"
+ "testcases/B__gate_trojan_detection_addr_decoder_alias_001": {
+  "case": "gate_trojan_detection_addr_decoder_alias_001",
+  "domain": "gate_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.667,
+  "reason": "discrimination gaps: uncovered_requirement"
+ },
+ "testcases/B__gate_trojan_detection_cell_substitution_001": {
+  "case": "gate_trojan_detection_cell_substitution_001",
+  "domain": "gate_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.889,
+  "reason": "discrimination gaps: uncovered_requirement"
  },
  "testcases/B__gate_trojan_detection_counter_timebomb_001": {
   "case": "gate_trojan_detection_counter_timebomb_001",
-  "grade": "B"
+  "domain": "gate_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: dead_check,uncovered_requirement"
  },
- "testcases/B__hls_bram_bounds_enforcement_001": {
-  "case": "hls_bram_bounds_enforcement_001",
-  "grade": "B"
+ "testcases/B__gate_trojan_detection_power_isolation_bypass_001": {
+  "case": "gate_trojan_detection_power_isolation_bypass_001",
+  "domain": "gate_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: uncovered_requirement"
  },
- "testcases/B__hls_constant_time_compare_001": {
-  "case": "hls_constant_time_compare_001",
-  "grade": "B"
+ "testcases/B__gate_trojan_detection_tmr_voter_cloning_001": {
+  "case": "gate_trojan_detection_tmr_voter_cloning_001",
+  "domain": "gate_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: uncovered_requirement"
  },
  "testcases/B__hls_ift_crypto_kernel_001": {
   "case": "hls_ift_crypto_kernel_001",
-  "grade": "B"
+  "domain": "hls_security_codegen",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: dead_check,uncovered_requirement"
  },
- "testcases/B__hw_reveng_adder_tree_recovery_001": {
-  "case": "hw_reveng_adder_tree_recovery_001",
-  "grade": "B"
+ "testcases/B__hls_key_indexed_lookup_001": {
+  "case": "hls_key_indexed_lookup_001",
+  "domain": "hls_security_codegen",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: uncovered_requirement"
  },
- "testcases/B__logic_deobfuscation_sat_antisat_localization_001": {
-  "case": "logic_deobfuscation_sat_antisat_localization_001",
-  "grade": "B"
- },
- "testcases/B__logic_deobfuscation_sat_locked_c880_xor_keys": {
-  "case": "logic_deobfuscation_sat_locked_c880_xor_keys",
-  "grade": "B"
+ "testcases/B__hre_pwm_deadtime_001": {
+  "case": "hre_pwm_deadtime_001",
+  "domain": "hardware_reverse_engineering",
+  "grade": "B",
+  "mutation_score": 0.833,
+  "reason": "discrimination gaps: uncovered_requirement"
  },
  "testcases/B__logic_deobfuscation_sat_muxlock_keygates_001": {
   "case": "logic_deobfuscation_sat_muxlock_keygates_001",
-  "grade": "B"
+  "domain": "logic_deobfuscation_sat",
+  "grade": "B",
+  "mutation_score": 0.857,
+  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+ },
+ "testcases/B__rtl_nmi_priority_suppression_trojan_v1": {
+  "case": "rtl_nmi_priority_suppression_trojan_v1",
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.714,
+  "reason": "discrimination gaps: uncovered_requirement"
+ },
+ "testcases/B__rtl_opcode_privilege_trojan_001": {
+  "case": "rtl_opcode_privilege_trojan_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.625,
+  "reason": "discrimination gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__rtl_trojan_detection_aes_rare_trigger_001": {
   "case": "rtl_trojan_detection_aes_rare_trigger_001",
-  "grade": "B"
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__rtl_trojan_detection_bus_arbiter_dos_fsm_001": {
   "case": "rtl_trojan_detection_bus_arbiter_dos_fsm_001",
-  "grade": "B"
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: uncovered_requirement"
  },
- "testcases/B__rtl_uart_leak_trojan_001": {
-  "case": "rtl_uart_leak_trojan_001",
-  "grade": "B"
+ "testcases/B__rtl_trojan_detection_key_zeroize_hold_001": {
+  "case": "rtl_trojan_detection_key_zeroize_hold_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: uncovered_requirement"
+ },
+ "testcases/B__rtl_trojan_detection_lockstep_alu_001": {
+  "case": "rtl_trojan_detection_lockstep_alu_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.778,
+  "reason": "discrimination gaps: uncovered_requirement"
+ },
+ "testcases/B__rtl_trojan_detection_rng_healthcheck_001": {
+  "case": "rtl_trojan_detection_rng_healthcheck_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.75,
+  "reason": "discrimination gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__sca_fia_secure_boot_bypass_001": {
   "case": "sca_fia_secure_boot_bypass_001",
-  "grade": "B"
- },
- "testcases/B__seu_tmr_candidate_identification_v1": {
-  "case": "seu_tmr_candidate_identification_v1",
-  "grade": "B"
- },
- "testcases/B__side_channel_fault_analysis_rtl_dpa_leaky_sbox": {
-  "case": "side_channel_fault_analysis_rtl_dpa_leaky_sbox",
-  "grade": "B"
+  "domain": "side_channel_fault_analysis",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "discrimination gaps: uncovered_requirement"
  },
  "testcases/C__hls_security_codegen_xor_cipher_kernel_v1": {
   "case": "hls_security_codegen_xor_cipher_kernel_v1",
-  "grade": "C"
+  "domain": "hls_security_codegen",
+  "grade": "C",
+  "mutation_score": 1.0,
+  "reason": "spec-integrity: generic_functional_requirement,public_security_leak"
  },
  "testcases/C__hw_reveng_mux_alu_datapath_001": {
   "case": "hw_reveng_mux_alu_datapath_001",
-  "grade": "C"
+  "domain": "hardware_reverse_engineering",
+  "grade": "C",
+  "mutation_score": 1.0,
+  "reason": "spec-integrity: missing_timing_discipline"
+ },
+ "testcases/C__logic_deobfuscation_sat_001": {
+  "case": "logic_deobfuscation_sat_001",
+  "domain": "logic_deobfuscation_sat",
+  "grade": "C",
+  "mutation_score": 1.0,
+  "reason": "mutation score invalid: mutation_generation_failure"
+ },
+ "testcases/C__rtl_redundant_counter_common_mode_fault": {
+  "case": "rtl_redundant_counter_common_mode_fault",
+  "domain": "side_channel_fault_analysis",
+  "grade": "C",
+  "mutation_score": 1.0,
+  "reason": "mutation score invalid: mutation_generation_failure"
+ },
+ "testcases/C__sca_fixed_latency_enable_count_001": {
+  "case": "sca_fixed_latency_enable_count_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "C",
+  "mutation_score": 1.0,
+  "reason": "spec-integrity: input_artifact_not_filename"
+ },
+ "testcases/C__side_channel_fault_analysis_rtl_dpa_leaky_sbox": {
+  "case": "side_channel_fault_analysis_rtl_dpa_leaky_sbox",
+  "domain": "side_channel_fault_analysis",
+  "grade": "C",
+  "mutation_score": 0.857,
+  "reason": "mutation score invalid: mutation_execution_error"
+ },
+ "testcases/D__gate_aoi_absorbed_trigger": {
+  "case": "gate_aoi_absorbed_trigger",
+  "domain": "gate_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__gate_clock_enable_payload": {
+  "case": "gate_clock_enable_payload",
+  "domain": "gate_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__gate_sequential_fsm_trigger_001": {
+  "case": "gate_sequential_fsm_trigger_001",
+  "domain": "gate_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__gate_trojan_detection_mult8_and_tree_001": {
+  "case": "gate_trojan_detection_mult8_and_tree_001",
+  "domain": "gate_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__hls_cross_context_state_reset": {
+  "case": "hls_cross_context_state_reset",
+  "domain": "hls_security_codegen",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__hls_privileged_command_dispatch": {
+  "case": "hls_privileged_command_dispatch",
+  "domain": "hls_security_codegen",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
  },
  "testcases/D__hw_reveng_fsm_recovery_001": {
   "case": "hw_reveng_fsm_recovery_001",
-  "grade": "D"
+  "domain": "hardware_reverse_engineering",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__hwre_dualport_regfile_recovery_001": {
+  "case": "hwre_dualport_regfile_recovery_001",
+  "domain": "hardware_reverse_engineering",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__locked_cyclic_feedback": {
+  "case": "locked_cyclic_feedback",
+  "domain": "logic_deobfuscation_sat",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__locked_mixed_xor_mux": {
+  "case": "locked_mixed_xor_mux",
+  "domain": "logic_deobfuscation_sat",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__locked_sequential_keyload_fsm": {
+  "case": "locked_sequential_keyload_fsm",
+  "domain": "logic_deobfuscation_sat",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__reverse_crc16_serial": {
+  "case": "reverse_crc16_serial",
+  "domain": "hardware_reverse_engineering",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__reverse_fifo_controller": {
+  "case": "reverse_fifo_controller",
+  "domain": "hardware_reverse_engineering",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__reverse_pipelined_saturating_mac": {
+  "case": "reverse_pipelined_saturating_mac",
+  "domain": "hardware_reverse_engineering",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__rtl_auth_clock_glitch_window": {
+  "case": "rtl_auth_clock_glitch_window",
+  "domain": "side_channel_fault_analysis",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__rtl_distributed_trigger_exfiltration": {
+  "case": "rtl_distributed_trigger_exfiltration",
+  "domain": "rtl_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__rtl_reset_order_trojan": {
+  "case": "rtl_reset_order_trojan",
+  "domain": "rtl_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__sarlock_point_function_recovery": {
+  "case": "sarlock_point_function_recovery",
+  "domain": "logic_deobfuscation_sat",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__sca_fault_secded_double_fault_miscorrection_001": {
+  "case": "sca_fault_secded_double_fault_miscorrection_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__sca_fault_spn_lastround_dfa_001": {
+  "case": "sca_fault_spn_lastround_dfa_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
+ },
+ "testcases/D__sfa_rom_addr_leak_001": {
+  "case": "sfa_rom_addr_leak_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected / differential fails"
  }
 }

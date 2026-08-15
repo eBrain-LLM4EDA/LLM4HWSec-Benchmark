@@ -28,7 +28,7 @@
       "ok": false,
       "status": "fail",
       "stderr": "",
-      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] FAIL: FR4: testbench co-compilation failed: /tmp/sfa_eval_sk56mu9w/mitigation_patch.v:1: error: 'subst_lookup' has already been declared in this scope.\n/tmp/sfa_eval_sk56mu9w/subst_lookup.v:1:      : It was declared here as a module.\n/tmp/sfa_eval_sk56mu9w/mitigation_patch.v:319: error: Module subst_lookup was already declared here: /tmp/sfa_eval_sk56mu9w/subst_lookup.v:1\n\n\n"
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] FAIL: FR4: testbench co-compilation failed: /tmp/sfa_eval_tu_ytsuk/mitigation_patch.v:1: error: 'subst_lookup' has already been declared in this scope.\n/tmp/sfa_eval_tu_ytsuk/subst_lookup.v:1:      : It was declared here as a module.\n/tmp/sfa_eval_tu_ytsuk/mitigation_patch.v:319: error: Module subst_lookup was already declared here: /tmp/sfa_eval_tu_ytsuk/subst_lookup.v:1\n\n\n"
     },
     "status": "fail",
     "vulnerable_run": {
@@ -53,35 +53,9 @@
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
   "mutation_status": "blocked_by_differential",
-  "preflight": {
-    "attempt_history": [
-      {
-        "attempt": 0,
-        "diagnostic": "[TEST] FAIL: FR4: testbench co-compilation failed: /tmp/sfa_eval_s74h3rlc/mitigation_patch.v:1: error: 'subst_lookup' has already been declared in this scope.",
-        "failure_class": "golden_rejected",
-        "failure_signature": "8edb361337860c0b61f15cdbdf20a670bb0300000f855bb63ee7874094f0def4"
-      },
-      {
-        "attempt": 1,
-        "diagnostic": "[TEST] FAIL: FR4: mitigation_patch failed to compile: error: Unable to find the root module \"is\" in the Verilog source.",
-        "failure_class": "golden_rejected",
-        "failure_signature": "be47687dcab0b2ee971953ea1bc03fe7bbb8f23499cf7e0c6bcd74308be1aa3e"
-      }
-    ],
-    "attempts": 1,
-    "failure_class": "golden_rejected",
-    "failure_signature": "8edb361337860c0b61f15cdbdf20a670bb0300000f855bb63ee7874094f0def4",
-    "repair_paths": [
-      "evaluation/tb_equiv.v",
-      "evaluation/evaluate.py"
-    ],
-    "repeated_signature": false,
-    "selected_attempt": 0
-  },
   "requirement_count": 7,
   "requirement_discrimination_coverage_score": 0.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 0,
   "status": "fail",
   "submission_invariants": {
     "issues": [],

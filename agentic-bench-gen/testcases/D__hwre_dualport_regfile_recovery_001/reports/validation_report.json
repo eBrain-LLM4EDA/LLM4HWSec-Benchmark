@@ -48,43 +48,14 @@
     {
       "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
       "issue": "golden_rejected"
-    },
-    {
-      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
-      "issue": "repeated_preflight_failure"
     }
   ],
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
   "mutation_status": "blocked_by_differential",
-  "preflight": {
-    "attempt_history": [
-      {
-        "attempt": 0,
-        "diagnostic": "[TEST] FAIL: FR1: missing PROBE for cycle 0",
-        "failure_class": "golden_rejected",
-        "failure_signature": "119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef"
-      },
-      {
-        "attempt": 1,
-        "diagnostic": "[TEST] FAIL: FR1: missing PROBE for cycle 0",
-        "failure_class": "golden_rejected",
-        "failure_signature": "119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef"
-      }
-    ],
-    "attempts": 1,
-    "failure_class": "golden_rejected",
-    "failure_signature": "119799e3be217408ae53c846cc8b0ffbb65be8c1bad2127b73089ce8e54e9cef",
-    "repair_paths": [
-      "evaluation/evaluate.py"
-    ],
-    "repeated_signature": true,
-    "selected_attempt": 0
-  },
   "requirement_count": 7,
   "requirement_discrimination_coverage_score": 0.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 2,
   "status": "fail",
   "submission_invariants": {
     "issues": [],

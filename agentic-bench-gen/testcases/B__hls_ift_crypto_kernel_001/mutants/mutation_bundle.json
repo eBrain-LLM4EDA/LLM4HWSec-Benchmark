@@ -71,6 +71,30 @@
       "mutant_id": "mutant_fr2_status_len_off_by_one",
       "operator": "constant_change",
       "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Harness compares ciphertext byte-for-byte against expected XOR for all indices < len; for len > 1 this mutant leaves the last byte of ciphertext unwritten (stale/zero), causing a mismatch and failing the full-population/no-truncated-output requirement (FR3).",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define ERR_LEN_TOO_LONG 1\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    int i;\n\n    /* NOTE: intentionally stops one byte short of full population.\n       The final valid index (len - 1) is left unwritten, so the\n       ciphertext buffer is only partially populated for len > 0. */\n    for (i = 0; i < len - 1; i++) {\n        ciphertext[i] = plaintext[i] ^ key[i];\n    }\n\n    *iterations = len;\n    *status = (len <= MAX_LEN) ? STATUS_OK : ERR_LEN_TOO_LONG;\n}\n",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_fr3_partial_ciphertext_write",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Static scan detects a variable-bound / recursion-style construct not tied strictly to len (use of a while loop with a secondary pointer-arithmetic bound and a recursive helper call), violating the constraint that loop bounds must be exactly len with no recursion; also risks non-constant trip count detectable by the fail-on-presence scan and potential compile warnings under gcc -Wall -Wextra.",
+      "files": [
+        {
+          "content": "#define MAX_LEN 64\n\n#define STATUS_OK 0\n#define ERR_LEN_TOO_LONG 1\n\nstatic void xor_cipher_recurse(const unsigned char plaintext[MAX_LEN],\n                                const unsigned char key[MAX_LEN],\n                                unsigned char ciphertext[MAX_LEN],\n                                int i,\n                                int len)\n{\n    if (i >= len) {\n        return;\n    }\n    ciphertext[i] = plaintext[i] ^ key[i];\n    xor_cipher_recurse(plaintext, key, ciphertext, i + 1, len);\n}\n\nvoid xor_cipher_kernel(const unsigned char plaintext[MAX_LEN],\n                        const unsigned char key[MAX_LEN],\n                        int len,\n                        unsigned char ciphertext[MAX_LEN],\n                        int *status,\n                        int *iterations)\n{\n    xor_cipher_recurse(plaintext, key, ciphertext, 0, len);\n\n    *iterations = len;\n    *status = (len <= MAX_LEN) ? STATUS_OK : ERR_LEN_TOO_LONG;\n}\n",
+          "path": "inputs/kernel.c"
+        }
+      ],
+      "mutant_id": "mutant_fr4_variable_bound_loop",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
     }
   ]
 }

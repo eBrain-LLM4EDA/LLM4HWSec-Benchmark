@@ -1,0 +1,304 @@
+# Sixth multi-domain seed set: gap-filling scenarios aimed at bringing every
+# domain to 14 usable (grade A/B) cases.
+#
+# Every scenario here was checked against the 71 published cases in testcases/
+# and against all 85 seed_ids in the other examples/*.yaml files. None repeats an
+# existing mechanism, artifact, or ground truth.
+#
+# Sizing note: counts are weighted toward the domains with the largest gaps, not
+# spread evenly. See the accompanying analysis — rtl/gate/hls are sized to close
+# their gaps at observed yield; sca/hwre/logic are deliberately NOT oversampled
+# to their full yield-adjusted requirement (22/20/30 seeds), because their
+# shortfall is driven by `golden_rejected` pipeline failures rather than by seed
+# quality. Raise yield first, then re-run this file.
+#
+#   domain                        seeds   gap   observed yield
+#   rtl_trojan_detection              2     1              87%
+#   gate_trojan_detection             6     4              71%
+#   hls_security_codegen              9     6              73%
+#   side_channel_fault_analysis      12     9              42%
+#   hardware_reverse_engineering     12     9              45%
+#   logic_deobfuscation_sat          12    11              38%
+
+
+# ----------------------------------------------------------------------------
+# 5. Hardware Reverse Engineering  (gap 9; 12 seeds)
+# ----------------------------------------------------------------------------
+- seed_id: hwre_booth_signed_multiplier
+  domain_id: hardware_reverse_engineering
+  title: Recover a radix-4 Booth signed multiplier
+  objective: Lift a flattened partial-product network into readable RTL for a signed multiplier, identifying its Booth recoding and sign-extension convention.
+  constraints:
+    - Provide an acyclic netlist for a 6-bit by 6-bit signed multiplier producing a 12-bit product.
+    - Require exact behavior for all sign combinations including the most-negative operand.
+    - Grade exhaustive combinational equivalence over all 4096 operand pairs with iverilog.
+  threat_model: Misreading the signedness convention of an undocumented multiplier silently corrupts every downstream computation that depends on it.
+  ground_truth: The design implements radix-4 Booth recoding with two's-complement operands and sign-extended partial products; the product equals the signed product for all inputs.
+
+- seed_id: hwre_gray_binary_bidirectional_codec
+  domain_id: hardware_reverse_engineering
+  title: Recover a bidirectional Gray/binary codec and its direction control
+  objective: Reconstruct RTL for a flattened converter that performs Gray-to-binary or binary-to-Gray depending on a mode input.
+  constraints:
+    - Ship a combinational netlist with a 6-bit data input, a mode input, and a 6-bit output.
+    - Require identification of which mode selects which direction and the exact bit ordering used.
+    - Grade all 128 input/mode combinations against the hidden reference with iverilog.
+  threat_model: An undocumented encoder in a clock-domain-crossing path cannot be validated until its direction and bit order are known.
+  ground_truth: Mode 0 converts binary to Gray as b XOR (b >> 1); mode 1 converts Gray to binary by prefix XOR from the most significant bit.
+
+- seed_id: hwre_uart_baud_oversampler
+  domain_id: hardware_reverse_engineering
+  title: Recover a UART baud divider and oversampling convention
+  objective: Recover cycle-accurate RTL for a flattened baud generator, including its divisor handling and mid-bit sample point.
+  constraints:
+    - Provide a flattened counter and comparator netlist with a programmable divisor input and a sample-enable output.
+    - Pin the oversampling factor and the exact cycle at which the sample pulse occurs within a bit period.
+    - Grade several divisor values over multiple bit periods with iverilog.
+  threat_model: An incorrect sample point in a recovered serial interface produces intermittent corruption that is difficult to attribute.
+  ground_truth: The generator oversamples at sixteen times the baud rate and asserts sample_en on the eighth tick of each bit period; the divisor reloads on terminal count.
+
+- seed_id: hwre_bcd_adjust_adder
+  domain_id: hardware_reverse_engineering
+  title: Recover a two-digit BCD adder with decimal adjust
+  objective: Reconstruct RTL for a flattened BCD adder, identifying the decimal-adjust correction and carry propagation between digits.
+  constraints:
+    - Ship a combinational netlist adding two two-digit BCD operands with a carry input and a carry output.
+    - Require correct handling of digit values above nine including the adjust-by-six correction.
+    - Grade all valid BCD operand pairs with iverilog and reject non-BCD outputs.
+  threat_model: A misidentified decimal-arithmetic block in metering or financial hardware yields systematically wrong totals.
+  ground_truth: Each digit adds binary then adds six when the digit sum exceeds nine or produces a carry, propagating the digit carry to the next position.
+
+- seed_id: hwre_priority_encoder_tie_semantics
+  domain_id: hardware_reverse_engineering
+  title: Recover a priority encoder's tie-breaking and valid semantics
+  objective: Recover RTL for a flattened eight-input priority encoder, determining its priority direction and its behavior when no input is asserted.
+  constraints:
+    - Provide a combinational netlist with eight request inputs, a 3-bit index output, and a valid output.
+    - Require the exact index emitted when multiple requests are simultaneously active and when none are.
+    - Grade all 256 input combinations against the hidden reference with iverilog.
+  threat_model: Reversed priority in an undocumented arbiter silently starves the request line the system assumes is highest priority.
+  ground_truth: The encoder gives priority to the lowest-numbered asserted request, emits that index, asserts valid when any request is active, and drives index to zero with valid low otherwise.
+
+- seed_id: hwre_watchdog_prescaler_timeout
+  domain_id: hardware_reverse_engineering
+  title: Recover a watchdog prescaler ratio and timeout semantics
+  objective: Reconstruct RTL for a flattened watchdog counter, recovering its prescaler ratio, timeout threshold, and pet behavior.
+  constraints:
+    - Ship a flattened counter and comparator netlist with a pet input, an enable, and a timeout output.
+    - Pin the prescaler ratio, whether pet clears the prescaler as well as the counter, and the timeout pulse width.
+    - Grade pet, no-pet, and disable traces across multiple timeout periods with iverilog.
+  threat_model: A misjudged watchdog period produces either spurious resets or a protection window far longer than intended.
+  ground_truth: The prescaler divides by sixteen, timeout asserts for one cycle when the prescaled count reaches twelve, and pet clears both the counter and the prescaler.
+
+- seed_id: hwre_i2c_start_stop_detector
+  domain_id: hardware_reverse_engineering
+  title: Recover an I2C start and stop condition detector
+  objective: Recover cycle-accurate RTL for a flattened bit-level detector distinguishing start, stop, and ordinary data transitions.
+  constraints:
+    - Provide a flattened DFF and combinational netlist sampling SDA and SCL with synchronous reset.
+    - Pin exactly which SDA edge relative to SCL level produces start versus stop and the output pulse width.
+    - Grade start, stop, repeated-start, and data-transition traces with iverilog.
+  threat_model: A bus monitor that misidentifies framing conditions will mis-frame every subsequent transaction it reports.
+  ground_truth: A falling SDA edge while SCL is high asserts start for one cycle; a rising SDA edge while SCL is high asserts stop for one cycle; transitions while SCL is low produce neither.
+
+- seed_id: hwre_stack_pointer_overflow_unit
+  domain_id: hardware_reverse_engineering
+  title: Recover a stack pointer unit's push, pop, and overflow semantics
+  objective: Reconstruct RTL for a flattened stack pointer with push and pop controls, recovering its growth direction and boundary behavior.
+  constraints:
+    - Ship a flattened counter, comparator, and DFF netlist with push, pop, synchronous reset, and full/empty outputs.
+    - Pin the growth direction, the pointer value after reset, and whether push at full or pop at empty is ignored or wraps.
+    - Grade randomized push/pop sequences including boundary saturation with iverilog.
+  threat_model: A wrapping rather than saturating stack pointer in recovered hardware turns an overflow into silent memory corruption.
+  ground_truth: The pointer resets to zero and grows upward, full asserts at depth eight, empty at zero, and push at full or pop at empty is ignored without wrapping.
+
+- seed_id: hwre_interrupt_vector_priority
+  domain_id: hardware_reverse_engineering
+  title: Recover interrupt vector priority and mask semantics
+  objective: Recover RTL for a flattened interrupt controller, determining its priority ordering, mask application point, and vector encoding.
+  constraints:
+    - Provide a netlist with four interrupt request inputs, four mask bits, a vector output, and an interrupt-pending output.
+    - Pin whether masking is applied before or after priority resolution and the vector emitted when nothing is pending.
+    - Grade all request and mask combinations against the hidden reference with iverilog.
+  threat_model: Misplacing the mask relative to priority resolution allows a masked source to suppress or preempt an unmasked one.
+  ground_truth: Masks are applied to requests before priority resolution, the lowest-numbered unmasked request wins, and the vector is zero with pending low when no unmasked request is active.
+
+- seed_id: hwre_leading_zero_normalizer
+  domain_id: hardware_reverse_engineering
+  title: Recover a leading-zero count and mantissa normalizer
+  objective: Reconstruct RTL for a flattened normalizer that counts leading zeros and left-shifts a mantissa accordingly.
+  constraints:
+    - Provide a combinational netlist with an 8-bit mantissa input, a normalized output, and a 4-bit shift-count output.
+    - Pin the behavior for an all-zero input and whether the shift count saturates.
+    - Grade all 256 input values against the hidden reference with iverilog.
+  threat_model: An off-by-one normalizer in recovered floating-point hardware biases every computed result.
+  ground_truth: The unit counts leading zeros, left-shifts the mantissa by that amount, and for an all-zero input emits a shift count of eight with a zero output.
+
+- seed_id: hwre_crossbar_route_arbitration
+  domain_id: hardware_reverse_engineering
+  title: Recover a two-by-two crossbar's routing and conflict arbitration
+  objective: Recover RTL for a flattened crossbar, determining its routing function and how it resolves two inputs requesting the same output.
+  constraints:
+    - Ship a flattened netlist with two input ports, per-port destination selects, two output ports, and grant signals.
+    - Pin the conflict-resolution rule and what the losing port observes in the conflicting cycle.
+    - Grade all request and destination combinations with iverilog.
+  threat_model: An unknown arbitration rule in a recovered interconnect makes worst-case latency and starvation behavior impossible to bound.
+  ground_truth: Port zero wins any contested destination, the losing port's grant stays low and its data is not forwarded, and non-conflicting requests are routed simultaneously.
+
+- seed_id: hwre_switch_debounce_window
+  domain_id: hardware_reverse_engineering
+  title: Recover a switch debounce filter's window and edge semantics
+  objective: Reconstruct cycle-accurate RTL for a flattened debounce filter, recovering its stability window and output edge timing.
+  constraints:
+    - Provide a flattened counter and DFF netlist with a noisy input, synchronous reset, and a debounced output.
+    - Pin the number of stable cycles required and whether the output changes at the start or end of the stable window.
+    - Grade clean, bouncing, and marginal-length traces with iverilog.
+  threat_model: A debounce window shorter than assumed passes contact noise into a safety interlock as genuine events.
+  ground_truth: The input must be stable for eight consecutive cycles before the output updates, and the output changes on the cycle after the eighth stable sample.
+
+# ----------------------------------------------------------------------------
+# 6. Logic Deobfuscation / SAT  (gap 11; 12 seeds)
+# ----------------------------------------------------------------------------
+- seed_id: locked_camouflaged_and_or_cells
+  domain_id: logic_deobfuscation_sat
+  title: Camouflaged AND/OR cell resolution in a locked netlist
+  objective: Determine the true function of camouflaged cells that could be AND or OR, using oracle input/output pairs.
+  constraints:
+    - Provide a combinational netlist with several cells marked camouflaged and a documented candidate function set.
+    - Supply a limited oracle response table sufficient to disambiguate every camouflaged cell.
+    - Require a report assigning a concrete function to each camouflaged instance with supporting distinguishing vectors.
+    - Grade the assignment against hidden ground truth with a Python grader plus iverilog equivalence.
+  threat_model: Camouflaged cells force an attacker to resolve per-cell ambiguity before any functional recovery is possible.
+  ground_truth: Cells u_cam0 and u_cam3 are AND, u_cam1 and u_cam2 are OR; the supplied vectors distinguish each pair uniquely.
+
+- seed_id: locked_decoy_keygate_identification
+  domain_id: logic_deobfuscation_sat
+  title: Separate functional key gates from inert decoys
+  objective: Identify which key inputs actually influence the output cone and which are decoys with no functional effect.
+  constraints:
+    - Provide a locked netlist with a key bus in which several bits drive gates whose effect is structurally cancelled.
+    - Require a report partitioning key bits into functional and decoy sets with justification.
+    - Ensure decoy bits are not trivially danglingly connected so structural inspection alone is insufficient.
+    - Grade the partition against hidden ground truth with a Python grader.
+  threat_model: Decoy key bits inflate the apparent key space and waste SAT-attack effort on dimensions that cannot affect behavior.
+  ground_truth: Key bits 1, 4, and 6 are decoys whose contributions cancel through paired XOR gates; bits 0, 2, 3, 5, and 7 are functional.
+
+- seed_id: locked_shared_keybit_correlation
+  domain_id: logic_deobfuscation_sat
+  title: Recover a key where one bit drives multiple key gates
+  objective: Recover the correct key for a netlist in which a single key bit fans out to several key gates, creating correlated constraints.
+  constraints:
+    - Provide a locked combinational netlist with a key bus narrower than the number of key gates.
+    - Document the fanout relationship without revealing the key value.
+    - Require a report giving the recovered key and the fanout groups that constrained it.
+    - Grade the key against hidden ground truth with iverilog equivalence to the unlocked reference.
+  threat_model: Key-bit sharing reduces the effective key space, so an attacker who identifies the sharing structure converges far faster than the nominal width suggests.
+  ground_truth: Key bit 2 drives three key gates and key bit 5 drives two; the correct key is 8'b10110100.
+
+- seed_id: locked_input_permutation_lock
+  domain_id: logic_deobfuscation_sat
+  title: Recover a key-controlled input permutation
+  objective: Determine the input reordering selected by a key that permutes operand bits ahead of a fixed combinational core.
+  constraints:
+    - Provide a netlist with a keyed permutation network feeding an unmodified functional core.
+    - Restrict the key space to a documented set of permutations so the answer is a specific ordering.
+    - Require a report giving the permutation mapping and the recovered key.
+    - Grade the mapping against hidden ground truth with a Python grader plus iverilog equivalence.
+  threat_model: Permutation locking hides functionality without changing gate-level structure, defeating attacks that look for inserted key gates.
+  ground_truth: The key selects the mapping that routes input bits (0,1,2,3) to core positions (2,0,3,1); the correct key is 4'b1011.
+
+- seed_id: locked_partial_output_observability
+  domain_id: logic_deobfuscation_sat
+  title: Key recovery with partially observable outputs
+  objective: Recover the key of a locked netlist when only a subset of primary outputs is observable through the oracle.
+  constraints:
+    - Provide a locked netlist with several outputs, of which a documented subset is unobservable.
+    - Ensure the observable subset still uniquely determines the key so a correct answer exists.
+    - Require a report giving the key and the distinguishing input set used.
+    - Grade the key against hidden ground truth with iverilog equivalence on all outputs.
+  threat_model: Reduced observability is a realistic deployment constraint that invalidates SAT attacks assuming full output visibility.
+  ground_truth: Outputs y2 and y3 are unobservable; the observable outputs y0 and y1 still fix the key to 6'b011010.
+
+- seed_id: locked_two_stage_hierarchical_lock
+  domain_id: logic_deobfuscation_sat
+  title: Break a two-stage hierarchical lock in dependency order
+  objective: Recover both key segments of a design where an outer lock must be resolved before the inner lock becomes observable.
+  constraints:
+    - Provide a netlist with an outer key segment gating the path through which the inner segment's effect reaches the outputs.
+    - Document the segment widths without revealing values.
+    - Require a report giving both segments and the order in which they were resolved.
+    - Grade both segments against hidden ground truth with iverilog equivalence.
+  threat_model: Layered locks defeat flat SAT formulations because the inner key is unconstrained until the outer key is correct.
+  ground_truth: The outer segment is 3'b101 and the inner segment is 4'b0110; the inner segment is unobservable while the outer segment is wrong.
+
+- seed_id: locked_query_budget_key_recovery
+  domain_id: logic_deobfuscation_sat
+  title: Key recovery under a hard oracle query budget
+  objective: Recover the key of a locked netlist while issuing no more than a documented maximum number of oracle queries, reporting the queries used.
+  constraints:
+    - Provide a locked combinational netlist together with an oracle interface and a documented query cap well below exhaustive search.
+    - Ensure a discriminating query set within the budget exists so the task is solvable.
+    - Require a report containing the recovered key and the ordered list of input vectors queried.
+    - Grade both the key against hidden ground truth and the query count against the cap with a Python grader plus iverilog equivalence.
+  threat_model: Real attacks face metered or rate-limited oracle access, so a key recovery that silently needs thousands of queries overstates the practical break.
+  ground_truth: The key 6'b101100 is uniquely determined by eight well-chosen input vectors; the documented cap is twelve queries.
+
+- seed_id: locked_output_parity_lock
+  domain_id: logic_deobfuscation_sat
+  title: Recover a parity-based lock applied across an output bus
+  objective: Recover the key of a design where key bits invert output bits subject to a parity constraint over the bus.
+  constraints:
+    - Provide a locked netlist applying keyed inversions to an output bus with a documented parity relationship.
+    - Ensure the parity constraint makes some key candidates functionally indistinguishable so the report must name the equivalence class.
+    - Require a report giving the recovered key class and one representative key.
+    - Grade the representative against hidden ground truth with iverilog equivalence.
+  threat_model: Parity-structured locks admit multiple equivalent keys, so an attack that reports a single key without its class misstates the true security level.
+  ground_truth: Keys 5'b10110 and 5'b01001 are functionally equivalent under the parity constraint and form the correct class.
+
+- seed_id: locked_state_encoding_selection
+  domain_id: logic_deobfuscation_sat
+  title: Recover a key that selects an FSM state encoding
+  objective: Determine which of several documented state encodings a key selects in a locked sequential controller.
+  constraints:
+    - Provide a locked FSM whose key chooses between one-hot and binary state encodings with identical external behavior for the correct key.
+    - Ensure incorrect keys produce observable transition errors so the encoding is inferable.
+    - Require a report naming the selected encoding and the recovered key.
+    - Grade against hidden ground truth with iverilog sequence equivalence.
+  threat_model: Encoding-selection locks change internal representation rather than logic, so structural key-gate searches find nothing to analyze.
+  ground_truth: Key 2'b10 selects the one-hot encoding; binary encoding under any other key produces divergent outputs by the fourth cycle.
+
+- seed_id: locked_rom_address_scramble
+  domain_id: logic_deobfuscation_sat
+  title: Recover a key-scrambled ROM address mapping
+  objective: Recover the key that scrambles address lines into a fixed ROM, restoring the intended contents ordering.
+  constraints:
+    - Provide a netlist with a keyed address-scrambling network feeding a ROM with documented but permuted contents.
+    - Restrict the key space to a documented set of address permutations.
+    - Require a report giving the recovered key and the resulting address mapping.
+    - Grade the mapping against hidden ground truth with a Python grader plus iverilog readback equivalence.
+  threat_model: Address scrambling conceals firmware layout in an extracted ROM image without altering a single stored byte.
+  ground_truth: The key 3'b110 maps address bits (a0,a1,a2) to ROM lines (a1,a2,a0), restoring the documented content ordering.
+
+- seed_id: locked_low_corruptibility_sparse_errors
+  domain_id: logic_deobfuscation_sat
+  title: Recover a low-corruptibility lock producing sparse output errors
+  objective: Recover the key of a lock whose incorrect keys corrupt outputs on only a small fraction of the input space.
+  constraints:
+    - Provide a locked netlist where wrong keys differ from correct behavior on a documented small number of input vectors.
+    - Ensure random sampling is unlikely to find a distinguishing vector so targeted search is required.
+    - Require a report giving the recovered key and at least one distinguishing input vector.
+    - Grade the key against hidden ground truth with exhaustive iverilog equivalence.
+  threat_model: Low corruptibility defeats approximate and sampling-based attacks that accept a key matching on most observed vectors.
+  ground_truth: Only four of 256 input vectors distinguish a wrong key from the correct key 6'b100111; vector 8'hC3 is one of them.
+
+- seed_id: locked_keyed_polynomial_selection
+  domain_id: logic_deobfuscation_sat
+  title: Recover a key selecting an LFSR feedback polynomial
+  objective: Determine which feedback polynomial a key selects in a locked LFSR-based scrambler and recover the key.
+  constraints:
+    - Provide a locked sequential netlist whose key chooses among documented candidate feedback taps.
+    - Supply oracle output sequences from a known seed so the polynomial is inferable from the sequence.
+    - Require a report naming the selected tap set and the recovered key.
+    - Grade against hidden ground truth with iverilog sequence equivalence over a fixed run length.
+  threat_model: Polynomial-selection locking hides the scrambling sequence of a data path while leaving its structure entirely conventional.
+  ground_truth: Key 2'b01 selects taps [7,5,4,3] on an 8-bit LFSR; the alternative tap sets diverge from the oracle sequence within twelve cycles.

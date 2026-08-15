@@ -1,0 +1,359 @@
+# ----------------------------------------------------------------------------
+# 1. RTL Trojan Detection  (gap 1; 2 seeds)
+# ----------------------------------------------------------------------------
+- seed_id: rtl_cache_waylock_release_trojan
+  domain_id: rtl_trojan_detection
+  title: Way-lock release Trojan in a set-associative cache controller
+  objective: Audit a small set-associative cache controller whose way-locking protection is silently released when a rare address/attribute combination is presented.
+  constraints:
+    - Ship a synthesizable 2-way, 8-set cache controller with a lock_way input, per-way lock bits, and a replacement-victim selector.
+    - Hide the defect in the victim-selection path so a locked way becomes evictable only when a specific tag value coincides with a secure-attribute low cycle.
+    - Keep all documented hit, miss, fill, and lock behavior bit-exact so functional tests alone cannot reveal the payload.
+    - Grade with iverilog using directed lock/evict traces plus the rare trigger sequence.
+  threat_model: A malicious cache controller that quietly unlocks a pinned way lets an attacker evict and replace security-critical lines that the platform believes are resident.
+  ground_truth: The victim selector ORs an undocumented term that clears the lock mask when tag equals 8'hA5 while secure_attr is low, allowing eviction of a locked way; correct behavior never selects a locked way as victim.
+
+- seed_id: rtl_watchdog_selfpet_trojan
+  domain_id: rtl_trojan_detection
+  title: Self-petting watchdog Trojan defeating system recovery
+  objective: Review a watchdog timer peripheral that silently refreshes its own counter after a magic bus write, preventing the reset that a hung system depends on.
+  constraints:
+    - Provide a synthesizable watchdog with a prescaler, timeout compare, explicit pet register, and a reset_req output.
+    - Implement the payload as an additional internal pet pulse asserted when a specific data pattern is written to an unrelated configuration address.
+    - Preserve documented timeout, pet, and disable behavior exactly for all ordinary traffic.
+    - Grade with iverilog by driving timeout traces with and without the magic write and asserting reset_req timing.
+  threat_model: A watchdog that can be silently disabled removes the last recovery mechanism for a compromised or hung system, turning a transient fault into a persistent takeover.
+  ground_truth: Writing 32'hDEADC0DE to the config alias address asserts an internal pet that reloads the counter without touching the documented pet register; correct behavior asserts reset_req exactly at the programmed timeout.
+
+# ----------------------------------------------------------------------------
+# 2. Gate-Level Trojan Detection  (gap 4; 6 seeds)
+# ----------------------------------------------------------------------------
+- seed_id: gate_tie_cell_security_disable
+  domain_id: gate_trojan_detection
+  title: Tie-cell substitution disabling a security enable
+  objective: Localize a Trojan where a security-enable net is driven by a constant tie cell instead of its intended control logic.
+  constraints:
+    - Ship a flat gate-level netlist using TIEHI/TIELO style constant cells alongside ordinary combinational cells.
+    - Drive the secure_enable net from a TIEHI cell while leaving the original enable cone present but dangling.
+    - Keep primary-output behavior identical for all non-secure traffic so only structural analysis exposes the tie.
+    - Grade a JSON report naming the tie cell instance and the orphaned enable cone with Yosys or a Python netlist parser.
+  threat_model: Constant-tying a protection enable is a single-cell ECO that survives functional regression and is invisible in RTL-level review.
+  ground_truth: Instance U_TIE_SECEN drives secure_enable to constant 1; the intended driver cone (u_sec_and1/u_sec_or2) is present but its output is unconnected.
+
+- seed_id: gate_shadow_register_fanout
+  domain_id: gate_trojan_detection
+  title: Undocumented shadow register bank on a key bus fanout
+  objective: Identify extra fanout from a key register bus into an undocumented shadow flip-flop bank not present in the reference design.
+  constraints:
+    - Provide a gate-level netlist with an 8-bit key register bank and a documented consumer datapath.
+    - Add a parallel bank of DFFs sampling the same key nets, clocked normally but with outputs reaching only a rarely-enabled mux.
+    - Keep all documented outputs bit-exact so the shadow bank is observable only through structural fanout analysis.
+    - Grade a JSON report listing the shadow DFF instances and the key nets they sample.
+  threat_model: A shadow copy of key material creates a second exfiltration point that ordinary functional and equivalence checks against primary outputs will not detect.
+  ground_truth: DFF instances u_shadow_ff0..u_shadow_ff7 sample key_reg[7:0] and feed u_exfil_mux; the reference design has exactly one consumer per key bit.
+
+- seed_id: gate_scan_capture_key_leak
+  domain_id: gate_trojan_detection
+  title: Scan-capture path leaking a key register
+  objective: Localize a DFT modification that routes secret key bits into the scan chain during capture, exposing them on scan-out.
+  constraints:
+    - Ship a netlist containing a scan chain with scan_en, scan_in, and scan_out plus a key register that must be scan-isolated.
+    - Insert scan multiplexers on the key flops so their state is captured and shifted out instead of being held or zeroed.
+    - Preserve normal-mode functional behavior exactly; the leak must appear only in scan mode.
+    - Grade a JSON report naming the key flops that became scan-observable and the mux instances that made them so.
+  threat_model: Test infrastructure that observes key state converts a manufacturing feature into a key-extraction interface available to anyone with scan access.
+  ground_truth: Scan muxes u_smux_key0..u_smux_key3 splice key_ff0..key_ff3 into the chain; the reference isolates key flops with a scan-disable gate on their scan inputs.
+
+- seed_id: gate_demorgan_rewritten_bypass
+  domain_id: gate_trojan_detection
+  title: Authorization bypass hidden by a DeMorgan-equivalent rewrite
+  objective: Detect an authorization-check bypass concealed inside a logically restructured but not equivalent NAND/NOR cone.
+  constraints:
+    - Provide a permission-check cone implemented with NAND/NOR/INV cells rather than AND/OR primitives.
+    - Introduce a bypass term that looks like an ordinary DeMorgan restructuring but grants access when one specific input combination occurs.
+    - Keep the cone's truth table identical to the reference on all but the single trigger combination.
+    - Grade a JSON report naming the offending gate instances plus the exact input vector that differs, verified by Yosys equivalence or exhaustive Python evaluation.
+  threat_model: Restructured Boolean cones are routine during synthesis, so a near-equivalent rewrite is an ideal hiding place for a one-vector authorization bypass.
+  ground_truth: Gate u_perm_nand3 takes an inverted term that makes grant assert when req_level equals 2'b10 and owner_id equals 3'b101; all other input combinations match the reference.
+
+- seed_id: gate_reset_polarity_subset_trojan
+  domain_id: gate_trojan_detection
+  title: Partial reset-polarity inversion leaving state uncleared
+  objective: Localize a Trojan where a subset of flip-flops receives an inverted reset, so security state survives a reset that should clear it.
+  constraints:
+    - Ship a netlist with a synchronous reset distributed to a documented set of state flops.
+    - Invert the reset input on a small subset of security-relevant flops so they retain state across reset assertions.
+    - Ensure steady-state functional behavior after initialization is unchanged so only reset traces expose the defect.
+    - Grade a JSON report naming the flops with inverted reset polarity, checked structurally and by an iverilog reset trace.
+  threat_model: State that persists across reset breaks the platform's root-of-trust assumption that a reset returns the device to a known-clean configuration.
+  ground_truth: Flops u_priv_ff1 and u_priv_ff2 receive reset through inverter u_inv_rst_b; all other state flops use the direct reset net.
+
+- seed_id: gate_negedge_flop_substitution
+  domain_id: gate_trojan_detection
+  title: Negative-edge flop substituted into a positive-edge security path
+  objective: Identify a cell substitution that replaces a posedge flop with a negedge flop, sampling a security signal half a cycle early.
+  constraints:
+    - Provide a single-clock gate-level netlist where all documented state elements are positive-edge triggered.
+    - Substitute one negative-edge DFF on the path that samples an access-grant signal so it captures a pre-settled value.
+    - Keep the cell count and net names plausible so the substitution is not obvious from naming alone.
+    - Grade a JSON report naming the substituted instance and the affected signal, verified by an iverilog timing trace.
+  threat_model: Edge-polarity substitution is a single-cell change that creates an exploitable sampling window without adding any recognizable trigger logic.
+  ground_truth: Instance u_grant_ff is a negedge-triggered DFF sampling grant_pre; the reference uses a posedge DFF, and the early sample latches the value before the permission comparator settles.
+
+# ----------------------------------------------------------------------------
+# 3. HLS Security Code Generation  (gap 6; 9 seeds)
+# ----------------------------------------------------------------------------
+- seed_id: hls_fixed_iteration_modinv
+  domain_id: hls_security_codegen
+  title: Fixed-iteration modular inverse without early exit
+  objective: Harden an HLS modular-inversion kernel so its iteration count and memory traffic are independent of the secret operand.
+  constraints:
+    - Provide a synthesizable C/C++ kernel computing a modular inverse over a small fixed modulus using a binary extended-Euclid style loop.
+    - The insecure baseline must break out of the loop as soon as convergence is reached, making latency operand-dependent.
+    - Require a fixed trip count with predicated updates and no data-dependent branches or early returns.
+    - Grade by compiling with g++ and checking both correctness against known inverses and equal observed iteration counts across operands.
+  threat_model: Iteration count leaked through latency or a cycle counter reveals the bit pattern of a secret scalar during key agreement.
+  ground_truth: The secure kernel always executes the maximum iteration count with masked conditional updates and produces the same inverse as the reference for every tested operand.
+
+- seed_id: hls_roundkey_zeroization
+  domain_id: hls_security_codegen
+  title: Zeroize an expanded round-key array before return
+  objective: Ensure an HLS block-cipher kernel erases its expanded key schedule from local storage before returning, in a way that is not removed as a dead store.
+  constraints:
+    - Provide a kernel that expands a key into a local round-key array, encrypts a block, and returns.
+    - The insecure baseline must leave the round-key array populated when the function returns.
+    - Require an erase that survives optimization (for example a volatile-qualified write loop) and must not alter the ciphertext.
+    - Grade by compiling with g++ and inspecting the round-key buffer after return through a harness-visible alias.
+  threat_model: Residual key schedule in reusable on-chip memory is recoverable by the next context scheduled onto the same accelerator.
+  ground_truth: After return, every element of the round-key array reads zero while ciphertext matches the reference vectors exactly.
+
+- seed_id: hls_scatter_gather_descriptor_bounds
+  domain_id: hls_security_codegen
+  title: Bounds validation across a scatter-gather descriptor list
+  objective: Add complete validation to an HLS scatter-gather engine that walks a descriptor list of offsets and lengths.
+  constraints:
+    - Provide a kernel consuming a descriptor array with per-entry offset and length plus a descriptor count.
+    - The insecure baseline must validate only the descriptor count, not each entry's offset plus length against the buffer size.
+    - Require rejection of any entry whose offset plus length exceeds the buffer, with overflow-safe comparison, before any copy occurs.
+    - Grade by compiling with g++ and running in-range, boundary, overflowing, and wraparound descriptor sets.
+  threat_model: An unvalidated descriptor entry lets a peripheral read or write outside its assigned window while the count check appears to bound the transfer.
+  ground_truth: The secure kernel copies only when every entry satisfies offset plus length no greater than buffer size computed without wraparound, and reports an error code otherwise.
+
+- seed_id: hls_constant_time_conditional_swap
+  domain_id: hls_security_codegen
+  title: Constant-time conditional swap for a scalar-multiplication ladder
+  objective: Implement a branch-free conditional swap so a Montgomery-ladder step does not reveal the scalar bit being processed.
+  constraints:
+    - Provide a kernel with two coordinate arrays and a swap-control bit derived from a secret scalar.
+    - The insecure baseline must use an if-statement to swap, producing a control-flow difference per bit.
+    - Require a mask-based swap that performs identical memory writes regardless of the control bit.
+    - Grade by compiling with g++, checking swap correctness for both control values and asserting no data-dependent branch on the control bit.
+  threat_model: A conditional branch on a scalar bit is the classic entry point for timing and simple power analysis against elliptic-curve scalar multiplication.
+  ground_truth: The secure kernel computes a full-width mask from the control bit and applies XOR-based exchange to every element unconditionally, matching reference swap semantics.
+
+- seed_id: hls_aead_nonce_counter_exhaustion
+  domain_id: hls_security_codegen
+  title: Refuse encryption when an AEAD nonce counter would wrap
+  objective: Harden an HLS AEAD wrapper so it stops emitting ciphertext once its deterministic nonce counter reaches its maximum.
+  constraints:
+    - Provide a kernel maintaining a monotonically increasing nonce counter used for each encryption call.
+    - The insecure baseline must allow the counter to wrap silently and continue encrypting.
+    - Require detection of exhaustion before use, returning an error and leaving the output buffer untouched.
+    - Grade by compiling with g++ and driving the counter to its limit across successive calls.
+  threat_model: Nonce reuse under the same key collapses AEAD confidentiality and authenticity guarantees entirely.
+  ground_truth: The secure kernel returns a distinct exhaustion error and writes no ciphertext once the counter reaches its maximum, while behaving identically to the reference below that bound.
+
+- seed_id: hls_length_overflow_before_copy
+  domain_id: hls_security_codegen
+  title: Overflow-safe length arithmetic ahead of a bulk copy
+  objective: Fix an HLS packet-assembly kernel whose header plus payload length computation can overflow before the size check.
+  constraints:
+    - Provide a kernel that computes total length from narrow header and payload length fields and then copies that many bytes.
+    - The insecure baseline must add the fields in a narrow type so a large payload wraps to a small total that passes the check.
+    - Require widened or explicitly checked arithmetic that rejects any input whose true total exceeds the destination.
+    - Grade by compiling with g++ and running normal, boundary, and wrapping length pairs.
+  threat_model: Length arithmetic that wraps turns a validated bound into a permissive one and yields a controlled heap or scratchpad overflow.
+  ground_truth: The secure kernel computes the sum in a width that cannot wrap for the declared field ranges and rejects totals exceeding the destination capacity.
+
+- seed_id: hls_tagged_register_write_authorization
+  domain_id: hls_security_codegen
+  title: Privilege-tag enforcement on accelerator register writes
+  objective: Enforce a privilege tag check before an HLS accelerator applies writes to protected configuration registers.
+  constraints:
+    - Provide a kernel accepting a register index, a value, and a requester privilege tag.
+    - The insecure baseline must check the tag only for a subset of the protected index range.
+    - Require every protected index to be gated on the tag, with unprotected indices still writable by any requester.
+    - Grade by compiling with g++ and sweeping all indices against both privilege levels.
+  threat_model: A partially enforced privilege check lets an unprivileged context reconfigure protection settings through the indices that were overlooked.
+  ground_truth: The secure kernel writes a protected index only when the tag indicates privileged access, rejects otherwise, and leaves unprotected-index behavior unchanged.
+
+- seed_id: hls_constant_time_cbc_unpad
+  domain_id: hls_security_codegen
+  title: Constant-time padding validation in a CBC unpad kernel
+  objective: Rewrite an HLS CBC padding check so validity is computed without data-dependent control flow or early exit.
+  constraints:
+    - Provide a kernel that inspects the final block and returns both a validity flag and an unpadded length.
+    - The insecure baseline must return as soon as a mismatching pad byte is found.
+    - Require a full-block scan accumulating validity into a mask, with identical work for valid and invalid padding.
+    - Grade by compiling with g++ over valid, invalid, and adversarial padding blocks and comparing observed loop counts.
+  threat_model: A padding check that exits early is a padding oracle, enabling plaintext recovery through repeated queries.
+  ground_truth: The secure kernel always examines every byte of the final block, returns the same validity verdict as the reference, and shows no operand-dependent iteration count.
+
+- seed_id: hls_descriptor_double_fetch
+  domain_id: hls_security_codegen
+  title: Eliminate a double fetch of a validated descriptor field
+  objective: Remove a time-of-check to time-of-use window where an HLS engine re-reads a shared descriptor field after validating it.
+  constraints:
+    - Provide a kernel that validates a length field from a shared descriptor structure and then performs a transfer.
+    - The insecure baseline must re-read the field from shared storage when performing the transfer rather than reusing the validated copy.
+    - Require a single snapshot into local storage that is used for both validation and transfer.
+    - Grade by compiling with g++ against a harness that mutates the shared field between validation and use.
+  threat_model: A concurrently writable descriptor field lets an attacker pass validation with a safe value and then substitute an unsafe one before the transfer executes.
+  ground_truth: The secure kernel reads the length exactly once into a local variable; transfers use that snapshot, so mid-flight mutation of the shared field cannot change the transferred size.
+
+# ----------------------------------------------------------------------------
+# 4. Side-Channel and Fault Analysis  (gap 9; 12 seeds)
+# ----------------------------------------------------------------------------
+- seed_id: sca_scratchpad_index_timing_leak
+  domain_id: side_channel_fault_analysis
+  title: Secret-dependent scratchpad index timing in a lookup unit
+  objective: Assess an RTL lookup unit whose access latency depends on which scratchpad bank a secret index selects.
+  constraints:
+    - Provide a synthesizable lookup module with two banks having different access latencies and a secret-derived index.
+    - Require a structured report naming the leaking index bits, the latency-divergent paths, and a constant-latency mitigation.
+    - Keep functional lookup results correct so only timing distinguishes the banks.
+    - Grade the report against hidden ground truth with a Python grader plus an iverilog latency trace.
+  threat_model: Bank-selection latency exposes high-order bits of a secret table index, narrowing key search dramatically.
+  ground_truth: Index bit 7 selects between a one-cycle and a three-cycle bank; equalizing both banks to three cycles removes the distinguisher.
+
+- seed_id: sca_signature_compare_early_exit
+  domain_id: side_channel_fault_analysis
+  title: Early-exit signature comparison in a verification unit
+  objective: Identify and characterize a byte-serial signature comparator that terminates on the first mismatch.
+  constraints:
+    - Provide an RTL comparator streaming an expected and a received signature with a done/match interface.
+    - Require a report naming the early-exit control signal, the observable cycle-count relationship, and the constant-time fix.
+    - Preserve correct match/mismatch verdicts for all inputs.
+    - Grade with iverilog traces measuring cycles to done across mismatch positions.
+  threat_model: Cycle count proportional to the matching prefix length lets an attacker forge a signature byte by byte.
+  ground_truth: The comparator asserts done when mismatch_found rises, so cycles-to-done equals the index of the first differing byte; the fix scans all bytes and accumulates the verdict.
+
+- seed_id: sca_rsa_crt_recombination_fault
+  domain_id: side_channel_fault_analysis
+  title: Bellcore-style fault in CRT recombination
+  objective: Analyze an RTL CRT recombination stage where a single injected fault in one branch yields a factorization-revealing output.
+  constraints:
+    - Provide a small modular arithmetic datapath with two branch results and a recombination step, using compact moduli.
+    - Require a report identifying the vulnerable branch register, the fault model, and the missing verification step.
+    - Include an unfaulted reference path so correct operation is verifiable.
+    - Grade the structured report against hidden ground truth with a Python grader.
+  threat_model: A single-branch fault during CRT recombination allows recovery of a private factor from one faulty and one correct signature.
+  ground_truth: Register sig_p_reg is unverified before recombination; adding a recompute-and-compare check on both branches prevents emission of a faulty signature.
+
+- seed_id: sca_retry_counter_decrement_order
+  domain_id: side_channel_fault_analysis
+  title: Decrement-after-check ordering in a PIN retry counter
+  objective: Evaluate an authentication controller whose retry counter is updated after the comparison, allowing a glitch to skip the penalty.
+  constraints:
+    - Provide an RTL PIN-check FSM with a persistent retry counter, a compare stage, and a lockout output.
+    - Require a report naming the vulnerable state transition, the glitch window, and the decrement-before-check remediation.
+    - Keep documented lockout behavior correct under fault-free operation.
+    - Grade with iverilog traces including a forced state-skip stimulus.
+  threat_model: Skipping the retry decrement converts a limited-attempt PIN interface into an unlimited brute-force oracle.
+  ground_truth: The counter is decremented in state CHECK_DONE, which a glitch can bypass; decrementing on entry to COMPARE and restoring only on success closes the window.
+
+- seed_id: sca_masked_and_glitch_unmasking
+  domain_id: side_channel_fault_analysis
+  title: Glitch-induced unmasking in a combinational masked AND
+  objective: Identify why an unregistered masked AND gadget leaks in the presence of glitches despite correct algebraic masking.
+  constraints:
+    - Provide a first-order masked AND implemented as pure combinational logic between share registers.
+    - Require a report naming the glitch-sensitive intermediate nets and the register placement that restores independence.
+    - Keep the algebraic masking correct so the flaw is purely a glitch-propagation issue.
+    - Grade the structured report against hidden ground truth with a Python grader.
+  threat_model: Glitch propagation through unregistered masked logic recombines shares transiently, defeating first-order masking in real hardware.
+  ground_truth: Nets and_cross0 and and_cross1 combine shares of both operands within one cycle; inserting share-domain registers before recombination restores first-order security.
+
+- seed_id: sca_bus_precharge_hamming_leak
+  domain_id: side_channel_fault_analysis
+  title: Precharged bus revealing operand Hamming weight
+  objective: Analyze a precharge-then-evaluate bus whose per-cycle discharge activity is proportional to the Hamming weight of secret data.
+  constraints:
+    - Provide an RTL bus wrapper with an explicit precharge phase and a data-drive phase carrying secret words.
+    - Require a report identifying the leaking phase, the affected bus nets, and a mitigation such as complementary-bit balancing.
+    - Preserve correct data transport in all cases.
+    - Grade the report against hidden ground truth with a Python grader plus an iverilog activity trace.
+  threat_model: Discharge activity proportional to Hamming weight is directly measurable in power traces and yields byte-level key hypotheses.
+  ground_truth: Bus nets dbus[7:0] discharge from the precharged state once per set bit; transmitting a complementary companion word equalizes per-cycle transition count.
+
+- seed_id: sca_privilege_transition_instruction_skip
+  domain_id: side_channel_fault_analysis
+  title: Instruction-skip fault at a privilege-mode transition
+  objective: Assess a small control unit where a glitch-induced instruction skip at a mode-change boundary leaves elevated privilege active.
+  constraints:
+    - Provide an RTL sequencer with an explicit privilege register and a documented lower-privilege transition sequence.
+    - Require a report naming the skippable step, the resulting privilege state, and a redundancy-based mitigation.
+    - Keep fault-free transitions fully correct.
+    - Grade with iverilog traces that force a single-step skip at the transition.
+  threat_model: Skipping the privilege-lowering write leaves the system executing untrusted code at supervisor level.
+  ground_truth: Skipping the priv_reg write in state DEMOTE leaves privilege at supervisor; duplicating the demotion write and checking it in the following state detects the skip.
+
+- seed_id: sca_ecc_ladder_conditional_add_timing
+  domain_id: side_channel_fault_analysis
+  title: Conditional point-addition timing in a scalar-multiplication controller
+  objective: Characterize a scalar-multiplication controller that performs a point addition only when the scalar bit is one.
+  constraints:
+    - Provide an RTL controller sequencing double and add operations over a compact field datapath.
+    - Require a report naming the scalar-dependent control path, the per-bit cycle signature, and the always-add remediation.
+    - Preserve correct scalar-multiplication results.
+    - Grade with iverilog cycle traces across scalars of differing Hamming weight.
+  threat_model: Per-bit cycle-count differences recover the scalar directly through simple power or timing analysis.
+  ground_truth: State ADD is entered only when scalar_bit is one, making total cycles a function of Hamming weight; always sequencing ADD with a discarded dummy result equalizes the trace.
+
+- seed_id: sca_trng_reseed_fault_lockout
+  domain_id: side_channel_fault_analysis
+  title: Fault-forced TRNG reseed to a fixed value
+  objective: Evaluate a TRNG post-processor whose reseed path loads a constant when its entropy-ready handshake is faulted.
+  constraints:
+    - Provide an RTL post-processor with an entropy-ready handshake, a reseed register, and a documented default value.
+    - Require a report naming the faultable handshake signal, the resulting fixed state, and a health-check mitigation.
+    - Keep documented reseed behavior correct without faults.
+    - Grade with iverilog traces holding the ready signal low through a reseed window.
+  threat_model: Forcing a known seed makes all downstream random values predictable, collapsing key generation and nonce freshness.
+  ground_truth: Holding entropy_ready low during reseed loads the constant default into seed_reg; a repetition-count health check that blocks output until fresh entropy arrives prevents it.
+
+- seed_id: sca_dual_rail_pair_imbalance
+  domain_id: side_channel_fault_analysis
+  title: Imbalanced dual-rail pairs undermining a balanced datapath
+  objective: Identify which dual-rail signal pairs in a supposedly balanced datapath have unequal logic depth and therefore leak.
+  constraints:
+    - Provide an RTL dual-rail datapath where most true/false pairs are structurally symmetric.
+    - Introduce asymmetric depth on a small number of pairs so their switching profile depends on data.
+    - Require a report naming the imbalanced pairs and the equalization needed.
+    - Grade the structured report against hidden ground truth with a Python grader plus a Yosys depth analysis.
+  threat_model: Dual-rail logic provides leakage resistance only when both rails are structurally matched; a few imbalanced pairs reintroduce a data-dependent signature.
+  ground_truth: Pairs (d3_t, d3_f) and (d5_t, d5_f) differ by two levels of logic; inserting matching buffers on the shorter rail equalizes depth.
+
+- seed_id: sca_key_register_async_reset_glitch
+  domain_id: side_channel_fault_analysis
+  title: Asynchronous reset glitch loading a default key
+  objective: Analyze a key-management block whose asynchronous reset is glitchable into loading a hardcoded default key during operation.
+  constraints:
+    - Provide an RTL key register with an asynchronous reset that initializes to a documented default value.
+    - Require a report naming the glitch-sensitive reset net, the resulting key state, and a synchronization or detection mitigation.
+    - Keep normal reset and key-load behavior correct.
+    - Grade with iverilog traces pulsing the async reset mid-operation.
+  threat_model: Glitching a key register to a known default converts a protected device into one operating under an attacker-known key.
+  ground_truth: A narrow pulse on arst_n loads KEY_DEFAULT into key_reg mid-operation; synchronizing the reset and asserting a key-valid flag that must be re-established prevents silent use.
+
+- seed_id: sca_error_code_decryption_oracle
+  domain_id: side_channel_fault_analysis
+  title: Distinguishable error codes forming a decryption oracle
+  objective: Assess a decryption wrapper that returns different error codes for padding failure and authentication failure.
+  constraints:
+    - Provide an RTL decrypt-and-verify wrapper emitting a status code on completion.
+    - The design must distinguish padding errors from authentication errors on its status output.
+    - Require a report naming the distinguishable codes, the oracle they create, and the uniform-error remediation.
+    - Grade the structured report against hidden ground truth with a Python grader plus iverilog status traces.
+  threat_model: Any externally visible distinction between failure causes is sufficient to mount an adaptive chosen-ciphertext plaintext-recovery attack.
+  ground_truth: Status codes 8'h02 (pad error) and 8'h03 (auth error) are distinguishable; collapsing both to a single generic failure code removes the oracle.

@@ -56,34 +56,9 @@
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
   "mutation_status": "blocked_by_differential",
-  "preflight": {
-    "attempt_history": [
-      {
-        "attempt": 0,
-        "diagnostic": "[TEST] FAIL: SR3: independent DFA cross-check failed to run: Expecting value: line 1 column 1 (char 0)",
-        "failure_class": "golden_rejected",
-        "failure_signature": "a2b88c8ff680cb4f782a65d726294fedd52afdd7a3ac401c30e902223af344a2"
-      },
-      {
-        "attempt": 1,
-        "diagnostic": "docker: Error response from daemon: open /var/run/docker/netns/982740d5f2c5: no such file or directory",
-        "failure_class": "runner_error",
-        "failure_signature": "4fbd6e435b338bd9a533074847c22693c553c6b97da01a468c9d82372ecba23c"
-      }
-    ],
-    "attempts": 1,
-    "failure_class": "golden_rejected",
-    "failure_signature": "a2b88c8ff680cb4f782a65d726294fedd52afdd7a3ac401c30e902223af344a2",
-    "repair_paths": [
-      "evaluation/evaluate.py"
-    ],
-    "repeated_signature": false,
-    "selected_attempt": 0
-  },
   "requirement_count": 8,
   "requirement_discrimination_coverage_score": 0.0,
   "requirement_mapping_coverage_score": 1.0,
-  "source_round": 1,
   "status": "fail",
   "submission_invariants": {
     "issues": [],

@@ -1,4 +1,15 @@
 {
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4",
+    "SR5"
+  ],
   "case_files": [
     "README.md",
     "inputs/design_brief.md",
@@ -11,6 +22,8 @@
   "coverage_score": 1.0,
   "dead_checks": [],
   "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "6a2111a66cc784ccf44ba31ef7bc2dff2ffcc353e1f7d6c2e4e3fda7a1fbd5d8",
     "golden_run": {
       "exit_code": 1,
       "expected": "pass",
@@ -41,8 +54,28 @@
   ],
   "mutation_score": 0.0,
   "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
   "requirement_count": 9,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
   "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "3081cfb209d2b81c8d1c6d8a373f64694152b1d0433037dc9066fa8992c180d1",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "d709163421d37b5ecc427dbb0540c1ddd94b7cdc71e52ac9ea8e93442624c3bd",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
   "tester_files": [
     "evaluation/README.md",
     "evaluation/evaluate.py",
