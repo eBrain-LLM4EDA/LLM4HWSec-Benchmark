@@ -18,6 +18,10 @@
 #   MODEL_OVERRIDE=/scratch/you/pruned/codellama7b_llmpruner50 \
 #     SERVED_NAME_SUFFIX=-llmpruner50pct \
 #     ./serve_codellama_7b.sh
+#
+#   # Use/create a specific conda env instead of the default "hwsec-vllm"
+#   # (e.g. one you already have with vLLM installed):
+#   ./serve_codellama_7b.sh --conda-env my_existing_env
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -28,6 +32,7 @@ DEFAULT_MAX_LEN=16384   # base 4K, RoPE-scaled to 16K by the model config
 
 # shellcheck disable=SC1091
 source ./lib.sh
+parse_conda_env_arg "$@"
 setup_env
 ensure_vllm
 serve_model

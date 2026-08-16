@@ -13,6 +13,10 @@
 #   MODEL_OVERRIDE=/scratch/you/pruned/granite8b_shortgpt50 \
 #     SERVED_NAME_SUFFIX=-shortgpt50pct \
 #     ./serve_granite_8b_code.sh
+#
+#   # Use/create a specific conda env instead of the default "hwsec-vllm"
+#   # (e.g. one you already have with vLLM installed):
+#   ./serve_granite_8b_code.sh --conda-env my_existing_env
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -23,6 +27,7 @@ DEFAULT_MAX_LEN=32768   # native context is 128K; capped here to control KV-cach
 
 # shellcheck disable=SC1091
 source ./lib.sh
+parse_conda_env_arg "$@"
 setup_env
 ensure_vllm
 serve_model

@@ -13,6 +13,10 @@
 #   MODEL_OVERRIDE=/scratch/you/pruned/dsc6.7b_sparsegpt50 \
 #     SERVED_NAME_SUFFIX=-sparsegpt50pct \
 #     ./serve_deepseek_coder_6.7b.sh
+#
+#   # Use/create a specific conda env instead of the default "hwsec-vllm"
+#   # (e.g. one you already have with vLLM installed):
+#   ./serve_deepseek_coder_6.7b.sh --conda-env my_existing_env
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -23,6 +27,7 @@ DEFAULT_MAX_LEN=16384   # model's native max context
 
 # shellcheck disable=SC1091
 source ./lib.sh
+parse_conda_env_arg "$@"
 setup_env
 ensure_vllm
 serve_model

@@ -16,6 +16,10 @@
 #   MODEL_OVERRIDE=/scratch/you/pruned/qwen25coder7b_wanda50 \
 #     SERVED_NAME_SUFFIX=-wanda50pct \
 #     ./serve_qwen2.5_coder_7b.sh
+#
+#   # Use/create a specific conda env instead of the default "hwsec-vllm"
+#   # (e.g. one you already have with vLLM installed):
+#   ./serve_qwen2.5_coder_7b.sh --conda-env my_existing_env
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -26,6 +30,7 @@ DEFAULT_MAX_LEN=32768   # native context is 128K; capped here to control KV-cach
 
 # shellcheck disable=SC1091
 source ./lib.sh
+parse_conda_env_arg "$@"
 setup_env
 ensure_vllm
 serve_model

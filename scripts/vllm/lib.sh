@@ -11,6 +11,33 @@ log() { printf '[%(%Y-%m-%d %H:%M:%S)T] %s\n' -1 "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
 # -----------------------------------------------------------------------------
+# 0. Optional CLI flag: --conda-env NAME (or -e NAME) to use/create a
+#    specific conda env instead of the default "$ENV_NAME" (hwsec-vllm).
+#    Same effect as `ENV_NAME=NAME ./serve_*.sh`; the flag just makes it
+#    visible in the invocation. If that env already exists (e.g. one of your
+#    own, with vLLM already installed), setup_env()/ensure_vllm() below
+#    reuse it as-is and skip creation/install - nothing is overwritten.
+# -----------------------------------------------------------------------------
+parse_conda_env_arg() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --conda-env|-e)
+        [[ $# -ge 2 ]] || die "--conda-env requires a value, e.g. --conda-env my_env"
+        ENV_NAME="$2"
+        shift 2
+        ;;
+      --conda-env=*)
+        ENV_NAME="${1#*=}"
+        shift
+        ;;
+      *)
+        die "Unknown argument: $1 (supported: --conda-env NAME, or the ENV_NAME env var)"
+        ;;
+    esac
+  done
+}
+
+# -----------------------------------------------------------------------------
 # 1. Python environment: conda. Idempotent - safe to re-run any time.
 #    (No mamba dependency - plain `conda` only, since that's what's actually
 #    on the HPC.)
@@ -52,6 +79,36 @@ ensure_vllm() {
   fi
   log "vLLM version: $(python3 -c 'import vllm; print(vllm.__version__)')"
   mkdir -p "$HF_HOME" "$LOG_DIR"
+  warn_cudnn_conflicts
+}
+
+# -----------------------------------------------------------------------------
+# 2b. Diagnostic only (never fails the run): reused/shared conda envs can
+#    accumulate more than one nvidia-cudnn-cu* package, which crashes
+#    FlashInfer's cuDNN bindings at engine startup with
+#    "AssertionError: Found N libcudnn.so.x in nvidia-cudnn-cuXX". We already
+#    default VLLM_ATTENTION_BACKEND=FLASH_ATTN to avoid that path entirely,
+#    but if you deliberately switch back to FLASHINFER, surface the conflict
+#    up front instead of a deep engine-core traceback.
+# -----------------------------------------------------------------------------
+warn_cudnn_conflicts() {
+  [[ "${VLLM_ATTENTION_BACKEND:-}" == "FLASHINFER" ]] || return 0
+  local dists
+  dists="$(python3 - <<'PY'
+import importlib.metadata as m
+names = sorted(d.name for d in m.distributions() if d.name.lower().startswith("nvidia-cudnn-cu"))
+print("\n".join(names))
+PY
+)"
+  local count
+  count="$(printf '%s\n' "$dists" | grep -c . || true)"
+  if [[ "$count" -gt 1 ]]; then
+    log "WARNING: found $count nvidia-cudnn-cu* packages in '$ENV_NAME' with VLLM_ATTENTION_BACKEND=FLASHINFER:"
+    log "  $(printf '%s ' $dists)"
+    log "  This will crash engine startup (AssertionError: Found N libcudnn.so.x). Fix with:"
+    log "    pip uninstall -y $(printf '%s ' $dists) && pip install <the one matching your CUDA/torch build>"
+    log "  Or just drop back to the default: unset VLLM_ATTENTION_BACKEND (uses FLASH_ATTN)."
+  fi
 }
 
 # -----------------------------------------------------------------------------
