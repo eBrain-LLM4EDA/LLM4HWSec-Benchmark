@@ -83,61 +83,42 @@ ensure_vllm() {
 }
 
 # -----------------------------------------------------------------------------
-# 2b. FlashInfer's optional cuDNN integration (used only for Blackwell fp4/
-#    cutlass GEMM kernels - irrelevant to plain bf16 attention) crashes with
-#    an uncaught AssertionError ("Found N libcudnn.so.x in nvidia-cudnn-cuXX")
-#    whenever more than one nvidia-cudnn-cu* package resolves in the env.
-#    Critically, vLLM probes EVERY registered backend's importability while
-#    building its priority list - so this crashes engine startup even when
-#    VLLM_ATTENTION_BACKEND=FLASH_ATTN is forced; the forced choice is never
-#    reached. These scripts never need FlashInfer (plain dense Qwen2/Llama-
-#    style attention), so the default fix is to remove it from the active env
-#    so vLLM's probe gets a clean ModuleNotFoundError - the ordinary, handled
-#    "not installed" case every non-FlashInfer vLLM install hits - instead of
-#    the crash. Set KEEP_FLASHINFER=1 to skip this (e.g. something else in a
-#    shared env needs FlashInfer); you'll then need to fix the duplicate
-#    nvidia-cudnn-cu* packages yourself if you hit the crash.
+# 2b. This vLLM build imports flashinfer unconditionally in places beyond just
+#    attention-backend selection (a plain ModuleNotFoundError for it crashes
+#    engine startup, unhandled) - so flashinfer must stay installed, and
+#    VLLM_ATTENTION_BACKEND=FLASH_ATTN alone does NOT avoid the crash below
+#    (vLLM probes every backend's importability while building its priority
+#    list before honoring the forced choice). The actual, fixable root cause
+#    is flashinfer's optional cuDNN integration (used only for Blackwell fp4/
+#    cutlass GEMM kernels - irrelevant to plain bf16 attention) hard-asserting
+#    exactly one nvidia-cudnn-cu* package resolves in the env
+#    ("AssertionError: Found N libcudnn.so.x in nvidia-cudnn-cuXX"). Fix:
+#    (re)install flashinfer if missing, then remove every nvidia-cudnn-cu*
+#    package except the one matching the installed torch's CUDA build.
 # -----------------------------------------------------------------------------
 fix_attention_backend_conflicts() {
   local py_bin
   py_bin="$(command -v python3)"
 
-  if [[ "${VLLM_ATTENTION_BACKEND:-}" == "FLASHINFER" ]]; then
-    warn_cudnn_conflicts
-    return 0
-  fi
-  if [[ "${KEEP_FLASHINFER:-0}" == "1" ]]; then
-    log "KEEP_FLASHINFER=1 set; leaving flashinfer as-is."
-    warn_cudnn_conflicts
-    return 0
-  fi
-
-  # Nothing to do if flashinfer isn't even installed in this env.
-  python3 -c "
+  if ! python3 -c "
 import importlib.metadata as m, sys
 sys.exit(0 if any(d.name.lower() in ('flashinfer', 'flashinfer-python') for d in m.distributions()) else 1)
-" || return 0
-
-  if python3 -c "import flashinfer" >/dev/null 2>&1; then
-    return 0   # imports cleanly - nothing to fix
+"; then
+    log "flashinfer is not installed in '$ENV_NAME' but this vLLM build requires it (unconditional import outside attention-backend selection); installing flashinfer-python..."
+    uv pip install --python "$py_bin" flashinfer-python
   fi
 
-  log "flashinfer is installed in '$ENV_NAME' but fails to import - this crashes vLLM engine startup even with VLLM_ATTENTION_BACKEND=FLASH_ATTN (see comment above fix_attention_backend_conflicts in lib.sh). Removing it since these scripts don't need it..."
-  uv pip uninstall --python "$py_bin" flashinfer flashinfer-python >/dev/null 2>&1 || true
-  if python3 -c "import flashinfer" >/dev/null 2>&1; then
-    log "WARNING: flashinfer still importable after attempted removal. If vLLM still crashes with the cuDNN AssertionError, uninstall it manually: pip uninstall -y flashinfer flashinfer-python (env '$ENV_NAME')."
-  else
-    log "flashinfer removed from '$ENV_NAME'; vLLM will use FLASH_ATTN cleanly. (Set KEEP_FLASHINFER=1 to skip this in future runs.)"
-  fi
+  fix_cudnn_duplicates "$py_bin"
 }
 
 # -----------------------------------------------------------------------------
-# 2c. Diagnostic only (never fails the run): used when FlashInfer is
-#    deliberately kept (VLLM_ATTENTION_BACKEND=FLASHINFER or KEEP_FLASHINFER=1)
-#    to surface a duplicate nvidia-cudnn-cu* install up front instead of a
-#    deep engine-core traceback.
+# 2c. Actually fixes (not just warns about) duplicate nvidia-cudnn-cu*
+#    packages by keeping only the one matching torch's CUDA build. No-op if
+#    zero or one such package is installed, or if torch's CUDA version can't
+#    be detected (falls back to printing the manual fix command).
 # -----------------------------------------------------------------------------
-warn_cudnn_conflicts() {
+fix_cudnn_duplicates() {
+  local py_bin="$1"
   local dists
   dists="$(python3 - <<'PY'
 import importlib.metadata as m
@@ -147,13 +128,33 @@ PY
 )"
   local count
   count="$(printf '%s\n' "$dists" | grep -c . || true)"
-  if [[ "$count" -gt 1 ]]; then
-    log "WARNING: found $count nvidia-cudnn-cu* packages in '$ENV_NAME' while keeping flashinfer:"
-    log "  $(printf '%s ' $dists)"
-    log "  This will crash engine startup (AssertionError: Found N libcudnn.so.x). Fix with:"
-    log "    pip uninstall -y $(printf '%s ' $dists) && pip install <the one matching your CUDA/torch build>"
-    log "  Or drop KEEP_FLASHINFER / VLLM_ATTENTION_BACKEND=FLASHINFER to let these scripts remove flashinfer instead."
+  [[ "$count" -le 1 ]] && return 0   # nothing to fix
+
+  log "Found $count nvidia-cudnn-cu* packages in '$ENV_NAME': $(printf '%s ' $dists)"
+  log "This crashes flashinfer's cuDNN loader (AssertionError: Found N libcudnn.so.x). Resolving to the one matching torch's CUDA build..."
+
+  local torch_cuda
+  torch_cuda="$(python3 -c 'import torch; print(torch.version.cuda or "")' 2>/dev/null || true)"
+  if [[ -z "$torch_cuda" ]]; then
+    log "WARNING: could not detect torch's CUDA version to auto-resolve this. Fix manually, e.g.:"
+    log "    pip uninstall -y $(printf '%s ' $dists) && pip install nvidia-cudnn-cuXX  # match your CUDA build"
+    return 0
   fi
+  local keep="nvidia-cudnn-cu${torch_cuda%%.*}"
+  log "torch is built for CUDA $torch_cuda -> keeping $keep, removing the rest"
+
+  local -a to_remove=()
+  local d
+  for d in $dists; do
+    [[ "$d" == "$keep" ]] || to_remove+=("$d")
+  done
+  if [[ ${#to_remove[@]} -eq 0 || ${#to_remove[@]} -eq $count ]]; then
+    log "WARNING: none of the installed packages unambiguously matched '$keep' - leaving as-is. Fix manually:"
+    log "    pip uninstall -y $(printf '%s ' $dists) && pip install $keep"
+    return 0
+  fi
+  log "Removing: ${to_remove[*]}"
+  uv pip uninstall --python "$py_bin" "${to_remove[@]}" || true
 }
 
 # -----------------------------------------------------------------------------
