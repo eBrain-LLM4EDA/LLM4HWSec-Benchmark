@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Serves Qwen/Qwen2.5-Coder-7B-Instruct on an OpenAI-compatible vLLM endpoint.
-# First run creates a conda/venv env, installs vLLM, and downloads the model
-# from Hugging Face (open weights, no gating) - all handled automatically.
+# First run creates a conda env, bootstraps uv, installs vLLM via uv, and
+# downloads the model from Hugging Face (open weights, no gating) - all
+# handled automatically.
 #
 # Usage:
 #   ./serve_qwen2.5_coder_7b.sh                       # base model, foreground

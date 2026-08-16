@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Serves codellama/CodeLlama-7b-Instruct-hf on an OpenAI-compatible vLLM
-# endpoint. First run creates a conda/venv env, installs vLLM, and downloads
-# the model from Hugging Face.
+# endpoint. First run creates a conda env, bootstraps uv, installs vLLM via
+# uv, and downloads the model from Hugging Face.
 #
 # NOTE: this is a GATED repo. Before running for the first time:
 #   1. Accept the license at https://huggingface.co/codellama/CodeLlama-7b-Instruct-hf

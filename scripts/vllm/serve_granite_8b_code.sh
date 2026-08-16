@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Serves ibm-granite/granite-8b-code-instruct-128k on an OpenAI-compatible
-# vLLM endpoint. First run creates a conda/venv env, installs vLLM, and
-# downloads the model from Hugging Face (Apache-2.0, no gating).
+# vLLM endpoint. First run creates a conda env, bootstraps uv, installs vLLM
+# via uv, and downloads the model from Hugging Face (Apache-2.0, no gating).
 #
 # Usage:
 #   ./serve_granite_8b_code.sh                       # base model, foreground

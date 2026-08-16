@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Serves deepseek-ai/deepseek-coder-6.7b-instruct on an OpenAI-compatible
-# vLLM endpoint. First run creates a conda/venv env, installs vLLM, and
-# downloads the model from Hugging Face (open weights, no gating).
+# vLLM endpoint. First run creates a conda env, bootstraps uv, installs vLLM
+# via uv, and downloads the model from Hugging Face (open weights, no gating).
 #
 # Usage:
 #   ./serve_deepseek_coder_6.7b.sh                       # base model, foreground

@@ -11,45 +11,44 @@ log() { printf '[%(%Y-%m-%d %H:%M:%S)T] %s\n' -1 "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
 # -----------------------------------------------------------------------------
-# 1. Python environment: prefer conda/mamba if present, else a plain venv.
-#    Idempotent - safe to re-run any time.
+# 1. Python environment: conda. Idempotent - safe to re-run any time.
+#    (No mamba dependency - plain `conda` only, since that's what's actually
+#    on the HPC.)
 # -----------------------------------------------------------------------------
 setup_env() {
-  local conda_bin=""
-  if command -v mamba >/dev/null 2>&1; then conda_bin=mamba
-  elif command -v conda >/dev/null 2>&1; then conda_bin=conda
-  fi
+  command -v conda >/dev/null 2>&1 || die "conda not found on PATH. Load it first (e.g. 'module load anaconda' / 'module load miniconda') and re-run."
 
-  if [[ -n "$conda_bin" ]]; then
-    if ! "$conda_bin" env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-      log "Creating conda env '$ENV_NAME' (python $PYTHON_VERSION)..."
-      "$conda_bin" create -y -n "$ENV_NAME" "python=$PYTHON_VERSION"
-    fi
-    # shellcheck disable=SC1091
-    source "$("$conda_bin" info --base)/etc/profile.d/conda.sh"
-    conda activate "$ENV_NAME"
-  else
-    local venv_dir="$SCRIPT_DIR/.venv-$ENV_NAME"
-    if [[ ! -d "$venv_dir" ]]; then
-      log "conda/mamba not found on PATH; creating a plain venv at $venv_dir ..."
-      python3 -m venv "$venv_dir"
-    fi
-    # shellcheck disable=SC1091
-    source "$venv_dir/bin/activate"
+  if ! conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
+    log "Creating conda env '$ENV_NAME' (python $PYTHON_VERSION)..."
+    conda create -y -n "$ENV_NAME" "python=$PYTHON_VERSION"
   fi
+  # shellcheck disable=SC1091
+  source "$(conda info --base)/etc/profile.d/conda.sh"
+  conda activate "$ENV_NAME"
   log "Python environment ready: $(python3 --version) at $(command -v python3)"
 }
 
 # -----------------------------------------------------------------------------
-# 2. vLLM + fast HF download support. Idempotent.
+# 2. uv (fast installer) + vLLM + fast HF download support. Idempotent.
+#    uv itself is bootstrapped with a plain `pip install` the first time
+#    (nothing external to download/curl), then used for every install after
+#    that since it's much faster than pip for vLLM's large dependency tree.
 # -----------------------------------------------------------------------------
 ensure_vllm() {
+  if ! command -v uv >/dev/null 2>&1; then
+    log "Installing uv into '$ENV_NAME' (one-time bootstrap)..."
+    pip install -q -U pip
+    pip install -q uv
+  fi
+  log "uv version: $(uv --version)"
+
   local want_pkg="vllm"
   [[ -n "$VLLM_VERSION" ]] && want_pkg="vllm==$VLLM_VERSION"
+  local py_bin
+  py_bin="$(command -v python3)"
   if ! python3 -c "import vllm" >/dev/null 2>&1; then
     log "Installing $want_pkg (first run only, this can take a few minutes)..."
-    pip install -q -U pip
-    pip install -q "$want_pkg" "hf_transfer" "huggingface_hub[cli]"
+    uv pip install --python "$py_bin" "$want_pkg" "hf_transfer" "huggingface_hub[cli]"
   fi
   log "vLLM version: $(python3 -c 'import vllm; print(vllm.__version__)')"
   mkdir -p "$HF_HOME" "$LOG_DIR"
