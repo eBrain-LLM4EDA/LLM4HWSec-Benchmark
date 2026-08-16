@@ -79,20 +79,65 @@ ensure_vllm() {
   fi
   log "vLLM version: $(python3 -c 'import vllm; print(vllm.__version__)')"
   mkdir -p "$HF_HOME" "$LOG_DIR"
-  warn_cudnn_conflicts
+  fix_attention_backend_conflicts
 }
 
 # -----------------------------------------------------------------------------
-# 2b. Diagnostic only (never fails the run): reused/shared conda envs can
-#    accumulate more than one nvidia-cudnn-cu* package, which crashes
-#    FlashInfer's cuDNN bindings at engine startup with
-#    "AssertionError: Found N libcudnn.so.x in nvidia-cudnn-cuXX". We already
-#    default VLLM_ATTENTION_BACKEND=FLASH_ATTN to avoid that path entirely,
-#    but if you deliberately switch back to FLASHINFER, surface the conflict
-#    up front instead of a deep engine-core traceback.
+# 2b. FlashInfer's optional cuDNN integration (used only for Blackwell fp4/
+#    cutlass GEMM kernels - irrelevant to plain bf16 attention) crashes with
+#    an uncaught AssertionError ("Found N libcudnn.so.x in nvidia-cudnn-cuXX")
+#    whenever more than one nvidia-cudnn-cu* package resolves in the env.
+#    Critically, vLLM probes EVERY registered backend's importability while
+#    building its priority list - so this crashes engine startup even when
+#    VLLM_ATTENTION_BACKEND=FLASH_ATTN is forced; the forced choice is never
+#    reached. These scripts never need FlashInfer (plain dense Qwen2/Llama-
+#    style attention), so the default fix is to remove it from the active env
+#    so vLLM's probe gets a clean ModuleNotFoundError - the ordinary, handled
+#    "not installed" case every non-FlashInfer vLLM install hits - instead of
+#    the crash. Set KEEP_FLASHINFER=1 to skip this (e.g. something else in a
+#    shared env needs FlashInfer); you'll then need to fix the duplicate
+#    nvidia-cudnn-cu* packages yourself if you hit the crash.
+# -----------------------------------------------------------------------------
+fix_attention_backend_conflicts() {
+  local py_bin
+  py_bin="$(command -v python3)"
+
+  if [[ "${VLLM_ATTENTION_BACKEND:-}" == "FLASHINFER" ]]; then
+    warn_cudnn_conflicts
+    return 0
+  fi
+  if [[ "${KEEP_FLASHINFER:-0}" == "1" ]]; then
+    log "KEEP_FLASHINFER=1 set; leaving flashinfer as-is."
+    warn_cudnn_conflicts
+    return 0
+  fi
+
+  # Nothing to do if flashinfer isn't even installed in this env.
+  python3 -c "
+import importlib.metadata as m, sys
+sys.exit(0 if any(d.name.lower() in ('flashinfer', 'flashinfer-python') for d in m.distributions()) else 1)
+" || return 0
+
+  if python3 -c "import flashinfer" >/dev/null 2>&1; then
+    return 0   # imports cleanly - nothing to fix
+  fi
+
+  log "flashinfer is installed in '$ENV_NAME' but fails to import - this crashes vLLM engine startup even with VLLM_ATTENTION_BACKEND=FLASH_ATTN (see comment above fix_attention_backend_conflicts in lib.sh). Removing it since these scripts don't need it..."
+  uv pip uninstall --python "$py_bin" flashinfer flashinfer-python >/dev/null 2>&1 || true
+  if python3 -c "import flashinfer" >/dev/null 2>&1; then
+    log "WARNING: flashinfer still importable after attempted removal. If vLLM still crashes with the cuDNN AssertionError, uninstall it manually: pip uninstall -y flashinfer flashinfer-python (env '$ENV_NAME')."
+  else
+    log "flashinfer removed from '$ENV_NAME'; vLLM will use FLASH_ATTN cleanly. (Set KEEP_FLASHINFER=1 to skip this in future runs.)"
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# 2c. Diagnostic only (never fails the run): used when FlashInfer is
+#    deliberately kept (VLLM_ATTENTION_BACKEND=FLASHINFER or KEEP_FLASHINFER=1)
+#    to surface a duplicate nvidia-cudnn-cu* install up front instead of a
+#    deep engine-core traceback.
 # -----------------------------------------------------------------------------
 warn_cudnn_conflicts() {
-  [[ "${VLLM_ATTENTION_BACKEND:-}" == "FLASHINFER" ]] || return 0
   local dists
   dists="$(python3 - <<'PY'
 import importlib.metadata as m
@@ -103,11 +148,11 @@ PY
   local count
   count="$(printf '%s\n' "$dists" | grep -c . || true)"
   if [[ "$count" -gt 1 ]]; then
-    log "WARNING: found $count nvidia-cudnn-cu* packages in '$ENV_NAME' with VLLM_ATTENTION_BACKEND=FLASHINFER:"
+    log "WARNING: found $count nvidia-cudnn-cu* packages in '$ENV_NAME' while keeping flashinfer:"
     log "  $(printf '%s ' $dists)"
     log "  This will crash engine startup (AssertionError: Found N libcudnn.so.x). Fix with:"
     log "    pip uninstall -y $(printf '%s ' $dists) && pip install <the one matching your CUDA/torch build>"
-    log "  Or just drop back to the default: unset VLLM_ATTENTION_BACKEND (uses FLASH_ATTN)."
+    log "  Or drop KEEP_FLASHINFER / VLLM_ATTENTION_BACKEND=FLASHINFER to let these scripts remove flashinfer instead."
   fi
 }
 
