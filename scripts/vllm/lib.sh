@@ -206,6 +206,7 @@ serve_model() {
   log "HF cache         : $HF_HOME"
   log "API key          : $VLLM_API_KEY"
   log "Enforce eager    : ${ENFORCE_EAGER:-1} (set ENFORCE_EAGER=0 to re-enable torch.compile)"
+  log "Sampler backend  : FlashInfer=${VLLM_USE_FLASHINFER_SAMPLER:-0} (set VLLM_USE_FLASHINFER_SAMPLER=1 to re-enable)"
 
   local log_file="$LOG_DIR/${served_name}.log"
   log "Logging to $log_file"
