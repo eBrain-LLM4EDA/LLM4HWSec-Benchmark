@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "cache_controller.v must be fully synthesizable Verilog-2001/SystemVerilog-2005 subset, compilable with iverilog, implementing exactly the module/port list given in public_spec.interface.",
+    "All documented lock, hit, miss, and fill behavior (lock_status readback, hit_way computation, unlock behavior) must be bit-exact and pass conventional directed tests that do not present tag_in==8'hA5 together with secure_attr==0 during a miss on a set containing a locked way.",
+    "design_brief.md must describe the controller's intended behavior (2-way/8-set, LRU-ish victim selection among unlocked ways, per-way lock/unlock semantics) purely functionally, with no mention of any defect, trigger value, or security concern.",
+    "testbench_lock_basic.v must exercise lock/unlock/hit/miss/fill scenarios using iverilog+vvp and must pass on the shipped RTL, demonstrating that ordinary functional testing does not reveal the payload.",
+    "The RTL must not contain comments or identifiers that hint at the hidden defect (no strings like 'trojan', 'backdoor', 'A5', 'bypass_lock', etc.)."
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The report must be valid JSON containing top-level fields: 'candidates' (array), 'summary' (string), and 'tool_evidence' (string or array describing any iverilog/vvp/yosys steps performed, if any)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Each entry in 'candidates' must contain: 'location' (string naming the RTL signal/line or module region implicated), 'confidence' (number in [0,1]), and 'rationale' (string explaining the mechanism)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "At least one candidate's 'rationale' must describe a concrete triggering input condition (specific values or ranges for set_idx, tag_in, secure_attr, or lock state) that the reviewer claims causes incorrect victim selection, not merely a generic statement that the code 'looks suspicious'."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must explicitly state, for the discovered issue, whether it affects hit/miss reporting, the lock_status readback, or only the victim_way selection output, since these are functionally distinct outputs in the interface."
+    }
+  ],
+  "input_artifacts": [
+    "cache_controller.v",
+    "design_brief.md",
+    "testbench_lock_basic.v"
+  ],
+  "interface": "RTL module under audit: module cache_ctrl(input wire clk, input wire rst_n, input wire [2:0] set_idx, input wire [7:0] tag_in, input wire req_valid, input wire req_is_write, input wire secure_attr, input wire lock_way_req, input wire [0:0] lock_way_sel, input wire unlock_way_req, input wire [0:0] unlock_way_sel, output reg hit, output reg [0:0] hit_way, output reg [0:0] victim_way, output reg [1:0] lock_status), located in inputs/cache_controller.v. Ports: clk/rst_n are standard synchronous active-low reset; set_idx selects one of 8 sets; tag_in and secure_attr accompany each request; req_valid/req_is_write drive a lookup or fill; lock_way_req/lock_way_sel/unlock_way_req/unlock_way_sel manage per-way lock bits within the addressed set; hit/hit_way report lookup result; victim_way reports which way (0 or 1) the controller selects for replacement on a miss requiring a fill; lock_status[1:0] reports the current lock bits (bit i = way i locked) for the addressed set, valid one cycle after set_idx is presented (registered, Moore output). All outputs update synchronously on the rising edge of clk, one cycle after the input event that defines them (e.g., victim_way for a given miss request is valid the cycle after req_valid is asserted with a miss), and hold their value until the next defining event. The submitted answer is a JSON file at submission/trojan_report.json; it is graded against the RTL and does not modify any input file.",
+  "objective": "Audit the provided synthesizable RTL for a 2-way, 8-set cache controller with per-way locking. The controller exposes a lock_way mechanism intended to make a locked way permanently ineligible for eviction until explicitly unlocked. Review the design, run any traces you find useful, and produce a written analysis report identifying any conditions under which the documented lock guarantee can be violated, along with your confidence and supporting rationale. You do not modify the RTL; you submit a separate findings report.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching: {\"candidates\": [{\"location\": string, \"confidence\": number, \"rationale\": string}], \"summary\": string, \"tool_evidence\": string}"
+}

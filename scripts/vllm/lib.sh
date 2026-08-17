@@ -205,6 +205,7 @@ serve_model() {
   log "GPU(s)           : ${CUDA_VISIBLE_DEVICES:-<all visible>}"
   log "HF cache         : $HF_HOME"
   log "API key          : $VLLM_API_KEY"
+  log "Enforce eager    : ${ENFORCE_EAGER:-1} (set ENFORCE_EAGER=0 to re-enable torch.compile)"
 
   local log_file="$LOG_DIR/${served_name}.log"
   log "Logging to $log_file"
@@ -221,6 +222,9 @@ serve_model() {
     --max-model-len "$max_len"
     --trust-remote-code
   )
+  if [[ "${ENFORCE_EAGER:-1}" == "1" ]]; then
+    cmd+=(--enforce-eager)
+  fi
   # shellcheck disable=SC2206
   [[ -n "${EXTRA_VLLM_ARGS:-}" ]] && cmd+=($EXTRA_VLLM_ARGS)
 

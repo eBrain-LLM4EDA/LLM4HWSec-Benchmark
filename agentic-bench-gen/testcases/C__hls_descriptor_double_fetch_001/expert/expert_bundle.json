@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "#include \"descriptor_transfer.h\"\n\nextern \"C\" int run_transfer(Descriptor* desc, uint8_t* dest, uint32_t max_len) {\n    // Single, one-time read of the volatile shared-memory field. This is the\n    // ONLY place desc->length is ever touched. The resulting local snapshot\n    // is a plain (non-volatile) automatic variable, so both the bounds\n    // check below and the copy loop that follows operate on the exact same\n    // value, eliminating the time-of-check-to-time-of-use window: no\n    // concurrent mutation of desc->length after this line can influence\n    // validation or the transfer.\n    const uint32_t snapshot_length = desc->length;\n\n    if (snapshot_length > max_len) {\n        // Reject: zero bytes copied, dest left completely untouched.\n        return -1;\n    }\n\n    for (uint32_t i = 0; i < snapshot_length; i++) {\n        dest[i] = desc->data[i];\n    }\n\n    return static_cast<int>(snapshot_length);\n}",
+      "path": "golden/descriptor_transfer.cpp"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/descriptor_transfer.cpp",
+      "purpose": "Hardened implementation of extern \"C\" int run_transfer(Descriptor* desc, uint8_t* dest, uint32_t max_len) matching descriptor_transfer.h unchanged. Reads desc->length exactly once into a local non-volatile uint32_t snapshot at function entry, before any other access. Validates snapshot > max_len -> return -1 with zero bytes copied (dest untouched). Otherwise loop bound uses only the local snapshot (never re-reads desc->length), copying snapshot bytes from desc->data[0..snapshot-1] into dest[0..snapshot-1] in order, then returns static_cast<int>(snapshot). Handles snapshot==0 by copying nothing and returning 0 (valid zero-length transfer, distinct from rejection). No dynamic allocation, no extra includes beyond descriptor_transfer.h and <cstdint>. This satisfies FR1-FR4 and SR1-SR3: single read of desc->length, identical value used for check and copy, dest left unmodified on rejection, no OOB read/write regardless of concurrent mutation of desc->length after entry."
+    }
+  ]
+}

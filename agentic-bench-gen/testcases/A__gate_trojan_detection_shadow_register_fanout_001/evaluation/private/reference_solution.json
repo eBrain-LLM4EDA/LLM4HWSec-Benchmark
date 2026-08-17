@@ -1,0 +1,59 @@
+{
+  "_comment": "PRIVATE maintainer fixture only. NOT read by evaluate.py at grading time -- ground truth is derived structurally from inputs/netlist.v on every run per the no-hardcoding constraint. This file documents the expected golden-report shape for future maintainers and optional dry-run/self-test scripts.",
+  "verdict": "trojan_present",
+  "key_bus_signal": "key_reg",
+  "fanout_map": [
+    {
+      "key_bit": 0,
+      "consumer_instances": ["u_round_xor0", "u_shadow_ff0"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 1,
+      "consumer_instances": ["u_round_xor1", "u_shadow_ff1"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 2,
+      "consumer_instances": ["u_round_xor2", "u_shadow_ff2"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 3,
+      "consumer_instances": ["u_round_xor3", "u_shadow_ff3"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 4,
+      "consumer_instances": ["u_round_xor4", "u_shadow_ff4"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 5,
+      "consumer_instances": ["u_round_xor5", "u_shadow_ff5"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 6,
+      "consumer_instances": ["u_round_xor6", "u_shadow_ff6"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 7,
+      "consumer_instances": ["u_round_xor7", "u_shadow_ff7"],
+      "num_consumers": 2
+    }
+  ],
+  "suspect_instances": [
+    "u_shadow_ff0",
+    "u_shadow_ff1",
+    "u_shadow_ff2",
+    "u_shadow_ff3",
+    "u_shadow_ff4",
+    "u_shadow_ff5",
+    "u_shadow_ff6",
+    "u_shadow_ff7",
+    "u_exfil_mux"
+  ],
+  "summary": "Structural fanout trace of key_reg[7:0] reveals an undocumented parallel shadow flip-flop bank (u_shadow_ff0..u_shadow_ff7) sampling the same key_reg bits as the documented round-combination stage (u_round_xor0..u_round_xor7), giving each key bit a fanout of 2 instead of the single documented consumer. All eight shadow_reg outputs converge through a reduction (assign exfil_bit = |shadow_reg;) into a single multiplexer instance (u_exfil_mux) gated by the rarely-asserted debug_mode_rare control net, driving the undocumented exfil_out port. This constitutes a second, covert exfiltration path for key material that is invisible to functional testing of the documented round_out output. Verdict: trojan_present."
+}

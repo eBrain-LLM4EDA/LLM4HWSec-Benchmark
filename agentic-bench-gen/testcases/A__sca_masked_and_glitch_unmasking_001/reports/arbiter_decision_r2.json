@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs meet retention thresholds: mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, validation_status=pass, baseline_exit_code=0, zero validation/analyzer issues, analyzer_status=pass. The differential run confirms the golden submission passes all seven requirements (FR1-FR4, SR1-SR3) while the naive baseline fails FR2-FR4 and SR1-SR3 as expected. The mutation bundle covers all seven requirements with 1/1 detection each, and the analyzer confirms coherence between public spec, hidden spec, and artifacts, no leakage of security intent in public-facing files, and concrete machine-checkable FRs/SRs tied to real netlist structure. No repair is needed.",
+  "retain_case": true,
+  "revision_instructions": "No action required; the case meets all retention criteria.",
+  "root_cause": "none",
+  "source_round": 2
+}

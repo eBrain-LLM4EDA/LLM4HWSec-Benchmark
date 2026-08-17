@@ -1,0 +1,42 @@
+{
+  "fault_taxonomy_version": "1.0",
+  "description": "Generic reference taxonomy of fault injection classes commonly considered when analyzing small control/datapath modules such as entropy post-processors. This list is provided as background reference material for the analyst; it does not indicate which fault class, if any, is effective against a specific module or signal.",
+  "fault_classes": [
+    {
+      "fault_class": "clock_glitch",
+      "description": "A transient perturbation of the clock signal (e.g. an extra narrow pulse, a stretched period, or a dropped edge) intended to cause a flip-flop to sample its input at an unintended time or to skip/duplicate a clock edge.",
+      "example_target_signals": ["clk"],
+      "typical_duration_cycles": 1
+    },
+    {
+      "fault_class": "voltage_glitch",
+      "description": "A brief dip or spike in supply voltage intended to cause setup/hold violations in sequential logic, potentially corrupting register updates on one or more clock edges without affecting the clock tree directly.",
+      "example_target_signals": ["clk", "rst_n", "entropy_ready", "reseed_req"],
+      "typical_duration_cycles": 1
+    },
+    {
+      "fault_class": "signal_hold_low",
+      "description": "An attacker with physical or adjacent access forces a control input to a fixed logic-low level for a sustained window, overriding its normal driver. This is a generic technique applicable to any single-bit control input and can be used to suppress handshake signals, block reset deassertion, or prevent a request line from toggling.",
+      "example_target_signals": ["entropy_ready", "reseed_req", "rst_n"],
+      "typical_duration_cycles": 4
+    },
+    {
+      "fault_class": "signal_hold_high",
+      "description": "The complementary technique to signal_hold_low: a control input is forced to a fixed logic-high level for a sustained window, overriding its normal driver, potentially causing a request or enable line to appear continuously asserted.",
+      "example_target_signals": ["reseed_req", "entropy_ready"],
+      "typical_duration_cycles": 4
+    },
+    {
+      "fault_class": "bit_flip_injection",
+      "description": "A single stored bit in a register or latch is flipped from its correct value to the opposite value, typically modeling ionizing radiation (SEU) or a localized EM/laser pulse targeting a specific flip-flop cell.",
+      "example_target_signals": ["seed_reg", "health_ctr", "seed_valid"],
+      "typical_duration_cycles": 1
+    },
+    {
+      "fault_class": "reset_pulse_injection",
+      "description": "An unintended assertion (or premature deassertion) of the reset signal is induced, causing registers to load their reset-state values outside of the module's intended reset sequencing.",
+      "example_target_signals": ["rst_n"],
+      "typical_duration_cycles": 2
+    }
+  ]
+}

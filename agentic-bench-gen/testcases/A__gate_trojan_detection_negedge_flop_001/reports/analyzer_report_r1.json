@@ -1,0 +1,85 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (SR5)",
+      "description": "SR5's mutation coverage is 0 in the validation report (uncovered_requirement). The SR5 logic is complex and depends on parsing simulation trace output and matching narrative phrases; the mutation testing found no mutant that SR5 alone detects, suggesting the check may be redundant with SR1-SR4 or not independently discriminating in practice, despite being described as fully independent.",
+      "evidence": "per_requirement_coverage.SR5: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: ['SR5']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR5 fallback logic)",
+      "description": "When sim_error is set and sim_confirmed is False (e.g., toolchain unavailable in some environments), SR5 defaults to FAIL unconditionally, even for a fully correct submission. This could cause a correct submission to fail SR5 spuriously if iverilog/vvp is unavailable in the grading environment, though the differential run shows it works when the toolchain is present.",
+      "evidence": "sr5_reason = 'simulation cross-check could not confirm golden half-cycle-mismatch evidence: {}'.format(sim_error) when sim_error is not None and not sim_confirmed",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why SR5 has zero mutation coverage: consider adding or strengthening a targeted mutant (e.g., a submission with correct SR1-SR4 fields but a narrative that explicitly claims 'multi-cycle drift' or names a different sampled signal) to verify SR5 actually discriminates independently, or simplify SR5's logic since its practical value is currently unproven by mutation testing.",
+    "Consider making the sim_error fallback in SR5 less strict (e.g., treat toolchain-unavailable as 'unknown/skip' rather than hard FAIL) to avoid false negatives in environments lacking iverilog/vvp, unless the grading environment is guaranteed to have the toolchain installed.",
+    "Since SR5 is described as not bonus-only but mutation testing shows it contributes no unique discrimination, consider re-validating with a mutant specifically crafted to violate only SR5 (correct fields, inconsistent narrative) to close the coverage gap before shipping."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run passes FR1; vulnerable/baseline run also passes FR1 (structurally valid even with empty findings).",
+      "requirement": "FR1 - valid JSON schema",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes FR2; mutation coverage shows FR2 mutants detected 1/1.",
+      "requirement": "FR2 - verbatim identifier cross-reference",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes FR3; baseline (false/[]) is internally consistent and passes FR3 too, consistent with spec intent.",
+      "requirement": "FR3 - internal consistency",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR4; mutation coverage 1/1.",
+      "requirement": "FR4 - summary length",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline fails SR1 ('no suspect_instances entry names u_grant_ff'); golden passes. Differential run confirms correct behavior.",
+      "requirement": "SR1 - identify u_grant_ff",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR2; mutation coverage 1/1 confirms discrimination.",
+      "requirement": "SR2 - identify cell_type DFF_NEGEDGE",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR3; mutation coverage 1/1.",
+      "requirement": "SR3 - identify sampled_signal grant_pre",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline fails SR4 ('trojan_detected is not true'); golden passes.",
+      "requirement": "SR4 - trojan_detected true",
+      "status": "pass"
+    },
+    {
+      "evidence": "Uncovered by mutation testing (0/1 mutants detected), indicating this check may not independently discriminate correct vs incorrect narratives in practice despite baseline/golden differential passing at a coarse level.",
+      "requirement": "SR5 - simulation cross-check consistency",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.status = pass; golden_run exit 0 (pass), vulnerable_run exit 1 (fail) as expected.",
+      "requirement": "Baseline rejected, golden accepted (differential)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/ files describe the task as a plain clocking-discipline audit with no CWE IDs, SR IDs, or explicit 'intentionally vulnerable' language; design_brief.md and netlist read as ordinary engineering documents.",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 specify exact schema types, verbatim cross-referencing against netlist text, boolean/array consistency, and a numeric summary length threshold -- all directly verifiable via the pinned JSON schema.",
+      "requirement": "Public FR1-FR4 are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

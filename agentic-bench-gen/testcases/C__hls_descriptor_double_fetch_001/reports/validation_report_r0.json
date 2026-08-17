@@ -1,0 +1,113 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/descriptor_transfer.cpp",
+    "inputs/descriptor_transfer.h",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "vulnerable_accepted",
+    "failure_signature": "5eb9fbad38cbf02620ebb759b39e631efca86e68587ffd5b52478ac2176b233e",
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 0,
+      "expected": "fail",
+      "ok": false,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/descriptor_transfer.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py accepts the known-insecure baseline input (FAIL expected) \u2014 security checks are inverted, no-ops, or absent",
+      "issue": "vulnerable_accepted"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: FR1: compile failed: evaluation/harness_main.cpp:15:10: fatal error: descriptor_transfer.h: No such file or directory",
+        "failure_class": "golden_rejected",
+        "failure_signature": "125d4c9754c501faa96c3b317c472c5ed14b39e31b7bded9b7026f2b1c6af7de"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "no actionable evaluator output was emitted",
+        "failure_class": "vulnerable_accepted",
+        "failure_signature": "5eb9fbad38cbf02620ebb759b39e631efca86e68587ffd5b52478ac2176b233e"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "vulnerable_accepted",
+    "failure_signature": "5eb9fbad38cbf02620ebb759b39e631efca86e68587ffd5b52478ac2176b233e",
+    "repair_paths": [
+      "evaluation/README.md",
+      "evaluation/harness_main.cpp",
+      "evaluation/private/README.md",
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 1
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "ebf6d6434c130a652ae6187100d6752087f859826f788fba1fb3506c073296b9",
+        "changed": true,
+        "golden": "golden/descriptor_transfer.cpp",
+        "golden_sha256": "ebb21ab273558048469a855b58ca3d871fcce697586d08cf2ee8e72275762655",
+        "target": "inputs/descriptor_transfer.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/descriptor_transfer.h",
+      "inputs/descriptor_transfer.cpp"
+    ],
+    "unmapped_targets": [
+      "inputs/descriptor_transfer.h"
+    ]
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp",
+    "evaluation/private/README.md"
+  ],
+  "uncovered_requirements": []
+}

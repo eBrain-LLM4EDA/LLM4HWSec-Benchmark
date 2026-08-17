@@ -1,0 +1,21 @@
+{
+  "best_round": 1,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "e859317a0d3f9ace4be4ec13446c1cc54c9847675f6354387c7ad71976adc41c",
+    "expert/expert_bundle.json": "d3542f97425933ea3f2477c8ca02c6fc524b102768a6724971c7b2044869f765",
+    "mutants/mutation_bundle.json": "80fe1c8886fe2861b5f1f31b98d508409186c5ef2c8c18d98744cb01c60e7a97",
+    "reports/analyzer_report.json": "3f6812cdab6e703cc8bc5396e2437a27e1493d3160d8086bb2214f5dc16fde8e",
+    "reports/quality_report.json": "eed6e8201543b390b9d5476cc897eb0602c49c173d44276eda5423882eb0cab5",
+    "reports/validation_report.json": "7d1109f3744f5d19849404ac71338250d571cef138d90e66c72637a810d51ff5",
+    "spec/task_spec.json": "3bbf1220e0c8c848b0e3e45c27d948e067e57c1445ec149170ae7b0228125944",
+    "tests/tester_bundle.json": "e4a8b427b368230748f235023c597eaec7fadb75feb7a44bff1cae9f4a75761f"
+  },
+  "domain_id": "rtl_trojan_detection",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 1,
+  "status": "quality_failed",
+  "task_id": "rtl_watchdog_selfpet_trojan_001"
+}

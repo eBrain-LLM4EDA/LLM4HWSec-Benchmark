@@ -1,0 +1,115 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/perm_cone_netlist.v",
+    "inputs/reference_truth_table.txt",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "09b001cc472f108bbb5221d6102061e6e54c1255b304094fa3e7a2b08e508eb8",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "[INFO] iverilog cross-check corroborates Python simulator for all 32 resolved vectors.\n",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] FAIL: SR2: missing true diverging vector(s): [('10', '100', 1, 0)]\n[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): ['u_inv_a0', 'u_inv_a1', 'u_inv_o1', 'u_inv_out', 'u_inv_owner_qual', 'u_inv_req10', 'u_inv_t1', 'u_inv_t1_t2', 'u_inv_t2', 'u_inv_t3', 'u_nand_req10', 'u_nand_t1', 'u_nand_t2', 'u_nand_t3', 'u_nor_out', 'u_nor_t1_t2']\n[TEST] PASS: SR4\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "[INFO] iverilog cross-check corroborates Python simulator for all 32 resolved vectors.\n",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: ground-truth exhaustive simulation found 2 diverging vector(s) but submission.trojan_detected is False (expected true)\n[TEST] FAIL: SR2: missing true diverging vector(s): [('10', '100', 1, 0), ('10', '101', 0, 1)]\n[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): ['u_inv_a0', 'u_inv_a1', 'u_inv_o1', 'u_inv_out', 'u_inv_owner_qual', 'u_inv_req10', 'u_inv_t1', 'u_inv_t1_t2', 'u_inv_t2', 'u_inv_t3', 'u_nand_req10', 'u_nand_t1', 'u_nand_t2', 'u_nand_t3', 'u_nor_out', 'u_nor_t1_t2', 'u_perm_nand3']\n[TEST] FAIL: SR4: no diverging_vectors or suspect_instances were submitted, so no true positives were reported despite a real divergence existing\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[INFO] iverilog cross-check corroborates Python simulator for all 32 resolved vectors.",
+        "failure_class": "golden_rejected",
+        "failure_signature": "09b001cc472f108bbb5221d6102061e6e54c1255b304094fa3e7a2b08e508eb8"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[INFO] iverilog cross-check corroborates Python simulator for all 32 resolved vectors.",
+        "failure_class": "golden_rejected",
+        "failure_signature": "09b001cc472f108bbb5221d6102061e6e54c1255b304094fa3e7a2b08e508eb8"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "09b001cc472f108bbb5221d6102061e6e54c1255b304094fa3e7a2b08e508eb8",
+    "repair_paths": [
+      "evaluation/README.md",
+      "evaluation/tb_perm_cone.v",
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "b25ef6f0567f14743c23699e23c0cc79fb11d5bd7303803ac5dc96159c364672",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "bc418436e2b68a5c0e71b1ce6e42af7d0e29a99e1891a5e761c5298e938582e6",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_perm_cone.v"
+  ],
+  "uncovered_requirements": []
+}

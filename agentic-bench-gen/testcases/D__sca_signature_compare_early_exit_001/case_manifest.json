@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "637e16e39c080243e7bd9a8c51575cdf5c1cade05fc8e3191bb01d54ebda533b",
+    "expert/expert_bundle.json": "9622058c818c7a8f1d174f0201d443e65400b6d135261f63c43cd552d2b46f9e",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "cfa2da31017b90e973372dcc2e2ba6eed5f6dbe32ad5c1c33b0d22414ec25f7c",
+    "reports/quality_report.json": "865340c4867aa6921bbfd4180e5eb6d7b7af09595e58582fecfde93d4966da99",
+    "reports/validation_report.json": "26084c8329d9c4bdaa8444615022f7ef87fd028c9d336ef3f4f061ff02091d44",
+    "spec/task_spec.json": "58b430b3f9a8ffef5a8f068dbc9f5344a2f228a0df161a0533daccaca87bda11",
+    "tests/tester_bundle.json": "973ac772423152588a1acd55ff0dca425f4a39fb43b519c65792bb76851c8d3b"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "quality_failed",
+  "task_id": "sca_signature_compare_early_exit_001"
+}

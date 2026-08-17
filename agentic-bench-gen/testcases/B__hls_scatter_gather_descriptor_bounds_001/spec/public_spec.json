@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The implementation must be self-contained in a single file with only standard C/C++ library includes (e.g. <cstdint>, <cstring>) so it compiles without external dependencies.",
+    "The function must not use dynamic memory allocation that could fail unpredictably; stack or caller-provided buffers only.",
+    "The function must process the full descriptor list; it must not stop early on the first valid-looking entry and skip validating the remainder.",
+    "The function must not modify dst_len, src_len, offsets, or lengths contents.",
+    "Behavior must be deterministic and independent of undefined behavior (no signed integer overflow, no out-of-bounds reads for validation itself)."
+  ],
+  "expected_outputs": [
+    "A modified inputs/scatter_gather.cpp that compiles standalone with g++ and correctly copies all descriptor entries when every entry is within bounds, and rejects the whole batch (writing nothing) and returns a nonzero status code when any single entry is out of bounds, including entries whose offset+length would overflow when computed naively."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "Given desc_count=3 with offsets={0,10,20}, lengths={10,10,10} on a dst_len=30 buffer and src_len=30 filled with sequential byte values 0..29, the function returns 0 and dst equals src byte-for-byte (a full in-order copy)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Given desc_count=2 with offsets={0,5}, lengths={5,5} on dst_len=10 and matching src of length 10, the function returns 0 and dst[0..9] equals src[0..9] in order, verifying multi-descriptor sequential source consumption is contiguous and correctly ordered."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The function compiles cleanly as a standalone translation unit with g++ -std=c++17 -Wall, exposing the symbol scatter_gather_copy with C linkage callable from a plain C test harness via a matching extern \"C\" declaration."
+    },
+    {
+      "id": "FR4",
+      "requirement": "Given desc_count=0, the function returns 0 immediately and performs no writes to dst, regardless of the values of dst_len, offsets, or lengths pointers passed (offsets/lengths may be null when desc_count is 0)."
+    }
+  ],
+  "input_artifacts": [
+    "scatter_gather.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/scatter_gather.cpp. The submission must define exactly this function (extern \"C\" linkage, no C++ name mangling), with this exact signature: extern \"C\" int scatter_gather_copy(const unsigned char* src, unsigned int src_len, unsigned char* dst, unsigned int dst_len, const unsigned int* offsets, const unsigned int* lengths, unsigned int desc_count); Parameters: src is the public source data buffer of length src_len bytes (input, read-only). dst is the destination buffer of length dst_len bytes (input/output; the harness allocates and zero-fills it before each call). offsets is an array of desc_count unsigned 32-bit values, each giving the byte offset into dst where the corresponding descriptor's data should be written. lengths is an array of desc_count unsigned 32-bit values, each giving the number of bytes to copy from src (sequentially, entry i reads src[running_src_offset .. +lengths[i]) where running_src_offset accumulates prior lengths starting at 0) into dst at offsets[i]. desc_count is the number of descriptor entries (0 to 64 inclusive; the harness never passes more than 64). Return value: the function returns 0 on success (every descriptor validated and copied) and a nonzero int (any nonzero value is acceptable) if any descriptor is invalid or if the cumulative source read would exceed src_len. On any nonzero return, dst must be left entirely as it was before the call (all zero bytes, since the harness zero-fills it). No secret data or side channels are involved; all buffers and lengths are ordinary public function arguments.",
+  "objective": "The file inputs/scatter_gather.cpp implements a scatter-gather engine that copies data from a source buffer into a destination buffer according to a list of descriptors, where each descriptor specifies an offset into the destination buffer and a length of data to copy starting at that offset. Harden this kernel so that it processes descriptor lists correctly and safely for any input the caller provides, producing a well-defined status code and leaving the destination buffer unmodified whenever any descriptor in the list would place data outside the bounds of the destination buffer. Update inputs/scatter_gather.cpp in place; do not change its public function signature.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

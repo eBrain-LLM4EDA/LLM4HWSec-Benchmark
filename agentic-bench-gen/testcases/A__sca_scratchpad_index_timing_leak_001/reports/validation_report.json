@@ -1,0 +1,175 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.json",
+    "inputs/scratchpad_lookup.v",
+    "inputs/testbench_timing.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 2,
+    "FR3": 2,
+    "FR4": 2,
+    "SR1": 2,
+    "SR2": 3,
+    "SR3": 2,
+    "SR4": 2
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: module_under_test missing or not equal to 'scratchpad_lookup' (got: '')\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: latency_measurements missing or not an array of exactly 2 objects (got: [])\n[TEST] FAIL: FR4: report_format_version missing or not equal to '1.0' (got: '0.0')\n[TEST] FAIL: SR1: leaking_index_bits does not include bit 7 (got: [0])\n[TEST] FAIL: SR2: cannot verify latency_measurements values because FR3 structural check failed\n[TEST] FAIL: SR3: latency_divergent_paths does not reference concrete RTL constructs (e.g. S_FAST_WAIT/S_SLOW_WAIT/case(index[7])/bank names); got: ['unknown']\n[TEST] FAIL: SR4: mitigation does not describe a constant-latency/timing-equalization strategy: 'investigate further Need more time to look into this; no specific timing fix identified yet.'\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "359a4aa235653ffdc3be1536719fd2a57a9328a9d8975f82d03b2d238f23c31c",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "eb0c3190d1e4718431f2a6ed85e60539c751a0d1516ac8df0e1b5e096a1cd444",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_leak_check.v"
+  ],
+  "uncovered_requirements": []
+}

@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "Do not modify any file under inputs/; submit only submission/trojan_report.json.",
+    "The netlist inputs/key_core_netlist.v is provided as-is in structural Verilog (gate-level, using a small standard-cell-like library of DFF, MUX2, AND, OR, NOT primitives) and must not be edited.",
+    "Base your findings solely on static/behavioral analysis of the provided netlist and, optionally, simulation via yosys/iverilog/vvp against the provided scan_chain_order.txt; no other side-channel data is available."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a trojan_detected boolean, a list of suspect flip-flop instance names, a list of suspect mux/gate instance names, and a free-text rationale"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON parseable by a standard JSON library and must contain all five required top-level fields (trojan_detected, suspect_flops, suspect_muxes, confidence, rationale) with the exact types specified in the interface."
+    },
+    {
+      "id": "FR2",
+      "requirement": "suspect_flops and suspect_muxes must each be JSON arrays of strings; every string listed must correspond to an actual instance name found in inputs/key_core_netlist.v (no fabricated or misspelled instance names)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "confidence must be a numeric value in the inclusive range [0.0, 1.0]."
+    },
+    {
+      "id": "FR4",
+      "requirement": "rationale must be a non-empty string of at least 20 characters describing the reasoning used to identify the listed flops and muxes."
+    }
+  ],
+  "input_artifacts": [
+    "key_core_netlist.v",
+    "design_brief.md",
+    "scan_chain_order.txt"
+  ],
+  "interface": "The submission is a single JSON file at submission/trojan_report.json (UTF-8, no trailing comments). Required top-level schema: { \"trojan_detected\": <boolean>, \"suspect_flops\": [<string>, ...], \"suspect_muxes\": [<string>, ...], \"confidence\": <number 0.0-1.0>, \"rationale\": <string> }. \"suspect_flops\" must list exact Verilog instance names of flip-flop cells from inputs/key_core_netlist.v that the participant judges to be scan-observable in a way inconsistent with normal isolated operation. \"suspect_muxes\" must list exact instance names of the multiplexer/gating cells the participant judges responsible for splicing those flops onto the scan path. evaluate.py reads inputs/key_core_netlist.v (and optionally invokes iverilog/vvp to simulate scan_en/scan_in/scan_out behavior against inputs/scan_chain_order.txt) purely for reference and cross-checking; it does not execute or modify the submission file. Field names, casing, and types above are exact and mandatory; unrecognized extra fields are ignored.",
+  "objective": "Analyze the supplied gate-level netlist of a small crypto core with an embedded scan-test infrastructure. The design integrates a scan chain (ports scan_en, scan_in, scan_out) alongside a functional key register. Your task is to review the netlist and produce a structured analysis report identifying which flip-flops are reachable on the scan-out path during scan-mode capture-and-shift, and which specific mux instances establish that reachability, so that test engineers can assess whether test infrastructure inadvertently exposes internal state that should remain functionally isolated from the scan network.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

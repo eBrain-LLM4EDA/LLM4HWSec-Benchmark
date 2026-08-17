@@ -1,0 +1,71 @@
+{
+  "task_id": "sca_scratchpad_index_timing_leak_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Secret-dependent scratchpad index timing in a lookup unit",
+  "submission_kind": "analysis_report",
+  "evaluation_mode": "report_grading",
+  "input_artifacts": [
+    "inputs/scratchpad_lookup.v",
+    "inputs/fault_model.json",
+    "inputs/design_brief.md",
+    "inputs/testbench_timing.v"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp"
+  ],
+  "constraints": [
+    "Provide a synthesizable lookup module with two banks having different access latency and a secret-derived index.",
+    "Require a structured report naming the leaking index bits, the latency-divergent paths, and a constant-latency mitigation.",
+    "Keep functional lookup results correct so only timing distinguishes the banks.",
+    "Grade the report against hidden ground truth with a Python grader plus an iverilog latency trace."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The report must be valid JSON with top-level string field 'module_under_test' equal to 'scratchpad_lookup', matching the module name in scratchpad_lookup.v."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must include a field 'functional_correctness_confirmed' (boolean) stating whether the reported analysis confirms data_out returns the correct value for both bank selections (index[7]=0 and index[7]=1) as defined by the lookup unit's specified data mapping in design_brief.md."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must include a field 'latency_measurements' that is an array of exactly two objects, each with fields 'bank_select_bit_value' (0 or 1) and 'observed_latency_cycles' (integer), reporting the measured cycle latency from start-pulse to valid-assertion for index[7]=0 and index[7]=1 respectively."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a field 'report_format_version' set to the string '1.0'."
+    }
+  ],
+  "response_format": "A single JSON file at submission/vulnerability_report.json with top-level object containing at minimum: module_under_test (string), functional_correctness_confirmed (boolean), latency_measurements (array of 2 objects with bank_select_bit_value and observed_latency_cycles), report_format_version (string '1.0'), leaking_index_bits (array of integers), latency_divergent_paths (array of strings describing the RTL signal/path names or FSM states responsible for the divergent timing), and mitigation (object with fields 'strategy' and 'description').",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize",
+      "description": "Whether the submitted report correctly identifies index[7] as the sole latency-leaking bit and correctly reports the 1-cycle vs 3-cycle latency split, checked against ground truth and optional iverilog simulation."
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize",
+      "description": "Whether the report covers all required structural aspects of the leak: the leaking bit, the divergent code paths/FSM states, and accurate latency measurements for both bank selections."
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize",
+      "description": "Whether the proposed mitigation precisely targets constant-latency equalization without breaking functional correctness or leaving residual index-dependent timing."
+    },
+    {
+      "name": "format_conformance",
+      "direction": "maximize",
+      "description": "Whether the submitted vulnerability_report.json satisfies all required field presence/type checks (FR1-FR4)."
+    }
+  ],
+  "baselines": [
+    "No existing benchmark found"
+  ],
+  "submission_contract": "Participants do not edit files under inputs/. They submit an analysis report at submission/vulnerability_report.json, which is graded against the RTL's documented and observed behavior. The shipped submission/vulnerability_report.json is a naive placeholder that is expected to fail grading."
+}

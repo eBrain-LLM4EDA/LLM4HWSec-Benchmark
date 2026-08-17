@@ -1,0 +1,44 @@
+{
+  "task_id": "sca_retry_counter_decrement_order_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Decrement-after-check ordering in a PIN retry counter",
+  "submission_kind": "analysis_report",
+  "input_artifacts": [
+    "inputs/pin_check_fsm.v",
+    "inputs/fault_model.md",
+    "inputs/testbench_reference.v",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": "submission/vulnerability_report.json",
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp"
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Whether the report correctly identifies the vulnerable state transition and glitch window matching the hidden ground truth.",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Fraction of required factual elements (vulnerable transition, glitch window, affected signals, state names) that are present, correctly named, and verifiable against the RTL or simulation trace.",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Correctness and completeness of the proposed remediation combined with verified preservation of fault-free lockout behavior.",
+      "direction": "maximize"
+    },
+    {
+      "name": "schema_conformance",
+      "description": "Whether the submitted vulnerability_report.json satisfies all required field presence and type checks.",
+      "direction": "maximize"
+    }
+  ],
+  "evaluation_mode": "report_grading",
+  "notes": "evaluate.py grades submission/vulnerability_report.json against a hidden ground truth derived from inputs/. It may optionally cross-simulate inputs/pin_check_fsm.v and inputs/testbench_reference.v with iverilog/vvp to corroborate factual claims in the submitted report."
+}

@@ -1,0 +1,21 @@
+{
+  "best_round": 2,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "ac32081473888babdd542537df8589f08dfbb79ed195f67599b730beb630fcfc",
+    "expert/expert_bundle.json": "506c3bdd65049d24877807ff7f3b5d92c2f369e51460bfbd05d4de1d07859481",
+    "mutants/mutation_bundle.json": "dafee9b8a116293d29c370317f23af3edcd202a7492d934364317776b71d15b1",
+    "reports/analyzer_report.json": "3fbd3de473b0da30983b33f005bb34e9f1ccc647b14b80ec781bce46bdb69f0c",
+    "reports/quality_report.json": "d43884cf1fb23d96c2fe47d1117726dc4e7679de4708251dcd86b90b09b33cac",
+    "reports/validation_report.json": "caab1b64838abb88d92a27a01c32935bd8dab61f0bdca24f24082c65355b354e",
+    "spec/task_spec.json": "08ca0361dceed5955319fe8cfcc427f13b27f941b0be9780341909544f6e40a0",
+    "tests/tester_bundle.json": "28d5b166f7aba7c71df28964a57c1a95a078117aee2421ee778925611e5c104d"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 2,
+  "status": "quality_failed",
+  "task_id": "sca_ecc_ladder_conditional_add_timing_001"
+}

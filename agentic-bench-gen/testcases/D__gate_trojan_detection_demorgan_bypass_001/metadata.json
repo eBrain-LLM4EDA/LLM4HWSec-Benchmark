@@ -1,0 +1,37 @@
+{
+  "task_id": "gate_trojan_detection_demorgan_bypass_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Authorization bypass hidden by a DeMorgan-equivalent rewrite",
+  "description": "Analyze a gate-level netlist of a permission-check cone ('perm_cone') restructured from AND/OR logic into NAND/NOR/inverter primitives during synthesis. Determine whether the restructured netlist is functionally equivalent to its documented reference behavior for all 32 combinations of req_level[1:0] and owner_id[2:0], and report any divergent input vector(s) together with the responsible gate instance(s).",
+  "input_artifacts": [
+    "inputs/perm_cone_netlist.v",
+    "inputs/reference_truth_table.txt",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs": "A single JSON report at submission/trojan_report.json stating whether the netlist diverges from the reference truth table (trojan_detected), which gate instance(s) in perm_cone_netlist.v are responsible for any divergence (suspect_instances), and the exact input vector(s) at which divergence occurs (diverging_vectors), each with the reference-expected grant value and the netlist-observed grant value, plus a free-form technical explanation.",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of the true diverging input vector(s) and the true suspect gate instance(s) correctly identified in the submission, computed against ground truth obtained via exhaustive gate-level simulation."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of submitted diverging_vectors and suspect_instances that do not correspond to an actual divergence confirmed by exhaustive simulation of the netlist against the reference truth table."
+    },
+    {
+      "name": "schema_conformance",
+      "direction": "maximize",
+      "description": "Binary/fractional score for whether submission/trojan_report.json satisfies the required JSON schema, field types, and value-format constraints."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds taken by the evaluator to grade the submitted report, including any optional iverilog/vvp/yosys cross-checks performed on the input artifacts."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "task_id": "hls_aead_nonce_counter_exhaustion_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Refuse encryption when an AEAD nonce counter would wrap",
+  "submission_kind": "hardened_artifact",
+  "input_artifacts": [
+    "inputs/aead_wrapper.cpp",
+    "inputs/aead_wrapper.h",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "hardened aead_wrapper.cpp implementing explicit, deterministic counter boundary handling"
+  ],
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize"
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize"
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize"
+    }
+  ]
+}

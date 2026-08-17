@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "signal_or_path": "int_pet_shadow (wire, wdt_top.v)",
+      "location": "module wdt_top, ADDR_CFG (0x0C / WDT_CFG_ALIAS) write-path, in the combinational assignment `wire int_pet_shadow = we && (addr == ADDR_CFG) && (wdata == 32'hDEADC0DE);` which feeds `reload_strobe = doc_pet_strobe || int_pet_shadow;` used in the counter/reset_req update block of the posedge clk always block",
+      "trigger_condition": "we == 1'b1, addr == 8'h0C (ADDR_CFG / WDT_CFG_ALIAS), wdata == 32'hDEADC0DE on a posedge clk sample",
+      "confidence": 0.97,
+      "severity": "critical"
+    }
+  ],
+  "summary": "wdt_top.v contains an undocumented secondary reload path hidden inside the WDT_CFG_ALIAS (addr 0x0C) write handling. The register map and design brief state that WDT_CFG_ALIAS is a scratch/reserved register with no functional effect on timeout behavior, and the RTL does latch arbitrary writes into `cfg_alias_scratch` with no effect, matching that documentation for essentially all values. However, the wire `int_pet_shadow` specifically recognizes the write pattern we=1, addr==8'h0C, wdata==32'hDEADC0DE and asserts for one cycle. This signal is OR'd into `reload_strobe` alongside `doc_pet_strobe` (the documented pet condition: we=1, addr==8'h08 (WDT_PET), wdata==32'hA5A5A5A5). Because both feed the same `reload_strobe` term in the counter-update block, the magic write to 0x0C zeroes `counter` and clears `reset_req` exactly as a legitimate pet would, silently defeating the watchdog's timeout guarantee without writing to WDT_PET, without setting any documented status bit, and without appearing in any documented register's behavior. The documented WDT_PET path itself (addr 0x08, data 32'hA5A5A5A5, via `doc_pet_strobe`) is untouched by this finding and continues to operate exactly as specified -- ordinary software pets are not the vulnerability and are not flagged here. Likewise, WDT_CTRL (0x00) enable/disable-toggle logic and WDT_TIMEOUT (0x04) latching behave exactly as documented; the only anomaly at 0x0C is the single magic-value comparison feeding `int_pet_shadow`, all other data values written to 0x0C only update `cfg_alias_scratch` with no side effect, consistent with the 'scratch register' documentation. Because a bus write of a single specific 32-bit pattern to a register documented as having no functional effect can indefinitely suppress reset_req, reset_req cannot be relied upon to assert at the programmed timeout under all bus traffic, including malformed or adversarial writes to the WDT_CFG_ALIAS scratch register.",
+  "reset_req_reliable": false
+}

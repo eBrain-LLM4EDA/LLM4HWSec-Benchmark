@@ -1,0 +1,42 @@
+{
+  "acceptance_criteria": [
+    "A submission that reports trojan_present=false or an empty suspect_flops list (the naive/empty baseline) FAILS SR1 and SR2.",
+    "A submission that reports trojan_present=true with suspect_flops exactly {u_priv_ff1, u_priv_ff2}, a reset_net_summary separating those two flops into their own group, and an anomaly_description referencing inverted reset polarity PASSES all SRs and FRs.",
+    "A submission listing additional incorrect flops alongside the correct two, or omitting one of the two, FAILS SR2 (exact set match required for full PASS) though may receive partial-credit metrics."
+  ],
+  "cwe_ids": [
+    "CWE-1191",
+    "CWE-1231",
+    "CWE-670",
+    "CWE-696"
+  ],
+  "ground_truth": "Flip-flops u_priv_ff1 and u_priv_ff2 receive their reset input through an inverter cell u_inv_rst_b (i.e., they are wired to NOT(RSTN) internally, or equivalently driven by an inverted copy of the reset net), while every other state flop in the design (e.g. u_ctrl_ff0, u_ctrl_ff3, u_dp_ff4, u_dp_ff5, etc.) is connected directly to the common reset net RSTN. Because the assertion level required to reset u_priv_ff1/u_priv_ff2 is inverted relative to the rest of the design, a normal reset pulse (RSTN=0) that clears all other flops leaves u_priv_ff1 and u_priv_ff2 holding their prior state, violating the root-of-trust assumption that reset returns the whole device to a known-clean configuration. Functional behavior during normal (non-reset) operation is unaffected because u_inv_rst_b only gates the reset path, not the data path.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compare submitted trojan_present against hidden ground truth (true); a false or missing value fails this requirement.",
+      "id": "SR1",
+      "requirement": "The report must correctly set trojan_present to true for this netlist, since a reset-polarity subset anomaly is present."
+    },
+    {
+      "detection_strategy": "Set-equality comparison between submitted suspect_flops and the hidden ground-truth set; partial credit computed via precision/recall but PASS requires exact set match.",
+      "id": "SR2",
+      "requirement": "The report's suspect_flops array must be exactly the set {u_priv_ff1, u_priv_ff2} (order-independent), with no extraneous unrelated flops and no omissions."
+    },
+    {
+      "detection_strategy": "Keyword/semantic check for terms indicating inversion of reset polarity (e.g. 'invert', 'inverted', 'active-high vs active-low', 'complement') co-located with reference to reset; graded as pass/fail by a rubric matcher plus manual-style heuristic scoring.",
+      "id": "SR3",
+      "requirement": "anomaly_description must correctly characterize the defect as an inverted/complemented reset polarity (not merely 'reset issue' or unrelated wording), demonstrating the participant identified the actual mechanism rather than guessing."
+    },
+    {
+      "detection_strategy": "Parse reset_net_summary; verify u_priv_ff1 and u_priv_ff2 share a group disjoint from all other listed flops' group(s).",
+      "id": "SR4",
+      "requirement": "reset_net_summary must correctly group u_priv_ff1 and u_priv_ff2 under a distinct net/signal key separate from the key covering the remaining flops, demonstrating structural tracing rather than a lucky guess on suspect_flops alone."
+    },
+    {
+      "detection_strategy": "Run iverilog+vvp on gate_netlist.v with testbench_reset_trace.v, parse the VCD/monitor output, confirm u_priv_ff1/u_priv_ff2 state persists across the reset pulse while other flops reset; used as a bonus/consistency signal, not solely for PASS/FAIL.",
+      "id": "SR5",
+      "requirement": "The evaluator may optionally cross-check the claim by driving testbench_reset_trace.v through iverilog/vvp: after the reset pulse, u_priv_ff1 and u_priv_ff2 retain pre-reset values while all other traced flops clear to their reset value, corroborating the reported suspect set."
+    }
+  ],
+  "threat_model": "An adversary with foundry- or third-party-IP-level access inserts a small inverter on the reset fan-out to a security-relevant subset of flops (e.g. privilege/lock-state registers) so that when the system issues a reset intended to scrub secrets or restore a known-safe default privilege level, that subset silently retains its pre-reset value. This breaks the platform's root-of-trust assumption that a reset always returns the device to a fully known, attacker-uncontrolled state, enabling privilege persistence or key/state leakage across reset boundaries."
+}

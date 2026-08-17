@@ -1,0 +1,69 @@
+{
+  "issues": [
+    {
+      "artifact": "inputs/controller_netlist.v",
+      "description": "Comment in the netlist explicitly states 'secure_enable is driven directly by a constant-tie cell' which is a fairly direct hint, though it doesn't name CWE/SR ids or call it a 'trojan'. This slightly reduces the discovery challenge but stays within plausible engineering-comment norms and does not leak grading internals.",
+      "evidence": "// secure_enable is driven directly by a constant-tie cell.\\n    TIEHI U_TIE_SECEN (",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/private/expected_facts.py",
+      "description": "Private oracle file is well-isolated under evaluation/private/ and not part of participant-facing artifacts, so no leak to participants, but worth noting it duplicates constants also embedded directly in evaluate.py (redundant but harmless).",
+      "evidence": "EXPECTED_DRIVER_INSTANCE = \"U_TIE_SECEN\"",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider softening or removing the netlist comment '// secure_enable is driven directly by a constant-tie cell.' to reduce the direct hint toward the anomaly location, relying instead on participants discovering this via structural analysis as intended by the README's framing.",
+    "Optionally add an explicit false_positive_rate and inference_latency computation/emission in evaluate.py (or document that these are computed by an external harness wrapping evaluate.py) so the metric-measurement chain is fully traceable end-to-end."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.golden_run: exit_code 0, all FR1-FR4/SR1-SR4 PASS",
+      "requirement": "Golden/correct submission passes evaluate.py (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code 1, SR1/SR2/SR3/SR4 FAIL; FR1-FR4 still pass since minimal fields present",
+      "requirement": "Naive/baseline shipped submission (verdict:'clean') fails evaluate.py (non-zero exit)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 checks JSON schema/types, FR2 checks suspect_instances existence, FR3 checks conditional fields, FR4 checks orphaned_logic validity; requirement_map shows separate functional vs security requirement_type entries",
+      "requirement": "FR1-FR4 functional requirements are concrete, machine-checkable, and distinct from SR checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "controller_netlist.v contains actual TIEHI instance U_TIE_SECEN driving secure_enable and orphaned u_sec_and1/u_sec_or2 cone with zero fanout, verified structurally by evaluate.py's independent re-parse/oracle-check logic",
+      "requirement": "Security-relevant behavior (tie-cell substitution) is actively present and triggerable in the artifact, not just described",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1/SR2/SR4 map to detection_rate, FR1-FR4 map to structural_grounding_score; false_positive_rate and inference_latency are implicitly measurable from FR2/FR4 exact-match checks and wall-clock timing of evaluate.py respectively, though evaluate.py itself does not explicitly emit a false_positive_rate or latency numeric metric -- these appear to be computed by an outer harness rather than evaluate.py directly",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, inference_latency, structural_grounding_score)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 with requirement_type=functional and SR1-SR4 with requirement_type=security, each with distinct expected_detection text and test_files",
+      "requirement": "Requirement map covers functional and security requirements separately with test file references",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md and design_brief.md use purely functional language; metadata.json contains no hidden_spec content; only a mild comment in controller_netlist.v hints at the tie ('driven directly by a constant-tie cell') without naming CWE/SR/trojan-grading intent",
+      "requirement": "Public artifacts do not leak hidden CWE ids, SR ids, or explicit 'this is a vulnerability/trojan-for-grading' framing",
+      "status": "pass"
+    },
+    {
+      "evidence": "Artifacts include a real structural Verilog netlist, cell library, testbench, and a netlist-parsing grader performing driver/fanout analysis specific to gate-level trojan detection",
+      "requirement": "Task is domain-specific (gate-level netlist analysis) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "coverage_score 1.0, mutation_score 1.0, requirement_discrimination_coverage_score 1.0, no dead_checks, no uncovered_requirements, submission_invariants status pass",
+      "requirement": "Validation harness results (coverage, mutation score, differential) indicate no unverifiable gaps",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

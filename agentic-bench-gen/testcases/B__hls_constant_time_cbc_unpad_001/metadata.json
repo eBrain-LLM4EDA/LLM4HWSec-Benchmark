@@ -1,0 +1,44 @@
+{
+  "task_id": "hls_constant_time_cbc_unpad_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Constant-time padding validation in a CBC unpad kernel",
+  "objective": "Rewrite the pad_check kernel in inputs/cbc_unpad.cpp so that it inspects the final decrypted block and returns both a validity flag and the unpadded plaintext length, while performing a full, uniform scan of the block on every call regardless of the padding contents. The revised kernel must be a drop-in replacement that keeps the exact function signature and file location, is synthesizable-style C++ (no dynamic allocation, no STL containers, no exceptions), and must compile standalone with g++ against a test harness that calls it directly.",
+  "input_artifacts": [
+    "inputs/cbc_unpad.cpp",
+    "inputs/design_brief.md"
+  ],
+  "interface": "File: inputs/cbc_unpad.cpp. Entry point (must match exactly, no overloads, no namespaces): void pad_check(const unsigned char block[16], int *valid, int *unpadded_len); block is a 16-byte array representing the final decrypted CBC block. valid is an output pointer that must be set to 1 if the padding is well-formed PKCS#7 padding (last byte N in range 1..16 and the last N bytes of block all equal N), or 0 otherwise. unpadded_len is an output pointer that must be set to 16 - N when *valid == 1, and to 16 when *valid == 0. The function must not read or write memory outside block[0..15] and the two output pointers, must not call malloc/new, must not throw, and must return normally (void) in all cases.",
+  "constraints": [
+    "Do not change the function name, signature, parameter order, or the file path inputs/cbc_unpad.cpp.",
+    "Do not use dynamic memory allocation, STL containers, or C++ exceptions.",
+    "The implementation must be pure C/C++ compilable with g++ without additional libraries.",
+    "Do not add any additional side-effecting output parameters or global state."
+  ],
+  "expected_outputs": [
+    "A revised inputs/cbc_unpad.cpp implementing the pad_check kernel with the pinned signature, returning correct validity and unpadded length for all block contents, compiling cleanly with g++, and scanning the full 16-byte block in a uniform, content-independent manner on every invocation."
+  ],
+  "submission_kind": "hardened_artifact",
+  "submission_contract": "Participants submit a hardened, secure version of inputs/cbc_unpad.cpp. The evaluator grades that file in place: a correctly hardened implementation passes, while the originally shipped baseline implementation fails.",
+  "evaluation_mode": "compile_and_run",
+  "toolchain": [
+    "g++",
+    "gcc"
+  ],
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize",
+      "description": "Fraction of targeted weakness classes for which the submitted kernel exhibits detectable data-dependent iteration/comparison-count variation across adversarial mismatch-position test vectors."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Whether the observable behavioral signal (instrumented loop/comparison count) is provably invariant across all tested padding/mismatch configurations while validity and length outputs remain correct."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Fraction of functional and behavioral test cases for which the compiled binary produces the expected result."
+    }
+  ]
+}

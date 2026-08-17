@@ -1,0 +1,6 @@
+{
+  "description": "Regression fixture guarding against the golden_rejected false-rejection bug: a golden-style vulnerable_register field that names sig_p_reg as THE primary unverified register in its first sentence, then adds a secondary, clearly contrastive sentence noting that sig_q_reg is also symmetrically exposed in principle. determine_primary_register() must resolve this to 'sig_p_reg' (non-ambiguous), matching the original failing case quoted in the repair notes.",
+  "vulnerable_register": "sig_p_reg in inputs/crt_recombine.v is the unverified branch register. It is loaded in state S_BRANCH_P with the branch-1 partial result msg_in mod P (P=11) and is then consumed as-is, with no re-verification, by the recombination arithmetic in state S_RECOMBINE that produces result_out. Note that sig_q_reg (the mod-Q branch register, also loaded without re-verification) is similarly and symmetrically exposed in principle, since the recombination stage treats both branch registers the same way, but sig_p_reg is the register this report is flagging as the specific unverified register whose fault propagates undetected to result_out in the described trigger scenario.",
+  "expected_primary_register": "sig_p_reg",
+  "expected_ambiguous": false
+}

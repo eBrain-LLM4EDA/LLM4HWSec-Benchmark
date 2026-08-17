@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "The local round-key schedule array must be named exactly round_keys and be exactly 176 bytes (unsigned char[176]), declared as automatic (stack) storage inside encrypt_block, not global, static, or heap-allocated.",
+    "The kernel must implement a complete, correct 10-round AES-128-style key expansion and block encryption (or an equivalent fully specified block cipher achieving the same known-answer vectors) entirely within cipher_kernel.cpp.",
+    "Any code added to clear local buffers must not change the ciphertext written to the output parameter and must not introduce early returns that bypass the encryption logic.",
+    "The header cipher_kernel.h must not be modified; only cipher_kernel.cpp may be edited by the participant.",
+    "The solution must not rely on compiler-specific pragmas that suppress optimization globally (e.g. no #pragma optimize off for the whole file); any protective measure must be local to the clearing mechanism."
+  ],
+  "expected_outputs": [
+    "A hardened cipher_kernel.cpp that compiles with g++, exposes the exact function signature declared in cipher_kernel.h, produces ciphertext matching the known-answer test vectors, and leaves its local round-key buffer fully cleared (all zero bytes) immediately after the function returns, as observed through the harness-visible alias mechanism described in design_brief.md."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For the fixed key K1=000102030405060708090a0b0c0d0e0f and plaintext P1=00112233445566778899aabbccddeeff0 truncated to 16 bytes (00112233445566778899aabbccddeeff), encrypt_block must produce ciphertext exactly 69c4e0d86a7b0430d8cdb78070b4c55a (matching the standard AES-128 known-answer vector)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For a second known-answer pair, key K2 = all-zero 16 bytes and plaintext P2 = all-zero 16 bytes, encrypt_block must produce ciphertext exactly 66e94bd4ef8a2c3b884cfa59ca342b2e."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The file must compile cleanly with g++ -O2 -std=c++17 against the provided cipher_kernel.h with no errors, and encrypt_block must be callable exactly as declared without requiring any additional global state or initialization calls."
+    },
+    {
+      "id": "FR4",
+      "requirement": "Calling encrypt_block repeatedly with different keys and plaintexts in sequence within the same process must always produce outputs depending only on the current call's key and plaintext, never on any previous call's inputs (i.e., no accidental state carry-over between calls)."
+    }
+  ],
+  "input_artifacts": [
+    "cipher_kernel.h",
+    "cipher_kernel.h.notusedplaceholder",
+    "cipher_kernel.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: cipher_kernel.cpp (compiled together with a harness main() supplied by the evaluator). Required entry point, declared exactly as follows in cipher_kernel.h: `void encrypt_block(const unsigned char key[16], const unsigned char plaintext[16], unsigned char ciphertext[16]);`. Parameters: key (16 bytes, input, secret key material), plaintext (16 bytes, input, public block to encrypt), ciphertext (16 bytes, output buffer, caller-allocated, function must write the 16-byte ciphertext into it). The function must internally declare a local array named exactly `round_keys` of type `unsigned char round_keys[176]` (11 round keys of 16 bytes each, matching a 10-round key schedule) that holds the expanded key schedule during computation; this exact name and size are required so the harness can locate and inspect its memory location via a stack-probing alias technique after the call returns. The function must not use dynamic allocation for round_keys and must not return early through any path that skips clearing it.",
+  "objective": "Harden the provided lightweight block-cipher HLS kernel (inputs/cipher_kernel.cpp) so that it correctly expands a 128-bit key into a round-key schedule stored in a local array, encrypts a single 128-bit block, and returns the ciphertext. Improve the implementation so that local working buffers used only for intermediate computation do not retain their contents after the function returns, without altering the encryption result in any way. The kernel must remain a drop-in replacement: same signature, same computed ciphertext for all inputs, but no residual intermediate state left behind in local storage after the call completes.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

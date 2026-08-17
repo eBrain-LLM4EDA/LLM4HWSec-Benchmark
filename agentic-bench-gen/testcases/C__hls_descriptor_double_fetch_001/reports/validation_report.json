@@ -1,0 +1,80 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/descriptor_transfer.cpp",
+    "inputs/descriptor_transfer.h",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR3\n[TEST] FAIL: SR1: 2 of 300 trials violated single-read semantics; first: trial=289 ret=4096 match200=0 (expected ret=200 and bytes[0:200] matching pattern)\n[TEST] FAIL: SR2: 1 of 300 trials show validated value != value used for copy; first: trial=289 ret=4096 match200=0 canary_ok=0 (copy bound diverged from validated length 200)\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/descriptor_transfer.cpp"
+  ],
+  "issues": [],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "pass",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "ebf6d6434c130a652ae6187100d6752087f859826f788fba1fb3506c073296b9",
+        "changed": true,
+        "golden": "golden/descriptor_transfer.cpp",
+        "golden_sha256": "ebb21ab273558048469a855b58ca3d871fcce697586d08cf2ee8e72275762655",
+        "target": "inputs/descriptor_transfer.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/descriptor_transfer.h",
+      "inputs/descriptor_transfer.cpp"
+    ],
+    "unmapped_targets": [
+      "inputs/descriptor_transfer.h"
+    ]
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp",
+    "evaluation/private/README.md"
+  ],
+  "uncovered_requirements": []
+}

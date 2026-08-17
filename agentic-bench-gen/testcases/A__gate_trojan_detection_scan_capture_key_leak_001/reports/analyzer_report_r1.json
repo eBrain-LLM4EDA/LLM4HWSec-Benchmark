@@ -1,0 +1,80 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + tests/private/ground_truth.py",
+      "description": "Mutation testing shows FR3 (confidence range check) and SR1 (key flop recall) have zero mutants detected despite mutants targeting them, indicating these checks are not empirically discriminating in the harness even though the code logic appears correct. This suggests either weak mutant generation or a latent fragility in these checks that isn't exercised by the differential/mutation suite.",
+      "evidence": "per_requirement_coverage: FR3 covered=false mutants_detected=0/1; SR1 covered=false mutants_detected=0/1; uncovered_requirements: [\"FR3\", \"SR1\"]; mutation_score=0.75; status=fail",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR4 logic",
+      "description": "SR4's rationale-quality check relies on brittle keyword/regex heuristics (CONDITIONALITY_TERMS, GATING_QUALIFIER_TERMS, NEGATIVE_ALWAYS_ON_TERMS) rather than semantic understanding, which could produce false positives/negatives on plausible participant phrasing not anticipated by the term lists, though this is a common tradeoff for automated NLP-free grading.",
+      "evidence": "evaluate.py SR4 section uses fixed term lists and a 40-character window heuristic",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen or regenerate mutants targeting FR3 and SR1 so mutation testing actually discriminates these checks (e.g., add mutants that push confidence slightly out of range or that flip the 3-of-4 threshold in SR1) to close the reported coverage gap.",
+    "Have evaluate.py explicitly compute and print/report the four declared metrics (detection_rate, false_positive_rate, trojan_label_accuracy, inference_latency) as structured output (e.g., JSON summary) rather than only pass/fail test lines, so the metrics defined in the task spec are actually measurable from evaluator output.",
+    "Consider adding a few more paraphrase variants to the mutation/test suite for SR4's keyword-based rationale check to reduce risk of overfitting to the specific term lists chosen."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Netlist, design_brief.md, and scan_chain_order.txt consistently describe key_ff0..3 and u_smux_key0..3 as the leak mechanism, matching hidden_spec ground_truth and SR1/SR2 instance names exactly.",
+      "requirement": "Coherence of public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code=0, status=pass, all [TEST] PASS lines including SR1-SR4.",
+      "requirement": "evaluate.py accepts a correct submission (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code=1, status=fail, SR1/SR2/SR3/SR4 all FAIL as expected; baseline_run in validation report also confirms shipped submission passes only because it's actually a placeholder that was swapped for golden in that run, but differential vulnerable_run confirms correct reject behavior.",
+      "requirement": "evaluate.py rejects the shipped naive/empty baseline submission (exit non-zero, FAIL)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py computes SR1/SR2 recall-style pass/fail thresholds and SR3 boolean match internally but does not explicitly compute or output detection_rate, false_positive_rate, trojan_label_accuracy, or inference_latency as named metrics/fields; these metrics declared in the task spec are not directly emitted by evaluate.py's stdout or return value.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trojan_label_accuracy, inference_latency)",
+      "status": "fail"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional_requirement type) and SR1-SR4 (security type) distinctly, each with clear expected_detection logic and test_files references.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_scan_leak.v loads a distinctive key (4'b1011) and shifts scan_in while scan_en=1 for 16 cycles, actively exercising the scan-capture leak path as an oracle corroboration, though it is informational-only and does not affect the verdict.",
+      "requirement": "Security-relevant behaviors actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "Netlist is self-contained gate-level Verilog defining its own primitive library (DFF, MUX2, AND2, OR2, NOT); no external dependencies; testbench and evaluate.py use only standard tools (iverilog/vvp) with fallback tolerance if unavailable.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a concrete gate-level trojan/DFT-leak detection exercise with specific instance names, scan chain ordering, and simulation-based corroboration specific to the gate_trojan_detection domain.",
+      "requirement": "Benchmark adapted to domain (not generic filler)",
+      "status": "pass"
+    },
+    {
+      "evidence": "submission_invariants show golden and baseline submissions differ (changed=true) and differential run confirms correct pass/fail behavior; mutation testing was run and produced meaningful scores (mutation_score_meaningful=true).",
+      "requirement": "No gaps making results unverifiable",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and scan_chain_order.txt use neutral engineering language ('DFT review', 'confidentiality expectation') without mentioning CWE ids, SR ids, 'trojan' as ground truth, or explicitly flagging the design as vulnerable; design_brief.md states expectation not violation.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts (README.md, metadata.json, inputs/)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are concrete: FR1 (5 required fields/types), FR2 (instance name grounding), FR3 (confidence range 0.0-1.0), FR4 (rationale min 20 chars) -- all directly checkable via evaluate.py logic.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 of them)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

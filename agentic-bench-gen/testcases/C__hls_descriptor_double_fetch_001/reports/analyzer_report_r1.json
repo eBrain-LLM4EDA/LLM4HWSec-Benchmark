@@ -1,0 +1,87 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + evaluation/harness_main.cpp",
+      "description": "Differential run shows the shipped insecure baseline still PASSES the vast majority of TOCTOU race trials and only fails 1-2 out of 300 trials (SR1: 2/300, SR2: 1/300). The overall exit code for the baseline is non-zero (fail), so the coarse pass/fail gate technically discriminates in this one run, but the validation report's own mutation_score is 0.0 and requirement_discrimination_coverage_score is 0.0, and the preflight history shows repeated 'vulnerable_accepted' failure signatures across attempts. This indicates the race detection is still unreliable/flaky rather than deterministic, despite the harness README and private notes claiming the widened race (200-byte length, persistent mutator, 300 trials) makes detection 'virtually certain'. The empirical evidence (only 1-2/300 trials catching the bug) contradicts that claim and suggests the fix is only marginally better than the prior narrow-window design, not truly deterministic.",
+      "evidence": "differential.vulnerable_run.stdout: '[TEST] FAIL: SR1: 2 of 300 trials violated single-read semantics' and 'mutation_score: 0.0', 'requirement_discrimination_coverage_score: 0.0', preflight.attempt_history shows repeated identical 'vulnerable_accepted' failure_class across attempts with signature repeated_signature=true.",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report overall status",
+      "description": "The validation report's top-level 'status' field is 'fail' and 'mutation_status' is 'blocked_by_differential', with blocked_mutation_requirements listing all 7 requirements. This is a strong signal from the automated validator that the benchmark case did not pass its own gating despite the differential run nominally showing pass/fail split.",
+      "evidence": "status: 'fail', mutation_status: 'blocked_by_differential', blocked_mutation_requirements: ['FR1','FR2','FR3','FR4','SR1','SR2','SR3']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md / metadata.json",
+      "description": "No leakage of CWE ids, SR ids, or explicit statements that the baseline is intentionally insecure was found in participant-facing files; framing reads as a plain engineering hardening task. This is good, but noted for completeness.",
+      "evidence": "README.md discusses 'hardened' and 'race' conceptually without CWE/SR ids or explicit 'insecure baseline' language.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Investigate why the widened race (200-byte length, 300 trials, persistent mutator) only catches the baseline's double-fetch in 1-2 out of 300 trials instead of the 'virtually certain' detection claimed in the private README \u2014 this suggests either insufficient mutator aggressiveness, compiler optimization eliminating redundant loads even at -O0, or a scheduling issue that needs further tuning.",
+    "Consider increasing MUTATOR_ITERATIONS substantially, pinning the mutator and main threads to different cores if possible, or restructuring the copy loop check to sample intermediate state more aggressively to push detection probability closer to 100% deterministically.",
+    "Re-run the differential multiple times to confirm the baseline reliably fails (not just marginally) across repeated invocations before shipping, since a 1-2/300 failure margin risks flaky grading in CI where trial counts or thread scheduling could shift results to a full pass for the insecure baseline.",
+    "Address the validator's blocked_mutation_requirements and mutation_status=blocked_by_differential before considering this benchmark case ready; the current state indicates the automated gating explicitly declined to certify this case as usable."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "FR1-FR4 and SR1-SR3 in hidden_spec align with public functional requirements and interface; struct/signature consistent across header, baseline, and harness.",
+      "requirement": "Public/hidden spec coherence",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code 0, all [TEST] PASS lines for FR1-FR4, SR1-SR3.",
+      "requirement": "Evaluator accepts correct (golden) submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code 1 (rejected) but only barely \u2014 SR1 fails on just 2/300 trials and SR2 on 1/300 trials, and validator's own mutation_score=0.0 and requirement_discrimination_coverage_score=0.0 flag this as unreliable/non-robust discrimination, not a dependable fail signal across repeated runs.",
+      "requirement": "Evaluator rejects insecure baseline submission",
+      "status": "fail"
+    },
+    {
+      "evidence": "evaluate.py computes pass/fail per requirement id which maps to these metrics; FR-mapped to synthesis_pass_rate, SR-mapped to cwe_violation_rate/information_flow_correctness.",
+      "requirement": "Metrics measured (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional and SR1-SR3 as security with distinct detection strategies.",
+      "requirement": "Requirement map separates functional vs security",
+      "status": "pass"
+    },
+    {
+      "evidence": "The TOCTOU race is actively triggered via a mutator thread, which is good design intent, but empirical results show it only catches the vulnerability in a small fraction of trials (1-2/300), undermining the claim of reliable/deterministic detection; validator flags mutation_score 0.0 and discrimination coverage 0.0.",
+      "requirement": "Security behaviors actively triggered, not generic",
+      "status": "fail"
+    },
+    {
+      "evidence": "All files use standard headers, no network access, no dynamic allocation in golden design; buffers sized to avoid actual UB even under baseline failure.",
+      "requirement": "Artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically about HLS-style descriptor transfer with volatile shared-memory field, TOCTOU CWE-367/362, well-matched to hls_security_codegen domain.",
+      "requirement": "Domain-adapted, non-generic benchmark",
+      "status": "pass"
+    },
+    {
+      "evidence": "Validator report shows blocked_mutation_requirements for all 7 requirements and mutation_status blocked_by_differential, indicating the case did not clear verification gating despite superficially plausible differential pass/fail split.",
+      "requirement": "No unverifiable gaps",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md and metadata.json avoid CWE ids, SR ids, and explicit 'insecure baseline' language; framed as generic robustness/race hardening.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec each specify concrete input/output vectors (length=32, length=500, length=0, interface stability) directly checkable via the pinned interface.",
+      "requirement": "Public functional requirements concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

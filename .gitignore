@@ -10,3 +10,4 @@ runs
 venv/
 siderepos/
 .claude/
+grading/

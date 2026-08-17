@@ -1,0 +1,94 @@
+{
+  "issues": [
+    {
+      "artifact": "inputs/cache_controller.v",
+      "description": "Comments use generic terms like 'mask_term', 'benign qualifier', and 'qualifying/adjustment term' to describe the injected trigger logic, which is appropriately non-revealing, but the phrase 'under most conditions this term is all-zero and has no effect' is a soft hint that could nudge a careful reviewer; this is a minor stylistic point, not a leak of hidden identifiers.",
+      "evidence": "// mask_term is intended as a benign qualifier that normally leaves the lock mask untouched.",
+      "severity": "low"
+    },
+    {
+      "artifact": "submission/trojan_report.json (baseline)",
+      "description": "Baseline is a plausible generic-lint-style report (matches the described second baseline type) rather than a fully empty candidates list, but it still correctly fails SR1/SR2/SR3(pass)/SR4 as intended per differential run.",
+      "evidence": "candidates has one low-confidence vague entry; differential vulnerable_run shows FR3/FR4/SR1/SR2/SR4 FAIL as expected.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider softening the RTL comment 'this term is all-zero and has no effect' slightly further, or removing the explanatory framing entirely, to minimize any residual hinting toward reviewers scanning comments for anomalies (very minor, optional).",
+    "No blocking changes needed; the case is internally coherent, mutation/differential results confirm discrimination across all FR/SR checks, and no hidden-spec leakage was found in public-facing artifacts."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "check_FR1 verified by both golden (pass) and baseline (pass) runs; structurally checked.",
+      "requirement": "FR1 JSON structure with candidates/summary/tool_evidence",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_FR2 passes on baseline and golden.",
+      "requirement": "FR2 candidate field types/ranges",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows FR3 FAILs correctly when trigger values absent; golden passes.",
+      "requirement": "FR3 concrete triggering condition in rationale",
+      "status": "pass"
+    },
+    {
+      "evidence": "Differential vulnerable_run shows FR4 FAIL when scope statement missing; golden passes.",
+      "requirement": "FR4 explicit contrastive scope statement (victim_way affected vs hit/hit_way/lock_status unaffected)",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_SR1 with hedge-detection logic; vulnerable_run FAILs SR1 as expected, golden passes.",
+      "requirement": "SR1 affirmative unhedged lock-bypass claim",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_SR2 with TAG_PATTERNS/SECURE_LOW_PATTERNS; corroboration sim (tb_trigger_check.v) cross-checks ground truth trigger reproduces bypass at set 2, way 0, confirmed by requirement_map and evaluate.py logic.",
+      "requirement": "SR2 exact trigger values (tag 0xA5 + secure_attr low)",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_SR3 with FALSE_POSITIVE_PATTERNS; baseline and golden pass; ground truth confirms these outputs are bit-exact and unaffected.",
+      "requirement": "SR3 no false claims about hit/hit_way/lock_status",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_SR4 requires SR1+SR2 co-occurrence with confidence>=0.6; baseline (low-confidence generic candidate) correctly fails per differential run (vulnerable_run SR4 FAIL), golden passes.",
+      "requirement": "SR4 confidence >=0.6 for correct finding",
+      "status": "pass"
+    },
+    {
+      "evidence": "baseline_run and mutation_baseline_run both show exit_code 0/status pass for the *golden* submission at that path, but differential.vulnerable_run (representing the actual shipped baseline content) shows exit_code 1 with FR3/FR4/SR1/SR2/SR4 all FAIL, confirming the naive baseline is rejected as required.",
+      "requirement": "Baseline (naive/generic) submission must fail",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run exit_code 0, all checks PASS.",
+      "requirement": "Golden/correct submission must pass",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and cache_controller.v comments avoid CWE/SR ids, trojan/backdoor language, and specific trigger values (0xA5) per manifest; RTL uses generic names (mask_term, eff_lock) instead of revealing identifiers like bypass_lock.",
+      "requirement": "No hidden-spec leakage in public artifacts (CWE ids, SR ids, threat model, 'intentionally vulnerable' comments)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each map to distinct regex/structural checks in evaluate.py referencing the exact port names (victim_way, hit_way, hit, lock_status) and JSON schema fields, not a single generic restatement.",
+      "requirement": "Functional requirements (FR1-FR4) are concrete and machine-checkable via pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_trigger_check.v compiles cache_ctrl.v and drives the exact trigger sequence (lock way0, control miss, then tag_in=8'hA5/secure_attr=0 miss) via iverilog/vvp, printing TRIGGER_RESULT used for corroboration, confirming the ground-truth bypass is dynamically reproducible.",
+      "requirement": "Security-relevant behavior actively triggered (not just statically checked)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional) and SR1-SR4 (security) each with distinct expected_detection text and test_files references.",
+      "requirement": "Requirement map separates functional (FR) and security (SR) requirements with distinct detection strategies",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

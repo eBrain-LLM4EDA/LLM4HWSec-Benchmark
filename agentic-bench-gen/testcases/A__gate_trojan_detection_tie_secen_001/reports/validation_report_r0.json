@@ -1,0 +1,123 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/cell_library.v",
+    "inputs/controller_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_regression.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "setup_error",
+    "failure_signature": "b81cb1c6584f6dec9dbb6130c6cee547082ea49c6e1b9a14cac0a50568b69d5e",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: SETUP: could not determine driver of net 'secure_enable' in inputs/controller_netlist.v\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: SETUP: could not determine driver of net 'secure_enable' in inputs/controller_netlist.v\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "evaluate.py never emitted [TEST] PASS/FAIL for ['FR1', 'FR2', 'FR3', 'FR4', 'SR1', 'SR2', 'SR3', 'SR4'] on the golden run \u2014 requirement_map ids and the script's marker ids must match exactly",
+      "issue": "requirement_id_mismatch"
+    },
+    {
+      "detail": "The baseline exited non-zero, but not as a valid requirement-level rejection (for example, setup or runtime failed)",
+      "issue": "vulnerable_rejection_invalid"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SETUP: could not determine driver of net 'secure_enable' in inputs/controller_netlist.v",
+        "failure_class": "setup_error",
+        "failure_signature": "b81cb1c6584f6dec9dbb6130c6cee547082ea49c6e1b9a14cac0a50568b69d5e"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: SETUP: could not determine driver of net 'secure_enable' in inputs/controller_netlist.v",
+        "failure_class": "setup_error",
+        "failure_signature": "b81cb1c6584f6dec9dbb6130c6cee547082ea49c6e1b9a14cac0a50568b69d5e"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "setup_error",
+    "failure_signature": "b81cb1c6584f6dec9dbb6130c6cee547082ea49c6e1b9a14cac0a50568b69d5e",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "9bfa2c2d3be71bffd1815575fee5778dbc1101dbba8a6c0a346a7cee7f3c2c11",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "7980f791136013633ff8116bb5b11238f7a5fa2249b18a2f2eb73e4581114f0a",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/netlist_utils.py",
+    "evaluation/private/expected_facts.py"
+  ],
+  "uncovered_requirements": []
+}

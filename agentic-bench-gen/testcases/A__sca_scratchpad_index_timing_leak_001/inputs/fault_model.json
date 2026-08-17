@@ -1,0 +1,28 @@
+{
+  "model_name": "external_timing_observation_model",
+  "description": "Describes the observation capabilities and assumptions an external analyst should assume when characterizing the timing behavior of the scratchpad_lookup module.",
+  "observable_signals": [
+    "clk",
+    "start",
+    "valid",
+    "cycle_count_between_start_and_valid"
+  ],
+  "not_directly_observable": [
+    "index",
+    "data_out is only assumed observable to the legitimate consumer of the lookup result, not to the external analyst"
+  ],
+  "attacker_capability": "Can trigger repeated lookups (assert start with any chosen index value from the environment the module is embedded in) and can measure, for each lookup, the number of clock cycles elapsed between the start assertion and the subsequent valid assertion. Can repeat the same lookup arbitrarily many times to reduce measurement noise.",
+  "goal": "Characterize any timing variation (cycles from start to valid) correlated with the index value supplied to the module, and determine whether such variation could allow an external observer to distinguish classes of index values purely from timing, without observing index or data_out directly.",
+  "assumptions": [
+    "Single synchronous clock domain; clk is free-running and stable.",
+    "rst_n is deasserted only during initialization; normal operation is out of reset.",
+    "index is supplied by an upstream component and should be treated as a sensitive input not directly observable by the analyst.",
+    "start is a single-cycle pulse per lookup request, issued only while the module is idle/done.",
+    "The analyst has black-box timing access (start/valid/clk) but not direct access to internal state, index, or data_out.",
+    "Multiple repeated lookups with the same or varying index values are permitted, enabling averaging out of any non-deterministic measurement noise."
+  ],
+  "scope": [
+    "This model concerns only the timing relationship between start and valid.",
+    "Functional correctness of data_out for a given index is a separate property and should be assessed independently against the specification in design_brief.md."
+  ]
+}

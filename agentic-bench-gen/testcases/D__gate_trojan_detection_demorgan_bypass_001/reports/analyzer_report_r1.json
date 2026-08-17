@@ -1,0 +1,74 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The golden/expert submission (submission/trojan_report.json expected to pass) is rejected by evaluate.py. The differential run shows the golden run failing SR2 (missing vector ('10','100',1,0)) and SR3 (missing dozens of unrelated instances like u_inv_a0, u_nor_out, etc.), indicating the netlist actually shipped to inputs/ does NOT match the hidden_spec's described single-vector divergence with a dedicated non-shared final stage. Instead the ground-truth simulation finds an additional diverging vector at req_level=10/owner_id=100 (which per the reference and design intent should be grant=1 but netlist produces grand=0), and the flip-sensitivity analysis implicates nearly the entire gate list as suspects, not just u_perm_nand3. This means the shipped inputs/perm_cone_netlist.v is inconsistent with hidden_spec.ground_truth and the requirement_map's claims (exactly one diverging vector, exactly one suspect instance).",
+      "evidence": "golden_run stdout: '[TEST] FAIL: SR2: missing true diverging vector(s): [(\"10\", \"100\", 1, 0)]' and '[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): [...16 unrelated instances...]'",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/perm_cone_netlist.v",
+      "description": "Per the tester bundle manifest and hidden_spec, the netlist was supposed to be revised so that the T3 owner-id qualifier cone (u_perm_nand3) has an incorrectly wired input causing exactly one divergence at owner_id=101 with a non-shared final combining stage limiting flip-sensitivity to just u_perm_nand3. However the artifact bundle's actual file content (shown in the public artifact bundle) still contains the ORIGINAL, functionally-correct-looking wiring (u_perm_nand3 wired as .a(o2), .b(n_o1), .c(o0) per its own header comment claiming this is the 'restructured' cone) plus a shared final NOR2/INV OR-reduction stage combining t1_or_t2 and t3, which structurally makes the entire netlist's output flip-sensitive to nearly every gate for any given diverging vector \u2014 contradicting the manifest's claim of a dedicated non-shared final stage. This mismatch between manifest description and actual shipped file content is the root cause of the golden rejection.",
+      "evidence": "perm_cone_netlist.v final stage: 'nor2 u_nor_out (.a(t1_or_t2), .b(t3), .y(nor_final));' combines T1|T2 and T3 through a single shared NOR2, and simulation reveals a second divergence at req_level=10,owner_id=100 not documented in hidden_spec.ground_truth (which claims req_level=10,owner_id=100 should behave correctly, i.e., match reference grant=1).",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report / differential",
+      "description": "Because the golden solution fails, mutation_score is 0.0, requirement_discrimination_coverage_score is 0.0, and mutation_status is blocked_by_differential. The benchmark case is not currently usable: a correct/expert submission cannot pass grading, so SR1-SR4 as implemented do not discriminate correctly between vulnerable and secure submissions in the intended way.",
+      "evidence": "validation report: 'mutation_score': 0.0, 'mutation_status': 'blocked_by_differential', 'requirement_discrimination_coverage_score': 0.0, issue 'golden_rejected': 'evaluate.py rejects the expert golden solution (PASS expected)'",
+      "severity": "high"
+    },
+    {
+      "artifact": "hidden_spec.ground_truth vs inputs/perm_cone_netlist.v",
+      "description": "hidden_spec states the sole diverging vector is req_level=10,owner_id=101 (expected grant=0, observed grant=1), but the actual simulated ground truth (per golden_run) shows a second diverging vector at req_level=10,owner_id=100 as well, meaning the netlist committed to inputs/ is not the one described in hidden_spec.ground_truth. This breaks the coherence between public artifacts, hidden ground truth, and expected outputs.",
+      "evidence": "golden_run stdout FAIL: SR2 lists missing vector ('10','100',1,0) in addition to whatever the golden submission already covered for ('10','101',...).",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Regenerate or hand-fix inputs/perm_cone_netlist.v so that it actually implements exactly the single divergence described in hidden_spec.ground_truth (req_level=10, owner_id=101 only) with a genuinely non-shared final combining stage, so that flip-sensitivity analysis isolates only u_perm_nand3.",
+    "Re-run the golden/expert submission against the corrected netlist and confirm evaluate.py exits 0 for it before finalizing the benchmark case.",
+    "Verify via exhaustive simulation (both the Python simulator in evaluate.py and iverilog/vvp) that the corrected netlist diverges from reference_truth_table.txt at exactly one vector, matching hidden_spec.ground_truth precisely.",
+    "Add explicit computation/reporting of detection_rate, false_positive_rate, schema_conformance, and inference_latency as continuous metrics in evaluate.py output (not just binary PASS/FAIL for FR/SR ids), to match the evaluation.metrics section of the task specification.",
+    "Add a regression test in the tester bundle that runs evaluate.py against the golden solution as part of CI/preflight to catch this class of golden-rejection bug before shipping."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run exit_code=1, status='fail', expected='pass'; SR2 and SR3 checks fail against the golden submission.",
+      "requirement": "Evaluator accepts a correct/golden submission (exit 0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run (naive baseline) exit_code=1, status='fail' as expected; SR1, SR2, SR3, SR4 all correctly FAIL for the empty baseline.",
+      "requirement": "Evaluator rejects the naive/empty baseline submission (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and baseline runs show FR1-FR4 PASS, indicating schema checks work as intended independent of the ground-truth divergence bug.",
+      "requirement": "FR1-FR4 schema/type checks implemented correctly",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run shows ground truth actually contains 2 diverging vectors and ~17 suspect instances, contradicting hidden_spec's claim of exactly one vector and exactly {u_perm_nand3} as sole suspect.",
+      "requirement": "SR1-SR4 correctly reflect hidden_spec ground truth (exactly one diverging vector, exactly one suspect instance u_perm_nand3)",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, design_brief.md, and netlist comments use only plain 'synthesis restructuring' language; no CWE/SR/trojan-specific leakage found in public-facing text.",
+      "requirement": "Public artifacts do not leak hidden security intent (CWE ids, SR ids, trojan language)",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced files (netlist, truth table, design brief, evaluator, testbench) are present and self-contained Python/Verilog with no external dependencies beyond optional iverilog/vvp.",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements binary PASS/FAIL requirement checks (FR1-FR4, SR1-SR4) but does not appear to explicitly compute or output detection_rate, false_positive_rate as continuous metrics, or inference_latency; only pass/fail semantics are shown in the provided evaluate.py source.",
+      "requirement": "Metrics requested in task spec (detection_rate, false_positive_rate, schema_conformance, inference_latency) are measured by evaluator",
+      "status": "unknown"
+    }
+  ],
+  "source_round": 1
+}

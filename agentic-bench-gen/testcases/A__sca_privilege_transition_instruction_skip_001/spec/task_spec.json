@@ -1,0 +1,110 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "Naive/empty baseline: submission/vulnerability_report.json omits vulnerable_state or reports an incorrect state (e.g., IDLE), and mitigation is a generic non-redundant statement -- must FAIL all SR checks.",
+      "No existing benchmark found for this exact fault-injection-on-FSM-privilege-transition scenario; task is novel within side_channel_fault_analysis domain."
+    ],
+    "metrics": [
+      {
+        "description": "Whether the submission correctly identifies the exact vulnerable FSM state and resulting elevated privilege value caused by the instruction-skip fault, verified optionally via iverilog/vvp cross-simulation.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Fraction of FSM states in the transition_sequence for which the submission correctly reports the skip impact (matching ground-truth per-state outcomes, including correctly identifying non-impactful states).",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Quality and specificity of the proposed redundancy-based mitigation, scored by presence of genuine redundancy mechanisms (duplication/triplication/re-check) targeted at the correct vulnerable write, versus vague or irrelevant suggestions.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      },
+      {
+        "description": "Rate at which the submission incorrectly flags fault-tolerant (non-write) states as producing a changed privilege outcome under skip.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "FAIL if vulnerable_state does not match the ground-truth write-bearing state.",
+      "FAIL if resulting_privilege does not equal 'supervisor' (or the correct high-privilege label used in design_brief.md) for the vulnerable_state entry.",
+      "FAIL if any non-vulnerable state's priv_reg_after_skip differs from fault_free_final_priv (false positive fault claim).",
+      "FAIL if mitigation lacks a redundancy mechanism (duplication/triplication/re-check-and-correct).",
+      "FAIL if per_state_skip_impact is missing entries for any state in transition_sequence or fault_free_final_priv is not '00'.",
+      "PASS requires all required JSON fields present with correct types AND all SR1-SR4 checks satisfied."
+    ],
+    "cwe_ids": [
+      "CWE-1298",
+      "CWE-1234",
+      "CWE-693"
+    ],
+    "ground_truth": "Skipping the priv_reg write in state DEMOTE leaves priv_reg at its prior value 2'b10 (supervisor) instead of transitioning to 2'b00 (user), because DEMOTE is the sole state that performs the write during the demotion sequence; all other states in the sequence (IDLE, CHECK, SETTLE, DONE) do not write priv_reg so skipping their actions does not change the final privilege outcome. Mitigation: duplicate the demotion write (write priv_reg <= 2'b00 in both DEMOTE and SETTLE, or add a redundant check-and-rewrite in the state following DEMOTE that re-asserts priv_reg==2'b00 and forces it if not, e.g. a triplicated/duplicated write with a comparator that flags mismatch and re-executes the write) so a single skipped write cycle is corrected by the redundant write in the next cycle.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String/semantic match of 'vulnerable_state' against the ground-truth state name derived from mode_sequencer.v; cross-check via iverilog simulation forcing a skip of that state's write and comparing simulated priv_reg to the reported 'resulting_privilege'.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify DEMOTE (or the equivalently-named state in the shipped design that performs the sole priv_reg write during the demotion sequence) as the vulnerable_state whose skip leaves priv_reg at the supervisor value."
+      },
+      {
+        "detection_strategy": "Compare each non-vulnerable-state entry's priv_reg_after_skip to fault_free_final_priv; flag mismatches. Optionally cross-simulate each state's skip via iverivog/vvp testbench harness.",
+        "id": "SR2",
+        "requirement": "The report must correctly report that skipping any non-write state (IDLE, CHECK, SETTLE, DONE or equivalents) does NOT alter the final priv_reg outcome, i.e. per_state_skip_impact entries for those states must equal fault_free_final_priv."
+      },
+      {
+        "detection_strategy": "Keyword/semantic scoring of 'mitigation' field for redundancy concepts (duplicate, triplicate, re-check, comparator, re-write, voting) combined with reference to the correct vulnerable state or write signal; reject vague/generic answers.",
+        "id": "SR3",
+        "requirement": "The reported mitigation must be a genuine redundancy-based hardware countermeasure (e.g., duplicated write with comparator, triplicated write/voting, or re-assert-and-check in a subsequent state) rather than a generic or non-redundant suggestion (e.g., 'add more testing', 'use encryption')."
+      },
+      {
+        "detection_strategy": "Cross-check via iverilog/vvp simulation of mode_sequencer.v with a forced skip at the reported vulnerable_state's write cycle; compare final priv_reg register value against resulting_privilege mapping (2'b10 -> supervisor).",
+        "id": "SR4",
+        "requirement": "The reported resulting_privilege for the vulnerable_state skip must match the actual simulated privilege level (supervisor), not merely a plausible-sounding guess."
+      }
+    ],
+    "threat_model": "An attacker with physical or logical access capable of injecting a transient fault (voltage/clock glitch, EM pulse, or laser fault injection) at a single clock cycle can suppress the register-write side effect of one FSM state without disrupting state-sequencing logic. If this skip lands on the unique state responsible for lowering privilege during a supervisor-to-user demotion, the sequencer proceeds through the remaining states and asserts 'done' while priv_reg still holds the supervisor value, allowing subsequently executed code to run with elevated privilege it should not have."
+  },
+  "public_spec": {
+    "constraints": [
+      "mode_sequencer.v must be synthesizable Verilog-2001 compatible with iverilog, self-contained (no external module dependencies beyond standard primitives).",
+      "The demotion sequence must take at least 3 clock cycles with priv_reg written in exactly one intermediate state, and fault-free transitions (no fault injected) must always produce priv_reg=2'b00 (user) at completion.",
+      "design_brief.md must document the full state list, state encoding, and the exact cycle in which priv_reg is written during demotion, without naming any specific vulnerability, CWE, or security requirement.",
+      "fault_model.md must describe the generic single-step instruction-skip fault mechanism (a state's write action is suppressed but FSM advances normally) applicable to any state, without indicating which state is exploitable.",
+      "Participants must not edit any file under inputs/; only submission/vulnerability_report.json is graded."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The report must list every FSM state involved in the demotion transition sequence (from req_demote assertion to done) in execution order, with the exact state names as documented in design_brief.md, under a JSON field 'transition_sequence' (array of strings)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must state the fault-free final value of priv_reg after a complete demotion sequence with no skipped step, as a 2-bit binary string, under field 'fault_free_final_priv' (e.g. '00')."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must identify, for each state in the transition sequence, whether skipping that state's write action changes the final priv_reg value relative to fault_free_final_priv, reported as an array field 'per_state_skip_impact' where each entry has fields 'state' (string) and 'priv_reg_after_skip' (2-bit binary string)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report JSON must validate against the schema in response_format: all required top-level fields present with correct types, and 'per_state_skip_impact' must contain one entry for every state listed in 'transition_sequence'."
+      }
+    ],
+    "input_artifacts": [
+      "mode_sequencer.v",
+      "fault_model.md",
+      "design_brief.md"
+    ],
+    "interface": "Module under analysis: mode_sequencer.v, module name mode_sequencer, ports: input clk, input rst_n (active-low async reset), input req_demote (public control input requesting a privilege lowering sequence), input req_promote (public control input requesting privilege raise), output reg [1:0] priv_reg (2'b10=supervisor/high, 2'b00=user/low, 2'b01/2'b11 reserved), output reg [3:0] state (current FSM state code, Moore-encoded, one-hot or binary as implemented, values documented in design_brief.md), output done (asserted for exactly one cycle when the current transition sequence completes). The sequencer transitions through a fixed sequence of named states (IDLE, CHECK, DEMOTE, SETTLE, DONE for a demotion request) over multiple clock cycles, writing priv_reg in a specific state during that sequence. The fault model (fault_model.md) defines a single-step instruction skip: on a designated fault cycle, the state-defined register-write action for exactly one state is suppressed (the FSM still advances to the next state, but the write it would have performed does not occur). The submission is a JSON answer file at submission/vulnerability_report.json (schema given in response_format) that must not modify mode_sequencer.v or any input artifact; evaluate.py reads inputs/ for reference and may optionally invoke iverilog/vvp to simulate mode_sequencer.v with a forced single-step skip at the state the submission names, cross-checking the reported resulting privilege value against the simulated trace.",
+    "objective": "Analyze the provided RTL control sequencer (mode_sequencer.v) which manages a privilege register through a documented multi-state transition sequence. Determine the behavior of the state machine under a fault model where a single control step (one FSM state's register-write action) can be skipped due to a transient glitch, and produce a vulnerability report describing which skipped step alters the final privilege outcome, what privilege state results, and a concrete redundancy-based mitigation for the affected step. Fault-free operation of the sequencer must remain fully documented and correct in your report.",
+    "response_format": "submission/vulnerability_report.json must be a single JSON object with required fields: 'transition_sequence' (array of strings, state names in order), 'fault_free_final_priv' (string, 2-bit binary), 'per_state_skip_impact' (array of objects each with 'state':string and 'priv_reg_after_skip':string 2-bit binary), 'vulnerable_state' (string, the single state whose skip leaves privilege elevated), 'resulting_privilege' (string, e.g. 'supervisor' or 'user'), and 'mitigation' (string, a concrete redundancy-based hardware mitigation description, e.g. duplicate-write-and-check). No other top-level fields are required but extras are ignored."
+  },
+  "task_id": "sca_privilege_transition_instruction_skip_001",
+  "title": "Instruction-skip fault at a privilege-mode transition"
+}

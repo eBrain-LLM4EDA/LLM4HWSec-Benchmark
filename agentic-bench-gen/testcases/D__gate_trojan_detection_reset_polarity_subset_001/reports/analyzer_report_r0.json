@@ -1,0 +1,92 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + evaluation/tb_cross_check.v",
+      "description": "The golden (correct) submission is rejected by the evaluator: differential run shows golden fails SR5 because the simulation-observed persistent flops set is empty ([]) while structurally-derived suspects are ['u_priv_ff1','u_priv_ff2']. This indicates the tb_cross_check.v / SR5 comparison logic in evaluate.py has a bug (e.g. mis-parsing the CROSSCHECK lines, incorrect persistence detection logic 'pre==post and pre==1', or a timing/sampling issue in tb_cross_check.v) causing a correct answer to be rejected, exactly as flagged by the differential harness ('golden_rejected').",
+      "evidence": "differential.golden_run: exit_code=1, expected='pass', status='fail', stdout ends with '[TEST] FAIL: SR5: simulation-observed persistent flops [] do not match structurally-derived suspect flops [...]'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py check_sr5",
+      "description": "The SR5 persistence check likely has a logic error: 'if pre == post and pre == \"1\": persistent.add(name) else: cleared.add(name)' means any flop whose pre-reset value happened to be 0 before the reset pulse (even if it is a true persistent/anomalous flop) would never be classified as 'persistent', and conversely the classification depends on the flop's pre-reset value being 1, which is stimulus/timing dependent. Given the stimulus sequence in tb_cross_check.v, priv_ff1/priv_ff2 evidently sampled as not satisfying this condition, producing an empty persistent set even for the correct golden answer.",
+      "evidence": "check_sr5 code: 'if pre == post and pre == \"1\": persistent.add(name) else: cleared.add(name)'; golden run shows persistent=[] despite ground truth suspects being non-empty and expected to persist under this stimulus.",
+      "severity": "high"
+    },
+    {
+      "artifact": "requirement_mapping vs mutation testing",
+      "description": "Because SR5 always fails (even for the correct/golden report), the task is currently unusable: a fully correct participant submission cannot achieve overall PASS, and the mutation/discrimination testing shows requirement_discrimination_coverage_score of 0.0, confirming the checks do not properly discriminate correct vs incorrect submissions in their current state.",
+      "evidence": "requirement_discrimination_coverage_score: 0.0; mutation_status: 'blocked_by_differential'; preflight repair attempts (2) still show golden_rejected with a similar SR5 failure after modification attempts.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the SR5 corroboration logic in evaluate.py and/or tb_cross_check.v so that the golden/correct submission passes: investigate why the simulation reports an empty persistent set for u_priv_ff1/u_priv_ff2 despite the netlist's inverted-reset wiring: check stimulus timing (are priv_ff1/priv_ff2 actually driven to 1 before the reset pulse given the CTRL/DIN sequence and their next-state logic depending on ctrl_ff2_q/priv_ff1_q?), check that dut.u_priv_ff1.Q / dut.u_priv_ff2.Q hierarchical references resolve correctly given the PRIM_DFF_SYNC module hierarchy, and check the classification logic 'pre==post and pre==1' which incorrectly excludes flops whose pre-reset value is 0.",
+    "Re-run the differential test (golden vs baseline) after fixing SR5 to confirm golden achieves exit_code=0 with all PASS lines, and baseline still fails with the expected FAIL lines.",
+    "Add an assertion/log in tb_cross_check.v to print raw pre/post values for all 8 flops regardless of match, to more easily debug why priv_ff1/priv_ff2 are not registering as persistent in simulation.",
+    "Consider decoupling SR5 from being a hard-blocking requirement for overall PASS if simulation-based corroboration proves fragile, or fix the underlying stimulus/timing bug so it reliably corroborates the structural ground truth."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and baseline both pass FR1 in differential run stdout.",
+      "requirement": "FR1 - JSON schema/fields validity",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout: '[TEST] PASS: FR2'.",
+      "requirement": "FR2 - suspect_flops names must exist in netlist",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout: '[TEST] PASS: FR3'.",
+      "requirement": "FR3 - reset_net_summary covers every flop exactly once",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout: '[TEST] PASS: FR4'.",
+      "requirement": "FR4 - anomaly_description length/emptiness consistency",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout: '[TEST] PASS: SR1'; baseline (naive) run stdout: '[TEST] FAIL: SR1' as expected.",
+      "requirement": "SR1 - trojan_present correctness",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout: '[TEST] PASS: SR2'; baseline fails SR2 as expected.",
+      "requirement": "SR2 - exact suspect_flops set match",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout: '[TEST] PASS: SR3'; baseline fails SR3 as expected.",
+      "requirement": "SR3 - anomaly_description substantively describes inversion",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout: '[TEST] PASS: SR4'; baseline fails SR4 as expected.",
+      "requirement": "SR4 - reset_net_summary structurally separates suspects",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run stdout ends with '[TEST] FAIL: SR5: simulation-observed persistent flops [] do not match structurally-derived suspect flops ['u_priv_ff1', 'u_priv_ff2']...' causing the correct golden submission to fail overall (exit_code=1, status='fail', expected='pass'). This is a hard blocker: differential.status == 'fail' and failure_class == 'golden_rejected'.",
+      "requirement": "SR5 - iverilog/vvp cross-check corroboration",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run (baseline) correctly fails with exit_code=1 and multiple SR failures (SR1, SR2, SR3, SR4, SR5), matching expected='fail'.",
+      "requirement": "Naive/empty baseline submission must be rejected",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, metadata.json contain no CWE ids, SR ids, or explicit mention of a trojan/defect; framed as a plain audit task.",
+      "requirement": "No leakage of hidden ground truth / CWE / SR ids in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are concrete, each independently verifiable via JSON field types, instance-name membership, full-coverage grouping, and string length rules.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

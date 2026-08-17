@@ -1,0 +1,108 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Whether the report correctly identifies the vulnerable COMPARE->CHECK_DONE transition and glitch window matching hidden ground truth (binary/graded correctness on SR1 and SR2).",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Fraction of required factual elements (vulnerable transition, glitch window, affected signals, state names) that are present, correctly named, and verifiable against the static RTL text or simulation trace.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Correctness and completeness of the proposed remediation (SR3) combined with verified preservation of fault-free lockout behavior (SR4), penalizing remediations that are vague, incorrect, or that break the documented 3-attempt lockout.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      },
+      {
+        "description": "Whether the submitted vulnerability_report.json satisfies all required field presence/type checks from FR1-FR4.",
+        "direction": "maximize",
+        "name": "schema_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission PASSES only if vulnerable_transition correctly names the COMPARE->CHECK_DONE edge, glitch_window correctly describes the comparison-to-decrement window, remediation correctly describes decrement-on-entry-to-COMPARE with restore-on-success (or an equivalent atomic-decrement fix), fault_free_behavior_preserved is true with a justification consistent with the unchanged 3-attempt lockout, and all FR1-FR4 fields are present and well-typed.",
+      "The shipped baseline/naive submission (empty or placeholder vulnerability_report.json) must FAIL both FR schema checks and all SR correctness checks.",
+      "Optional iverilog/vvp cross-simulation of a forced state-skip stimulus against pin_check_fsm.v must show attempts_left is NOT decremented when CHECK_DONE is skipped, corroborating the ground truth described above."
+    ],
+    "cwe_ids": [
+      "CWE-362",
+      "CWE-693",
+      "CWE-1254",
+      "CWE-841"
+    ],
+    "ground_truth": "The retry counter (attempts_left) is decremented in state CHECK_DONE, i.e., after the PIN comparison result is already latched and evaluated. A single-event-transient fault that causes the FSM to skip the CHECK_DONE state (jumping directly from COMPARE to IDLE or to the next COMPARE cycle) bypasses the decrement entirely: the comparison still executes and can still assert auth_ok on a correct guess, but a failed guess never consumes an attempt because the counter update is skipped along with the skipped state. The glitch window is the single clock edge that would normally transition the FSM from COMPARE into CHECK_DONE (i.e., a fault injected during the cycle immediately following pin_valid assertion, at the COMPARE->CHECK_DONE edge). This converts the 3-attempt lockout into an unlimited brute-force oracle. The correct remediation is to move the decrement so it occurs on entry to COMPARE (i.e., speculatively decrement attempts_left as soon as a comparison attempt begins, before the result is known) and only restore/increment the counter back on a successful match; this way, skipping CHECK_DONE (or any later state) cannot avoid the penalty because the decrement already happened at COMPARE entry, and legitimate successful auths are not penalized because the counter is restored on match.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse vulnerable_transition field; accept if it names both COMPARE and CHECK_DONE as source/destination (order matching the actual RTL direction) or explicitly describes 'the edge entering CHECK_DONE from COMPARE'. Reject if it names LOCKOUT, IDLE-only, or omits CHECK_DONE.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that the vulnerable transition is COMPARE->CHECK_DONE (or equivalently phrased as 'the transition into CHECK_DONE', naming both states), not some other transition such as IDLE->COMPARE or CHECK_DONE->LOCKOUT."
+      },
+      {
+        "detection_strategy": "Text-match glitch_window against expected keywords (COMPARE, CHECK_DONE, edge/transition, 'after comparison' / 'before decrement'); reject vague answers like 'any time' or windows naming unrelated states (IDLE, LOCKOUT) as the fault landing point.",
+        "id": "SR2",
+        "requirement": "The report must correctly characterize the glitch window as the single cycle/edge corresponding to the COMPARE-to-CHECK_DONE transition (i.e., immediately after the comparison result is computed but before/during the decrement), not an arbitrary or overly broad window covering all states."
+      },
+      {
+        "detection_strategy": "Keyword and semantic check on remediation field for phrases indicating decrement moved to COMPARE entry and restoration/increment on match; optionally cross-check by re-simulating a hardened variant supplied in the hidden reference against the same forced state-skip stimulus in testbench_reference.v to confirm the described fix would close the window.",
+        "id": "SR3",
+        "requirement": "The proposed remediation must implement decrement-on-entry-to-COMPARE with restore-on-success semantics (or a functionally equivalent fix that eliminates the post-comparison decrement window, such as combining decrement and compare into a single atomic state), not merely 'add redundant logic' or 'add a watchdog' without addressing decrement ordering."
+      },
+      {
+        "detection_strategy": "Cross-check fault_free_justification text and, optionally, simulate a hardened reference implementation matching the described remediation against testbench_reference.v to confirm attempts_left still reaches 0 and locked_out asserts after exactly 3 consecutive fault-free failures.",
+        "id": "SR4",
+        "requirement": "The report must not claim fault_free_behavior_preserved=true while proposing a remediation that would alter the documented 3-attempt fault-free lockout sequence (e.g., an off-by-one that locks out after 2 or 4 attempts)."
+      }
+    ],
+    "threat_model": "An attacker with physical or remote fault-injection capability (voltage/clock glitching, EM fault injection) against the PIN-check controller wants to bypass the retry-lockout mechanism. If the retry counter decrement can be skipped via a state-skip glitch timed at the COMPARE->CHECK_DONE transition, the attacker converts a bounded-attempt (e.g., 3-try) interface into an effectively unlimited brute-force oracle, defeating the lockout security control while the comparison logic itself remains functionally correct and undetected in fault-free testing."
+  },
+  "public_spec": {
+    "constraints": [
+      "pin_check_fsm.v must implement a synchronous FSM with at least the states IDLE, COMPARE, CHECK_DONE, LOCKOUT (exact localparam names) and a persistent 4-bit attempts_left register initialized to 4'd3 on reset.",
+      "The retry counter decrement in the shipped RTL must occur in the CHECK_DONE state, after the comparison result is already latched, matching realistic post-comparison bookkeeping seen in legacy authentication controllers.",
+      "Under fault-free operation (no injected glitches), the module must correctly lock out after exactly 3 consecutive failed PIN attempts, matching testbench_reference.v.",
+      "fault_model.md must describe a single-event-transient state-skip fault model (a glitch that causes the FSM to skip one state transition, landing directly in the successor-of-successor state) and must not name any CWE identifiers or the specific vulnerable state.",
+      "All artifacts must be self-contained and simulate cleanly with iverilog/vvp without proprietary IP."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON containing top-level string/array fields: 'vulnerable_transition' (string naming a source_state->dest_state pair exactly as spelled in pin_check_fsm.v state parameters), 'glitch_window' (string describing the cycle(s) relative to pin_valid assertion during which the fault must be injected), 'remediation' (string describing the RTL change), and 'affected_signals' (array of strings naming at least the retry counter signal and the auth_ok/locked_out signals)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must include a field 'fault_free_behavior_preserved' (boolean) plus a short 'fault_free_justification' (string) explaining why the proposed remediation does not alter the documented fault-free lockout sequence (attempts_left decrementing from its reset value to 0 over consecutive failed PINs, then locked_out asserting)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must include a field 'state_names_referenced' (array of strings) that lists only state names that literally appear as localparam/parameter identifiers in inputs/pin_check_fsm.v, verifiable by static text match."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a field 'confidence' (number between 0 and 1) and a field 'method' (string, one of: 'static_analysis', 'simulation', 'both') describing how the finding was derived."
+      }
+    ],
+    "input_artifacts": [
+      "pin_check_fsm.v",
+      "fault_model.md",
+      "testbench_reference.v",
+      "design_brief.md"
+    ],
+    "interface": "The RTL module under test is `pin_check_fsm` in inputs/pin_check_fsm.v with port list: module pin_check_fsm(input wire clk, input wire rst_n, input wire [7:0] pin_in, input wire pin_valid, output reg auth_ok, output reg locked_out, output reg [3:0] attempts_left). clk is the system clock; rst_n is active-low synchronous reset; pin_in is the 8-bit candidate PIN presented by the caller (secret-comparison input, not itself secret in this public interface); pin_valid is a one-cycle strobe indicating pin_in is ready to be checked; auth_ok is a Moore output asserted for exactly one clock cycle, two cycles after the cycle in which pin_valid was asserted, if and only if pin_in matched the stored secret AND the device was not locked out; locked_out is a Moore output that becomes 1 starting the cycle after the retry counter (attempts_left) reaches 0 following a failed comparison, and remains 1 until reset; attempts_left is a registered public output reflecting the current remaining retry count (Moore, updated combinationally-registered on the clock edge following the internal decrement event). The submission is NOT source code: participants submit a JSON answer file at submission/vulnerability_report.json (no other files are graded). evaluate.py reads inputs/ for reference and optionally re-simulates inputs/pin_check_fsm.v and inputs/testbench_reference.v with iverilog/vvp to cross-check factual claims in the submitted report (e.g., that a forced state-skip stimulus does bypass the decrement), but the PASS/FAIL verdict is computed by grading the JSON fields of the submitted report against the hidden ground truth.",
+    "objective": "Analyze the provided RTL PIN-check authentication controller and its accompanying fault model, then submit a vulnerability report describing the finite-state-machine's behavior under fault injection and proposing a hardening remediation. Your report must precisely identify which state transition in the FSM is exploitable under the given glitch/fault model, characterize the timing window during which the fault must land to succeed, and propose a concrete RTL-level remediation that preserves documented fault-free lockout behavior.",
+    "response_format": "A single JSON file at submission/vulnerability_report.json with required top-level fields: vulnerable_transition (string), glitch_window (string), remediation (string), affected_signals (array of strings), fault_free_behavior_preserved (boolean), fault_free_justification (string), state_names_referenced (array of strings), confidence (number 0-1), method (string)."
+  },
+  "task_id": "sca_retry_counter_decrement_order_001",
+  "title": "Decrement-after-check ordering in a PIN retry counter"
+}

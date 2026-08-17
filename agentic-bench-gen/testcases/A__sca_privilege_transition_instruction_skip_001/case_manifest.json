@@ -1,0 +1,21 @@
+{
+  "best_round": 1,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "5d02dba3dc3e01893987278f3fa9d30d469c35cb5a68ff2944ad0d1bc9e4144e",
+    "expert/expert_bundle.json": "eaedb3612ed08c00d8d149382015751c2c9ab38fba8d478829f0757f8ef97c29",
+    "mutants/mutation_bundle.json": "61724251c3d61fca8b2558498438ea5bcbfd11443c46104b5c5ac081631830ad",
+    "reports/analyzer_report.json": "a8c92821541d600a483851fef4cdb27c6ad82f157f2ed09a159213ef3da83043",
+    "reports/quality_report.json": "f7a700a2bb42b48e48f9970a6ae8b4aa235df80b65bf61549a1b44013811d80c",
+    "reports/validation_report.json": "511e83929cd3bc0a58c5a5717e30e212b041ac22bf9a424ca7f146bc8d2707d9",
+    "spec/task_spec.json": "a670117885b62a2193787e2e9e570a93f17ab51442bbca7c88189efb9bc22073",
+    "tests/tester_bundle.json": "f74167d616cc40dba0c61a3abf2cf46aff090ffac986c4df94c74f7a70b08414"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 1,
+  "quality_status": "pass",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 1,
+  "status": "quality_passed",
+  "task_id": "sca_privilege_transition_instruction_skip_001"
+}

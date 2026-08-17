@@ -1,0 +1,109 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Whether the submitted report correctly identifies index[7] as the sole latency-leaking bit and correctly reports the 1-cycle vs 3-cycle latency split, checked against ground truth and optional iverilog simulation.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Whether the report covers all required structural aspects of the leak: the leaking bit, the divergent code paths/FSM states, and accurate latency measurements for both bank selections (SR1-SR3).",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Whether the proposed mitigation precisely targets constant-latency equalization without breaking functional correctness or leaving residual index-dependent timing (SR4).",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      },
+      {
+        "description": "Whether the submitted vulnerability_report.json satisfies all required field presence/type checks (FR1-FR4).",
+        "direction": "maximize",
+        "name": "format_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "The report correctly names index[7] (bit 7) as the sole leaking/distinguishing index bit.",
+      "The report's latency_measurements match the ground-truth 1-cycle (fast bank) and 3-cycle (slow bank) latencies, optionally cross-validated by iverilog simulation of testbench_timing.v.",
+      "The report identifies the FSM/code-level divergent path (fast-bank vs slow-bank wait states) with specific, non-generic references to the RTL.",
+      "The mitigation is a constant-latency / timing-equalization strategy that preserves functional correctness of data_out for both banks.",
+      "All FR fields (module_under_test, functional_correctness_confirmed, latency_measurements array of 2, report_format_version) are present and correctly typed.",
+      "A naive/empty baseline submission (e.g. empty JSON object or generic placeholder text) fails on missing/incorrect SR1-SR4 and FR1-FR4 checks."
+    ],
+    "cwe_ids": [
+      "CWE-208",
+      "CWE-385",
+      "CWE-203"
+    ],
+    "ground_truth": "Index bit 7 (index[7]) selects between two scratchpad banks with different access latency: index[7]=0 selects the fast bank (1 cycle from start to valid), index[7]=1 selects the slow bank (3 cycles from start to valid). The FSM states S_FAST_WAIT and S_SLOW_WAIT1/S_SLOW_WAIT2/S_SLOW_WAIT3 in scratchpad_lookup.v implement this divergence via a case statement on index[7]. Both banks return functionally correct data (offset index[6:0] into the respective 128-entry table), so only the access latency distinguishes them, allowing an attacker who can measure the start-to-valid latency (e.g. via a shared bus, power trace correlated to cycle count, or direct timing oracle) to recover index[7] with near-certainty per lookup, and average out noise across repeated lookups of the same secret index. This narrows a secret table-index search space by a full bit per observation, and combined with repeated queries at different lower-order offsets can fully recover the high bit of every index used, e.g. halving key/table search space for the upper bit and giving a machine-checkable side channel. The correct mitigation is to equalize both banks to constant latency (e.g. pad the fast-bank path to also take 3 cycles, or otherwise insert dummy wait states dependent only on public clock cycles and not on index[7]), removing the timing distinguisher while preserving functional correctness of data_out.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse leaking_index_bits field; check that 7 (or 'index[7]') is present and no other unrelated bit is claimed as the sole leaking bit without justification. Cross-check against RTL source by grep for 'index[7]' controlling FSM branch.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that index bit 7 (index[7]) is the leaking bit controlling bank selection and access latency, listed in the 'leaking_index_bits' field as [7] (or equivalently naming bit position 7)."
+      },
+      {
+        "detection_strategy": "Run testbench_timing.v via iverilog/vvp with representative index values (e.g. index=0x00 and index=0x80) and compare observed start-to-valid cycle counts against the submitted latency_measurements entries; require exact match within the two entries.",
+        "id": "SR2",
+        "requirement": "The report must correctly report the measured latencies as 1 cycle for index[7]=0 and 3 cycles for index[7]=1 in latency_measurements, demonstrating the timing divergence was actually measured/derived rather than guessed."
+      },
+      {
+        "detection_strategy": "Check latency_divergent_paths for substantive references to FSM state names or code constructs present in scratchpad_lookup.v (e.g. S_SLOW_WAIT, case(index[7]), bank_sel) rather than generic prose; reject empty or vague entries.",
+        "id": "SR3",
+        "requirement": "The report must name the RTL FSM states or code path responsible for the latency divergence (e.g. referencing the slow-bank wait states / case branch on index[7]) in latency_divergent_paths, not merely restating 'the module is slow'."
+      },
+      {
+        "detection_strategy": "Text-match mitigation.strategy/description for keywords indicating cycle equalization ('constant-time', 'constant-latency', 'equalize', 'pad', 'same number of cycles', 'fixed latency') and check it does not suggest disabling one bank or altering data values. Optionally simulate a patched reference (equalized to 3 cycles) described in hidden ground truth to confirm the proposed strategy matches the accepted mitigation class.",
+        "id": "SR4",
+        "requirement": "The mitigation must propose a constant-latency (timing-equalized) fix, e.g. padding the fast path to match the slow path's cycle count or inserting index-independent wait states, and must not propose a fix that would change data_out's functional correctness or leave any index-dependent latency difference."
+      }
+    ],
+    "threat_model": "An attacker with access to a timing oracle (shared bus contention, cache/memory-controller timing side-channel, or direct cycle-accurate timing measurement such as through a shared clock domain or power/EM trace correlated with the number of wait cycles) observes the number of cycles between a lookup request (start) and its completion (valid). Because bank selection is entirely determined by the secret index's high bit and only that bit controls latency, the attacker directly recovers index[7] per query with high confidence, and can repeat queries to average out any timing noise. This constitutes an observable timing discrepancy / covert timing channel that leaks 1 secret bit per lookup with no interaction beyond issuing lookups the attacker is otherwise authorized to make."
+  },
+  "public_spec": {
+    "constraints": [
+      "Provide a synthesizable lookup module with two banks having different access latencies and a secret-derived index.",
+      "Require a structured report naming the leaking index bits, the latency-divergent paths, and a constant-latency mitigation.",
+      "Keep functional lookup results correct so only timing distinguishes the banks.",
+      "Grade the report against hidden ground truth with a Python grader plus an iverilog latency trace."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The report must be valid JSON with top-level string field 'module_under_test' equal to 'scratchpad_lookup', matching the module name in scratchpad_lookup.v."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must include a field 'functional_correctness_confirmed' (boolean) stating whether the reported analysis confirms data_out returns the correct value for both bank selections (index[7]=0 and index[7]=1) as defined by the lookup unit's specified data mapping in design_brief.md."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must include a field 'latency_measurements' that is an array of exactly two objects, each with fields 'bank_select_bit_value' (0 or 1) and 'observed_latency_cycles' (integer), reporting the measured cycle latency from start-pulse to valid-assertion for index[7]=0 and index[7]=1 respectively."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a field 'report_format_version' set to the string '1.0'."
+      }
+    ],
+    "input_artifacts": [
+      "scratchpad_lookup.v",
+      "fault_model.json",
+      "design_brief.md",
+      "testbench_timing.v"
+    ],
+    "interface": "The RTL module is `scratchpad_lookup` in inputs/scratchpad_lookup.v with ports: `input clk`, `input rst_n` (active-low synchronous reset; on rst_n=0 the module returns to IDLE on the next posedge clk and `valid` is deasserted), `input start` (pulse for 1 cycle to begin a lookup), `input [7:0] index` (the secret-derived lookup index; index[7] selects the bank: 0 -> fast bank with 1-cycle access, 1 -> slow bank with 3-cycle access; index[6:0] selects the offset within the 128-entry bank), `output reg [15:0] data_out` (the looked-up value, valid only when `valid` is high), `output reg valid` (Moore output, asserted exactly one cycle when data_out is ready then deasserted the next cycle unless another start is pending). Timing contract: after `start` is asserted for one cycle while the module is IDLE, `valid` rises exactly N cycles later where N = 1 if index[7]=0 and N = 3 if index[7]=1, counting the cycle after the `start` pulse as cycle 1; data_out is stable and correct on the same cycle `valid` is high. The module ignores `start` while busy. The submission is a JSON report, not code; it must be placed at submission/vulnerability_report.json and is graded against the RTL's observed and documented behavior, optionally cross-checked by simulating inputs/testbench_timing.v with iverilog/vvp.",
+    "objective": "Analyze the provided synthesizable RTL lookup unit (scratchpad_lookup.v), which fetches a data word from one of two internal scratchpad banks based on a secret-derived index, and produce a structured vulnerability_report.json describing any observable timing behavior tied to the index, plus a concrete mitigation that keeps the lookup functionally identical while removing that timing dependence.",
+    "response_format": "A single JSON file at submission/vulnerability_report.json with top-level object containing at minimum: module_under_test (string), functional_correctness_confirmed (boolean), latency_measurements (array of 2 objects with bank_select_bit_value and observed_latency_cycles), report_format_version (string '1.0'), leaking_index_bits (array of integers), latency_divergent_paths (array of strings describing the RTL signal/path names or FSM states responsible for the divergent timing, e.g. FSM state names from scratchpad_lookup.v), and mitigation (object with fields 'strategy' (string) and 'description' (string) describing a constant-latency fix)."
+  },
+  "task_id": "sca_scratchpad_index_timing_leak_001",
+  "title": "Secret-dependent scratchpad index timing in a lookup unit"
+}

@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The RTL module must be fully self-contained and synthesizable/simulatable with iverilog without external libraries.",
+    "The module's fault-free reseed behavior (entropy_ready asserted during reseed_req) must be documented as correct and must in fact function correctly in the shipped RTL.",
+    "The default constant loaded into seed_reg when entropy_ready is low during reseed must be explicitly documented in a comment adjacent to its declaration in trng_postproc.v.",
+    "The fault_model.json file must describe the entropy_ready-held-low fault scenario as one of the enumerated fault classes, without naming it as the intended vulnerability.",
+    "Participants must not edit any file under inputs/; only submission/vulnerability_report.json is graded."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The report JSON must contain top-level fields: 'faultable_signal' (string, exact RTL signal name), 'fixed_state_value' (string, hex value e.g. '0x????????' matching the documented default constant found in trng_postproc.v comments), 'trigger_condition' (string describing the exact input sequence: reseed_req asserted while entropy_ready held low), and 'mitigation' (string)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must include a field 'affected_outputs' listing the output ports (from {rand_out, seed_valid}) whose values become predictable once the fault is applied, and a field 'documented_reseed_behavior_correct' (boolean) stating whether the fault-free reseed path (entropy_ready high) is functionally correct per the interface contract."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must include a field 'simulation_trace_description' (string) describing a concrete cycle-by-cycle iverilog testbench scenario (reset, then reseed_req=1 with entropy_ready=0 held for at least 2 cycles) that an evaluator could replay against inputs/trng_postproc.v to observe seed_reg loading the fixed constant."
+    },
+    {
+      "id": "FR4",
+      "requirement": "All required fields must be present with the correct JSON types (strings, booleans, arrays of strings as specified); the file must be valid JSON parseable by a standard JSON parser."
+    }
+  ],
+  "input_artifacts": [
+    "trng_postproc.v",
+    "fault_model.json",
+    "design_brief.md"
+  ],
+  "interface": "Module under analysis: trng_postproc, defined in inputs/trng_postproc.v. Ports: input clk (system clock), input rst_n (active-low synchronous reset; on assertion seed_reg and health_ctr load their documented reset values on the next rising clk edge), input entropy_ready (handshake input from upstream entropy source; public control signal, not itself secret, but its value gates whether fresh entropy or the documented default constant is latched into seed_reg during a reseed cycle), input [31:0] entropy_in (raw entropy sample, secret), input reseed_req (public control input requesting a reseed cycle), output reg [31:0] rand_out (whitened random output, secret-derived, Moore output registered on clk), output reg seed_valid (Moore output, asserted the cycle after a successful reseed that latched fresh entropy_in, registered on clk). Behavior to document: when reseed_req is asserted and entropy_ready is high on the same rising clk edge, seed_reg <= entropy_in on that edge and seed_valid is asserted one cycle later; when reseed_req is asserted while entropy_ready is low, seed_reg is loaded from a fixed internal default constant (documented in the module comments) on that same edge, and rand_out is subsequently derived from that constant every cycle thereafter with no further entropy mixing until a successful reseed occurs. The submission is a report file, not code; it must not modify inputs/trng_postproc.v. Answer file: submission/vulnerability_report.json, matching the schema in response_format.",
+  "objective": "Analyze the provided TRNG post-processor RTL module (trng_postproc.v) together with its fault model (fault_model.json) and produce a vulnerability report describing how the reseed logic behaves under the documented fault scenarios, and propose concrete hardening measures. The module conditions raw entropy samples into a whitened output seed using an internal seed register that is reloaded during a reseed window governed by a ready handshake from an upstream entropy source.",
+  "response_format": "submission/vulnerability_report.json must be a single JSON object with exactly these top-level keys: faultable_signal (string), fixed_state_value (string, lowercase 0x-prefixed 32-bit hex), trigger_condition (string), affected_outputs (array of strings, subset of [\"rand_out\",\"seed_valid\"]), documented_reseed_behavior_correct (boolean), mitigation (string), simulation_trace_description (string). No extra top-level keys are required but additional keys are permitted and ignored by the grader."
+}

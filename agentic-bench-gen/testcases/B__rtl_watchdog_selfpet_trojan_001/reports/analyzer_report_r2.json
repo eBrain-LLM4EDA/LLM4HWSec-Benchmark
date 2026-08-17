@@ -1,0 +1,85 @@
+{
+  "issues": [
+    {
+      "artifact": "mutation coverage",
+      "description": "Mutation testing shows FR2, SR1, and SR3 have no targeting mutant detected by their own checks, indicating a requirement coverage gap in the mutation validation despite the checks existing in evaluate.py and being logically sound on inspection.",
+      "evidence": "per_requirement_coverage: FR2 covered=false (0/1), SR1 covered=false (0/1), SR3 covered=false (0/1); mutation_score=0.571; uncovered_requirements: [FR2, SR1, SR3]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "validation report mutation_status",
+      "description": "mutation_score of 0.571 with three uncovered requirements suggests the mutant set provided for validation did not include targeted mutants (e.g., sr1_wrong_trigger_value, sr3_spurious_finding_on_wdt_ctrl) actually being run/detected in this validation pass, even though the requirement_map describes such mutants as expected to be caught.",
+      "evidence": "requirement_map lists expected_detection for SR1 catching sr1_wrong_trigger_value mutant and SR3 catching sr3_spurious_finding_on_wdt_ctrl mutant, but per_requirement_discrimination shows 0 mutants_detected for both.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Re-run mutation testing with the specific mutants described in the manifest (sr1_wrong_trigger_value reporting e.g. 0xDEADBEEF instead of 0xDEADC0DE, and sr3_spurious_finding_on_wdt_ctrl with disable-toggle mischaracterized as hidden trigger logic) to confirm SR1 and SR3 checks actually detect them, since the validation report shows 0/1 mutants detected for these despite manifest claims of prior verification.",
+    "Add or verify an FR2-targeting mutant (e.g., a report that names 0x0C but with no explicit data value, or omits the trigger pair entirely while still having non-empty findings) to close the FR2 coverage gap shown in the validation report.",
+    "Investigate why the validation harness reports 0 detected mutants for FR2/SR1/SR3 given that per-check logic in evaluate.py appears capable of catching the described mutant classes on manual code review; this discrepancy suggests either the mutants were not actually generated/run in this validation pass or there is a latent harness wiring issue that should be resolved before relying on mutation_score as a quality gate."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "evaluate.py explicitly catches JSON parse errors and reports as FR1 FAIL with safe fallback; baseline run confirms golden report passes FR1 and naive baseline (empty findings) fails FR1 ('findings is empty').",
+      "requirement": "FR1 - JSON schema conformance and parse-failure handling",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr2 looks for a finding naming addr 0x0C with any data token; golden passes, naive baseline fails via FR1 cascade. However mutation validation shows no dedicated mutant confirmed detection for FR2 specifically.",
+      "requirement": "FR2 - explicit address/data trigger pair distinct from documented pet",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr3 verifies boolean false and contrastive keyword scan; validated by mutation_score with FR3 covered=true (1/1 mutant detected).",
+      "requirement": "FR3 - reset_req_reliable=false with contrastive summary",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr4 verifies severity in {low,medium,high,critical}; FR4 covered=true (1/1) in mutation testing.",
+      "requirement": "FR4 - severity field per finding",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr1 structurally derives true magic constant from RTL and cross-checks reported value plus optional simulation corroboration; logic appears correct and well-designed, but validation mutation testing shows 0/1 detected, indicating the sr1_wrong_trigger_value mutant was not actually exercised in this validation run despite being described in requirement_map.",
+      "requirement": "SR1 - correct trigger localization (0x0C + 0xDEADC0DE) with reload description",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr2 validated; SR2 covered=true (1/1 mutant detected) in mutation testing, and baseline/golden runs confirm expected pass/fail behavior.",
+      "requirement": "SR2 - reset_req_reliable=false and documented pet not mischaracterized",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr3 uses broad semantic keyword matching per repair notes; logic appears sound for catching rephrased mischaracterizations, but mutation validation shows 0/1 detected for SR3's own targeted mutant, an unresolved coverage gap despite manifest claiming verification against a reintroduced mutant.",
+      "requirement": "SR3 - no spurious findings on WDT_CTRL/WDT_TIMEOUT mischaracterized as hidden trigger logic",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run shows exit_code=1 with all FR/SR requirements FAILing as expected (findings empty cascades through FR1).",
+      "requirement": "Baseline (naive/empty) must fail",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run shows exit_code=0, all PASS lines, matching baseline_run and mutation_baseline_run outputs.",
+      "requirement": "Golden/correct submission must pass",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, register_map.md contain no mention of 0xDEADC0DE, CWE ids, SR/FR ids, or any indication that 0x0C conceals trojan logic; register_map.md explicitly (and consistently with the vendor-facing fiction) describes 0x0C as having no functional effect.",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py includes optional iverilog/vvp simulation corroboration (tb_wdt_trojan_check.v) that injects the reported magic value at address 0x0C and checks whether reset_req fails to assert at expected timeout, providing a dynamic behavioral check beyond text pattern matching.",
+      "requirement": "Security-relevant behavior actively triggered (not just static text matching)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type=functional and SR1-SR3 as requirement_type=security, each with distinct expected_detection criteria and test_files.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

@@ -1,0 +1,94 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/harness_main.cpp / evaluate.py",
+      "description": "The golden reference solution (golden/cipher_kernel.cpp) is rejected by the evaluator. SR1 and SR2 fail against the expert/golden hardened implementation because the grader relies on a cooperating __probe_register(&round_keys[0]) hook that the golden solution never calls. The differential harness confirms golden_run.status=fail (expected pass), an exact reproduction of the vulnerable_run result. This is a fundamental evaluator/ground-truth mismatch: a genuinely correct, fully-hardened submission (using e.g. a volatile-pointer zeroing loop as described in design_brief.md) cannot pass SR1/SR2 unless it also happens to call an undocumented, harness-only hook that is not part of the public interface, not mentioned in README.md/design_brief.md as required, and not part of cipher_kernel.h.",
+      "evidence": "differential.golden_run: exit_code=1, expected='pass', status='fail'; SR1/SR2 FAIL messages: 'submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0)' for all pairs at -O0/-O2/-O3.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py, evaluation/harness_main.cpp",
+      "description": "The detection strategy for SR1/SR2 specified in hidden_spec relies on a stack-probing alias technique (cooperating global pointer OR same-depth stack re-entry), but the implemented harness only supports the cooperating-global-pointer variant via an undocumented weak symbol __probe_register that participants have no way of knowing about from any public artifact (README.md, design_brief.md, cipher_kernel.h). This makes the security requirement effectively unimplementable by any participant following only the public spec, since no public artifact instructs them to call this specific hook.",
+      "evidence": "README.md and design_brief.md only describe using a volatile-qualified pointer or equivalent anti-optimization technique for clearing; neither mentions __probe_register, a required capture call, or any hook contract needed to satisfy SR1/SR2.",
+      "severity": "high"
+    },
+    {
+      "artifact": "mutation_status/coverage",
+      "description": "Because the golden solution fails preflight differential validation, mutation_score is 0.0 and mutation_score_meaningful is false, and requirement_discrimination_coverage_score is 0.0 despite requirement_mapping_coverage_score of 1.0. This means the benchmark case cannot currently discriminate correct hardened submissions from insecure ones in a meaningful, verifiable way.",
+      "evidence": "mutation_status: 'blocked_by_differential'; mutation_score: 0.0; requirement_discrimination_coverage_score: 0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "metadata.json / manifest",
+      "description": "input_artifacts field lists 'cipher_kernel.h.notusedplaceholder' which is a placeholder file explicitly marked for removal in the manifest, but it still appears listed as an input artifact reference, causing a minor inconsistency between manifest intent and metadata contents.",
+      "evidence": "issues list: 'input_artifact_not_filename: input_artifacts entry is not a plain filename: cipher_kernel.h.notusedplaceholder'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Redesign the SR1/SR2/SR4 detection mechanism so it does not depend on an undocumented, harness-only cooperating hook (__probe_register) that the golden solution and any correctly-hardened participant submission written per the public README/design_brief would have no reason to call. Either (a) document the hook explicitly as a required part of the public interface/contract (though this weakens the 'implicit hardening' spirit of the task), or (b) implement a genuinely reliable stack-inspection technique that works without any cooperation from the submitted code, e.g. via debug-info-based frame-pointer walking, address sanitizer instrumentation, or a compiler-inserted canary at a fixed, tool-computed offset.",
+    "Update the golden reference implementation (golden/cipher_kernel.cpp) to call the required capture hook if the intended design is for participants to opt into this cooperative probing mechanism, and clearly document this requirement in README.md and design_brief.md so participants have a fair, discoverable way to satisfy SR1/SR2.",
+    "Re-run the differential validation after fixing the harness/golden mismatch to confirm mutation_score and requirement_discrimination_coverage_score are no longer blocked/zero.",
+    "Remove or properly annotate the 'cipher_kernel.h.notusedplaceholder' file from input_artifacts listings so manifest and metadata stay consistent; it should not appear as a citable input artifact if it is intended for exclusion.",
+    "Add an explicit acceptance test in the tester bundle that runs evaluate.py directly against the known-good golden file before shipping the benchmark, catching this exact golden_rejected condition earlier."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run and vulnerable_run both show '[TEST] PASS: FR1'",
+      "requirement": "FR1: known-answer vector K1/P1 produces correct ciphertext",
+      "status": "pass"
+    },
+    {
+      "evidence": "'[TEST] PASS: FR2' in both golden and vulnerable runs",
+      "requirement": "FR2: known-answer vector K2/P2 (all-zero) produces correct ciphertext",
+      "status": "pass"
+    },
+    {
+      "evidence": "'[TEST] PASS: FR3' in both runs",
+      "requirement": "FR3: compiles cleanly at -O2 and reproduces FR1/FR2",
+      "status": "pass"
+    },
+    {
+      "evidence": "'[TEST] PASS: FR4' in both runs",
+      "requirement": "FR4: no state carry-over between calls",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails SR1 with REGISTERED:0 for all 4 pairs; golden solution does not call the undocumented __probe_register hook, so the harness cannot verify zeroing despite (presumably) correct hardening in golden/cipher_kernel.cpp.",
+      "requirement": "SR1: round_keys zeroed post-return at -O0",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run fails SR2 identically to SR1, with REGISTERED:0 at both -O2 and -O3 for all pairs \u2014 confirms evaluator/ground-truth mismatch, not a real security failure of the golden solution.",
+      "requirement": "SR2: zeroing survives optimization at -O2/-O3",
+      "status": "fail"
+    },
+    {
+      "evidence": "'[TEST] PASS: SR3' in both golden and vulnerable runs",
+      "requirement": "SR3: zeroing does not alter correctness",
+      "status": "pass"
+    },
+    {
+      "evidence": "'[TEST] PASS: SR4' in both runs (lenient heuristic passes trivially since REGISTERED:0 yields all-zero adjacent regions by harness fallback)",
+      "requirement": "SR4: no key-dependent residue in adjacent scratch",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.status='fail', failure_class='golden_rejected': the shipped golden hardened solution is rejected (exit_code=1) when it should be accepted (expected='pass'); the vulnerable baseline is correctly rejected but so is the golden, so the evaluator cannot discriminate.",
+      "requirement": "Evaluator accepts golden/correct submission and rejects insecure baseline (submission contract)",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md frame the task as general robustness/hygiene guidance without mentioning CWE-226/CWE-212/CWE-200, SR1-SR4 ids, or explicit vulnerability framing.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) into public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are concrete: two fixed known-answer vectors, a compile check, and a repeatability/no-carry-over check, all verifiable via the pinned encrypt_block interface.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

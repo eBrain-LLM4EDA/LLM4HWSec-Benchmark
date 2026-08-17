@@ -1,0 +1,120 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/cipher_kernel.cpp",
+    "inputs/cipher_kernel.h",
+    "inputs/cipher_kernel.h.notusedplaceholder",
+    "inputs/design_brief.md",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "5052bfa4632c4d03d7b90b9f1613b59d548821bd5b34b9abbce4166eb559cae0",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: pair #0 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0)\n[TEST] FAIL: SR2: pair #0 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #0 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0)\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: pair #0 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0)\n[TEST] FAIL: SR2: pair #0 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O2: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #0 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O3: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0)\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/cipher_kernel.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "input_artifacts entry is not a plain filename: 'cipher_kernel.h.notusedplaceholder'",
+      "issue": "input_artifact_not_filename"
+    },
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SR1: pair #0 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O0: submission did not expose round_keys addres",
+        "failure_class": "golden_rejected",
+        "failure_signature": "5052bfa4632c4d03d7b90b9f1613b59d548821bd5b34b9abbce4166eb559cae0"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: SR1: pair #0 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #1 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #2 at -O0: submission did not expose round_keys address via cooperating capture hook required for deterministic probing (REGISTERED:0); pair #3 at -O0: submission did not expose round_keys addres",
+        "failure_class": "golden_rejected",
+        "failure_signature": "5052bfa4632c4d03d7b90b9f1613b59d548821bd5b34b9abbce4166eb559cae0"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "5052bfa4632c4d03d7b90b9f1613b59d548821bd5b34b9abbce4166eb559cae0",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "9864e21869cc941ff63ad8c4e5d3eb0ab0f0bdf711fb778b4b41c033cfd88ba0",
+        "changed": true,
+        "golden": "golden/cipher_kernel.cpp",
+        "golden_sha256": "427aeaf2a8de20c2f93b8ee27bdc080d8f280b0560e702d456ca583f214985c2",
+        "target": "inputs/cipher_kernel.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/cipher_kernel.h",
+      "inputs/cipher_kernel.cpp"
+    ],
+    "unmapped_targets": [
+      "inputs/cipher_kernel.h"
+    ]
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": []
+}

@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "scalar_mult_ctrl.v and field_datapath.v must be fully self-contained, synthesizable-style Verilog-2001 that compiles and simulates cleanly with iverilog/vvp without external IP.",
+    "The controller must produce numerically correct scalar-multiplication results (verifiable against a simple reference computation) for all 16-bit scalars including 0 and 65535.",
+    "field_datapath.v must implement DOUBLE and ADD as separate operations with distinguishable, non-trivial multi-cycle latency (e.g., >=3 cycles each) so cycle counts are measurable and meaningfully different when ADD is skipped.",
+    "Participants must not edit files under inputs/; only submission/vulnerability_report.json is graded.",
+    "fault_model.md and design_brief.md must describe only functional behavior (operation sequencing, timing, state machine) without naming any security concept, CWE, or vulnerability class."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json describing the scalar-dependent control path, per-bit cycle signature, and a remediation that preserves correctness while equalizing timing"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "vulnerability_report.json must be valid JSON containing top-level string fields 'vulnerable_signal', 'vulnerable_states', 'timing_dependency_description', and 'remediation_description', plus an array field 'cycle_counts_by_scalar' of objects each with integer fields 'scalar' and 'cycle_count'."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The 'cycle_counts_by_scalar' array must include entries for at least four distinct 16-bit scalars spanning low Hamming weight (<=2 set bits), high Hamming weight (>=14 set bits), and at least two intermediate weights, with cycle_count values that are internally consistent with a simulation of scalar_mult_ctrl.v (i.e., reproducible by running the provided netlist with iverilog for the same scalars)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must include a boolean field 'preserves_correct_output' asserting whether the proposed remediation preserves correct scalar-multiplication results, and a string field 'remediation_rtl_sketch' giving a concrete Verilog-level description (e.g., always executing ADD into a discarded/dummy register when the bit is zero) sufficient to identify the fix at the RTL level."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a numeric field 'cycle_count_range' with 'min' and 'max' integer sub-fields reflecting the minimum and maximum observed cycle_count values across the scalars listed in 'cycle_counts_by_scalar'."
+    }
+  ],
+  "input_artifacts": [
+    "scalar_mult_ctrl.v",
+    "field_datapath.v",
+    "fault_model.md",
+    "design_brief.md"
+  ],
+  "interface": "Module under analysis: scalar_mult_ctrl.v, top module name `scalar_mult_ctrl` with ports: input wire clk, input wire rst_n (active-low synchronous reset), input wire start, input wire [15:0] scalar (secret, MSB-first, bit index 15 processed first), output reg done (Moore, asserted for exactly one cycle when the final bit's operations complete), output reg [63:0] result_x, output reg [63:0] result_y (public declassified outputs, valid only in the same cycle done is high and held until the next start). The controller exposes an additional debug output reg [2:0] state and output reg cycle_count_valid alongside output reg [15:0] cycle_count (a running count of clock cycles since start was asserted, latched when done is high) purely for analysis/simulation use; these are not part of the production interface but ARE readable during iverilog simulation for cycle-trace extraction. On start (1-cycle pulse while idle), the controller begins processing scalar bit 15 down to bit 0, performing one DOUBLE per bit always, and one ADD per bit conditionally. The submission is a single JSON file at submission/vulnerability_report.json (no code changes to inputs/ are permitted or graded); its required schema is given in response_format.",
+  "objective": "Analyze the provided RTL scalar-multiplication controller (scalar_mult_ctrl.v), which sequences DOUBLE and ADD operations over a compact field datapath to compute a scalar multiple of a base point, and produce a written vulnerability report describing its control-flow and cycle-timing behavior across different scalar values. The report must characterize how the controller's cycle count and internal state sequence vary as a function of the input scalar, and propose a concrete RTL remediation that equalizes the observed behavior while preserving correct outputs.",
+  "response_format": "submission/vulnerability_report.json must be a single JSON object with fields: vulnerable_signal (string), vulnerable_states (string), timing_dependency_description (string), remediation_description (string), remediation_rtl_sketch (string), preserves_correct_output (boolean), cycle_count_range (object with integer min and max), and cycle_counts_by_scalar (array of {scalar: integer, cycle_count: integer})."
+}

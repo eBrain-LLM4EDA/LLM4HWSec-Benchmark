@@ -1,0 +1,39 @@
+{
+  "acceptance_criteria": [
+    "All four FR fields are present with correctly typed values matching the actual simulated baseline behavior (FR1-FR4).",
+    "The reported early_exit_signal correctly names or unambiguously identifies the mismatch-triggered early-termination logic in signature_compare.v (SR1).",
+    "The reported cycle_relationship formula predicts iverilog-measured cycle counts within +/-1 cycle for all 17 test cases (SR2).",
+    "The constant_time_fix description contains all three required remediation elements: no early exit, full 16-byte scan, sticky/accumulated mismatch flag (SR3).",
+    "The report does not falsely claim the baseline design is already constant-time (SR4).",
+    "A naive/empty baseline submission (missing fields or generic boilerplate) fails at least SR1-SR3."
+  ],
+  "cwe_ids": [
+    "CWE-208",
+    "CWE-385",
+    "CWE-203"
+  ],
+  "ground_truth": "The comparator's internal FSM asserts done immediately (one cycle later) when an internal mismatch_found register goes high upon detecting the first differing byte pair, rather than continuing to consume all 16 bytes; consequently cycles_to_done = k + 2 where k is the 0-indexed byte position of the first mismatch (k=0 -> 2 cycles, k=15 or full match -> 17-18 cycles). This creates a timing side channel: an attacker who can measure done-assertion latency (e.g. via power/EM trace or shared-resource timing) can forge a valid signature one byte at a time by observing which byte value maximizes the cycle count before done asserts, then incrementally extending the matching prefix. The fix is to remove the early-exit branch and instead scan all 16 bytes unconditionally each comparison, accumulating a sticky mismatch flag (e.g. via bitwise OR of per-byte inequality each cycle) and asserting done only after the 16th byte has been consumed, regardless of any earlier mismatch, so cycle count is constant and independent of where (or whether) a mismatch occurs.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String/semantic match of the reported 'early_exit_signal' field against the actual signal name(s) in signature_compare.v that gate the early assertion of done upon first mismatch; evaluator inspects the shipped RTL source and checks the reported identifier corresponds to that logic (exact name or a clearly equivalent functional description referencing the same net).",
+      "id": "SR1",
+      "requirement": "The report must correctly identify the specific internal control signal or FSM state (functionally equivalent to a 'mismatch_found'/early-exit condition) that causes done to assert before all 16 bytes have been consumed."
+    },
+    {
+      "detection_strategy": "Evaluator runs iverilog/vvp on the reference testbench_harness.v against inputs/signature_compare.v for all 17 cases (mismatch at each of 16 positions, plus full match), extracts actual cycle counts, and checks the participant's stated formula/relationship in 'cycle_relationship' predicts each measured value within +/-1 cycle.",
+      "id": "SR2",
+      "requirement": "The report must correctly characterize the quantitative relationship between cycles-to-done and the position of the first mismatching byte (linear, offset by a small fixed constant), matching the ground-truth formula within a tolerance of +/-1 cycle at each of the 16 mismatch positions plus the full-match case."
+    },
+    {
+      "detection_strategy": "Evaluator checks the fix description for the required elements: (a) removal/bypass of any early termination on first mismatch, (b) unconditional consumption of all 16 bytes every comparison, (c) accumulation of a sticky/latched mismatch indicator rather than an immediate branch. Semantic keyword/structure matching against these three criteria; a fix that only adds cosmetic delay without removing the early-exit branch is rejected.",
+      "id": "SR3",
+      "requirement": "The proposed constant_time_fix must eliminate the data-dependent timing variation (i.e., produce a design where cycles-to-done is identical for all mismatch positions and the full-match case) while preserving correct match/mismatch verdicts."
+    },
+    {
+      "detection_strategy": "Evaluator flags any report whose 'cycle_relationship' or overall narrative claims a fixed/constant cycle count in the baseline (unfixed) design as a hard fail, since this contradicts the measured ground truth from iverilog simulation.",
+      "id": "SR4",
+      "requirement": "The report must not claim the design is already constant-time or that no timing leakage exists."
+    }
+  ],
+  "threat_model": "An adversary with the ability to trigger comparisons and measure elapsed cycles (or a correlated physical proxy such as power draw or EM emission per cycle) between issuing 'start' and observing 'done' can perform a byte-at-a-time forgery attack: for a fixed guessed prefix, the attacker tries all 256 values for the next byte and observes which one causes the comparator to run one cycle longer (indicating that byte matched), repeating this process to reconstruct or forge a valid 16-byte signature in O(256*16) trials instead of O(256^16), completely defeating the security purpose of the comparison."
+}

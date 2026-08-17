@@ -1,0 +1,33 @@
+{
+  "acceptance_criteria": [
+    "Reference and submission produce identical ciphertext/tag outputs for all calls made while the counter is below its maximum, given identical AEAD_TEST_COUNTER_START seeding.",
+    "Submission returns a nonzero, non-zero-overlapping-with-success error code on the call where the counter would otherwise wrap, and every call thereafter.",
+    "No bytes are written to ciphertext_out or tag_out on any call that returns the nonzero error code.",
+    "The insecure baseline shipped in inputs/ fails at least one of the above checks (specifically, it returns 0 and emits ciphertext reusing nonce 0 after wraparound)."
+  ],
+  "cwe_ids": [
+    "CWE-323",
+    "CWE-330",
+    "CWE-190",
+    "CWE-696"
+  ],
+  "ground_truth": "A correct hardened aead_encrypt_call keeps an internal static uint32_t counter starting at 0. On each call, before doing any encryption work it checks whether the counter has already reached 0xFFFFFFFF and been used for a prior call (i.e., all nonce values are exhausted). If exhausted, it returns a nonzero error code immediately without touching ciphertext_out or tag_out and without incrementing the counter further. Otherwise, it uses the current counter value concatenated with a fixed base nonce to derive the AES-based encryption nonce, computes ciphertext_out and tag_out via the provided AES primitive, increments the counter by 1, and returns 0. The insecure baseline instead increments the counter unconditionally with a plain `counter++`, which in C++ silently wraps unsigned integers modulo 2^32, causing nonce reuse: after reaching 0xFFFFFFFF the very next call reuses counter value 0 again, producing an identical nonce (and thus a repeated keystream under the same key) to the very first call ever made. The harness detects this by driving the counter to its maximum via repeated calls (using a reduced-range build-time hook or by calling the function 2^32 times is infeasible, so the harness instead uses a test-only counter-seeding mechanism: the submission must expose the counter's exhaustion behavior observably by allowing the harness to call a small number of times after pre-loading state through a documented test seam) -- concretely, the harness compiles the submission together with a test harness that #defines the counter's starting value via a compile-time macro AEAD_TEST_COUNTER_START, which both the reference and any correct hardened submission must honor (defaulting to 0 if undefined), letting the harness set it near 0xFFFFFFFF - 2 and observe wraparound behavior within a handful of calls.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compile with -DAEAD_TEST_COUNTER_START=0xFFFFFFFD (or similar), call aead_encrypt_call repeatedly, and verify that after the counter would wrap, the function returns a nonzero error code instead of returning 0 and reproducing the ciphertext/nonce pattern seen at counter value 0 from an earlier fresh run.",
+      "id": "SR1",
+      "requirement": "The nonce counter must never be reused: once the counter has been incremented through its full range and reached the point where no fresh nonce value remains, the function must refuse to encrypt rather than silently wrapping back to a previously used counter value."
+    },
+    {
+      "detection_strategy": "Pre-fill ciphertext_out and tag_out with sentinel byte patterns before the exhausting call; after the call returns the nonzero error code, verify the buffers still contain the untouched sentinel bytes.",
+      "id": "SR2",
+      "requirement": "When the counter-exhaustion error path is taken, the function must not write any bytes to ciphertext_out or tag_out, preventing emission of ciphertext produced (or partially produced) under a reused/undefined nonce state."
+    },
+    {
+      "detection_strategy": "Static-plus-behavioral cross-check: run near-boundary sequences (counter at max-1, max, and one past max under the test seam) and confirm the transition to the error state happens exactly at the boundary call, with no off-by-one call that reuses counter 0 successfully.",
+      "id": "SR3",
+      "requirement": "The unsigned counter increment must be guarded against silent unsigned integer wraparound (CWE-190); the check for exhaustion must occur before any encryption side effects, not only after an already-wrapped value is used."
+    }
+  ],
+  "threat_model": "Under AEAD constructions (e.g., AES-GCM-style), reusing a nonce with the same key for two different plaintexts catastrophically breaks confidentiality (keystream reuse allows plaintext recovery via XOR) and can break authenticity/integrity guarantees (forgery of the authentication tag becomes feasible). A 32-bit deterministic counter that silently wraps after 2^32 calls will eventually reuse nonce 0, silently re-encrypting under an already-used nonce with no observable error, which is exactly the failure this task must prevent."
+}

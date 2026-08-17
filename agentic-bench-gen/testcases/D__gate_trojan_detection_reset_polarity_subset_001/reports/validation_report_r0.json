@@ -1,0 +1,113 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4",
+    "SR5"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/gate_netlist.v",
+    "inputs/testbench_reset_trace.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "3e0a24b33747354413711ab4371ca3bcd010a8ab776397ed886ab9152bc09eb1",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] FAIL: SR5: simulation-observed persistent flops [] do not match structurally-derived suspect flops ['u_priv_ff1', 'u_priv_ff2']; submission suspect_flops does not match simulation-observed persistent set (submitted-but-not-persistent: ['u_priv_ff1', 'u_priv_ff2'])\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: trojan_present=False but ground truth is True (anomalous reset wiring present)\n[TEST] FAIL: SR2: suspect_flops does not exactly match ground truth (omitted: u_priv_ff1, u_priv_ff2)\n[TEST] FAIL: SR3: anomaly_description does not substantively describe an inverted/complemented reset polarity defect (must co-locate a reset term with a polarity/inversion term)\n[TEST] FAIL: SR4: group 'RSTN' mixes true suspect flop(s) with non-suspect flop(s): u_ctrl_ff0, u_ctrl_ff1, u_ctrl_ff2, u_ctrl_ff3, u_dp_ff4, u_dp_ff5\n[TEST] FAIL: SR5: simulation-observed persistent flops [] do not match structurally-derived suspect flops ['u_priv_ff1', 'u_priv_ff2']\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SR5: simulation-observed persistent flops [] do not match structurally-derived suspect flops ['u_priv_ff1', 'u_priv_ff2']; submission suspect_flops does not match simulation-observed persistent set (submitted-but-not-persistent: ['u_priv_ff1', 'u_priv_ff2'])",
+        "failure_class": "golden_rejected",
+        "failure_signature": "3e0a24b33747354413711ab4371ca3bcd010a8ab776397ed886ab9152bc09eb1"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: SR5: structurally-anomalous flop(s) did not exhibit observed persistence across the simulated reset pulse: ['u_priv_ff1', 'u_priv_ff2']; submission suspect_flops does not match simulation-observed persistent set (submitted-but-not-simulation-persistent: ['u_priv_ff1', 'u_priv_ff2'])",
+        "failure_class": "golden_rejected",
+        "failure_signature": "8cef755da6cf814f267b5b122c34e8f0521619a3b6a12e0d30a4fd0a3bb544c1"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "3e0a24b33747354413711ab4371ca3bcd010a8ab776397ed886ab9152bc09eb1",
+    "repair_paths": [
+      "evaluation/README.md",
+      "evaluation/tb_cross_check.v",
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 9,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "d9115900c5cfaebd8be45567a49cbdcbe60d1e1b54bb5c033ceefe623acafef6",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "09558aaf40c47fa11c4a0681a3fdb8dd011d1307ebbd129124bcaa636daacf9d",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/rubric_terms.py",
+    "evaluation/tb_cross_check.v"
+  ],
+  "uncovered_requirements": []
+}

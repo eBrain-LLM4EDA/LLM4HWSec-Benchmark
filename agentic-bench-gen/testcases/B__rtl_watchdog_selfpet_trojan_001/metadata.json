@@ -1,0 +1,46 @@
+{
+  "task_id": "rtl_watchdog_selfpet_trojan_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Self-petting watchdog Trojan defeating system recovery",
+  "description": "Review the RTL source of a watchdog timer peripheral (wdt_top) and its accompanying documentation to determine whether reset_req can be trusted to assert at the programmed timeout under all bus traffic. Produce a JSON analysis report identifying any logic path that can alter counter reload/timeout behavior outside the documented register interface.",
+  "input_artifacts": [
+    "inputs/wdt_top.v",
+    "inputs/design_brief.md",
+    "inputs/register_map.md"
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of required hidden findings correctly reported."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of reported findings that flag documented, non-anomalous behavior as suspicious."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Correctness and specificity of the reported trigger condition and payload mechanism versus a vague or generic description."
+    },
+    {
+      "name": "format_compliance",
+      "direction": "maximize",
+      "description": "Whether trojan_report.json conforms to the required schema and is machine-parsable."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "evaluation_mode": "report_grading",
+  "submission_kind": "analysis_report"
+}

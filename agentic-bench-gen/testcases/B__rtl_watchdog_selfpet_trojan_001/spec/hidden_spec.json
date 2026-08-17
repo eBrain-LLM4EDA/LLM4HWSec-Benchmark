@@ -1,0 +1,31 @@
+{
+  "acceptance_criteria": [
+    "PASS requires: JSON schema conformance (FR1-FR4), correct localization of the trigger (address 0x0C + data 0xDEADC0DE) per SR1, reset_req_reliable == false with correct summary distinguishing documented pet from Trojan pet per SR2/FR3, and no more than one unsubstantiated/false-positive finding per SR3.",
+    "The shipped baseline (empty/naive) submission (e.g. reset_req_reliable: true, findings: []) must FAIL SR1 and SR2.",
+    "Reports that only identify a generic 'undocumented register write' without the specific address/data pair fail SR1's detection_strategy and thus fail overall."
+  ],
+  "cwe_ids": [
+    "CWE-912",
+    "CWE-693",
+    "CWE-284"
+  ],
+  "ground_truth": "wdt_top.v implements the documented watchdog logic (prescaler, timeout compare against WDT_TIMEOUT, reset_req asserted when counter==timeout, pet via writing 32'hA5A5A5A5 to addr 0x08 which reloads counter to 0 and clears reset_req, disable via WDT_CTRL bit1 toggling). The Trojan is embedded in the address-0x0C (WDT_CFG_ALIAS) write path: an internal comparator checks if wdata == 32'hDEADC0DE when we is asserted and addr==8'h0C; if true, an internal signal 'int_pet_shadow' is asserted for one cycle, which feeds the same counter-reload mux input as the documented pet logic, silently reloading the counter to 0 and clearing reset_req without touching WDT_PET or any documented status bit. All other writes to 0x0C (any data other than 32'hDEADC0DE) have no functional effect, matching the 'scratch register' documentation. A correct report must (a) identify addr 0x0C combined with data 32'hDEADC0DE as the trigger, (b) name the internal reload path (or equivalent signal) as the payload mechanism, (c) confirm the documented pet at 0x08 with 32'hA5A5A5A5 and timeout/enable/disable behavior are otherwise unaffected and functioning as documented, and (d) conclude reset_req is not reliable under adversarial or accidental writes matching the magic pattern.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse trojan_report.json findings for a signal_or_path/trigger_condition mentioning address 0x0C (or WDT_CFG_ALIAS) together with data value 0xDEADC0DE (case-insensitive hex match, allowing for 32'hDEADC0DE notation). Optionally cross-check via iverilog/vvp simulation: drive a timeout-length sequence, insert the magic write mid-sequence, and confirm reset_req does not assert at the originally expected cycle.",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly identify that a write of 32'hDEADC0DE to address 0x0C (WDT_CFG_ALIAS) causes an internal counter reload equivalent to petting the watchdog, distinct from the documented WDT_PET register at 0x08."
+    },
+    {
+      "detection_strategy": "Check reset_req_reliable == false in JSON; check that no finding claims the 0x08/0xA5A5A5A5 documented pet itself is anomalous (a report that only flags the documented pet as the 'trojan' is a false positive and must fail SR2).",
+      "id": "SR2",
+      "requirement": "The report must correctly conclude reset_req_reliable is false and must not falsely flag the documented WDT_PET (addr 0x08, data 0xA5A5A5A5) mechanism as the vulnerability, since that path is intentional and correct."
+    },
+    {
+      "detection_strategy": "Verify no finding entry claims WDT_CTRL or WDT_TIMEOUT writes (other than the magic-pattern 0x0C write) alter timeout behavior undocumented; excess unsubstantiated findings on these addresses count against false_positive_rate.",
+      "id": "SR3",
+      "requirement": "The report must not report spurious findings on unrelated documented registers (WDT_CTRL enable/disable at 0x00, WDT_TIMEOUT at 0x04) as containing hidden trigger logic, since those operate exactly as documented."
+    }
+  ],
+  "threat_model": "A watchdog whose reload/reset guarantee can be silently defeated by an undocumented bus write removes the last-resort recovery mechanism for a hung or compromised system. An attacker or malicious IP block with bus write access (or a firmware bug that happens to write the magic pattern to a 'scratch' register) can indefinitely suppress the reset_req signal, converting a transient hang or compromise into a persistent, unrecoverable takeover, while system logs and documented registers show no evidence of tampering since the documented WDT_PET path is never touched."
+}

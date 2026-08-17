@@ -1,0 +1,71 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + golden/vulnerability_report.json",
+      "description": "Differential validation shows the golden (expert-correct) submission is REJECTED by the evaluator. The golden report's mismatch_at_zero_verdict is 'mismatch' but the RTL under test actually produces match=1 (i.e. the real early-exit branch sets match=0 only when mismatch found, but simulation with tb_reference.v shows measured verdict is 'match' for mismatch at position 0), indicating either the golden answer file is wrong/stale or the reference RTL/testbench does not behave as the hidden_spec ground truth claims. Additionally golden's cycle_relationship (k+2) fails against measured cycle counts which are all 17 regardless of k for even positions shown, suggesting the reference RTL used at grading time does not match the ground-truth \u2018k+2\u2019 early-exit behavior described in the hidden spec \u2014 i.e. there is a functional inconsistency between inputs/signature_compare.v (as shipped) and the evaluator's simulated ground truth, or a testbench/module port-order or byte-driving bug.",
+      "evidence": "golden_run stdout: '[TEST] FAIL: FR2: mismatch_at_zero_verdict='mismatch' does not match measured 'match'' and '[TEST] FAIL: SR2: ... k=0 predicted=2 measured=17; k=2 predicted=4 measured=17 ...' \u2014 measured cycles are constant at 17 for even k, contradicting the intended data-dependent leak and contradicting the golden report's correct k+2 formula.",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.status",
+      "description": "Because the golden solution fails, mutation_score is 0 and mutation_score_meaningful is false; the benchmark cannot currently distinguish correct analysis from incorrect analysis reliably, undermining the entire grading pipeline despite good requirement coverage on paper.",
+      "evidence": "mutation_status: blocked_by_differential; requirement_discrimination_coverage_score: 0.0",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Investigate the discrepancy in evaluation/tb_reference.v or inputs/signature_compare.v: measured cycle counts are constant (17) for even mismatch positions rather than following k+2, which contradicts the documented ground truth. Check the testbench's byte-driving loop for an off-by-one or conditional bug tied to even/odd mismatch position (e.g. mismatch byte value 0xA5 vs 0x5A may coincide with the incrementing pattern used for non-mismatch bytes at certain even indices, causing expected_byte==received_byte incorrectly, or a race in the 'i == mpos' check).",
+    "Regenerate or hand-verify the golden/vulnerability_report.json against an actual iverilog/vvp run of inputs/signature_compare.v with evaluation/tb_reference.v, and update either the golden answer or the RTL/testbench so they are mutually consistent before re-running differential validation.",
+    "After fixing the RTL/testbench inconsistency, re-run the differential harness to confirm golden passes (exit 0) and the naive baseline still fails, and confirm mutation_score becomes meaningful (non-zero) to validate discrimination power of SR1-SR4 checks.",
+    "Double check the byte pattern used in run_case: for non-mismatch positions the testbench sets expected_byte=received_byte=i (0..15), and for the mismatch position uses 0xA5 vs 0x5A -- verify this doesn't accidentally equal the incrementing pattern for some index causing a silent no-op mismatch injection at even indices."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden passes FR1 but golden fails FR2, indicating partial functional inconsistency between golden answer and simulated ground truth.",
+      "requirement": "FR1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Golden run: '[TEST] FAIL: FR2: mismatch_at_zero_verdict='mismatch' does not match measured 'match'' \u2014 the golden (presumably correct) report is rejected, meaning either golden is wrong or the RTL/testbench does not exhibit the expected mismatch-at-0 verdict.",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both golden and baseline pass FR3 field-shape checks appropriately (golden passes, baseline passes schema shape though values are placeholders).",
+      "requirement": "FR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR4; baseline correctly fails FR4. But overall pipeline validity is undermined by FR2/SR2 failures on golden.",
+      "requirement": "FR4",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Golden passes SR1; baseline correctly fails SR1 ('unknown' rejected).",
+      "requirement": "SR1",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run: SR2 fails with multiple mismatches between predicted (k+2) and measured (17) cycle counts for even k positions, indicating either the RTL doesn't implement the documented early-exit behavior consistently across even/odd positions or the testbench has a byte-driving/injection bug (e.g. mismatch byte not actually causing early exit for even k).",
+      "requirement": "SR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden passes SR3; baseline correctly fails SR3 ('none' rejected).",
+      "requirement": "SR3",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and baseline pass SR4 (no false constant-time claims detected).",
+      "requirement": "SR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run stdout shows baseline fails FR1, FR2, FR4, SR1, SR2, SR3 as required, only passing FR3 (schema shape) and SR4 (no false claim).",
+      "requirement": "Naive baseline must fail SR1-SR3",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

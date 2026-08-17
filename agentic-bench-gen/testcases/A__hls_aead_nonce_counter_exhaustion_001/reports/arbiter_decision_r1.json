@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs are clean: mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, validation_status=pass, baseline_exit_code=0, zero validation/analyzer issues, and analyzer_status=pass. The differential shows the golden solution passes all 7 requirement checks and the vulnerable baseline correctly fails on SR1/SR2/SR3 with clear, non-timing-related reasons tied to the counter-exhaustion vulnerability. Submission invariants confirm the target file (aead_wrapper.cpp) is graded in place and differs from golden/baseline as expected. The mutation bundle covers all FR/SR requirements with no dead checks or uncovered requirements. No missing interface, no leakage of hidden security intent into public artifacts, no evaluator bugs, and no evidence of golden rejection or vulnerable acceptance. The case meets all retention criteria.",
+  "retain_case": true,
+  "revision_instructions": "No revisions needed. The case is fully validated: golden accepted, insecure baseline and all mutants rejected, full requirement coverage, and no analyzer or validation issues detected.",
+  "root_cause": "none",
+  "source_round": 1
+}

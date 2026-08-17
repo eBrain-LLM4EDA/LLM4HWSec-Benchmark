@@ -1,0 +1,108 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found; insecure baseline (count-only validation) is provided as the lower-bound reference and is expected to fail SR1-SR4."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of hidden security test vectors (SR1-SR4, covering CWE-787, CWE-125, CWE-190, CWE-129, CWE-20) that trigger an out-of-bounds write/read, memory corruption, or incorrect acceptance of an invalid descriptor batch. Computed by running the compiled binary against overflow, wraparound, boundary, and partial-rejection descriptor sets and inspecting canary buffers and return codes.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "For this task this measures whether the destination buffer is left completely unmodified (all-zero, matching pre-call state) on every rejected batch, and byte-exact on every accepted batch, i.e. no partial or spurious writes occur regardless of descriptor validity mix.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Fraction of the submitted file that compiles successfully with g++ -std=c++17 -Wall -Wextra against the generated test harness and produces a runnable binary exposing scatter_gather_copy with C linkage.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      },
+      {
+        "description": "Fraction of public functional requirement test vectors (FR1-FR4) that produce the exact expected dst contents and return code.",
+        "direction": "maximize",
+        "name": "functional_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Compiles with g++ -std=c++17 -Wall -Wextra with zero errors.",
+      "Passes all in-range functional test vectors (FR1, FR2, FR4) producing byte-exact expected dst contents and status 0.",
+      "Rejects all overflow/wraparound/out-of-bounds descriptor vectors (SR1-SR4) with nonzero status and zero mutation of dst and no out-of-bounds memory access detected by canary/guard checks.",
+      "Baseline insecure reference implementation fails at least one of SR1-SR4 while the hardened ground truth passes all of them and all FRs."
+    ],
+    "cwe_ids": [
+      "CWE-787",
+      "CWE-125",
+      "CWE-190",
+      "CWE-129",
+      "CWE-20"
+    ],
+    "ground_truth": "A secure implementation first computes, for every descriptor i in 0..desc_count-1, whether offsets[i] + lengths[i] would exceed dst_len using an overflow-safe check (e.g. by using 64-bit accumulation such as (uint64_t)offsets[i] + (uint64_t)lengths[i] > (uint64_t)dst_len, or equivalently checking lengths[i] > dst_len - offsets[i] only after confirming offsets[i] <= dst_len), and similarly validates that the cumulative running source offset plus lengths[i] does not exceed src_len. It performs this validation pass over ALL descriptors before writing anything to dst. If any descriptor fails validation, the function returns a nonzero status and leaves dst completely unmodified (no partial writes from earlier valid-looking descriptors). Only if every descriptor passes validation does the function perform the actual memcpy operations in a second pass, returning 0. The insecure baseline only checks that desc_count does not exceed some maximum (e.g. desc_count <= 64) and then blindly loops calling memcpy(dst+offsets[i], src+running_offset, lengths[i]) for each entry without checking offsets[i]+lengths[i] against dst_len, allowing an attacker-controlled descriptor to write past the end of dst (heap/stack buffer overflow) or read past the end of src.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Harness supplies a descriptor with offsets[i] = 0xFFFFFFF0 and lengths[i] = 0x20 (sum overflows 32-bit unsigned arithmetic and wraps to a small value that would appear in-bounds under naive offset+length<=dst_len computed in 32-bit); a vulnerable implementation using pure 32-bit addition will incorrectly treat this as valid and either crash or corrupt memory outside dst, while the harness detects this via a canary buffer placed immediately after dst that must remain unmodified, plus a required nonzero return code.",
+        "id": "SR1",
+        "requirement": "Every descriptor entry's offset and length must be validated against the destination buffer size using arithmetic that cannot silently wrap around (e.g. widen to 64-bit before summing, or check via subtraction only after bounding the operand), before any byte is written to dst."
+      },
+      {
+        "detection_strategy": "Harness supplies desc_count=3 where descriptor 0 is valid and small, descriptor 1 is deliberately out of bounds, and descriptor 2 is valid; harness pre-fills dst with a known zero pattern, calls the function, and asserts dst is byte-for-byte unchanged (all zero) and the return code is nonzero, catching partial-copy-then-reject implementations.",
+        "id": "SR2",
+        "requirement": "If any single descriptor in the list is out of bounds, the entire batch must be rejected: no writes to dst may occur from any descriptor, including ones that appear earlier in the list and are individually valid."
+      },
+      {
+        "detection_strategy": "Harness supplies a src buffer smaller than the sum of lengths across descriptors (e.g. src_len=8 but total requested length=16) with valid, in-bounds destination offsets; a vulnerable implementation will read past the end of src (checked via an ASan-style guard page or a canary byte placed immediately after the src allocation using a heap-allocated buffer with a sentinel byte, verified unchanged, plus the function returning nonzero).",
+        "id": "SR3",
+        "requirement": "The cumulative source read position across all descriptors must also be validated against src_len before copying, preventing an attacker from crafting lengths that sum past the end of the source buffer even if individual destination offsets are in bounds."
+      },
+      {
+        "detection_strategy": "Harness runs boundary test vectors: one descriptor with offset=dst_len-length (exact fit, expect success and correct copy) and one with offset=dst_len-length+1 (one byte over, expect rejection and unchanged dst), checking off-by-one handling in the comparison logic.",
+        "id": "SR4",
+        "requirement": "A descriptor whose offset exactly equals dst_len with a nonzero length, or whose offset+length exactly equals dst_len, must be handled correctly at the boundary: offset+length==dst_len is valid (writes up to but not including index dst_len), offset+length>dst_len is invalid."
+      }
+    ],
+    "threat_model": "A peripheral or untrusted caller supplies a descriptor list where the count is small and passes a superficial count check, but individual entries encode an offset and length whose sum exceeds the destination buffer size, or whose sum wraps around the unsigned integer range back into a small in-range value. Without per-entry overflow-safe bounds checking performed before any copy occurs, this lets the peripheral write to or read from memory outside its assigned window, corrupting adjacent buffers or leaking adjacent memory contents."
+  },
+  "public_spec": {
+    "constraints": [
+      "The implementation must be self-contained in a single file with only standard C/C++ library includes (e.g. <cstdint>, <cstring>) so it compiles without external dependencies.",
+      "The function must not use dynamic memory allocation that could fail unpredictably; stack or caller-provided buffers only.",
+      "The function must process the full descriptor list; it must not stop early on the first valid-looking entry and skip validating the remainder.",
+      "The function must not modify dst_len, src_len, offsets, or lengths contents.",
+      "Behavior must be deterministic and independent of undefined behavior (no signed integer overflow, no out-of-bounds reads for validation itself)."
+    ],
+    "expected_outputs": [
+      "A modified inputs/scatter_gather.cpp that compiles standalone with g++ and correctly copies all descriptor entries when every entry is within bounds, and rejects the whole batch (writing nothing) and returns a nonzero status code when any single entry is out of bounds, including entries whose offset+length would overflow when computed naively."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "Given desc_count=3 with offsets={0,10,20}, lengths={10,10,10} on a dst_len=30 buffer and src_len=30 filled with sequential byte values 0..29, the function returns 0 and dst equals src byte-for-byte (a full in-order copy)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Given desc_count=2 with offsets={0,5}, lengths={5,5} on dst_len=10 and matching src of length 10, the function returns 0 and dst[0..9] equals src[0..9] in order, verifying multi-descriptor sequential source consumption is contiguous and correctly ordered."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The function compiles cleanly as a standalone translation unit with g++ -std=c++17 -Wall, exposing the symbol scatter_gather_copy with C linkage callable from a plain C test harness via a matching extern \"C\" declaration."
+      },
+      {
+        "id": "FR4",
+        "requirement": "Given desc_count=0, the function returns 0 immediately and performs no writes to dst, regardless of the values of dst_len, offsets, or lengths pointers passed (offsets/lengths may be null when desc_count is 0)."
+      }
+    ],
+    "input_artifacts": [
+      "scatter_gather.cpp",
+      "design_brief.md"
+    ],
+    "interface": "File: inputs/scatter_gather.cpp. The submission must define exactly this function (extern \"C\" linkage, no C++ name mangling), with this exact signature: extern \"C\" int scatter_gather_copy(const unsigned char* src, unsigned int src_len, unsigned char* dst, unsigned int dst_len, const unsigned int* offsets, const unsigned int* lengths, unsigned int desc_count); Parameters: src is the public source data buffer of length src_len bytes (input, read-only). dst is the destination buffer of length dst_len bytes (input/output; the harness allocates and zero-fills it before each call). offsets is an array of desc_count unsigned 32-bit values, each giving the byte offset into dst where the corresponding descriptor's data should be written. lengths is an array of desc_count unsigned 32-bit values, each giving the number of bytes to copy from src (sequentially, entry i reads src[running_src_offset .. +lengths[i]) where running_src_offset accumulates prior lengths starting at 0) into dst at offsets[i]. desc_count is the number of descriptor entries (0 to 64 inclusive; the harness never passes more than 64). Return value: the function returns 0 on success (every descriptor validated and copied) and a nonzero int (any nonzero value is acceptable) if any descriptor is invalid or if the cumulative source read would exceed src_len. On any nonzero return, dst must be left entirely as it was before the call (all zero bytes, since the harness zero-fills it). No secret data or side channels are involved; all buffers and lengths are ordinary public function arguments.",
+    "objective": "The file inputs/scatter_gather.cpp implements a scatter-gather engine that copies data from a source buffer into a destination buffer according to a list of descriptors, where each descriptor specifies an offset into the destination buffer and a length of data to copy starting at that offset. Harden this kernel so that it processes descriptor lists correctly and safely for any input the caller provides, producing a well-defined status code and leaving the destination buffer unmodified whenever any descriptor in the list would place data outside the bounds of the destination buffer. Update inputs/scatter_gather.cpp in place; do not change its public function signature.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_scatter_gather_descriptor_bounds_001",
+  "title": "Bounds validation across a scatter-gather descriptor list"
+}

@@ -1,0 +1,96 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found; internal insecure if-branch baseline (ground_truth's described insecure implementation) is provided as the reference FAIL case."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required functional test vectors (FR1-FR4: swap correctness for ctrl_bit=0/1 across multiple n values, plus successful g++ compilation) that pass when the submitted inputs/ladder_swap.cpp is compiled and executed against the generated harness.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      },
+      {
+        "description": "Fraction of hidden security requirements (SR1-SR3, mapped to CWE-208/CWE-385/CWE-200) that are violated, as determined by the branch-presence static detector and the dynamic access-trace/timing differential tests.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Binary/graded measure of whether the secret ctrl_bit's value can be distinguished from observable behavior (branch count, memory access order, or timing) across repeated dynamic trials; 1.0 means no observable difference detected, lower values indicate leakage.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Compiles successfully with g++ -std=c++17 -Wall -Wextra against the evaluator's test harness.",
+      "Produces byte-exact correct swap/no-swap results for ctrl_bit in {0,1} across n in {1,2,64,4096} and randomized array contents (FR1, FR2, FR3).",
+      "Static scan finds no branch conditioned on ctrl_bit or a value derived from it (SR1).",
+      "Dynamic access-trace comparison shows identical memory access patterns for ctrl_bit=0 vs ctrl_bit=1 at fixed n (SR2).",
+      "Timing differential between ctrl_bit=0 and ctrl_bit=1 runs stays within the generous threshold, ruling out branch-skipping timing leaks (SR3)."
+    ],
+    "cwe_ids": [
+      "CWE-208",
+      "CWE-385",
+      "CWE-200"
+    ],
+    "ground_truth": "The secure implementation computes a full-width mask = (uint32_t)0 - (uint32_t)(ctrl_bit & 1) (i.e., 0x00000000 if ctrl_bit==0, 0xFFFFFFFF if ctrl_bit==1), then for every index i performs: uint32_t t = mask & (P[i] ^ Q[i]); P[i] ^= t; Q[i] ^= t; This performs identical memory read/write operations and identical loop iteration count regardless of ctrl_bit's value, with no branch (if/ternary/short-circuit) whose condition depends on ctrl_bit or any value derived from it. The insecure baseline instead does `if (ctrl_bit) { for (i...) { std::swap(P[i], Q[i]); } }`, which introduces a data-dependent branch on the secret bit and causes measurably different instruction/control-flow paths (and, in real HLS/hardware synthesis, a data-dependent timing/power signature) between ctrl_bit==0 and ctrl_bit==1.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Static source scan (fail-on-presence detector) of the submitted inputs/ladder_swap.cpp for patterns like 'if' combined with an identifier textually or data-flow related to ctrl_bit, plus dynamic differential instruction-count / branch-count comparison: compile with instrumentation (e.g., -pg or manual counters injected by the harness via a wrapped copy) and confirm the number of basic blocks executed is identical for ctrl_bit=0 and ctrl_bit=1 across many n values.",
+        "id": "SR1",
+        "requirement": "The conditional_swap implementation must not contain any branch (if, ternary ?:, switch, loop-bound, or short-circuit && / ||) whose evaluated condition depends, directly or indirectly, on ctrl_bit."
+      },
+      {
+        "detection_strategy": "Dynamic behavioral test: run the harness with an instrumented build that logs the addresses/indices touched (via a lightweight shim swapping in instrumented array accessors) for ctrl_bit=0 and ctrl_bit=1 with the same n and assert the access traces are identical in length and address order (values may legitimately differ, but the pattern must not).",
+        "id": "SR2",
+        "requirement": "For fixed n, the sequence and count of memory read/write operations performed on P and Q must be identical (same addresses touched in the same order) regardless of ctrl_bit's value."
+      },
+      {
+        "detection_strategy": "Run each control value hundreds of times in a tight loop, discard outliers, and compare median timings; flag if the ratio exceeds a generous threshold (e.g., 3x) that would only be triggered by an if-guarded loop being skipped entirely, not by normal system jitter.",
+        "id": "SR3",
+        "requirement": "The wall-clock execution time of conditional_swap for ctrl_bit=0 must not be statistically distinguishable from ctrl_bit=1 within a wide tolerance, ruling out gross data-dependent branching that changes loop trip counts or adds/removes whole operations."
+      }
+    ],
+    "threat_model": "In an elliptic-curve Montgomery-ladder scalar multiplication, each bit of the secret scalar determines whether two point registers are swapped before the next ladder step. If the swap is implemented with a conditional branch on the scalar bit, an attacker with timing or simple power analysis (SPA) access to the device can distinguish the branch taken/not-taken and recover the secret scalar bit-by-bit. The fix must make the swap's control flow and memory access pattern independent of the secret bit's value, using bitwise masking instead of branching."
+  },
+  "public_spec": {
+    "constraints": [
+      "The file must remain self-contained C++17 and compile with g++ using only <cstdint> and <cstddef>.",
+      "Do not rename the function, change its signature, or split its logic across multiple translation units.",
+      "Do not use dynamic memory allocation (no new/malloc); operate only on the caller-provided buffers.",
+      "The function must not print, log, or otherwise expose ctrl_bit or any intermediate values through side channels other than the final contents of P and Q."
+    ],
+    "expected_outputs": [
+      "A single revised inputs/ladder_swap.cpp implementing conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit) with identical external behavior to the reference on all test vectors."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For ctrl_bit == 1 and arbitrary arrays P and Q of length n, after calling conditional_swap the contents of P and Q must be exactly swapped (new P equals old Q, new Q equals old P), for every element index from 0 to n-1."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For ctrl_bit == 0 and arbitrary arrays P and Q of length n, after calling conditional_swap the contents of P and Q must be exactly unchanged from their values before the call."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The function must handle n in the range 1 to 4096 (inclusive) without buffer overrun, memory corruption, or crash, verified across multiple array sizes including n=1, n=2, n=64, and n=4096."
+      },
+      {
+        "id": "FR4",
+        "requirement": "inputs/ladder_swap.cpp must compile cleanly with g++ -std=c++17 -Wall -Wextra with zero errors and be linkable against an external test harness that declares and calls conditional_swap with the exact signature given in the interface."
+      }
+    ],
+    "input_artifacts": [
+      "ladder_swap.cpp",
+      "design_brief.md"
+    ],
+    "interface": "File: inputs/ladder_swap.cpp. Required entry point (exact signature, must be present and callable from a C++ test harness compiled with g++): `void conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit);`. Parameters: P is a pointer to the first coordinate array (in/out, public buffer holding one operand of the ladder, length n); Q is a pointer to the second coordinate array (in/out, public buffer holding the other operand, length n); n is the number of uint32_t elements in each of P and Q (public, always > 0 in tests); ctrl_bit is the (secret) selector bit, guaranteed by the caller to be exactly 0 or 1 -- when ctrl_bit == 1 the contents of P and Q must be exchanged element-wise; when ctrl_bit == 0 the contents of P and Q must remain unchanged. The function returns void and communicates its result solely by mutating the contents pointed to by P and Q in place. No other global state, files, or stdout may be used to communicate results. The function must compile as a freestanding translation unit including only <cstdint> and <cstddef> (no I/O, no dynamic allocation beyond what is already present).",
+    "objective": "The file inputs/ladder_swap.cpp contains a kernel used in an elliptic-curve point-doubling/addition ladder step. It maintains two point coordinate buffers (P and Q, each an array of uint32_t of length N) and, based on a single-bit control value, conditionally exchanges the two buffers' contents element-wise. Harden the implementation in inputs/ladder_swap.cpp so that it always produces the exact same swap results as the reference behavior described below, for both possible control values, while also satisfying the additional requirements listed. Do not change the function signature or the file name.",
+    "response_format": "A single revised C/C++ source file replacing inputs/ladder_swap.cpp in place; no additional answer file is submitted."
+  },
+  "task_id": "hls_constant_time_conditional_swap_001",
+  "title": "Constant-time conditional swap for a scalar-multiplication ladder"
+}

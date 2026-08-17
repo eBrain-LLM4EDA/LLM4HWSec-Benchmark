@@ -1,0 +1,14 @@
+{
+  "analyzer_status": "pass",
+  "coverage_score": 1.0,
+  "final_attempted_round": 2,
+  "issue_count": 2,
+  "min_coverage_score": 0.8,
+  "min_mutation_score": 0.5,
+  "mutation_score": 1.0,
+  "overall_status": "pass",
+  "requirement_discrimination_coverage_score": 1.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "validation_status": "pass"
+}

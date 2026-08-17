@@ -1,0 +1,97 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of targeted CWE-relevant behavioral probes (counter wraparound reuse, buffer mutation on error path, boundary off-by-one) that the submission fails; computed strictly from compiled-binary behavior, never from source inspection.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Checks that ciphertext/tag outputs below the counter boundary are byte-identical to the reference implementation for the same key/plaintext/counter-seed inputs, and that no ciphertext is emitted once the counter is exhausted.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Fraction of provided/generated test harness translation units that successfully compile the submitted aead_wrapper.cpp with g++ against the test harness and AES primitive stub with zero errors.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Reference and submission produce identical ciphertext/tag outputs for all calls made while the counter is below its maximum, given identical AEAD_TEST_COUNTER_START seeding.",
+      "Submission returns a nonzero, non-zero-overlapping-with-success error code on the call where the counter would otherwise wrap, and every call thereafter.",
+      "No bytes are written to ciphertext_out or tag_out on any call that returns the nonzero error code.",
+      "The insecure baseline shipped in inputs/ fails at least one of the above checks (specifically, it returns 0 and emits ciphertext reusing nonce 0 after wraparound)."
+    ],
+    "cwe_ids": [
+      "CWE-323",
+      "CWE-330",
+      "CWE-190",
+      "CWE-696"
+    ],
+    "ground_truth": "A correct hardened aead_encrypt_call keeps an internal static uint32_t counter starting at 0. On each call, before doing any encryption work it checks whether the counter has already reached 0xFFFFFFFF and been used for a prior call (i.e., all nonce values are exhausted). If exhausted, it returns a nonzero error code immediately without touching ciphertext_out or tag_out and without incrementing the counter further. Otherwise, it uses the current counter value concatenated with a fixed base nonce to derive the AES-based encryption nonce, computes ciphertext_out and tag_out via the provided AES primitive, increments the counter by 1, and returns 0. The insecure baseline instead increments the counter unconditionally with a plain `counter++`, which in C++ silently wraps unsigned integers modulo 2^32, causing nonce reuse: after reaching 0xFFFFFFFF the very next call reuses counter value 0 again, producing an identical nonce (and thus a repeated keystream under the same key) to the very first call ever made. The harness detects this by driving the counter to its maximum via repeated calls (using a reduced-range build-time hook or by calling the function 2^32 times is infeasible, so the harness instead uses a test-only counter-seeding mechanism: the submission must expose the counter's exhaustion behavior observably by allowing the harness to call a small number of times after pre-loading state through a documented test seam) -- concretely, the harness compiles the submission together with a test harness that #defines the counter's starting value via a compile-time macro AEAD_TEST_COUNTER_START, which both the reference and any correct hardened submission must honor (defaulting to 0 if undefined), letting the harness set it near 0xFFFFFFFF - 2 and observe wraparound behavior within a handful of calls.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Compile with -DAEAD_TEST_COUNTER_START=0xFFFFFFFD (or similar), call aead_encrypt_call repeatedly, and verify that after the counter would wrap, the function returns a nonzero error code instead of returning 0 and reproducing the ciphertext/nonce pattern seen at counter value 0 from an earlier fresh run.",
+        "id": "SR1",
+        "requirement": "The nonce counter must never be reused: once the counter has been incremented through its full range and reached the point where no fresh nonce value remains, the function must refuse to encrypt rather than silently wrapping back to a previously used counter value."
+      },
+      {
+        "detection_strategy": "Pre-fill ciphertext_out and tag_out with sentinel byte patterns before the exhausting call; after the call returns the nonzero error code, verify the buffers still contain the untouched sentinel bytes.",
+        "id": "SR2",
+        "requirement": "When the counter-exhaustion error path is taken, the function must not write any bytes to ciphertext_out or tag_out, preventing emission of ciphertext produced (or partially produced) under a reused/undefined nonce state."
+      },
+      {
+        "detection_strategy": "Static-plus-behavioral cross-check: run near-boundary sequences (counter at max-1, max, and one past max under the test seam) and confirm the transition to the error state happens exactly at the boundary call, with no off-by-one call that reuses counter 0 successfully.",
+        "id": "SR3",
+        "requirement": "The unsigned counter increment must be guarded against silent unsigned integer wraparound (CWE-190); the check for exhaustion must occur before any encryption side effects, not only after an already-wrapped value is used."
+      }
+    ],
+    "threat_model": "Under AEAD constructions (e.g., AES-GCM-style), reusing a nonce with the same key for two different plaintexts catastrophically breaks confidentiality (keystream reuse allows plaintext recovery via XOR) and can break authenticity/integrity guarantees (forgery of the authentication tag becomes feasible). A 32-bit deterministic counter that silently wraps after 2^32 calls will eventually reuse nonce 0, silently re-encrypting under an already-used nonce with no observable error, which is exactly the failure this task must prevent."
+  },
+  "public_spec": {
+    "constraints": [
+      "The kernel must be self-contained in aead_wrapper.cpp/.h plus any small helper files the participant chooses to add under inputs/.",
+      "No dynamic memory allocation failures should be relied upon; use fixed-size buffers as declared in the interface.",
+      "Do not change the function name or signature declared in the interface.",
+      "The provided baseline aead_wrapper.cpp uses a 32-bit unsigned counter that increments via simple '++' with no bounds check, so it silently wraps to 0 and keeps encrypting after reaching 0xFFFFFFFF."
+    ],
+    "expected_outputs": [
+      "hardened aead_wrapper.cpp implementing the required counter and status-reporting behavior"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For a fixed key and plaintext, calling aead_encrypt_call repeatedly must return 0 and produce a different ciphertext/tag pair on each call (since the internal nonce counter advances), demonstrating the counter is actually being used to vary the nonce."
+      },
+      {
+        "id": "FR2",
+        "requirement": "aead_encrypt_call must return exactly 0 on every call where the internal counter has not yet reached its maximum, and must write exactly plaintext_len bytes to ciphertext_out and 16 bytes to tag_out on each such call."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The function must compile cleanly as a standalone translation unit with g++ (C++11 or later) when linked against a test harness that calls aead_encrypt_call directly, with no external dependencies beyond the standard library and a provided AES primitive stub."
+      },
+      {
+        "id": "FR4",
+        "requirement": "For plaintext_len == 0, aead_encrypt_call must still return 0 (while the counter has capacity) and write exactly 16 bytes to tag_out, writing zero bytes to ciphertext_out."
+      }
+    ],
+    "input_artifacts": [
+      "aead_wrapper.cpp",
+      "aead_wrapper.h",
+      "design_brief.md"
+    ],
+    "interface": "File: aead_wrapper.cpp (and aead_wrapper.h declaring the same signature). Entry point: `int aead_encrypt_call(const unsigned char *key, const unsigned char *plaintext, unsigned int plaintext_len, unsigned char *ciphertext_out, unsigned char *tag_out)`. Parameters: `key` is a 16-byte secret AES key (secret, not to be leaked via any observable channel); `plaintext` is a buffer of `plaintext_len` bytes of secret data to encrypt; `plaintext_len` is the public length in bytes (0 <= plaintext_len <= 4096); `ciphertext_out` is a caller-allocated buffer of at least `plaintext_len` bytes that receives ciphertext (public output buffer, content is the encryption result); `tag_out` is a caller-allocated 16-byte buffer that receives the authentication tag. The function maintains internal static/global state consisting of a 32-bit call counter that starts at 0 on process start and increments by exactly 1 on every call that successfully produces ciphertext. Return value contract: on success the function returns 0, writes exactly `plaintext_len` bytes to `ciphertext_out` and 16 bytes to `tag_out`, and increments the internal counter. Once the internal counter has reached its maximum value (0xFFFFFFFF) and been consumed (i.e. the counter cannot be incremented further without wrapping), the function must return a distinct nonzero error code (any consistent nonzero value, e.g. -1) on every subsequent call, MUST NOT write any bytes to `ciphertext_out` or `tag_out`, and MUST NOT increment the counter further. There is no reset function exposed; the harness drives the counter to exhaustion purely via repeated calls to `aead_encrypt_call`.",
+    "objective": "Harden the provided AEAD wrapper kernel (aead_wrapper.cpp) so that its per-key nonce counter is managed correctly across repeated encryption calls. The kernel maintains an internal monotonically increasing 32-bit counter that is combined with a fixed base nonce to produce a unique nonce for every call to the underlying encryption primitive. Revise the implementation so that the counter's state, its increment behavior, and its boundary behavior at the top of its range are all handled explicitly and deterministically, and so that the function's return value always accurately reflects whether ciphertext was actually produced.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_aead_nonce_counter_exhaustion_001",
+  "title": "Refuse encryption when an AEAD nonce counter would wrap"
+}

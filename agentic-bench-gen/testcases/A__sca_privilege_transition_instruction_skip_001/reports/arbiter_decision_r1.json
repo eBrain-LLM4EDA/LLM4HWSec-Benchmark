@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "All decision inputs are clean: mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, validation_status=pass, baseline_exit_code=0, zero validation/analyzer issues, analyzer_status=pass. The differential run shows the golden submission passes all FR1-FR4/SR1-SR4 checks while the naive/vulnerable baseline (IDLE-only transition_sequence, wrong fault_free_final_priv, wrong vulnerable_state) fails FR1-FR3, SR1 and cascades to FR4 failure, with only SR4 trivially passing since IDLE has no write to skip -- consistent with the analyzer's own explanation. All 8 mutants (targeting FR1-FR4 and SR1-SR4) were detected, giving full mutation and coverage scores. Public spec, hidden spec, and artifacts are coherent: design_brief.md and mode_sequencer.v consistently document DEMOTE as the sole priv_reg-writing state, and fault_model.md avoids leaking which state is vulnerable. No missing interface, timing discipline, security leakage, or evaluator bugs are present. This case meets all retention criteria.",
+  "retain_case": true,
+  "revision_instructions": "No revision needed; case meets all quality bars for retention as-is.",
+  "root_cause": "none",
+  "source_round": 1
+}

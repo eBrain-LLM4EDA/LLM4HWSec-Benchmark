@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 (schema/type presence check) is a dead check under mutation testing: no mutant targeting FR1 was generated/detected, so its discriminative power is unverified. It passes on both baseline and golden but there is no evidence it would actually FAIL a structurally malformed submission (e.g. missing field, wrong type).",
+      "evidence": "per_requirement_coverage.FR1: {covered:false, mutants_detected:0, mutants_targeting:1}; dead_checks:[\"FR1\"]; uncovered_requirements:[\"FR1\"]",
+      "severity": "low"
+    },
+    {
+      "artifact": "mutation harness",
+      "description": "One mutant run errored (crashed/timed out/unsafe path) during mutation testing, indicating incomplete mutation quality verification.",
+      "evidence": "error_runs:1; issues:[{issue:'mutation_execution_error', detail:'1 mutant run(s) crashed, timed out, or used unsafe paths'}]",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a mutant that specifically breaks FR1's schema check (e.g. remove a required field, wrong type for confidence, or malformed JSON) to confirm FR1 actually discriminates malformed submissions and is not vacuously passing.",
+    "Investigate and fix the mutation run that crashed/timed out/used unsafe paths to ensure full mutation-testing confidence across all requirement checks.",
+    "Consider tightening FR1 test cases in the harness so its coverage is empirically demonstrated rather than inferred from schema logic alone."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline (well-typed but empty/false values) passes FR1 as expected, but no mutant exercised FR1's failure path, so its detection capability for malformed submissions (missing fields, wrong types) is unverified.",
+      "requirement": "FR1: JSON validity and required field/type presence",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Baseline suspect_nets=[] fails with 'suspect_nets is empty'; mutation coverage shows 1/1 mutants detected.",
+      "requirement": "FR2: suspect_nets entries are real nets from masked_and.v",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline algebraic_masking_correct=false fails FR3; golden run with true value and consistent trace passes; iverilog cross-check and fallback logic both implemented.",
+      "requirement": "FR3: algebraic_masking_correct must be true, cross-checked via iverilog/vvp or trace fallback",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline empty registers_to_add fails FR4 with clear reason; mutation coverage 1/1.",
+      "requirement": "FR4: hardening_proposal.registers_to_add non-empty and traceable",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline fails SR1 due to algebraic_masking_correct=false; keyword/phrase-based semantic check with ALGEBRAIC_FLAW_PHRASES guard implemented and covered by mutation (1/1 detected).",
+      "requirement": "SR1: correctly attribute leakage to glitch/timing not algebraic flaw",
+      "status": "pass"
+    },
+    {
+      "evidence": "Dynamic identification via normalize_and_operands/find_cross_and_same_terms structurally locates and_cross0/and_cross1 from masked_and.v; baseline fails trivially; mutation coverage 1/1.",
+      "requirement": "SR2: suspect_nets must name both cross-term nets (and_cross0/and_cross1) dynamically identified",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_SR3 explicitly rejects proposals naming only q0/q1; baseline fails due to empty registers_to_add; mutation coverage 1/1.",
+      "requirement": "SR3: hardening proposal must register share-domain nets, not just q0/q1 outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, fault_model.json, metadata.json use neutral engineering language (timing closure, settling time, review focus) with no CWE ids, SR ids, or explicit vulnerability framing; masked_and.v has no security-flagging comments.",
+      "requirement": "Public/hidden coherence and no leakage of hidden intent",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each pin concrete, independently verifiable checks (schema/type presence, suspect_nets net validity, algebraic correctness via simulation, register-name traceability), not a single generic restatement.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (FR1-FR4)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.status=pass; vulnerable_run (baseline) exit_code=1 with 6 FAILs; golden_run exit_code=0 with all PASS.",
+      "requirement": "Baseline correctly fails; golden correctly passes (differential)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

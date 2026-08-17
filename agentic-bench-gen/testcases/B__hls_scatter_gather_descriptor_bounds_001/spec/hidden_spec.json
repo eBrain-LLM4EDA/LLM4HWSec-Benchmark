@@ -1,0 +1,39 @@
+{
+  "acceptance_criteria": [
+    "Compiles with g++ -std=c++17 -Wall -Wextra with zero errors.",
+    "Passes all in-range functional test vectors (FR1, FR2, FR4) producing byte-exact expected dst contents and status 0.",
+    "Rejects all overflow/wraparound/out-of-bounds descriptor vectors (SR1-SR4) with nonzero status and zero mutation of dst and no out-of-bounds memory access detected by canary/guard checks.",
+    "Baseline insecure reference implementation fails at least one of SR1-SR4 while the hardened ground truth passes all of them and all FRs."
+  ],
+  "cwe_ids": [
+    "CWE-787",
+    "CWE-125",
+    "CWE-190",
+    "CWE-129",
+    "CWE-20"
+  ],
+  "ground_truth": "A secure implementation first computes, for every descriptor i in 0..desc_count-1, whether offsets[i] + lengths[i] would exceed dst_len using an overflow-safe check (e.g. by using 64-bit accumulation such as (uint64_t)offsets[i] + (uint64_t)lengths[i] > (uint64_t)dst_len, or equivalently checking lengths[i] > dst_len - offsets[i] only after confirming offsets[i] <= dst_len), and similarly validates that the cumulative running source offset plus lengths[i] does not exceed src_len. It performs this validation pass over ALL descriptors before writing anything to dst. If any descriptor fails validation, the function returns a nonzero status and leaves dst completely unmodified (no partial writes from earlier valid-looking descriptors). Only if every descriptor passes validation does the function perform the actual memcpy operations in a second pass, returning 0. The insecure baseline only checks that desc_count does not exceed some maximum (e.g. desc_count <= 64) and then blindly loops calling memcpy(dst+offsets[i], src+running_offset, lengths[i]) for each entry without checking offsets[i]+lengths[i] against dst_len, allowing an attacker-controlled descriptor to write past the end of dst (heap/stack buffer overflow) or read past the end of src.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Harness supplies a descriptor with offsets[i] = 0xFFFFFFF0 and lengths[i] = 0x20 (sum overflows 32-bit unsigned arithmetic and wraps to a small value that would appear in-bounds under naive offset+length<=dst_len computed in 32-bit); a vulnerable implementation using pure 32-bit addition will incorrectly treat this as valid and either crash or corrupt memory outside dst, while the harness detects this via a canary buffer placed immediately after dst that must remain unmodified, plus a required nonzero return code.",
+      "id": "SR1",
+      "requirement": "Every descriptor entry's offset and length must be validated against the destination buffer size using arithmetic that cannot silently wrap around (e.g. widen to 64-bit before summing, or check via subtraction only after bounding the operand), before any byte is written to dst."
+    },
+    {
+      "detection_strategy": "Harness supplies desc_count=3 where descriptor 0 is valid and small, descriptor 1 is deliberately out of bounds, and descriptor 2 is valid; harness pre-fills dst with a known zero pattern, calls the function, and asserts dst is byte-for-byte unchanged (all zero) and the return code is nonzero, catching partial-copy-then-reject implementations.",
+      "id": "SR2",
+      "requirement": "If any single descriptor in the list is out of bounds, the entire batch must be rejected: no writes to dst may occur from any descriptor, including ones that appear earlier in the list and are individually valid."
+    },
+    {
+      "detection_strategy": "Harness supplies a src buffer smaller than the sum of lengths across descriptors (e.g. src_len=8 but total requested length=16) with valid, in-bounds destination offsets; a vulnerable implementation will read past the end of src (checked via an ASan-style guard page or a canary byte placed immediately after the src allocation using a heap-allocated buffer with a sentinel byte, verified unchanged, plus the function returning nonzero).",
+      "id": "SR3",
+      "requirement": "The cumulative source read position across all descriptors must also be validated against src_len before copying, preventing an attacker from crafting lengths that sum past the end of the source buffer even if individual destination offsets are in bounds."
+    },
+    {
+      "detection_strategy": "Harness runs boundary test vectors: one descriptor with offset=dst_len-length (exact fit, expect success and correct copy) and one with offset=dst_len-length+1 (one byte over, expect rejection and unchanged dst), checking off-by-one handling in the comparison logic.",
+      "id": "SR4",
+      "requirement": "A descriptor whose offset exactly equals dst_len with a nonzero length, or whose offset+length exactly equals dst_len, must be handled correctly at the boundary: offset+length==dst_len is valid (writes up to but not including index dst_len), offset+length>dst_len is invalid."
+    }
+  ],
+  "threat_model": "A peripheral or untrusted caller supplies a descriptor list where the count is small and passes a superficial count check, but individual entries encode an offset and length whose sum exceeds the destination buffer size, or whose sum wraps around the unsigned integer range back into a small in-range value. Without per-entry overflow-safe bounds checking performed before any copy occurs, this lets the peripheral write to or read from memory outside its assigned window, corrupting adjacent buffers or leaking adjacent memory contents."
+}

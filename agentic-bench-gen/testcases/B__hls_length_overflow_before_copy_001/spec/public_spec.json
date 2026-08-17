@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The file must compile with g++ using only the C++ standard library (no external dependencies).",
+    "The function signature in packet_assemble.h must not be changed.",
+    "dest_capacity, header_len, and payload_len are all declared as unsigned short (16-bit) in the interface and must remain so; only internal computation types may change.",
+    "The kernel must not read past header_len bytes of header or payload_len bytes of payload, and must not write past dest_capacity bytes of dest under any input combination.",
+    "Do not use dynamic memory allocation (malloc/new) inside assemble_packet; dest is caller-provided."
+  ],
+  "expected_outputs": [
+    "A hardened packet_assemble.cpp that compiles cleanly with g++ and correctly assembles packets for all valid length combinations while safely rejecting any combination whose true combined length exceeds the destination buffer capacity."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For header_len=4, payload_len=10, dest_capacity=32: assemble_packet must return 14 and dest[0..13] must equal header bytes followed by payload bytes in order."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For header_len=0, payload_len=0, dest_capacity=0: assemble_packet must return 0 and must not write to dest (a null or minimal dest pointer with capacity 0 must be handled without crashing)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For any header_len and payload_len whose sum exceeds dest_capacity, assemble_packet must return -1 and must not write any bytes to dest (verified by pre-filling dest with a sentinel pattern and confirming it is unchanged after the call)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "For header_len=dest_capacity, payload_len=0 (i.e., header exactly fills the buffer), assemble_packet must return dest_capacity and dest must contain exactly the header bytes with no payload bytes appended."
+    }
+  ],
+  "input_artifacts": [
+    "packet_assemble.cpp",
+    "packet_assemble.h",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/packet_assemble.cpp (with declaration in inputs/packet_assemble.h). Entry point: `int assemble_packet(const unsigned char *header, unsigned short header_len, const unsigned char *payload, unsigned short payload_len, unsigned char *dest, unsigned short dest_capacity);` Parameters: `header` (public, pointer to header_len bytes to copy first), `header_len` (public, number of valid bytes in header, 0..65535), `payload` (public, pointer to payload_len bytes to copy after the header), `payload_len` (public, number of valid bytes in payload, 0..65535), `dest` (public, output buffer of at least dest_capacity bytes), `dest_capacity` (public, declared capacity of dest in bytes, 0..65535). Return value: the function must return the exact number of bytes written to dest (header_len + payload_len) on success, and must return -1 without writing anything to dest when header_len + payload_len (computed as true mathematical sum, no wraparound) exceeds dest_capacity. All inputs are public/non-secret test vectors; there are no secret parameters in this task.",
+  "objective": "The file inputs/packet_assemble.cpp implements a packet-assembly kernel used in an HLS pipeline. It reads a header length field and a payload length field (both narrow unsigned integers describing sub-ranges of a packet), computes the total number of bytes to place into a fixed-size destination buffer, validates that the total fits within the destination capacity, and then copies header bytes followed by payload bytes into the destination. Harden this kernel so that the length computation and bounds check are correct for all representable inputs, and so that no combination of header/payload lengths ever causes more bytes to be written to the destination buffer than its declared capacity. The function signature, header file, and buffer layout must remain unchanged; only the internal arithmetic and validation logic may be modified.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

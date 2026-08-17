@@ -1,0 +1,40 @@
+{
+  "acceptance_criteria": [
+    "submission/vulnerability_report.json parses as valid JSON with all required fields of correct type.",
+    "faultable_signal matches the ground-truth handshake signal (SR1).",
+    "fixed_state_value matches the RTL's documented default constant exactly (SR2).",
+    "mitigation substantively describes a repetition-count/health-check gating scheme (SR3).",
+    "affected_outputs includes rand_out and documented_reseed_behavior_correct is true, with trigger_condition correctly describing reseed_req asserted while entropy_ready is low (SR4).",
+    "An optional iverilog simulation replaying the described trigger_condition against inputs/trng_postproc.v shows seed_reg equal to fixed_state_value after the reseed edge, corroborating the report."
+  ],
+  "cwe_ids": [
+    "CWE-330",
+    "CWE-1263",
+    "CWE-1245",
+    "CWE-200"
+  ],
+  "ground_truth": "Holding entropy_ready low while reseed_req is asserted causes trng_postproc to load a fixed, hardcoded default constant into seed_reg on the reseed edge instead of entropy_in. Because seed_reg subsequently seeds all downstream whitening/output logic (rand_out), every random value produced after this fault becomes fully predictable to an attacker who knows the documented default constant, and seed_valid may still assert falsely (or the design may fail to distinguish a genuine fresh-entropy reseed from a forced default-load), so downstream consumers cannot detect the compromise from seed_valid alone. The correct mitigation is a repetition/health-check counter that tracks consecutive reseed cycles completed without entropy_ready ever being observed high, and blocks (gates) rand_out / deasserts a trustworthy-output signal until a reseed cycle with entropy_ready=1 actually occurs, i.e. fresh entropy is confirmed before any output is released.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String match / normalized comparison of report.faultable_signal against the ground-truth handshake signal name used in inputs/trng_postproc.v; also accept iverilog-confirmed equivalent signal if participant renamed intermediate wires, verified by cross-checking the reported trigger_condition against a simulation trace.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify entropy_ready (or the exact RTL signal implementing the ready handshake, if renamed) as the faultable signal whose suppression during reseed_req forces a known default into seed_reg."
+    },
+    {
+      "detection_strategy": "Parse the hex constant from the RTL comment/parameter in inputs/trng_postproc.v (ground truth) and compare case-insensitively (after normalizing 0x prefix) against report.fixed_state_value.",
+      "id": "SR2",
+      "requirement": "The report must state the correct fixed default value loaded into seed_reg, matching the constant documented in trng_postproc.v (exact 32-bit hex match)."
+    },
+    {
+      "detection_strategy": "Keyword/semantic check on report.mitigation for concepts of: counting/tracking reseed attempts without fresh entropy, gating or blocking rand_out/seed_valid until fresh entropy confirmed, and health-check terminology; reject mitigations that only suggest cosmetic changes (e.g. widening seed_reg, adding a CRC) without an output-blocking or entropy-confirmation mechanism.",
+      "id": "SR3",
+      "requirement": "The report must propose a mitigation that is substantively a freshness/health-check gating mechanism (e.g. repetition counter, consecutive-fault counter, or output blocking until a genuine entropy_ready=1 reseed is observed) rather than a superficial fix like 'add more randomness' or 'use a bigger register'."
+    },
+    {
+      "detection_strategy": "Check affected_outputs includes 'rand_out'; check documented_reseed_behavior_correct is true (since the fault-free path is indeed correct per spec) and that trigger_condition text explicitly references entropy_ready being low/deasserted concurrently with reseed_req.",
+      "id": "SR4",
+      "requirement": "The report must correctly flag rand_out as an affected/compromised output and must not claim seed_valid alone is a sufficient safeguard against the fault (documented_reseed_behavior_correct must be true only for the fault-free entropy_ready=1 path, not conflated with the faulted path)."
+    }
+  ],
+  "threat_model": "An attacker with physical or adjacent access to the entropy source or its ready line (e.g. via voltage/clock glitching, EM fault injection, or clamping the handshake wire) can force entropy_ready low precisely during a reseed window. This drives the post-processor's seed register to a known, documented default value. Since all downstream random values (session keys, nonces, IVs) are deterministic functions of this seed, the attacker can predict every subsequent 'random' output, collapsing the security of any protocol relying on this TRNG for freshness or secrecy."
+}

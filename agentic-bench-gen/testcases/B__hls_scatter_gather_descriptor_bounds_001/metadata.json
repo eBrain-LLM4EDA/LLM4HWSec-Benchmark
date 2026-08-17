@@ -1,0 +1,36 @@
+{
+  "task_id": "hls_scatter_gather_descriptor_bounds_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Bounds validation across a scatter-gather descriptor list",
+  "submission_kind": "hardened_artifact",
+  "input_artifacts": [
+    "inputs/scatter_gather.cpp",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "summary": "A hardened version of inputs/scatter_gather.cpp that implements scatter_gather_copy with the exact required signature, correctly performs full in-order copies for well-formed descriptor lists, and rejects any descriptor list containing an invalid entry (including boundary and overflow-adjacent cases) with a nonzero return code and zero mutation of the destination buffer.",
+    "modified_file": "inputs/scatter_gather.cpp"
+  },
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "description": "Fraction of hidden security test vectors, covering overflow, wraparound, boundary, and partial-rejection descriptor sets, that trigger an out-of-bounds write/read, memory corruption, or incorrect acceptance of an invalid descriptor batch. Computed by running the compiled binary against these descriptor sets and inspecting canary buffers and return codes.",
+      "direction": "minimize"
+    },
+    {
+      "name": "information_flow_correctness",
+      "description": "Whether the destination buffer is left completely unmodified (all-zero, matching pre-call state) on every rejected batch, and byte-exact on every accepted batch, i.e. no partial or spurious writes occur regardless of descriptor validity mix.",
+      "direction": "maximize"
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "description": "Fraction of the submitted file that compiles successfully with g++ -std=c++17 -Wall -Wextra against the generated test harness and produces a runnable binary exposing scatter_gather_copy with C linkage.",
+      "direction": "maximize"
+    },
+    {
+      "name": "functional_pass_rate",
+      "description": "Fraction of public functional requirement test vectors that produce the exact expected destination contents and return code.",
+      "direction": "maximize"
+    }
+  ]
+}

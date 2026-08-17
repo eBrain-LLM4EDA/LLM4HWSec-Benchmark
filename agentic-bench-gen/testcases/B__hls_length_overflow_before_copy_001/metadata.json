@@ -1,0 +1,31 @@
+{
+  "task_id": "hls_length_overflow_before_copy_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Overflow-safe length arithmetic ahead of a bulk copy",
+  "input_artifacts": [
+    "inputs/packet_assemble.cpp",
+    "inputs/packet_assemble.h",
+    "inputs/design_brief.md"
+  ],
+  "interface": "int assemble_packet(const unsigned char *header, unsigned short header_len, const unsigned char *payload, unsigned short payload_len, unsigned char *dest, unsigned short dest_capacity);",
+  "expected_outputs": "A hardened packet_assemble.cpp that compiles cleanly with g++ and correctly assembles packets for all valid length combinations while safely rejecting any combination whose true combined length exceeds the destination buffer capacity, without ever writing more bytes into dest than dest_capacity.",
+  "metrics": [
+    {
+      "name": "synthesis_pass_rate",
+      "description": "Fraction of required test vectors for which the compiled binary's observed behavior (return value and buffer contents) matches the expected behavior."
+    },
+    {
+      "name": "cwe_violation_rate",
+      "description": "Fraction of security-focused test vectors that demonstrate an overflow, wraparound-induced bypass, or out-of-bounds write/read in the compiled binary."
+    },
+    {
+      "name": "information_flow_correctness",
+      "description": "Fraction of length-pair test vectors near dest_capacity for which the accept/reject decision matches the true mathematical comparison of combined length against dest_capacity."
+    }
+  ],
+  "evaluation_mode": "compile_and_run",
+  "toolchain": [
+    "g++",
+    "gcc"
+  ]
+}

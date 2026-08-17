@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3 mutation coverage gap: the mutation testing shows no mutant specifically targeting SR3 was detected by the SR3 check (mutants_detected=0 of 1 targeting). This suggests the SR3 logic, while present and passing on golden/baseline runs, may not robustly discriminate against certain incomplete-remediation mutants (e.g., a remediation that only partially satisfies restore-on-success wording nuances), reducing confidence that SR3 is rigorously exercised.",
+      "evidence": "per_requirement_coverage.SR3: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: ['SR3']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR1/SR2/SR3/SR4)",
+      "description": "Heuristic keyword/regex-based grading of free-text fields is inherently fragile; correct but differently-worded submissions (e.g., using synonyms not in the phrase lists) could be incorrectly rejected, and cleverly-worded incorrect submissions could pass. This is a known limitation of this style of grader but worth flagging as a fidelity risk.",
+      "evidence": "sr1_check/sr2_check/sr3_check/sr4_check rely on fixed phrase lists such as entry_decrement_phrases, restore_phrases, atomic_phrases, negation_phrases",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why the SR3-targeting mutant was not detected by evaluate.py's sr3_check; consider adding or strengthening a mutant scenario (e.g., a remediation that describes decrement-on-entry-to-COMPARE with restore worded ambiguously, or omits the restore condition subtly) and verify sr3_check's phrase lists catch it, since mutation_score is 0.875 due to this single gap.",
+    "Consider expanding SR1-SR4 phrase-matching lists with additional synonymous phrasings (e.g., 'penalize the retry counter early', 'pre-decrement') to reduce false negatives on well-reasoned but differently-worded correct submissions, improving grader robustness without weakening rejection of naive answers.",
+    "Although not required to gate PASS/FAIL, consider tightening the corroborative tb_stateskip.v simulation to optionally contribute a soft signal in the report (e.g., logged for human review) to increase auditability of SR1/SR2 factual claims beyond pure text heuristics."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.golden_run: exit_code 0, status pass, all FR/SR PASS",
+      "requirement": "Golden/expert submission passes evaluate.py (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code 1, status fail; FR1, FR2, FR3, SR1, SR2, SR3, SR4 all FAIL, only FR4 passes trivially",
+      "requirement": "Baseline/naive placeholder submission fails evaluate.py (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 map to schema_conformance/fault_coverage; SR1/SR2 map to leakage_detection_accuracy; SR3/SR4 map to hardening_precision",
+      "requirement": "Evaluator measures all four declared metrics (leakage_detection_accuracy, fault_coverage, hardening_precision, schema_conformance)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type functional and SR1-SR4 as requirement_type security",
+      "requirement": "Requirement map separates functional (FR1-FR4) and security (SR1-SR4) requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_stateskip.v forces dut.state from COMPARE to IDLE to corroborate that attempts_left is not decremented when CHECK_DONE is skipped, though this is explicitly informational/non-gating per evaluate.py comments",
+      "requirement": "Security-relevant behavior (state-skip fault bypassing decrement) is actively triggered, not just checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, fault_model.md, design_brief.md avoid naming CHECK_DONE as vulnerable, avoid CWE ids, and fault_model.md explicitly states it must not name the specific vulnerable state per manifest purpose",
+      "requirement": "Public artifacts do not leak hidden security intent (CWE ids, SR ids, vulnerable state name, threat model)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 specify exact field names/types (vulnerable_transition string, glitch_window string, remediation string, affected_signals array, fault_free_behavior_preserved boolean, state_names_referenced array validated against RTL localparams, confidence number 0-1, method enum) all checked programmatically in evaluate.py",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "pin_check_fsm.v RTL matches ground_truth description (decrement in CHECK_DONE after match_reg latch); testbench_reference.v demonstrates 3-attempt fault-free lockout matching design_brief.md and hidden acceptance criteria",
+      "requirement": "Coherence between public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "All RTL/testbench files are self-contained Verilog with no external dependencies, only iverilog/vvp toolchain required per constraints",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage.SR3 shows mutants_detected=0 despite mutants_targeting=1, and issues list flags 'uncovered_requirement' for SR3, indicating the SR3 check may not reliably distinguish a targeted incomplete/incorrect remediation mutant from a correct one",
+      "requirement": "SR3 requirement is meaningfully covered by mutation testing",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

@@ -1,0 +1,37 @@
+{
+  "acceptance_criteria": [
+    "A submission scores PASS on functional requirements only if vulnerability_report.json parses as JSON and contains all five required non-empty string fields matching the schema.",
+    "A submission scores PASS on security requirements only if it correctly names the unverified branch register (SR1), describes a single-transient-register fault model (SR2), proposes a recompute-and-compare style fix (SR3), and provides an internally consistent, ideally simulatable, trigger scenario (SR4).",
+    "The shipped baseline/naive submission (e.g., an empty JSON object or one with placeholder/empty string fields) must fail both FR schema checks and all SR content checks.",
+    "A report that only vaguely mentions 'a register might be wrong' without naming sig_p_reg or sig_q_reg, or that proposes unrelated fixes such as adding parity bits to msg_in, must fail hardening_precision and leakage_detection_accuracy scoring."
+  ],
+  "cwe_ids": [
+    "CWE-354",
+    "CWE-345",
+    "CWE-1245"
+  ],
+  "ground_truth": "Register sig_p_reg (the mod-p branch result) is computed and stored but never re-verified before being consumed by the CRT recombination arithmetic that produces result_out. A single transient fault (bit-flip / stuck value) injected into sig_p_reg between its computation and the recombination step causes result_out to diverge from the correct value while done still asserts normally, exactly mirroring the Bellcore RSA-CRT attack: with one faulty signature and one correct signature (or the public modulus), an attacker can compute gcd(faulty_result - correct_result, N) to recover a prime factor. The missing verification step is a recompute-and-compare (or full modular exponentiation cross-check) of at least one branch result against an independent computation path before result_out/done are committed; absent this, any single-branch fault silently propagates to a usable, attacker-exploitable faulty output.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String/keyword match against 'sig_p_reg' or 'sig_q_reg' in vulnerable_register field, cross-checked for consistency with the register named in trigger_scenario; optionally confirmed via iverilog simulation injecting a forced value into the named register in crt_recombine.v and comparing result_out against crt_reference.v's output for the same msg_in.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify sig_p_reg (or equivalently and explicitly justify sig_q_reg if the grader's branch mapping differs, but must be internally consistent with the trigger_scenario) as the specific unverified branch register whose fault propagates undetected to result_out."
+    },
+    {
+      "detection_strategy": "Keyword and semantic check on fault_model field for terms indicating single-register, transient, or single-event-upset style corruption (e.g., 'bit-flip', 'single register', 'transient', 'glitch') and absence of claims requiring multiple simultaneous faults across both branches.",
+      "id": "SR2",
+      "requirement": "The report must describe a fault model consistent with a single transient register-level corruption (bit-flip, stuck-at, or forced value) rather than a multi-bit, algorithmic, or software-level fault, matching the classic Bellcore/BDL differential fault analysis premise."
+    },
+    {
+      "detection_strategy": "Keyword/semantic match for 'recompute', 'compare', 'redundant computation', 'cross-check', or 'consistency check between branches' in missing_verification_step and recommended_fix fields; reject answers proposing unrelated fixes (e.g., adding a watchdog timer or generic CRC) as insufficiently specific.",
+      "id": "SR3",
+      "requirement": "The report must identify that the missing safeguard is a recompute-and-compare (or equivalent independent cross-check) of the branch result(s) prior to recombination/output commit, not merely generic error detection like parity or a checksum unrelated to the actual modular computation."
+    },
+    {
+      "detection_strategy": "Optional cross-check via iverilog/vvp: parse trigger_scenario for an explicit msg_in value, instrument a copy of crt_recombine.v to force the named register to a perturbed value at the indicated cycle, run simulation, and diff result_out against crt_reference.v output; if the scenario is not simulatable as described, flag reduced hardening_precision but do not hard-fail if the register/fault-model identification (SR1, SR2) is otherwise correct.",
+      "id": "SR4",
+      "requirement": "The trigger_scenario must be reproducible: given the specified msg_in and named faulted register, simulating crt_recombine.v with that register forced to an incorrect value at the described point in the cycle sequence must yield a result_out that differs from crt_reference.v's result_out for the same msg_in, while done asserts in both."
+    }
+  ],
+  "threat_model": "An active fault-injection attacker (e.g., via voltage glitch, clock glitch, or laser/EM pulse) can induce a transient bit-level corruption in exactly one of the two branch registers (sig_p_reg or sig_q_reg) during a single execution of the CRT recombination datapath, while all other logic operates correctly. The attacker can request repeated computations on chosen or known public inputs and collect both correct and faulty outputs. Because the recombination stage never re-verifies either branch before asserting done and emitting result_out, a single successful fault yields a signature/result whose difference from a correct one reveals a modulus factor via gcd computation, fully breaking the underlying secret (e.g., the RSA private key in the classic Bellcore/Boneh-DeMillo-Lipton attack)."
+}

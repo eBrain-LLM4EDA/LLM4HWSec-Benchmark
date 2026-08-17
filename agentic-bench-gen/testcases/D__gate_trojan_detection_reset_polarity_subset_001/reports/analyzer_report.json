@@ -1,0 +1,78 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/tb_cross_check.v / evaluate.py SR5",
+      "description": "Differential test shows the golden (expert) submission is REJECTED by the evaluator's SR5 cross-check even though SR5 is documented as non-gating. Wait: SR5 failure alone should not flip exit code, but golden_run shows exit_code=0 and status='pass' with expected='pass' yet 'ok': false \u2014 meaning the harness itself flags this as a failure state despite exit code 0. The preflight/differential harness treats the golden run as rejected because SR5 fails and the harness considers that a mismatch against the intended fully-passing behavior. The root cause is that tb_cross_check.v's stimulus does not actually isolate u_priv_ff1/u_priv_ff2 as the only persistent flops in simulation \u2014 instead u_ctrl_ff2, u_ctrl_ff3, u_dp_ff5 spuriously appear persistent (post-reset != 0), contaminating the SR5 corroboration signal for a correct submission.",
+      "evidence": "golden_run stdout: '[TEST] FAIL: SR5: simulation-observed persistent flops [\\'u_ctrl_ff2\\', \\'u_ctrl_ff3\\', \\'u_dp_ff5\\'] do not match structurally-derived suspect flops [\\'u_priv_ff1\\', \\'u_priv_ff2\\']...' despite exit_code 0; differential.status='fail', failure_class='golden_rejected'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/tb_cross_check.v",
+      "description": "The testbench stimulus sequence does not actually settle u_ctrl_ff2, u_ctrl_ff3, and u_dp_ff5 to their reset-cleared value even under correct RSTN wiring, because these flops' D-inputs depend on combinational logic chains (XOR/OR of CTRL bits and prior ctrl state) that were not verified to produce a stable 0 after reset given the shifted stimulus timing (post-reset sample taken only 1 cycle after RSTN deasserts, potentially sampling a transient non-reset-driven next-state value one edge too early, or the pre-reset run-up leaves these nets toggling such that assign-based combinational reconvergence causes an apparent non-zero read). This causes false-positive persistence classification even for the correct/golden report.",
+      "evidence": "Differential harness's golden_run reports u_ctrl_ff2, u_ctrl_ff3, u_dp_ff5 as persistent (post!=0) despite being directly wired to RSTN in gate_netlist.v, which per the ground truth should clear synchronously to 0 within one clock edge after RSTN=0.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py check_sr5 / main()",
+      "description": "Although the code comment and README claim SR5 failure never flips the overall exit code when FR1-4/SR1-4 all pass, the differential/preflight tooling still classifies the golden run as failing overall ('ok': false, status reported as fail despite exit_code 0'), indicating either the differential harness's pass/fail interpretation disagrees with evaluate.py's actual exit-code semantics, or there is a hidden inconsistency in how 'expected: pass' is being validated against SR5's non-gating status. This ambiguity means the benchmark's correctness for a fully correct submission is unverified/unstable.",
+      "evidence": "golden_run: {'exit_code': 0, 'expected': 'pass', 'ok': false, 'status': 'pass', ...} \u2014 exit_code is 0 (matching pass) yet 'ok' is false, and differential.status is 'fail' with failure_class 'golden_rejected'.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluation/tb_cross_check.v stimulus/timing so that under the correct (ground-truth) netlist wiring, only u_priv_ff1 and u_priv_ff2 are observed as 'persistent' (post-reset != 0) in the CROSSCHECK output; verify by re-running iverilog/vvp on the actual gate_netlist.v with the golden report before finalizing.",
+    "Investigate why u_ctrl_ff2, u_ctrl_ff3, and u_dp_ff5 fail to clear to 0 in simulation despite being wired directly to RSTN \u2014 likely an off-by-one-cycle sampling issue (sample post-reset value too early, before the synchronous clear has fully propagated) or a stimulus setup issue leaving pre-reset combinational logic re-asserting a non-zero value transiently.",
+    "Ensure the differential/preflight harness's pass/fail judgment is consistent with evaluate.py's documented exit-code semantics (SR5 non-gating) \u2014 the reported 'ok': false for a golden run with exit_code 0 suggests a bug either in the harness's own expectation-checking or an actual latent SR5 gating bug in evaluate.py that needs to be traced and fixed.",
+    "Add a regression test that runs evaluate.py against the golden report and asserts exit code 0 AND that SR5 status is consistent with the corroboration signal before shipping this benchmark case.",
+    "Re-validate the full differential suite (golden accepted, naive baseline rejected) after fixing tb_cross_check.v timing, and only mark this benchmark case as usable once golden_run.ok is true."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Both golden and vulnerable runs show '[TEST] PASS: FR1' in stdout.",
+      "requirement": "FR1 - valid JSON with required fields/types",
+      "status": "pass"
+    },
+    {
+      "evidence": "'[TEST] PASS: FR2' present in both differential runs.",
+      "requirement": "FR2 - suspect_flops names are real instances",
+      "status": "pass"
+    },
+    {
+      "evidence": "'[TEST] PASS: FR3' present in both differential runs.",
+      "requirement": "FR3 - reset_net_summary covers every flop exactly once",
+      "status": "pass"
+    },
+    {
+      "evidence": "'[TEST] PASS: FR4' present in both differential runs.",
+      "requirement": "FR4 - anomaly_description length/emptiness consistency",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes SR1; naive baseline correctly fails SR1 ('trojan_present=False but ground truth is True').",
+      "requirement": "SR1 - trojan_present correctness",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes SR2; naive baseline fails SR2 with 'omitted: u_priv_ff1, u_priv_ff2'.",
+      "requirement": "SR2 - exact suspect_flops set match",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes SR3; naive baseline (empty description) fails SR3.",
+      "requirement": "SR3 - anomaly_description substantively describes inversion",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run passes SR4; naive baseline fails SR4 ('mixes true suspect flop(s) with non-suspect flop(s)').",
+      "requirement": "SR4 - reset_net_summary structurally separates suspects",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run's SR5 fails with spurious persistent flops (u_ctrl_ff2, u_ctrl_ff3, u_dp_ff5) not matching the true suspect set, and the overall differential harness marks the golden run as rejected ('ok': false, failure_class 'golden_rejected') despite exit_code 0, indicating the SR5 stimulus/timing in tb_cross_check.v is broken and the golden-acceptance contract is violated at the harness level.",
+      "requirement": "SR5 - simulation cross-check corroboration (non-gating)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

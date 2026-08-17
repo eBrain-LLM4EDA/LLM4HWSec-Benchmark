@@ -1,0 +1,41 @@
+{
+  "acceptance_criteria": [
+    "A submission that reports leaking_phase='evaluate', affected_nets covering all of dbus[7:0], a Hamming-weight/transition-count-based leakage_metric, a complementary-bit-balancing (or equivalent constant-weight) mitigation with an affirmative functional_equivalence_claim, and correct transfer_timing offsets (matching the reference RTL's actual precharge/evaluate cycle offsets) must PASS.",
+    "An empty, missing-field, or generic/naive submission (e.g. baseline stub with placeholder strings, wrong phase, single-bit affected_nets, or an unrelated mitigation like 'add a firewall') must FAIL.",
+    "A submission that only gets FR-level schema right but reports the wrong leaking phase, incomplete affected_nets, or a mitigation that breaks functional correctness must FAIL on hardening_precision even if it passes basic schema checks."
+  ],
+  "cwe_ids": [
+    "CWE-203",
+    "CWE-1300",
+    "CWE-385"
+  ],
+  "ground_truth": "The wrapper precharges dbus[7:0] to all-zero (or all-one, depending on rail polarity as implemented) every cycle immediately preceding an evaluate cycle, then drives dbus to data_in during evaluate. Because every evaluate cycle starts from the same known precharge state, the number of bus lines that transition (discharge or charge) in the precharge->evaluate cycle pair equals exactly the Hamming weight of data_in. This produces a directly observable, per-transfer leakage of the Hamming weight of the secret operand via bus switching-activity magnitude (e.g., measurable current draw or EM emission proportional to the count of transitioning dbus bits), independent of which specific bits are set \u2014 enabling Hamming-weight-based power/EM side-channel attacks and byte-level key-hypothesis ranking (classic DPA/CPA precursor). The correct mitigation is to transmit, on the same or an adjacent evaluate cycle, the bitwise complement (or another fixed-Hamming-weight companion encoding) of data_in so that the combined transition count per transfer is constant (e.g., always 8 transitions for an 8-bit bus), decoupling the observable activity from the secret value's Hamming weight while preserving that dbus still carries data_in (or a value from which data_in is losslessly recoverable) during the evaluate phase for downstream logic.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String/enum match on leaking_phase against the ground-truth phase; partial credit only if reasoning in optional notes correctly ties leakage to the precharge-to-evaluate transition even if label differs, but exact match on canonical phase label is required for full credit.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the leaking phase is the transition from 'precharge' to 'evaluate' (i.e., leaking_phase should be reported as 'evaluate', the phase during which the Hamming-weight-dependent transition occurs relative to the fixed precharge baseline), not merely 'precharge' alone."
+    },
+    {
+      "detection_strategy": "Check that affected_nets references dbus broadly (e.g. 'dbus[7:0]') or lists all 8 individual bit nets; flag as insufficient if only a subset (e.g. one bit) is named.",
+      "id": "SR2",
+      "requirement": "The report must identify affected_nets that include the full dbus[7:0] bus (or an equivalent enumeration of all 8 bit lines), since leakage is a bus-wide aggregate activity phenomenon, not confined to a single bit."
+    },
+    {
+      "detection_strategy": "Keyword/semantic check for terms indicating transition count, switching activity, or Hamming weight correlation; reject generic or off-topic descriptions.",
+      "id": "SR3",
+      "requirement": "The leakage_metric field must describe a Hamming-weight-proportional or transition-count-based metric (e.g. 'number of bits transitioning from precharge value to data value equals Hamming weight of data_in'), not an unrelated metric like timing delay or fault count."
+    },
+    {
+      "detection_strategy": "Check mitigation text for complementary-bit / dual-rail / constant-weight balancing concepts AND check functional_equivalence_claim is truthy/affirmative; reject mitigations that only add noise, randomization without balancing guarantee, or that silently drop functional correctness.",
+      "id": "SR4",
+      "requirement": "The mitigation must specifically achieve constant per-transfer transition count independent of data value (e.g., transmitting the bitwise complement alongside data_in, dual-rail/differential encoding, or fixed-weight encoding), and must explicitly claim/preserve that dbus still conveys the correct data_in value for functional correctness."
+    },
+    {
+      "detection_strategy": "Compare submitted integer offsets against the ground-truth offsets derived from simulating or reading the reference RTL; evaluate.py may run iverilog/vvp on inputs/precharge_bus_wrapper.v to extract the actual offsets and cross-check the claim numerically.",
+      "id": "SR5",
+      "requirement": "The transfer_timing field must correctly reflect that precharge occurs on the cycle offset immediately preceding the offset at which the evaluate phase (and thus the valid pulse) occurs, consistent with the module's documented 2-cycle transfer latency from load assertion."
+    }
+  ],
+  "threat_model": "An attacker with a power or EM probe near the bus (no logical access to secret data) measures per-cycle switching activity on dbus during repeated transfers of secret operands (e.g., cipher key bytes or intermediate state). Because precharge sets a fixed baseline, the transition count from precharge to evaluate is proportional to Hamming weight of the transported word, giving the attacker a low-noise, byte-granular leakage function usable for Hamming-weight power models in DPA/CPA-style key recovery, without needing to fault or halt the design."
+}

@@ -1,0 +1,179 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR3\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/aead_wrapper.cpp",
+    "inputs/aead_wrapper.h",
+    "inputs/design_brief.md",
+    "metadata.json"
+  ],
+  "check_activation": {
+    "FR1": 2,
+    "FR2": 2,
+    "FR3": 1,
+    "FR4": 3,
+    "SR1": 2,
+    "SR2": 3,
+    "SR3": 2
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR3\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR3\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: call at counter exhaustion boundary (idx=3) returned 0 instead of a nonzero error code; nonce counter is being reused/wrapped\n[TEST] FAIL: SR2: boundary call (idx=3) returned 0 (success) so the error-path no-write guarantee could not be exercised\n[TEST] FAIL: SR3: expected success pattern [True, True, True, False, False, False] at counter positions [max-2,max-1,max,max+1,max+2,max+3], observed [True, True, True, True, True, True] | static check also found an unguarded bare 'counter++' increment pattern consistent with CWE-190 silent wraparound\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/aead_wrapper.cpp",
+    "golden/aead_wrapper.h"
+  ],
+  "issues": [
+    {
+      "detail": "SR3 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR3\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "mutation_score": 0.857,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.857,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "821ce184c1a3b99b2b8702f2e9d6f5eebd7296e240560f11696855fc1d03e07a",
+        "changed": true,
+        "golden": "golden/aead_wrapper.cpp",
+        "golden_sha256": "709ea332eb44462c4abef579227e75da91ec4bee9aab3026b40adeada4c52e11",
+        "target": "inputs/aead_wrapper.cpp"
+      },
+      {
+        "baseline_sha256": "c6edc08b5e206fab0db09d8d73bfd1a6bbff0813b15d15c2bf3aca8b30e1c104",
+        "changed": false,
+        "golden": "golden/aead_wrapper.h",
+        "golden_sha256": "c6edc08b5e206fab0db09d8d73bfd1a6bbff0813b15d15c2bf3aca8b30e1c104",
+        "target": "inputs/aead_wrapper.h"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/aead_wrapper.cpp",
+      "inputs/aead_wrapper.h"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": [
+    "SR3"
+  ]
+}

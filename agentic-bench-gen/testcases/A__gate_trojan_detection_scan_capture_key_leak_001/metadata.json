@@ -1,0 +1,37 @@
+{
+  "task_id": "gate_trojan_detection_scan_capture_key_leak_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Detection: Scan-capture path leaking a key register",
+  "description": "Analyze a small gate-level netlist of a crypto-support core with an embedded scan-test chain. Determine which flip-flops are reachable at scan_out during scan-mode capture-and-shift and which mux/gate instances establish that reachability, then report findings as structured JSON.",
+  "input_artifacts": [
+    "inputs/key_core_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/scan_chain_order.txt"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "output_summary": "A JSON report containing a trojan_detected boolean determination, a list of suspect flip-flop instance names, a list of suspect mux/gate instance names responsible for scan-path splicing, a confidence score, and a free-text rationale.",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of ground-truth suspect flops and muxes correctly identified in the submission."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of submitted suspect_flops/suspect_muxes entries that are not present in the ground-truth sets."
+    },
+    {
+      "name": "trojan_label_accuracy",
+      "direction": "maximize",
+      "description": "Whether the boolean trojan_detected field matches the ground-truth label."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds taken to grade the submission, including any optional simulation cross-check."
+    }
+  ]
+}

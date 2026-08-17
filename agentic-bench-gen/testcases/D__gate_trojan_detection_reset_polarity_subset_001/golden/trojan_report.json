@@ -1,0 +1,9 @@
+{
+  "trojan_present": true,
+  "suspect_flops": ["u_priv_ff1", "u_priv_ff2"],
+  "anomaly_description": "The privilege/lock-state flip-flops u_priv_ff1 and u_priv_ff2 do not receive the global reset signal RSTN directly on their RST_N pin. Instead, both are wired to rstn_b, the output of inverter instance u_inv_rst_b, which computes rstn_b = NOT(RSTN). This means the reset polarity for u_priv_ff1 and u_priv_ff2 is inverted/complemented relative to every other state-holding flop in the design (u_ctrl_ff0, u_ctrl_ff1, u_ctrl_ff2, u_ctrl_ff3, u_dp_ff4, u_dp_ff5), all of which tie their RST_N pin directly to RSTN with no inversion. Consequently, when RSTN is driven low (the documented active-low assertion level intended to clear all registers), rstn_b goes high, which is the non-asserting level for the PRIM_DFF_SYNC reset input, so u_priv_ff1 and u_priv_ff2 fail to clear and instead retain their pre-reset values while all other flops correctly reset to zero. This inverted reset polarity on a subset of flops breaks the root-of-trust assumption that a reset pulse uniformly clears all state, allowing privilege/lock-state to persist silently across reset.",
+  "reset_net_summary": {
+    "RSTN": ["u_ctrl_ff0", "u_ctrl_ff1", "u_ctrl_ff2", "u_ctrl_ff3", "u_dp_ff4", "u_dp_ff5"],
+    "rstn_b": ["u_priv_ff1", "u_priv_ff2"]
+  }
+}

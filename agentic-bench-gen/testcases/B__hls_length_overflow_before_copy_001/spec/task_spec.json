@@ -1,0 +1,99 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required test vectors (functional and security) for which the compiled binary's observed behavior (return value and buffer contents) matches the expected ground-truth behavior.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      },
+      {
+        "description": "Fraction of security test vectors (SR1-SR3) that demonstrate an actual overflow, wraparound-induced bypass, or out-of-bounds write/read, indicating presence of CWE-190/CWE-787/CWE-680/CWE-131 class defects.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Not applicable as a secrecy property in this task (no secret inputs); repurposed here to measure correctness of the capacity-check decision boundary: fraction of length-pair test vectors near dest_capacity for which the accept/reject decision matches the true mathematical comparison of (header_len+payload_len) vs dest_capacity.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Binary compiles successfully with g++ -O2 -Wall against the harness main().",
+      "All functional requirement vectors (FR1-FR4) produce exactly the specified return values and buffer contents.",
+      "The wrap-triggering vector (header_len=50000, payload_len=15536, dest_capacity=200) returns -1 and leaves dest byte-for-byte unchanged from its pre-call sentinel pattern.",
+      "Red-zone canary bytes immediately following dest_capacity remain unmodified across all test vectors including wrap-triggering and boundary cases.",
+      "No out-of-bounds read occurs on header or payload buffers for any tested vector (checked via AddressSanitizer build if available, otherwise via canary bytes placed before/after those buffers)."
+    ],
+    "cwe_ids": [
+      "CWE-190",
+      "CWE-680",
+      "CWE-787",
+      "CWE-131"
+    ],
+    "ground_truth": "The insecure baseline computes `unsigned short total = header_len + payload_len;` (or an equivalent 16-bit-truncating expression) and then checks `if (total > dest_capacity) return -1;`. Because header_len and payload_len are each up to 65535, their sum can be up to 131070, which wraps modulo 65536 when stored in an unsigned short, producing a small `total` that passes the capacity check even though the true combined length is far larger, after which the kernel performs a bulk copy of header_len + payload_len bytes computed correctly (or re-truncated) into dest, overflowing it. The secure fix computes the sum in a widened type that cannot wrap for the full range of inputs (e.g. `unsigned int` or `size_t`, since 65535+65535 fits comfortably in 32 bits), compares that widened sum against dest_capacity (also widened for the comparison) before performing any copy, and returns -1 without touching dest when the widened sum exceeds dest_capacity. No copy loop may use the narrow, wrappable sum as its bound.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Compile and run with header_len=60000, payload_len=60000, dest_capacity=100 (true sum 120000, mod 65536 = 54464, which is >100 so a naive 16-bit-wrap bug might still reject this one). Use a more targeted wrap vector: header_len=50000, payload_len=15536, dest_capacity=200 (true sum = 65536, wraps to exactly 0 mod 65536, which is <=200 and would incorrectly pass a wrapping check). Assert the function returns -1 and dest is unchanged from a sentinel pattern.",
+        "id": "SR1",
+        "requirement": "The sum of header_len and payload_len must be computed and compared against dest_capacity in a representation wide enough that no valid combination of two 16-bit unsigned values can wrap around before the comparison is made."
+      },
+      {
+        "detection_strategy": "Allocate dest with a canary region immediately after the declared capacity (a red-zone buffer). Run the wrap-triggering vector and boundary vectors; after each call, verify the canary bytes are untouched (byte-for-byte comparison against their pre-call sentinel values).",
+        "id": "SR2",
+        "requirement": "No bulk copy into dest may write more bytes than dest_capacity under any header_len/payload_len combination, including wrap-triggering pairs."
+      },
+      {
+        "detection_strategy": "Run normal in-range vectors (e.g. header_len=100, payload_len=100, dest_capacity=65535) and confirm return value equals header_len+payload_len and copied bytes match expected content exactly.",
+        "id": "SR3",
+        "requirement": "The function must correctly accept and copy all header/payload combinations whose true sum is less than or equal to dest_capacity, with no false rejections caused by overly conservative widened arithmetic."
+      }
+    ],
+    "threat_model": "An attacker who controls header_len and payload_len (e.g. fields parsed from an untrusted packet) can choose values whose true sum exceeds the destination buffer capacity but whose 16-bit-truncated sum appears small enough to pass a naive bounds check. This causes the subsequent bulk copy to write far more bytes than the destination buffer can hold, corrupting adjacent memory (heap or scratchpad overflow) and potentially enabling code execution or denial of service."
+  },
+  "public_spec": {
+    "constraints": [
+      "The file must compile with g++ using only the C++ standard library (no external dependencies).",
+      "The function signature in packet_assemble.h must not be changed.",
+      "dest_capacity, header_len, and payload_len are all declared as unsigned short (16-bit) in the interface and must remain so; only internal computation types may change.",
+      "The kernel must not read past header_len bytes of header or payload_len bytes of payload, and must not write past dest_capacity bytes of dest under any input combination.",
+      "Do not use dynamic memory allocation (malloc/new) inside assemble_packet; dest is caller-provided."
+    ],
+    "expected_outputs": [
+      "A hardened packet_assemble.cpp that compiles cleanly with g++ and correctly assembles packets for all valid length combinations while safely rejecting any combination whose true combined length exceeds the destination buffer capacity."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For header_len=4, payload_len=10, dest_capacity=32: assemble_packet must return 14 and dest[0..13] must equal header bytes followed by payload bytes in order."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For header_len=0, payload_len=0, dest_capacity=0: assemble_packet must return 0 and must not write to dest (a null or minimal dest pointer with capacity 0 must be handled without crashing)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For any header_len and payload_len whose sum exceeds dest_capacity, assemble_packet must return -1 and must not write any bytes to dest (verified by pre-filling dest with a sentinel pattern and confirming it is unchanged after the call)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "For header_len=dest_capacity, payload_len=0 (i.e., header exactly fills the buffer), assemble_packet must return dest_capacity and dest must contain exactly the header bytes with no payload bytes appended."
+      }
+    ],
+    "input_artifacts": [
+      "packet_assemble.cpp",
+      "packet_assemble.h",
+      "design_brief.md"
+    ],
+    "interface": "File: inputs/packet_assemble.cpp (with declaration in inputs/packet_assemble.h). Entry point: `int assemble_packet(const unsigned char *header, unsigned short header_len, const unsigned char *payload, unsigned short payload_len, unsigned char *dest, unsigned short dest_capacity);` Parameters: `header` (public, pointer to header_len bytes to copy first), `header_len` (public, number of valid bytes in header, 0..65535), `payload` (public, pointer to payload_len bytes to copy after the header), `payload_len` (public, number of valid bytes in payload, 0..65535), `dest` (public, output buffer of at least dest_capacity bytes), `dest_capacity` (public, declared capacity of dest in bytes, 0..65535). Return value: the function must return the exact number of bytes written to dest (header_len + payload_len) on success, and must return -1 without writing anything to dest when header_len + payload_len (computed as true mathematical sum, no wraparound) exceeds dest_capacity. All inputs are public/non-secret test vectors; there are no secret parameters in this task.",
+    "objective": "The file inputs/packet_assemble.cpp implements a packet-assembly kernel used in an HLS pipeline. It reads a header length field and a payload length field (both narrow unsigned integers describing sub-ranges of a packet), computes the total number of bytes to place into a fixed-size destination buffer, validates that the total fits within the destination capacity, and then copies header bytes followed by payload bytes into the destination. Harden this kernel so that the length computation and bounds check are correct for all representable inputs, and so that no combination of header/payload lengths ever causes more bytes to be written to the destination buffer than its declared capacity. The function signature, header file, and buffer layout must remain unchanged; only the internal arithmetic and validation logic may be modified.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_length_overflow_before_copy_001",
+  "title": "Overflow-safe length arithmetic ahead of a bulk copy"
+}

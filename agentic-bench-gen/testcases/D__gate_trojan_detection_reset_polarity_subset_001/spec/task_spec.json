@@ -1,0 +1,114 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub reset-Trojan reference detectors",
+      "CASlab GAINESIS structural netlist diffing baseline",
+      "Naive empty/negative baseline submission (trojan_present=false, suspect_flops=[])"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of the hidden ground-truth suspect flop set (u_priv_ff1, u_priv_ff2) correctly identified in the submission's suspect_flops (recall).",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of flops reported in suspect_flops that are NOT in the hidden ground-truth suspect set, out of all flops in the netlist.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time in seconds taken by evaluate.py to grade the submitted report (including optional iverilog/vvp cross-check simulation).",
+        "direction": "minimize",
+        "name": "inference_latency"
+      },
+      {
+        "description": "Score reflecting whether reset_net_summary correctly partitions flops into disjoint reset-driving groups consistent with the actual netlist structure.",
+        "direction": "maximize",
+        "name": "structural_consistency_score"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission that reports trojan_present=false or an empty suspect_flops list (the naive/empty baseline) FAILS SR1 and SR2.",
+      "A submission that reports trojan_present=true with suspect_flops exactly {u_priv_ff1, u_priv_ff2}, a reset_net_summary separating those two flops into their own group, and an anomaly_description referencing inverted reset polarity PASSES all SRs and FRs.",
+      "A submission listing additional incorrect flops alongside the correct two, or omitting one of the two, FAILS SR2 (exact set match required for full PASS) though may receive partial-credit metrics."
+    ],
+    "cwe_ids": [
+      "CWE-1191",
+      "CWE-1231",
+      "CWE-670",
+      "CWE-696"
+    ],
+    "ground_truth": "Flip-flops u_priv_ff1 and u_priv_ff2 receive their reset input through an inverter cell u_inv_rst_b (i.e., they are wired to NOT(RSTN) internally, or equivalently driven by an inverted copy of the reset net), while every other state flop in the design (e.g. u_ctrl_ff0, u_ctrl_ff3, u_dp_ff4, u_dp_ff5, etc.) is connected directly to the common reset net RSTN. Because the assertion level required to reset u_priv_ff1/u_priv_ff2 is inverted relative to the rest of the design, a normal reset pulse (RSTN=0) that clears all other flops leaves u_priv_ff1 and u_priv_ff2 holding their prior state, violating the root-of-trust assumption that reset returns the whole device to a known-clean configuration. Functional behavior during normal (non-reset) operation is unaffected because u_inv_rst_b only gates the reset path, not the data path.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Compare submitted trojan_present against hidden ground truth (true); a false or missing value fails this requirement.",
+        "id": "SR1",
+        "requirement": "The report must correctly set trojan_present to true for this netlist, since a reset-polarity subset anomaly is present."
+      },
+      {
+        "detection_strategy": "Set-equality comparison between submitted suspect_flops and the hidden ground-truth set; partial credit computed via precision/recall but PASS requires exact set match.",
+        "id": "SR2",
+        "requirement": "The report's suspect_flops array must be exactly the set {u_priv_ff1, u_priv_ff2} (order-independent), with no extraneous unrelated flops and no omissions."
+      },
+      {
+        "detection_strategy": "Keyword/semantic check for terms indicating inversion of reset polarity (e.g. 'invert', 'inverted', 'active-high vs active-low', 'complement') co-located with reference to reset; graded as pass/fail by a rubric matcher plus manual-style heuristic scoring.",
+        "id": "SR3",
+        "requirement": "anomaly_description must correctly characterize the defect as an inverted/complemented reset polarity (not merely 'reset issue' or unrelated wording), demonstrating the participant identified the actual mechanism rather than guessing."
+      },
+      {
+        "detection_strategy": "Parse reset_net_summary; verify u_priv_ff1 and u_priv_ff2 share a group disjoint from all other listed flops' group(s).",
+        "id": "SR4",
+        "requirement": "reset_net_summary must correctly group u_priv_ff1 and u_priv_ff2 under a distinct net/signal key separate from the key covering the remaining flops, demonstrating structural tracing rather than a lucky guess on suspect_flops alone."
+      },
+      {
+        "detection_strategy": "Run iverilog+vvp on gate_netlist.v with testbench_reset_trace.v, parse the VCD/monitor output, confirm u_priv_ff1/u_priv_ff2 state persists across the reset pulse while other flops reset; used as a bonus/consistency signal, not solely for PASS/FAIL.",
+        "id": "SR5",
+        "requirement": "The evaluator may optionally cross-check the claim by driving testbench_reset_trace.v through iverilog/vvp: after the reset pulse, u_priv_ff1 and u_priv_ff2 retain pre-reset values while all other traced flops clear to their reset value, corroborating the reported suspect set."
+      }
+    ],
+    "threat_model": "An adversary with foundry- or third-party-IP-level access inserts a small inverter on the reset fan-out to a security-relevant subset of flops (e.g. privilege/lock-state registers) so that when the system issues a reset intended to scrub secrets or restore a known-safe default privilege level, that subset silently retains its pre-reset value. This breaks the platform's root-of-trust assumption that a reset always returns the device to a fully known, attacker-uncontrolled state, enabling privilege persistence or key/state leakage across reset boundaries."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist must be plain-text structural Verilog using standard cell primitives or simple DFF/AND/OR/INV models simulatable with iverilog, with no proprietary cell libraries.",
+      "The design brief must describe the module's intended functional behavior and state that a global synchronous reset RSTN is expected to clear all state-holding registers to their defined reset values, without mentioning any known defect.",
+      "All flip-flop instance names in the netlist must be unique and follow a consistent naming pattern (e.g. u_*_ff*) so instance-name matching in the report is unambiguous.",
+      "The provided testbench must exercise at least one reset assertion after the design has reached a non-reset operational state, and must dump observable state-flop values before and after the reset pulse so reset-clearing behavior can be checked by simulation.",
+      "Post-initialization steady-state functional behavior (outputs under normal non-reset operation) must be identical regardless of any reset-wiring anomaly, so the anomaly is only observable via reset traces, not via functional mismatches during normal operation."
+    ],
+    "expected_outputs": [
+      "trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON containing all four required top-level fields (trojan_present, suspect_flops, anomaly_description, reset_net_summary) with the exact types specified in the interface."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Every string listed in suspect_flops must correspond to an actual flip-flop cell instance name present in gate_netlist.v (verifiable by grepping/parsing the netlist); unknown or misspelled instance names invalidate the entry."
+      },
+      {
+        "id": "FR3",
+        "requirement": "reset_net_summary must account for every state-holding flip-flop instance in gate_netlist.v exactly once across its net groupings (no flop omitted, no flop double-counted)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "anomaly_description must be a non-empty string of at least 20 characters when trojan_present is true; it may be an empty string only when trojan_present is false."
+      }
+    ],
+    "input_artifacts": [
+      "gate_netlist.v",
+      "design_brief.md",
+      "testbench_reset_trace.v"
+    ],
+    "interface": "The submission is a single JSON file at submission/trojan_report.json (no other files are graded; the netlist and testbench under inputs/ must NOT be modified). The file must contain a top-level JSON object with exactly these fields: (1) \"trojan_present\": boolean, true if any flip-flop's effective reset polarity/path differs from the documented common reset net RSTN feeding the majority of flops. (2) \"suspect_flops\": array of strings, each the exact Verilog instance name (as it appears in gate_netlist.v) of a flip-flop identified as having anomalous reset wiring; must be empty array if trojan_present is false. (3) \"anomaly_description\": string, a free-text technical description (minimum 20 characters) of the mechanism causing the anomaly (e.g. inverted reset net, missing reset connection, gated reset). (4) \"reset_net_summary\": object mapping each distinct reset-driving net or signal name found in the netlist to an array of flip-flop instance names driven by that net/signal. All four fields are required; extra fields are ignored. Instance names must match exactly (case-sensitive) the names used in gate_netlist.v.",
+    "objective": "Analyze the provided gate-level netlist of a small controller/datapath module and produce a structured report auditing how the synchronous reset signal is distributed to every state-holding flip-flop in the design. Identify any flip-flops whose effective reset behavior deviates from the majority reset behavior documented in the design brief, and list every flip-flop instance together with the reset polarity/logic that actually drives its reset pin as determined by tracing the netlist.",
+    "response_format": "A single JSON file submission/trojan_report.json matching the schema described in public_spec.interface."
+  },
+  "task_id": "gate_trojan_detection_reset_polarity_subset_001",
+  "title": "Gate-Level Trojan Detection: Reset Distribution Audit"
+}

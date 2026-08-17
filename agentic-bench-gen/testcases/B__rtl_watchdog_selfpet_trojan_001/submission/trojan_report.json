@@ -1,0 +1,5 @@
+{
+  "findings": [],
+  "summary": "No anomalies found; watchdog behaves per documented register map.",
+  "reset_req_reliable": true
+}

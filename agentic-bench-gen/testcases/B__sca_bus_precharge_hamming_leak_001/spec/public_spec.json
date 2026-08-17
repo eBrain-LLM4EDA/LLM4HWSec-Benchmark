@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "Do not modify inputs/precharge_bus_wrapper.v; the participant analyzes it and submits only submission/vulnerability_report.json.",
+    "The RTL module must be self-contained and synthesizable with a plain Verilog toolchain (iverilog); no proprietary primitives.",
+    "The mitigation described in the report must not break the module's documented functional contract: dbus must still present data_in's value during the evaluate phase and valid must still pulse correctly.",
+    "The report file must be UTF-8 encoded, single JSON object, no trailing commentary outside the JSON."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The submitted vulnerability_report.json must be valid JSON containing at minimum the top-level keys: 'leaking_phase' (string, one of 'precharge' or 'evaluate'), 'affected_nets' (array of strings naming bus net(s), e.g. 'dbus[7:0]' or individual bit indices), 'leakage_metric' (string describing what is measured, e.g. 'per-cycle transition count' or 'discharge count'), 'mitigation' (string describing a concrete RTL-level countermeasure), and 'functional_equivalence_claim' (boolean or string stating whether the proposed mitigation preserves correct data transport)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The 'affected_nets' field must reference net names that actually appear in inputs/precharge_bus_wrapper.v (i.e., must correspond to the dbus port or its constituent bit indices, not invented net names)."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The 'mitigation' field must describe a specific technique applicable to bus-level power/activity leakage (e.g. dual-rail encoding, complementary companion word transmission, constant-Hamming-weight encoding, random data masking) rather than a generic or unrelated security statement (e.g. 'add encryption' or 'use a firewall' would not satisfy this requirement)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a 'transfer_timing' field (object with integer fields 'precharge_cycle_offset' and 'evaluate_cycle_offset') stating, relative to the cycle in which 'load' is asserted, which cycle offset corresponds to the precharge phase and which corresponds to the evaluate phase, consistent with the module's documented two-phase protocol in design_brief.md."
+    }
+  ],
+  "input_artifacts": [
+    "precharge_bus_wrapper.v",
+    "fault_model.json",
+    "design_brief.md",
+    "activity_trace_template.txt"
+  ],
+  "interface": "RTL interface (read-only reference, module lives in inputs/precharge_bus_wrapper.v): module precharge_bus_wrapper(input wire clk, input wire rst_n, input wire load, input wire [7:0] data_in, output reg [7:0] dbus, output reg valid). Ports: clk = system clock; rst_n = active-low synchronous reset; load = pulse for one cycle to begin a transfer of data_in (the secret 8-bit operand, NOT to be modified or exposed by name in the public report beyond referring to it as 'the transported data word'); dbus = the shared, externally observable bus net array dbus[7:0] (this is the net whose switching activity is the object of analysis); valid = asserted for exactly one cycle when dbus carries the fully evaluated (settled) data value corresponding to the most recent load. The wrapper internally alternates a 'precharge' cycle (drives dbus to an architecturally-fixed rail value) and an 'evaluate' cycle (drives dbus toward data_in) each transfer. The submission is NOT code; it is an answer file at submission/vulnerability_report.json which must conform exactly to the schema given in response_format. evaluate.py reads inputs/precharge_bus_wrapper.v and inputs/fault_model.json for reference, may optionally run iverilog/vvp on the netlist to produce an activity trace for cross-checking claims, and grades ONLY the contents of submission/vulnerability_report.json against hidden ground truth.",
+  "objective": "Analyze the provided RTL bus wrapper module 'precharge_bus_wrapper' (in inputs/precharge_bus_wrapper.v), which transports an 8-bit secret data word across a shared bus using a two-phase precharge/evaluate protocol. Determine whether the per-cycle bus switching activity pattern depends on the value being transported, and produce a structured vulnerability report describing your findings and a concrete mitigation, without altering the input RTL. Correct data transport must be preserved by any proposed mitigation.",
+  "response_format": "submission/vulnerability_report.json must be a single JSON object with required keys: leaking_phase (string), affected_nets (array of strings), leakage_metric (string), mitigation (string), functional_equivalence_claim (boolean or string), transfer_timing (object with integer keys precharge_cycle_offset and evaluate_cycle_offset). Optional supporting keys such as 'evidence' or 'notes' are permitted but not required."
+}

@@ -1,0 +1,47 @@
+{
+  "task_id": "gate_trojan_detection_tie_secen_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Detection: Peripheral Controller Analysis",
+  "objective": "Analyze a flat gate-level netlist of a peripheral controller block to identify any anomalous drivers of control nets, and report structural findings in a JSON report.",
+  "input_artifacts": [
+    "inputs/controller_netlist.v",
+    "inputs/cell_library.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_regression.v"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs": {
+    "description": "A trojan_report.json under submission/ containing a verdict ('trojan_detected' or 'clean'), a list of suspect instance names drawn from controller_netlist.v, a rationale explaining the structural evidence, and (when applicable) the compromised net and its driving instance, plus optional orphaned/dangling logic instances.",
+    "format": "JSON object with fields: verdict (string), suspect_instances (array of strings), rationale (string), and conditionally compromised_net (string), driver_instance (string), and optionally orphaned_logic (array of strings)."
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of hard security requirements (correct verdict, correct compromised net, correct driver instance) satisfied by the submitted report, measured as a binary/graded pass rate across the acceptance criteria."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of suspect_instances or orphaned_logic entries listed by the submission that do not correspond to any real anomaly-relevant instance, normalized by total instances listed."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds for the grading pipeline to parse the netlist, cross-check the submitted report, and produce a verdict."
+    },
+    {
+      "name": "structural_grounding_score",
+      "direction": "maximize",
+      "description": "Fraction of functional requirements satisfied (valid JSON schema, real instance-name references, required conditional fields present), independent of whether the security conclusion is correct."
+    }
+  ],
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ],
+  "notes": "Participants must not modify any file under inputs/. Only submission/trojan_report.json is graded."
+}

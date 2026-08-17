@@ -1,0 +1,92 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR4 is a dead check: it never fails on any targeting mutant per the mutation report, meaning it functions only as a build-gate rubber stamp despite the added ABI-invocation verification logic. Any submission that compiles and runs the harness will pass FR4 regardless of correctness.",
+      "evidence": "dead_checks: ['FR4']; per_requirement_discrimination.FR4: {covered: false, mutants_detected: 0, mutants_targeting: 1}",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR2 has zero discrimination against its targeting mutant (a boundary-narrowing mutant on the protected/privileged-success range), despite the grader containing a dedicated independent loop intended to catch exactly this case. This indicates the FR2-targeting mutant either wasn't actually exercised or the loop logic doesn't distinguish it from SR2's equivalent check.",
+      "evidence": "per_requirement_coverage.FR2: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: ['FR2','FR4']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "overall",
+      "description": "mutation_score is 0.75, below full discrimination; requirement_discrimination_coverage_score is 0.75, indicating 2 of 8 requirement checks provide no unique signal beyond what's already caught by other checks or the build gate.",
+      "evidence": "mutation_score: 0.75; requirement_discrimination_coverage_score: 0.75",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate why the FR4-targeting mutant is not detected -- likely the mutant used to target FR4 alters behavior in a way that still produces well-formed PROBE/OOB output (e.g., a subtle no-op change), so the ABI-invocation count check alone cannot distinguish it; consider redesigning the FR4 mutant or check so FR4 verifies something beyond output-line-count (e.g., checking a distinguishing timing/behavioral property, or accept that FR4 is inherently a build-gate and merge its intent-coverage into FR1-FR3).",
+    "Debug the FR2-targeting mutant: confirm the mutant actually narrows the protected/privileged-success boundary (e.g., changes 47 to 46) and verify the dedicated FR2 loop in evaluate.py is being reached (not short-circuited by the 'if FR2 not in results' pre-check or overwritten by an earlier record() call) -- current mutation results indicate it silently passes when it should fail.",
+    "Consider removing or replacing the low-value FR4 ABI-invocation heuristic with a check that is provably discriminating against at least one realistic mutant, or fold its intent into the SETUP/compile-gate framing explicitly labeled as non-discriminating by design.",
+    "Since 2 of 8 requirement checks (25%) are currently non-discriminating, re-run mutation testing after fixes to confirm requirement_discrimination_coverage_score reaches 1.0 before finalizing the benchmark."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.status = pass; golden_run exit 0 (pass), vulnerable_run exit 1 with SR1 FAIL flagging idx=32..39 unauthorized accepts, matching the known narrow-window flaw (16..31 gated, 32..47 not).",
+      "requirement": "Baseline (insecure) submission must fail grading, hardened (golden) must pass",
+      "status": "pass"
+    },
+    {
+      "evidence": "baseline_run against the shipped inputs/reg_write_kernel.cpp: exit_code 0, status 'pass' (this is the mutation_baseline_run using golden as reference); differential.vulnerable_run (representing shipped insecure inputs file) shows exit_code 1, SR1 FAIL -- confirming baseline correctly rejected.",
+      "requirement": "evaluate.py accepts correct hardened submission (exit 0) and rejects shipped insecure baseline (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 check directly implements cwe_violation_rate sweep (protected 16..47, priv_tag=0); combined FR1-FR3/SR1-SR4 checks implement information_flow_correctness across full index/tag/OOB sweep; FR4 implements synthesis_pass_rate (compile gate), though FR4 itself is a dead/non-discriminating check per mutation analysis.",
+      "requirement": "Evaluator measures requested metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional) and SR1-SR4 (security) as distinct entries with separate expected_detection and test_files, matching the schema's functional_requirements and security_requirements split.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "harness_main.cpp performs an exhaustive sweep of all 64 indices x 2 priv_tag values plus 3 distinct OOB probes x 2 tags with canary-padded buffers and sentinel values, directly exercising the exact CWE-862/863 authorization-bypass scenario (indices 32..47 under priv_tag=0) that the shipped baseline is vulnerable to.",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "inputs/reg_write_kernel.cpp uses only <cstddef>, no external deps, no dynamic allocation/exceptions; harness and evaluate.py are self-contained Python/C++ with standard toolchain calls only.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a concrete, domain-specific HLS/accelerator register-write privilege-gating kernel with CWE-862/863/1220/284 mapped to a specific narrow-window authorization gap, not generic boilerplate.",
+      "requirement": "Benchmark adapted to domain (HLS security codegen) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py parses deterministic, fully-specified PROBE/OOB stdout lines from a fixed harness with no randomness; submission_invariants confirm baseline differs from golden by sha256 and both were graded through the same pipeline.",
+      "requirement": "Results verifiable (no unverifiable gaps)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, inputs/reg_write_kernel.cpp, and inputs/design_brief.md manifest descriptions confirm CWE ids and vulnerability-class language were stripped; kernel comments describe 'privileged configuration block (16-31)' as an ordinary design note without flagging incompleteness; evaluation/README.md also confirmed revised to remove CWE/SR/authorization-bypass language.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model, 'intentionally vulnerable' comments) in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "public_spec.functional_requirements lists FR1-FR4, each independently verifiable via the pinned interface (unprotected writability, protected+privileged writability, OOB rejection, compile cleanliness) -- matches requirement_map with dedicated detection strategies for each.",
+      "requirement": "Public functional requirements are concrete, machine-checkable (2-4), not a single generic restatement",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage.FR2 shows mutants_detected=0 despite mutants_targeting=1, and FR2 is listed among uncovered_requirements, meaning the dedicated FR2 loop (intended to catch a boundary-narrowing mutant like 16..46) failed to detect its own targeting mutant in practice.",
+      "requirement": "FR2 check provides genuine discrimination (not redundant with SR2)",
+      "status": "fail"
+    },
+    {
+      "evidence": "FR4 appears in dead_checks and per_requirement_discrimination.FR4 shows mutants_detected=0 of 1 targeting mutant; the added ABI-invocation verification (checking 128 PROBE + >=6 OOB lines) did not actually distinguish any mutant from the golden behavior in testing.",
+      "requirement": "FR4 check provides genuine discrimination beyond bare compile success",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

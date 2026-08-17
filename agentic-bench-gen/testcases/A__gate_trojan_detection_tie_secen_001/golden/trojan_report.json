@@ -1,0 +1,15 @@
+{
+  "verdict": "trojan_detected",
+  "suspect_instances": [
+    "U_TIE_SECEN",
+    "u_sec_and1",
+    "u_sec_or2"
+  ],
+  "compromised_net": "secure_enable",
+  "driver_instance": "U_TIE_SECEN",
+  "orphaned_logic": [
+    "u_sec_and1",
+    "u_sec_or2"
+  ],
+  "rationale": "Structural analysis of controller_netlist.v shows that the primary output secure_enable is driven directly by U_TIE_SECEN, a TIEHI constant-tie cell, rather than by any combinational function of access_grant, admin_override, and lock_bit. This means secure_enable is permanently forced to logic 1 regardless of the access-control inputs, silently bypassing the intended secure-mode protection check for any downstream logic gated by this signal. The design_brief.md specifies that secure_enable should equal (access_grant & admin_override) | lock_bit, and this exact combinational cone is in fact present in the netlist: u_sec_and1 (AND2) computes access_grant & admin_override into sec_and_out, and u_sec_or2 (OR2) combines sec_and_out with lock_bit into sec_enable_calc. However, sec_enable_calc is never connected to secure_enable or to any other instance's input port anywhere in controller_netlist.v -- it has zero fan-out/loads. Consequently u_sec_and1 and u_sec_or2 form dead/orphaned logic: they compute the correct security condition but that result is discarded, while the actual secure_enable output net is tied high by U_TIE_SECEN. Because testbench_regression.v only observes secure_enable's value alongside data_out and never differentially probes which physical driver produced that value, and because it does not include a stimulus case where the intended secure_enable formula would evaluate to 0 while checking for that value, the regression testbench cannot distinguish this constant-tie substitution from correct behavior; the anomaly is only detectable via netlist-level driver/fan-out analysis, not simulation of the provided vectors. This is a classic minimal-footprint hardware Trojan: a single-cell substitution (TIEHI in place of the AND2/OR2 cone's output) that defeats an access-control gate while leaving the RTL-equivalent logic physically present but unconnected."
+}

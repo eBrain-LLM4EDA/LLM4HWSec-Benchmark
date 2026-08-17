@@ -1,0 +1,90 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py mutation coverage",
+      "description": "SR3 (remediation correctness) and SR4 (fault_free preservation consistency) have no targeting mutant detected in the mutation analysis, indicating these checks are not independently verified to discriminate between correct and incorrect submissions beyond the baseline case. Although the baseline and golden differential runs pass/fail correctly overall, the lack of mutant coverage for SR3/SR4 means subtle incorrect remediations or inconsistent fault_free_justification claims might not be reliably caught.",
+      "evidence": "per_requirement_coverage: SR3 covered=false mutants_detected=0 mutants_targeting=1; SR4 covered=false mutants_detected=0 mutants_targeting=1; uncovered_requirements: [SR3, SR4]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR1 direction logic",
+      "description": "The SR1 regex-based directionality check has convoluted fallback logic (if not reversed_match: return True) that could be lenient toward ambiguous phrasings not explicitly tested, slightly weakening precision though not causing baseline failure in current tests.",
+      "evidence": "sr1_check() final branch: 'if not reversed_match: return True, \"\"' accepts any co-mention of COMPARE and CHECK_DONE without an explicit reversed arrow, which could pass some incorrect phrasings.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add mutation test cases specifically targeting SR3 (e.g., a submission with a plausible-sounding but functionally incorrect remediation such as 'decrement in CHECK_DONE but also decrement in COMPARE' without restore, or 'add restore logic but leave decrement in CHECK_DONE') to confirm the check actually discriminates correct vs. incorrect remediation semantics.",
+    "Add a mutant targeting SR4 specifically, e.g. a report claiming fault_free_behavior_preserved=true with a justification that mentions the 3-attempt sequence but is logically inconsistent with the proposed remediation (e.g., proposes a fix that would actually skip an attempt), to verify SR4's consistency check catches semantic mismatches beyond keyword presence.",
+    "Consider tightening the SR1 fallback branch so that ambiguous inputs (co-mentioning COMPARE and CHECK_DONE without any directional cue) are treated more conservatively, or add an explicit test case for this edge to confirm intended behavior."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run passes FR1; baseline (empty affected_signals) fails FR1 as expected.",
+      "requirement": "FR1: required string/array fields with retry-counter and auth/lockout signal naming",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails due to empty justification string.",
+      "requirement": "FR2: fault_free_behavior_preserved boolean + justification",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline fails due to empty array.",
+      "requirement": "FR3: state_names_referenced subset of RTL localparams",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and baseline pass FR4 since baseline supplies valid confidence/method values.",
+      "requirement": "FR4: confidence in [0,1], method in allowed set",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline (IDLE->COMPARE) fails as expected.",
+      "requirement": "SR1: correct vulnerable_transition COMPARE->CHECK_DONE direction",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; baseline ('at any time') fails as expected.",
+      "requirement": "SR2: glitch_window correctly scoped to COMPARE->CHECK_DONE edge",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation analysis shows SR3 has 0/1 mutants detected \u2014 no dedicated mutant targets this check independently, meaning its discriminative power against subtly-wrong remediations is unverified despite passing on the golden/baseline pair.",
+      "requirement": "SR3: remediation describes decrement-on-entry-to-COMPARE with restore-on-success or equivalent atomic fix",
+      "status": "fail"
+    },
+    {
+      "evidence": "Mutation analysis shows SR4 has 0/1 mutants detected, indicating the check's ability to reject inconsistent off-by-one or unjustified fault-free claims is not independently confirmed by mutation testing.",
+      "requirement": "SR4: fault_free_behavior_preserved=true justified consistently with 3-attempt lockout",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run stdout shows FR1, FR2, FR3, SR1, SR2, SR3, SR4 all FAIL (only FR4 passes), overall exit_code=1, matching expected 'fail' status.",
+      "requirement": "Baseline (naive) submission must fail all FR/SR checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run stdout shows all FR1-FR4 and SR1-SR4 PASS, exit_code=0, matching expected 'pass' status.",
+      "requirement": "Golden/correct submission must pass all checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, fault_model.md, design_brief.md, and pin_check_fsm.v comments describe only plain engineering behavior; fault_model.md explicitly avoids naming CHECK_DONE or attempts_left and uses generic unrelated examples (traffic light, UART) to illustrate the fault shape.",
+      "requirement": "No leakage of hidden CWE ids, SR ids, or vulnerability hints in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each check distinct, concrete field-level properties (string/array types, signal name substrings, boolean+justification, state-name grounding against RTL text, confidence range and method enum) rather than a single restatement of the objective.",
+      "requirement": "Functional requirements are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_stateskip.v forces a state-skip fault (COMPARE->IDLE bypassing CHECK_DONE) via force/release on dut.state and reports attempts_before/attempts_after, corroborating the hidden ground truth is a real, simulatable phenomenon, even though it is only used for corroboration and not gating.",
+      "requirement": "Security-relevant behavior actively triggered rather than only generically checked",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

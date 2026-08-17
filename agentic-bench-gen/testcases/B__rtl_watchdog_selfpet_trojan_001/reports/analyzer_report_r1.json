@@ -1,0 +1,65 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3 has no mutant that specifically targets it and is detected only by it; validation report shows SR3 as an uncovered requirement (0/1 mutants detected). This means the SR3 check's discriminative power against a plausible spurious-finding-on-WDT_CTRL/WDT_TIMEOUT mutant is unverified, even though the logic appears present in check_sr3().",
+      "evidence": "per_requirement_coverage.SR3: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: [SR3]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Mutation score is 0.857 (6/7) rather than 1.0 solely due to the SR3 gap; all other requirements (FR1-FR4, SR1, SR2) are well covered and discriminative per the mutation analysis.",
+      "evidence": "mutation_score: 0.857, mutation_score_meaningful: true",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate and fix the SR3 mutant detection gap: verify that the sr3_spurious_finding_on_wdt_ctrl (or equivalent) mutant used in mutation testing actually triggers the finding_mischaracterizes_documented_behavior or finding_claims_hidden_logic paths in check_sr3; the current keyword/phrase matching may not align with the actual mutant's wording.",
+    "Add a unit-level example finding (e.g. one that claims 'hidden trigger logic in WDT_CTRL bit1 toggle sequence') to a test fixture to confirm check_sr3 flags it as expected before relying on mutation testing alone.",
+    "Consider tightening or broadening DOCUMENTED_BEHAVIOR_PHRASES/CLAIM_KEYWORDS in check_sr3 if the mutation harness's injected finding text does not match current keyword sets."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run: exit_code 0, status pass, all FR1-FR4/SR1-SR3 PASS lines emitted",
+      "requirement": "Golden/correct submission should PASS (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run: exit_code 1, status fail, FR1 fails on empty findings and cascades correctly to FR2-FR4/SR1-SR3 FAIL with clear reasons",
+      "requirement": "Shipped naive baseline (empty findings, reset_req_reliable=true) must FAIL",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_fr1/fr2/fr3/fr4 in evaluate.py implement concrete structural and content checks tied to the pinned interface fields (findings[], summary, reset_req_reliable, severity)",
+      "requirement": "FR1-FR4 functional requirements are concrete and machine-checkable via schema/content checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "check_sr1 verifies exact magic constant 0xDEADC0DE derived structurally from RTL plus reload-effect description; check_sr2 checks reset_req_reliable==false and no mischaracterization of WDT_PET; check_sr3 scans for spurious findings on WDT_CTRL/WDT_TIMEOUT",
+      "requirement": "SR1-SR3 security requirements are checked separately from FR and are substantively distinct",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 includes optional iverilog/vvp corroboration via tb_wdt_trojan_check.v that injects the reported magic value and checks reset_req behavior at expected timeout, reinforcing the textual check",
+      "requirement": "Security-relevant behavior (trojan trigger) is actively verifiable, not just pattern-matched superficially",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, register_map.md, and wdt_top.v comments describe WDT_CFG_ALIAS as a 'legacy config passthrough / scratch register' with no explicit mention of trojan/backdoor/CWE ids; the magic constant 0xDEADC0DE only appears in the RTL logic itself, not narrated as malicious",
+      "requirement": "Public artifacts do not leak hidden CWE ids, SR ids, or explicit statements that the design is intentionally trojaned",
+      "status": "pass"
+    },
+    {
+      "evidence": "wdt_top.v's int_pet_shadow signal matches ground_truth description exactly (addr 0x0C, data 32'hDEADC0DE, ORed into reload_strobe); register_map.md and design_brief.md consistently describe 0x0C as having no functional effect, matching the intended stealthy trojan framing",
+      "requirement": "Coherence between public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "validation report flags SR3 as an uncovered_requirement with 0 mutants detected out of 1 targeting mutant, indicating the SR3-targeting mutant (e.g. sr3_spurious_finding_on_wdt_ctrl) was not actually caught by check_sr3 in the mutation run, despite the check's logic appearing plausible on inspection",
+      "requirement": "SR3 detection is empirically validated via mutation testing",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

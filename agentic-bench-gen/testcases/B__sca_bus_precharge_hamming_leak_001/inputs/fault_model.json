@@ -1,0 +1,14 @@
+{
+  "probe_type": "power/EM near-field",
+  "observable": "per-cycle bus switching activity on dbus[7:0]",
+  "attacker_access": "no logical access to data_in; external bus observation only",
+  "granularity": "per-clock-cycle",
+  "repeatability": "the module can be triggered to repeat the same transfer many times under attacker-controlled timing",
+  "measurement_constraints": [
+    "attacker cannot read internal registers or data_in directly",
+    "attacker cannot halt or single-step the design beyond normal clocking",
+    "attacker can align measurement windows to the load pulse using externally visible signals (e.g. valid, or a synchronization trigger)",
+    "attacker cannot distinguish which specific bit lines toggled, only aggregate or per-line activity magnitude depending on probe resolution"
+  ],
+  "notes": "The analysis should assume an adversary who can request or observe many repeated transfers of the same underlying data word (e.g. a fixed secret-derived byte reused across operations) and average or otherwise process the resulting per-cycle bus activity measurements to reduce measurement noise. The adversary's goal is to infer properties of the transported data word purely from externally observable bus activity patterns, without any other access to the module's internals."
+}

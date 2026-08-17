@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "363985a79eb87e5c4284ab11daa9ed2aef8391414d42ea2847377b6f58517822",
+    "expert/expert_bundle.json": "019fbcd6523cba72ddb82d871055de1896a887804298bc1e1d64a5b4456f9ee6",
+    "mutants/mutation_bundle.json": "cecbd6706c09cb7b63392b7a1372a19a0045a12d0a6908900af17d88e8615b7a",
+    "reports/analyzer_report.json": "796cca7307e6111c7b11cf34a37da1483296f6a8568fe51c36a1014a9b8d3cfc",
+    "reports/quality_report.json": "b1c767292dedc03c212ba412e46ab451875d11651681158c6d8e4a1f569ce586",
+    "reports/validation_report.json": "6c6cd1a2a54312d4bf6a3af0e0e6f02a89ec3afde70806079a4c01d2e247fe3b",
+    "spec/task_spec.json": "e20f0017fd40c00934a8dcda5ff381b1417674d347c4d3217cae0069789997a7",
+    "tests/tester_bundle.json": "34efd8bba14300748ed0040bf5ad9993cda5794bb275c1cfd30e7e081edc0ab5"
+  },
+  "domain_id": "hls_security_codegen",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": true,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "quality_failed",
+  "task_id": "hls_scatter_gather_descriptor_bounds_001"
+}

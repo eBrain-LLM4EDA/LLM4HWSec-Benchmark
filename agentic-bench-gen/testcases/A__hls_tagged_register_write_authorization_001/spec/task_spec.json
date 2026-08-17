@@ -1,0 +1,103 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of the 32 protected-range indices (16..47) for which an unprivileged (priv_tag=0) write call is incorrectly accepted (returns 1 or mutates reg_file), sampled by exhaustive sweep; measures CWE-862/CWE-863 authorization bypass.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Fraction of index/tag combinations (across full sweep of all 64 indices x 2 tag values x 3 out-of-bounds probes) where observed write/reject behavior and return code exactly match the ground-truth policy defined in hidden_spec; captures both false-accepts and false-rejects.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Whether inputs/reg_write_kernel.cpp compiles successfully with g++ -std=c++11 -Wall against the generated test harness and links into an executable without errors.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A hardened submission must return 0 for all 32 protected indices (16..47) when priv_tag=0, i.e., zero authorization bypasses across the full protected window.",
+      "A hardened submission must return 1 and write correctly for all 32 protected indices when priv_tag=1.",
+      "A hardened submission must preserve unrestricted writability for all 32 unprotected indices under both tag values.",
+      "A hardened submission must reject and not write for at least 3 out-of-bounds reg_index probes under both tag values.",
+      "The shipped insecure baseline must fail this grading by allowing at least one protected index in 32..47 to be written with priv_tag=0."
+    ],
+    "cwe_ids": [
+      "CWE-284",
+      "CWE-862",
+      "CWE-863",
+      "CWE-1220"
+    ],
+    "ground_truth": "The secure implementation checks: if reg_index is out of [0, reg_file_size) bounds, return 0 without writing. Otherwise, if reg_index is within the protected range [16,47] inclusive, the write is performed only when priv_tag == 1 (privileged); if priv_tag != 1, return 0 without writing. If reg_index is outside the protected range (i.e., in [0,15] or [48,63]), the write is always performed regardless of priv_tag, returning 1. The insecure baseline shipped as inputs/reg_write_kernel.cpp only enforces the tag check for a narrow sub-window of the protected range (e.g., indices 16..31) and allows unauthenticated writes to indices 32..47 even though they are nominally protected, thereby letting an unprivileged caller silently reconfigure those protection-adjacent registers.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Sweep reg_index across 16..47 with priv_tag=0 and assert the harness observes return value 0 and reg_file[reg_index] unchanged from its pre-call sentinel value for every index; any index that accepts the write indicates an incomplete gate (matches the insecure baseline's narrow-window flaw).",
+        "id": "SR1",
+        "requirement": "Every index in the protected range 16..47 inclusive must reject writes when priv_tag != 1, with no exceptions or sub-ranges left unchecked."
+      },
+      {
+        "detection_strategy": "Sweep reg_index across 16..47 with priv_tag=1 and assert return value 1 and reg_file[reg_index] == value for every index.",
+        "id": "SR2",
+        "requirement": "Privileged requests (priv_tag=1) must succeed uniformly across the full protected range, so the fix must not overcorrect into denial-of-service for legitimate privileged writers."
+      },
+      {
+        "detection_strategy": "Sweep unprotected indices with priv_tag=0 and priv_tag=1 and assert return value 1 and correct write for both tag values.",
+        "id": "SR3",
+        "requirement": "Unprotected indices (0..15, 48..63) must remain writable by any requester regardless of tag, preserving intended functional behavior while the security fix is applied."
+      },
+      {
+        "detection_strategy": "Call reg_write with reg_index = -1, reg_file_size, and reg_file_size+100 for both priv_tag values and assert return 0 and no memory corruption (checked via canary values surrounding the reg_file buffer).",
+        "id": "SR4",
+        "requirement": "Out-of-bounds reg_index values must never write to memory regardless of tag, preventing an authorization bypass disguised as an out-of-range access."
+      }
+    ],
+    "threat_model": "An attacker or unprivileged software context can invoke the accelerator's register-write path with an unprivileged tag (priv_tag=0). If the enforcement of the privilege check is incomplete -- covering only part of the protected index range -- the attacker can target the overlooked protected indices to write arbitrary configuration values, effectively bypassing the intended access-control boundary and reconfiguring protection or security-relevant settings without authorization."
+  },
+  "public_spec": {
+    "constraints": [
+      "The register file has exactly 64 32-bit registers (indices 0..63).",
+      "The protected range is fixed at indices 16 through 47 inclusive; this range must be treated uniformly.",
+      "The function signature, name, linkage (extern \"C\"), and file name must not be changed.",
+      "The implementation must be self-contained in reg_write_kernel.cpp with no external dependencies beyond the standard C++ library.",
+      "Do not use dynamic memory allocation or exceptions inside reg_write."
+    ],
+    "expected_outputs": [
+      "A hardened version of inputs/reg_write_kernel.cpp that compiles with g++ and, for every register index and every privilege tag value, produces the write/reject behavior defined by the functional requirements below."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For any reg_index in the unprotected ranges 0..15 or 48..63, calling reg_write with priv_tag=0 and any value must return 1 and result in reg_file[reg_index] == value (unprotected indices are always writable regardless of tag)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For any reg_index in the protected range 16..47, calling reg_write with priv_tag=1 must return 1 and result in reg_file[reg_index] == value."
+      },
+      {
+        "id": "FR3",
+        "requirement": "Calling reg_write with reg_index < 0 or reg_index >= reg_file_size must return 0 and must not modify any element of reg_file."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The function must compile cleanly with g++ -std=c++11 -Wall as a standalone translation unit when included by a harness that provides main(), with no unresolved symbols and no undefined behavior warnings treated as errors by the build."
+      }
+    ],
+    "input_artifacts": [
+      "reg_write_kernel.cpp",
+      "design_brief.md"
+    ],
+    "interface": "File: inputs/reg_write_kernel.cpp. The file must define exactly this function, callable from a C++ test harness that includes the file or links against it: `extern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag, unsigned int *reg_file, int reg_file_size);` Parameters: reg_index (public, the target register index, valid range 0..reg_file_size-1), value (public, the 32-bit value to write), priv_tag (public, the requester's privilege tag; 1 means privileged, 0 means unprivileged -- this is a declassified/public input, not a secret), reg_file (public, pointer to the register file array of length reg_file_size that the function may mutate), reg_file_size (public, number of registers in reg_file, supplied by the harness, expected value 64). Return value: the function must return 1 if the write was performed (reg_file[reg_index] set to value) and 0 if the write was rejected (reg_file[reg_index] left unchanged). The protected register index range is fixed at indices 16..47 inclusive (inclusive of both ends), out of a 64-register file (indices 0..63); indices 0..15 and 48..63 are unprotected. reg_index values outside 0..reg_file_size-1 must return 0 and must not write to memory.",
+    "objective": "Harden the provided HLS accelerator register-write kernel (inputs/reg_write_kernel.cpp) so that writes to configuration registers are correctly gated by the requester's privilege tag across the ENTIRE protected register range, while leaving unprotected register behavior unchanged. Edit the file in place; do not change its public function signature or file name.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_tagged_register_write_authorization_001",
+  "title": "Privilege-tag enforcement on accelerator register writes"
+}

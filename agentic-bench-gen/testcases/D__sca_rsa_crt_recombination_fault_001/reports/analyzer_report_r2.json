@@ -1,0 +1,81 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The golden expert submission is rejected by the grader on SR1, per the differential validation report. The golden_fixture regression self-check itself fails at startup (MISMATCH: expected=sig_p_reg, got target=None, ambiguous=True), showing determine_trigger_fault_target() mis-extracts the fault target from the golden fixture's trigger_scenario text \u2014 likely because the fault-injection regex window/clause boundaries fail to bind 'forces sig_p_reg' correctly when both register names and their baseline values are narrated in the same sentence, causing extract_fault_targets to find both sig_p_reg and sig_q_reg (or neither) as targets and return ambiguous=True. This same bug causes the actual golden vulnerability_report.json submission to fail SR1 with 'fault-injection target (sig_p_reg) is inconsistent with vulnerable_register's primary register (sig_q_reg)', which is an internally contradictory diagnostic (both are named sig_p_reg in the fixture) confirming the extraction logic is broken.",
+      "evidence": "golden_run.stdout: '[INFO] golden_fixture trigger_scenario check: MISMATCH (expected=sig_p_reg, got target=None, ambiguous=True)' followed by '[TEST] FAIL: SR1: trigger_scenario's fault-injection target (sig_p_reg) is inconsistent with vulnerable_register's primary register (sig_q_reg)'; golden_run.expected='pass' but status='fail', exit_code=1.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Because the correct/golden submission cannot pass, the requirement_discrimination_coverage_score is 0.0 and mutation_status is blocked_by_differential \u2014 the benchmark cannot reliably distinguish correct from incorrect submissions until this bug is fixed.",
+      "evidence": "requirement_discrimination_coverage_score: 0.0; mutation_status: 'blocked_by_differential'; mutation_score_meaningful: false.",
+      "severity": "high"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix determine_trigger_fault_target()/extract_fault_targets() in evaluate.py so that the golden_fixture regression self-check passes (currently it prints a MISMATCH at startup), and re-verify that the actual golden vulnerability_report.json passes SR1 end-to-end before shipping.",
+    "Add more/varied fixture cases (e.g., baseline mentioned before fault verb, fault verb before baseline mention, use of pronouns like 'it') to harden the fault-injection-language-anchored regex extraction against sentence structures similar to the golden answer's phrasing.",
+    "Since the self-check is diagnostic-only and does not gate scoring, consider making it fail the evaluate.py run (or emit a SETUP-level error) when the regression fixture itself does not resolve as expected, to prevent shipping a grader that silently rejects correct submissions.",
+    "Re-run the full differential validation (golden vs. naive baseline vs. representative mutants) after the SR1 fix to confirm mutation_score and requirement_discrimination_coverage_score improve above 0."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run PASSes FR1; vulnerable/naive baseline correctly fails FR1 with 'field ... is empty' for all five fields.",
+      "requirement": "FR1 - schema/field presence non-emptiness",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASSes FR2 per differential golden_run.stdout.",
+      "requirement": "FR2 - trigger_scenario reproducible via simulation",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASSes FR3; self-check also confirms primary=sig_p_reg correctly for vulnerable_register field.",
+      "requirement": "FR3 - primary register determination",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASSes FR4.",
+      "requirement": "FR4 - recompute-and-compare fix semantics",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILs SR1 with contradictory reasoning ('fault-injection target (sig_p_reg) is inconsistent with ... (sig_q_reg)') despite both being sig_p_reg in the fixture; the internal self-check for the same fixture also reports MISMATCH with ambiguous=True instead of resolving to sig_p_reg, confirming a real bug in determine_trigger_fault_target()/extract_fault_targets().",
+      "requirement": "SR1 - vulnerable_register vs trigger_scenario fault-target consistency",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run PASSes SR2.",
+      "requirement": "SR2 - single-transient-register fault model",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASSes SR3.",
+      "requirement": "SR3 - recompute-and-compare missing_verification_step/recommended_fix",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASSes SR4.",
+      "requirement": "SR4 - reproducibility of trigger scenario via simulation",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run.stdout shows FR1-FR4 and SR1-SR4 all FAIL for the empty-field baseline, exit_code=1, matching expected='fail'.",
+      "requirement": "Baseline (naive/empty) must fail all checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and fault_model.md avoid mentioning CWE ids, SR ids, RSA/CRT-RSA, or explicit 'this is the vulnerable baseline' framing; fault_model.md is framed as generic SEU reliability engineering.",
+      "requirement": "No leakage of hidden spec/CWE/SR ids into public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each map to distinct, concrete, automatically-checkable behaviors (schema/field presence, simulatable trigger scenario, named register consistency, and fix content) rather than a single generic restatement.",
+      "requirement": "Functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

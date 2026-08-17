@@ -1,0 +1,58 @@
+{
+  "verdict": "trojan_present",
+  "key_bus_signal": "key_reg",
+  "fanout_map": [
+    {
+      "key_bit": 0,
+      "consumer_instances": ["u_round_xor0", "u_shadow_ff0"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 1,
+      "consumer_instances": ["u_round_xor1", "u_shadow_ff1"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 2,
+      "consumer_instances": ["u_round_xor2", "u_shadow_ff2"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 3,
+      "consumer_instances": ["u_round_xor3", "u_shadow_ff3"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 4,
+      "consumer_instances": ["u_round_xor4", "u_shadow_ff4"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 5,
+      "consumer_instances": ["u_round_xor5", "u_shadow_ff5"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 6,
+      "consumer_instances": ["u_round_xor6", "u_shadow_ff6"],
+      "num_consumers": 2
+    },
+    {
+      "key_bit": 7,
+      "consumer_instances": ["u_round_xor7", "u_shadow_ff7"],
+      "num_consumers": 2
+    }
+  ],
+  "suspect_instances": [
+    "u_shadow_ff0",
+    "u_shadow_ff1",
+    "u_shadow_ff2",
+    "u_shadow_ff3",
+    "u_shadow_ff4",
+    "u_shadow_ff5",
+    "u_shadow_ff6",
+    "u_shadow_ff7",
+    "u_exfil_mux"
+  ],
+  "summary": "Each bit of key_reg[7:0] fans out to two consumers instead of the single documented u_round_xor<i> gate: an undocumented shadow_ff instance (u_shadow_ff0..u_shadow_ff7) clocked and reset identically to the key register bank, forming a covert shadow_reg copy of the key. The eight shadow_reg bits converge via a reduction-OR into exfil_bit, which is routed through the undocumented multiplexer u_exfil_mux, gated by the rarely-asserted debug_mode_rare control net, driving the exfil_out port. Neither shadow_reg, exfil_bit, u_exfil_mux, nor exfil_out is described in design_brief.md, and this path never influences round_out, making it a covert secondary exfiltration channel for key_reg."
+}

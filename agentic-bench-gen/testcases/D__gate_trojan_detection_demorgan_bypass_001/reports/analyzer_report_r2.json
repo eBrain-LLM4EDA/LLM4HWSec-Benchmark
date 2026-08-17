@@ -1,0 +1,101 @@
+{
+  "issues": [
+    {
+      "artifact": "inputs/perm_cone_netlist.v",
+      "description": "The netlist as shipped is malformed/inconsistent with the intended ground truth. It contains leftover draft artifacts (references to c_bugged, n_o0_bugged macros in comments/dead text causing iverilog warnings) and the actual wiring of u_perm_nand3 uses .c(n_o0_qual) fed through a NOR2/INV correction cone (u_nor_o0_qual, u_inv_o0_qual, u_nand_corr, u_inv_corr) rather than a clean single-instance bug. This causes the flip-sensitivity analysis in evaluate.py to implicate 13+ extra instances (u_inv_a0, u_inv_corr, u_inv_o0_qual, u_inv_o1, u_inv_out, u_inv_owner_qual, u_inv_req10, u_inv_t3, u_nand_corr, u_nand_req10, u_nand_t3, u_nor_o0_qual, u_nor_out) as ground-truth suspects instead of the intended sole {u_perm_nand3}, per the differential report's golden_rejected failure.",
+      "evidence": "differential.golden_run.stdout: '[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): [\"u_inv_a0\", \"u_inv_corr\", ... 13 instances]' despite golden submitting exactly {u_perm_nand3} as the correct answer per hidden_spec.ground_truth.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The grader's golden run rejects the expert/golden solution (exit 1, SR3 FAIL) when it should pass (exit 0). This directly violates the submission contract requirement that a correct submission must be accepted.",
+      "evidence": "differential.golden_run: {'exit_code':1,'expected':'pass','ok':false,'status':'fail', stdout shows 'PASS: SR1','PASS: SR2', but 'FAIL: SR3' with a long list of unintended flip-sensitive instances.",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/perm_cone_netlist.v",
+      "description": "The Verilog file contains stray/incomplete draft reasoning text with backtick-fenced code blocks and undefined macro references (c_bugged, n_o0_bugged) embedded as comments before the real module, causing iverilog compile warnings. This is leftover scratch content that should not ship in a participant-facing input artifact.",
+      "evidence": "Golden run stderr: '[INFO] iverilog cross-check compile failed (non-fatal): inputs/perm_cone_netlist.v:25: warning: macro c_bugged undefined...' plus the file content shows a long prose/JSON/markdown preamble before the actual 'timescale' and module declaration.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "mutation/differential harness",
+      "description": "mutation_score is 0.0 and mutation_status is blocked_by_differential; requirement_discrimination_coverage_score is 0.0, meaning no security mutants were actually validated as detectable because the differential check failed at the golden-acceptance stage before mutation testing could proceed.",
+      "evidence": "Validation report fields: 'mutation_score':0.0,'mutation_score_meaningful':false,'mutation_status':'blocked_by_differential','requirement_discrimination_coverage_score':0.0.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "inputs/perm_cone_netlist.v manifest description",
+      "description": "The manifest/purpose text for perm_cone_netlist.v explicitly describes the intended single-instance bug mechanics in detail (which port swapped, which gate to isolate), which is scratch/internal generation metadata rather than participant-facing content, but since it appears in the bundle's manifest (not the actual README/design_brief shown to participants) this is lower severity; however the actual shipped .v file itself contains verbose exploratory reasoning about the bug design that goes beyond what a real synthesis artifact would contain.",
+      "evidence": "inputs/perm_cone_netlist.v file content includes multi-paragraph first-person reasoning ('Let me verify the logic before writing... I need a wiring bug that only breaks 101 without breaking 100...') directly inside the artifact delivered to participants.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix inputs/perm_cone_netlist.v to contain only the clean, final Verilog module \u2014 strip all the leftover draft/reasoning prose, backtick code fences, and undefined macro references (c_bugged, n_o0_bugged) that currently precede the actual module declaration and leak the hidden bug design to participants.",
+    "Regenerate the netlist so the flip-sensitivity analysis in evaluate.py resolves the ground-truth suspect set to exactly {u_perm_nand3} as intended, rather than 13+ additional instances (u_inv_a0, u_nor_out, u_inv_out, etc.). This likely requires restructuring the correction sub-cone so it is truly gate-count-minimal and does not create alternate flip-equivalent paths through T1/T2 merge and final-stage gates.",
+    "Re-run the differential test after the netlist fix to confirm the golden solution (submitting {u_perm_nand3} and the single diverging vector) achieves exit code 0 with all SR1-SR4 and FR1-FR4 marked PASS.",
+    "Once golden acceptance is fixed, re-run mutation testing, since mutation_score and requirement_discrimination_coverage_score are currently 0.0 and meaningless due to the blocked differential check.",
+    "Consider tightening SR3 grading logic (or the netlist topology) so that the flip-sensitivity heuristic is robust to intermediate inverter/buffer stages that trivially propagate the flip without independent causal significance, to avoid over-broad suspect sets in future revisions.",
+    "Review all input artifacts for any remaining scratch/generation-time text before shipping; the current perm_cone_netlist.v is unsuitable for participant consumption in its present state."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR1'.",
+      "requirement": "FR1 (schema validity)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR2'.",
+      "requirement": "FR2 (field formats)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR3'.",
+      "requirement": "FR3 (instance names must exist in netlist)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR4'.",
+      "requirement": "FR4 (trojan_detected/diverging_vectors consistency)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run: '[TEST] PASS: SR1'; vulnerable (naive) run: '[TEST] FAIL: SR1: ... submission.trojan_detected is False'.",
+      "requirement": "SR1 (trojan_detected must be true)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run: '[TEST] PASS: SR2'; vulnerable run: '[TEST] FAIL: SR2: missing true diverging vector(s)...'.",
+      "requirement": "SR2 (exact diverging vector set match)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS SR3 even though golden submitted the intended correct answer {u_perm_nand3}: '[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): [13 unrelated instances]'. This means the evaluator's ground-truth suspect computation does not match the intended single-instance ground truth described in hidden_spec, so a correct submission is rejected.",
+      "requirement": "SR3 (suspect_instances superset of ground-truth flip-sensitive instances)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows '[TEST] PASS: SR4' but this is inconsistent given SR3 failure; vulnerable run correctly fails SR4. Since SR3's ground truth computation is broken, SR4's correctness is also suspect since both depend on the same flip-sensitivity analysis.",
+      "requirement": "SR4 (zero false-positive rate)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "differential.status: 'fail'; golden_run.ok: false, golden_run.expected: 'pass', golden_run.status: 'fail', exit_code 1 \u2014 the grader rejects the correct/expert solution.",
+      "requirement": "Golden acceptance (correct submission must pass overall)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run.ok: true, vulnerable_run.expected: 'fail', vulnerable_run.status: 'fail' \u2014 naive baseline correctly fails SR1/SR2/SR3/SR4.",
+      "requirement": "Baseline rejection (naive empty submission must fail)",
+      "status": "pass"
+    },
+    {
+      "evidence": "inputs/perm_cone_netlist.v itself (a participant-facing input artifact) contains extensive first-person exploratory reasoning about designing the exact single-vector bug ('I need a wiring bug that only breaks 101 without breaking 100'), which is a severe leak of the hidden ground truth/trojan design directly into a file participants will read and analyze.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

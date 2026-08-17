@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "artifact": "validation report / mutation analysis",
+      "description": "The baseline insecure implementation (shipped inputs/scatter_gather.cpp) passes the full evaluate.py suite (baseline_run: all 8 PASS, exit 0). Per the submission contract, evaluate.py must REJECT the shipped baseline. The differential section shows a 'vulnerable_run' that fails SR1-SR4, but this must be a different, separately-mutated artifact than the actual shipped inputs/scatter_gather.cpp, since baseline_run (which grades the shipped file in place) reports full pass. This means the shipped starter file in inputs/ is not actually the described insecure baseline from metadata/manifest, or evaluate.py is not grading it as expected \u2014 either way the acceptance/rejection contract is broken for the artifact actually delivered under inputs/.",
+      "evidence": "baseline_run.status=pass with exit_code 0 and all 8 [TEST] PASS lines, while differential.vulnerable_run (exit_code 1) fails SR1-SR4 \u2014 these two runs are inconsistent for the same submission_kind if both are grading the same file.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/harness_main.cpp + evaluate.py (SR1)",
+      "description": "SR1 requirement is uncovered by mutation testing (0/1 mutants targeting SR1 detected) despite the probe existing and running successfully on the baseline. The per_requirement_coverage and per_requirement_discrimination both mark SR1 as covered=false, and it appears in uncovered_requirements. This indicates the SR1 check does not reliably discriminate a mutant meant to violate the 32-bit overflow protection, undermining confidence that SR1 is a real, verifiable gate.",
+      "evidence": "uncovered_requirements: [\"FR1\",\"SR1\"]; per_requirement_coverage.SR1: {covered:false, mutants_detected:0, mutants_targeting:1}",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (FR1)",
+      "description": "FR1 requirement is also uncovered by mutation testing (0/1 mutants detected), meaning the FR1 functional check may not adequately discriminate a broken implementation from a correct one, weakening the functional_pass_rate metric's reliability.",
+      "evidence": "per_requirement_coverage.FR1: {covered:false, mutants_detected:0, mutants_targeting:1}",
+      "severity": "medium"
+    },
+    {
+      "artifact": "validation report",
+      "description": "Overall status is reported as 'fail' in the validation report itself, which is a self-reported signal that this benchmark case did not pass its own quality gates (mutation_score 0.75 with two uncovered requirements, and issues list flagging uncovered_requirement gaps for FR1 and SR1).",
+      "evidence": "\"status\": \"fail\", \"mutation_score\": 0.75, issues: [{\"issue\":\"uncovered_requirement\",...FR1...},{\"issue\":\"uncovered_requirement\",...SR1...}]",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Resolve the discrepancy between baseline_run (all-pass on shipped inputs/scatter_gather.cpp) and the differential vulnerable_run (fails SR1-SR4): confirm which file is actually being graded in place under the hardened_artifact contract, and ensure the shipped inputs/scatter_gather.cpp is truly the insecure baseline described in the manifest and that evaluate.py rejects it.",
+    "Strengthen or add a mutant/test vector specifically targeting FR1 (e.g. a mutant that permutes descriptor order or omits the last descriptor's copy) so mutation testing detects at least one FR1-breaking change.",
+    "Strengthen the SR1 probe or add an additional overflow mutant (e.g. a mutant that clamps rather than rejects, or one that uses signed arithmetic) so that SR1 achieves nonzero mutant detection and is confirmed as a discriminating check.",
+    "Re-run the full validation pipeline after fixing the baseline/differential inconsistency to confirm overall_status becomes 'pass' before promoting this benchmark case."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run passes all 8 checks as expected, but baseline_run (grading inputs/scatter_gather.cpp in place per the hardened_artifact contract) also passes all 8 checks with exit 0, which directly contradicts the required baseline-must-fail behavior. The differential vulnerable_run failing is a separate artifact from what baseline_run graded, indicating an inconsistency in the report.",
+      "requirement": "evaluate.py accepts a correct hardened submission (golden) and rejects the shipped insecure baseline",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md and harness_main.cpp define FR1 (full in-order copy), FR2 (non-uniform per-descriptor sequential source consumption), FR3 (compile/link/C-linkage check), FR4 (desc_count=0 no-op with poisoned pointers) all pinned to the exact interface signature and checked via evaluate.py verdict functions.",
+      "requirement": "FR1-FR4 functional requirements are concrete, machine-checkable, and public",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type 'functional' and SR1-SR4 as 'security', each with concrete descriptions of the crafted overflow/partial-rejection/source-overrun/boundary test vectors and canary-based detection strategies in harness_main.cpp.",
+      "requirement": "SR1-SR4 security requirements are actively triggered (not generic) and separated from functional requirements in requirement_map",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/design_brief.md use only generic robustness language ('safe', 'robust', 'defensive') with no CWE numbers, SR/FR ids, or explicit mention that the baseline is intentionally vulnerable.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py's per-probe verdicts (status/dst_ok/canary_ok) directly correspond to CWE-violation detection (SR1-SR4), information-flow correctness (dst unmodified/byte-exact), compile success (synthesis_pass_rate via compile_submission), and functional pass rate (FR1-FR4 verdicts).",
+      "requirement": "evaluate.py measures the four requested metrics (cwe_violation_rate, information_flow_correctness, synthesis_pass_rate, functional_pass_rate)",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage shows FR1 and SR1 both have mutants_targeting=1 but mutants_detected=0, meaning their checks failed to catch at least one designed mutant, and mutation_score is only 0.75 with mutation_status 'evaluated' rather than fully passing.",
+      "requirement": "Mutation/coverage analysis confirms each requirement's check is actually discriminating",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

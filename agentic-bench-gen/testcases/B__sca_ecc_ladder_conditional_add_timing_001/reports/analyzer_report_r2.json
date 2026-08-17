@@ -1,0 +1,87 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR1 and SR3 checks are regex/keyword-based and were not killed by any targeted mutant in the mutation testing run, indicating these checks may be too permissive or the mutant set insufficiently adversarial. A submission that vaguely mentions 'add' in unrelated context (e.g., 'the DOUBLE state does not add delay') could pass SR1's mentions_add_concept check spuriously, and SR3's dual-pattern requirement (has_always_add and has_mux) may be gameable by keyword stuffing without genuine RTL understanding.",
+      "evidence": "per_requirement_coverage: SR1 covered=false (0/1 mutants detected), SR3 covered=false (0/1 mutants detected); uncovered_requirements: [SR1, SR3]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3's inadequate_patterns check only downgrades the failure reason when has_always_add is false; a submission that mentions both 'random delay' AND satisfies has_always_add/has_mux via keyword coincidence would still pass, potentially without genuinely describing the correct fix mechanism in a coherent way.",
+      "evidence": "SR3 logic: if not (has_always_add and has_mux): fail; else pass regardless of inadequate_patterns presence",
+      "severity": "low"
+    },
+    {
+      "artifact": "metadata.json / README.md",
+      "description": "No CWE ids, SR ids, or explicit security-vulnerability language appear in public-facing README.md, metadata.json, fault_model.md, or design_brief.md \u2014 these correctly read as plain functional/timing analysis tasks without leaking hidden intent.",
+      "evidence": "README.md and design_brief.md use only functional/timing language; no mention of CWE-208/385/203 or SR1-SR4 anywhere in public bundle",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen SR1's detection_strategy or add mutants that specifically test edge cases like mentioning 'add' in unrelated context (e.g. 'no additional delay') to ensure the regex patterns don't produce false positives, and consider requiring co-occurrence of ADD-specific terms with the S_ADD state name or scalar_bit condition rather than a broad keyword list.",
+    "Strengthen SR3's mutant set or detection logic so that a mutant proposing 'always execute ADD' without a proper mux, or a mutant using inadequate-fix keywords alongside coincidental always-add/mux phrasing, is reliably caught; consider requiring the always-add and mux patterns to appear within a bounded proximity or in a single coherent sentence to reduce gaming via disconnected keyword mentions.",
+    "Re-run mutation testing with additional targeted mutants for SR1 and SR3 to confirm the checks discriminate correctly before finalizing the benchmark, since current mutation_score of 0.75 with two uncovered security requirements is a moderate but not critical risk.",
+    "Consider tightening SR3/SR4 remediation_text regex requirements to reduce reliance on loosely-related keyword co-occurrence, improving robustness against superficially plausible but incorrect submissions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.vulnerable_run (baseline) exit_code=1, all 8 checks FAIL as expected; baseline_run in validation report also shows exit_code 0 pass \u2014 but this appears to be validator's baseline_run field which contradicts vulnerable_run; the differential.vulnerable_run is the authoritative naive-baseline check and shows correct FAIL behavior across FR1-4/SR1-4.",
+      "requirement": "Baseline (naive/empty) submission must fail grading",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run exit_code=0, stdout shows PASS on FR1-4, SR1-4",
+      "requirement": "Golden/correct submission must pass all FR/SR checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 maps to leakage_detection_accuracy, FR2/SR2 map to fault_coverage, SR3/SR4 map to hardening_precision, FR1/FR3/FR4 map to format_conformance \u2014 all present in evaluate.py",
+      "requirement": "Evaluator measures requested metrics (leakage_detection_accuracy, fault_coverage, hardening_precision, format_conformance)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map explicitly tags requirement_type as 'functional' for FR1-4 and 'security' for SR1-4",
+      "requirement": "Requirement map separates functional (FR1-4) and security (SR1-4) requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR2/SR2 require an independent iverilog/vvp simulation cross-check against inputs/scalar_mult_ctrl.v + field_datapath.v using a fixed scalar list spanning Hamming weights, actively exercising the RTL rather than just parsing text",
+      "requirement": "Security-relevant behaviors actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "scalar_mult_ctrl.v and field_datapath.v are self-contained Verilog-2001 modules with no external dependencies; evaluate.py uses tempfile.mkdtemp() and 60s timeouts for iverilog/vvp subprocess calls",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically about a double-and-add scalar multiplication controller's Hamming-weight-dependent timing leak, a canonical SCA scenario, with concrete RTL and cycle-accurate cross-check simulation",
+      "requirement": "Benchmark adapted to domain (side_channel_fault_analysis) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run and vulnerable_run both produced deterministic, expected exit codes; fixed scalar_input.txt ensures reproducibility",
+      "requirement": "No gaps making results unverifiable",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, fault_model.md, design_brief.md contain only functional descriptions; no CWE/SR references found in public bundle search",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec.functional_requirements are each concrete, schema/value-checkable requirements distinct from a single generic restatement",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 FRs)",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage shows SR1 and SR3 each have 1 targeting mutant but 0 detected, meaning the regex-based checks failed to catch at least one crafted mutant designed to violate them, suggesting potential false-pass risk for near-miss submissions",
+      "requirement": "SR1 and SR3 mutation coverage gap",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

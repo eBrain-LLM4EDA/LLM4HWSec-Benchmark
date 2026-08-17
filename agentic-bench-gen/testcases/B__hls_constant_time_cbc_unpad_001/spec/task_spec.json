@@ -1,0 +1,95 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "No published open-source benchmark found"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of targeted CWEs (CWE-208 observable timing discrepancy, CWE-203 observable discrepancy, CWE-385 covert timing channel) for which the submitted kernel exhibits detectable data-dependent iteration/comparison-count variation across adversarial mismatch-position test vectors.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Whether the observable behavioral signal (instrumented loop/comparison count) is provably invariant across all tested secret-dependent padding/mismatch configurations while validity and length outputs remain correct -- i.e. no side channel leaks the position of the padding mismatch.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Fraction of functional and security test cases (FR1-FR4, SR1-SR3) for which the compiled binary produces the behaviorally-verified expected result.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All FR1-FR4 known-answer vectors compiled and executed via g++ produce outputs bit-identical to the reference implementation.",
+      "SR2 known-answer equivalence holds for all valid-padding lengths, invalid last-byte values, and adversarial mismatch-position blocks.",
+      "SR1 instrumented iteration/comparison count is identical across all mismatch-position and validity classes tested (constant-time behavior demonstrated empirically).",
+      "The shipped insecure baseline in cbc_unpad.cpp fails SR1 (shows position-dependent iteration counts) even though it may pass FR1-FR4/SR2, demonstrating the benchmark distinguishes functional correctness from timing security."
+    ],
+    "cwe_ids": [
+      "CWE-208",
+      "CWE-203",
+      "CWE-385"
+    ],
+    "ground_truth": "A secure pad_check unconditionally scans all 16 bytes of the block on every invocation, accumulating a bitwise/boolean validity mask across all 16 positions with identical instruction sequence and loop trip count independent of whether padding is valid, invalid, or adversarially crafted (e.g. right at the boundary). It never branches on secret-derived byte values to decide whether to continue scanning or to return early. The insecure baseline shipped in inputs/cbc_unpad.cpp reads the last byte N, then loops comparing padding bytes and returns/breaks as soon as it finds a mismatching byte -- causing the number of comparisons executed (and thus observable loop-iteration count / instrumented branch count) to depend on where the first mismatch occurs, which is the classic Vaudenay padding-oracle timing side channel. The secure fix must always execute the same number of comparison operations (a fixed unrolled or bounded loop of 16 iterations) and combine results via bitwise AND/OR accumulation into the mask rather than via short-circuiting logical operators or conditional early exits, matching the reference's validity/length results exactly on all block classes: fully valid padding at every length 1-16, invalid last byte (0 or >16), and adversarial blocks where the mismatch is deliberately placed at the very first, middle, or very last padding-checked byte.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Instrument the submitted pad_check by compiling it with a loop/compare counter injected via a wrapper harness (macro or code transformation counting comparisons executed) and call it with: (a) fully valid padding at each length 1..16, (b) invalid last-byte values (0, 17, 255), (c) adversarial blocks where the single mismatching byte is placed at position 15 (last byte checked first), position 0 (first byte checked last), and the middle -- for a fixed padding length N=8. Compare observed iteration/comparison counts across all these cases; require they are identical (or vary by no more than a fixed structural constant independent of mismatch position). The insecure baseline will show iteration counts that scale with the position of the earliest mismatch from the end of the block.",
+        "id": "SR1",
+        "requirement": "The implementation must execute a constant number of comparison/iteration steps over the 16-byte block regardless of the position of the first padding mismatch or the value of the last byte."
+      },
+      {
+        "detection_strategy": "Run the compiled kernel against a table of known-answer vectors covering valid padding of every length 1-16, invalid last bytes, and adversarial near-miss blocks, and assert bitwise equality of *valid and *unpadded_len with the precomputed reference values.",
+        "id": "SR2",
+        "requirement": "Validity and unpadded_len outputs must exactly match the reference oracle for all tested block classes (correctness must not be sacrificed for constant-time behavior)."
+      },
+      {
+        "detection_strategy": "Static fail-on-presence scan of the submitted source restricted to the body of pad_check: flag any `return` or `break` statement that appears before the final unconditional write of *valid/*unpadded_len inside a loop that iterates over block[], and flag any `&&`/`||` whose operands both reference block[i] comparisons in a conditional guarding control flow (used only as a vulnerability detector, never as the sole pass criterion -- SR1 behavioral timing/counting test is the authoritative pass condition).",
+        "id": "SR3",
+        "requirement": "The implementation must not use early return, break, or short-circuit logical operators (&&, ||) that depend on secret block byte values to skip remaining comparisons."
+      }
+    ],
+    "threat_model": "A CBC padding oracle: an attacker who can submit ciphertexts and observe how long (in cycles/iterations) or how the implementation behaves when checking the padding of the decrypted last block can distinguish 'first byte checked from the end mismatches' from 'many bytes match before a mismatch is found'. Because the implementation returns as soon as it detects a mismatching pad byte, the number of loop iterations executed correlates with the number of correctly-guessed trailing bytes, letting an attacker performing a Vaudenay-style attack recover the plaintext byte-by-byte through repeated queries against the same ciphertext with modified prior blocks. This is a textbook observable-timing/observable-behavior side channel that undermines the confidentiality guarantee of CBC-mode decryption."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not change the function name, signature, parameter order, or the file path inputs/cbc_unpad.cpp.",
+      "Do not use dynamic memory allocation, STL containers, or C++ exceptions.",
+      "The implementation must be pure C/C++ compilable with g++ without additional libraries.",
+      "Do not add any additional side-effecting output parameters or global state."
+    ],
+    "expected_outputs": [
+      "A revised inputs/cbc_unpad.cpp implementing the pad_check kernel with the pinned signature, returning correct validity and unpadded length for all block contents, compiling cleanly with g++."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For a block ending in valid PKCS#7 padding of length N (bytes block[16-N..15] all equal to N, 1<=N<=16), pad_check must set *valid=1 and *unpadded_len=16-N."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For a block whose last byte is 0 or greater than 16, pad_check must set *valid=0 and *unpadded_len=16."
+      },
+      {
+        "id": "FR3",
+        "requirement": "For a block whose last byte N is in 1..16 but where any of the last N bytes does not equal N, pad_check must set *valid=0 and *unpadded_len=16."
+      },
+      {
+        "id": "FR4",
+        "requirement": "pad_check must compile as a standalone translation unit with g++ (C++11 or later) with no external dependencies beyond standard headers, and must not modify the contents of block[] itself."
+      }
+    ],
+    "input_artifacts": [
+      "cbc_unpad.cpp",
+      "design_brief.md"
+    ],
+    "interface": "File: inputs/cbc_unpad.cpp. Entry point (must match exactly, no overloads, no namespaces): `void pad_check(const unsigned char block[16], int *valid, int *unpadded_len);` Parameters: `block` is a 16-byte array representing the final decrypted CBC block (the padded plaintext block; treat as secret-derived data). `valid` is an output pointer; the callee must write 1 if the padding is well-formed PKCS#7 padding (i.e. the last byte N is in range 1..16 and the last N bytes of `block` all equal N), or 0 otherwise. `unpadded_len` is an output pointer; the callee must write the length of the plaintext without padding when `*valid==1` (computed as 16 - N), and must write 16 when `*valid==0` (i.e. treat the whole block as plaintext when padding is invalid, matching typical fail-safe behavior). The function must not read or write any memory outside `block[0..15]` and the two output pointers, must not call malloc/new, must not throw, and must return normally (void) in all cases -- no early return before scanning is required by the interface itself, but see functional requirements.",
+    "objective": "The file inputs/cbc_unpad.cpp contains a PKCS#7-style padding validation kernel intended for use in an HLS crypto pipeline. Rewrite this kernel so it inspects the final decrypted block and returns both a validity flag and the unpadded plaintext length, while performing a full, uniform scan of the block on every call regardless of the padding contents. The revised kernel must be a drop-in replacement that keeps the exact function signature and file location, is synthesizable-style C++ (no dynamic allocation, no STL containers, no exceptions), and must compile standalone with g++ against a test harness that calls it directly.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_constant_time_cbc_unpad_001",
+  "title": "Constant-time padding validation in a CBC unpad kernel"
+}

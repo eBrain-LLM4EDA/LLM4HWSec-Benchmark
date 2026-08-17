@@ -1,0 +1,50 @@
+{
+  "task_id": "sca_trng_reseed_fault_lockout_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Fault-forced TRNG reseed to a fixed value",
+  "submission_kind": "analysis_report",
+  "objective": "Analyze the provided TRNG post-processor RTL module (trng_postproc.v) together with its fault model (fault_model.json) and produce a vulnerability report describing how the reseed logic behaves under the documented fault scenarios, and propose concrete hardening measures.",
+  "input_artifacts": [
+    "inputs/trng_postproc.v",
+    "inputs/fault_model.json",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "constraints": [
+    "Participants must not edit any file under inputs/.",
+    "Only submission/vulnerability_report.json is graded.",
+    "submission/vulnerability_report.json must be valid JSON with the required schema."
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize",
+      "description": "Whether the report correctly identifies the faultable handshake signal and the exact fixed constant it forces into the seed register."
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize",
+      "description": "Whether the report's trigger_condition and affected_outputs fully and correctly characterize the fault scenario and its downstream impact."
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize",
+      "description": "Whether the proposed mitigation substantively matches a repetition-count/health-check gating strategy rather than a superficial or irrelevant fix."
+    },
+    {
+      "name": "format_conformance",
+      "direction": "maximize",
+      "description": "Whether submission/vulnerability_report.json satisfies the required JSON schema: presence, types, and value domains of all required fields."
+    }
+  ]
+}

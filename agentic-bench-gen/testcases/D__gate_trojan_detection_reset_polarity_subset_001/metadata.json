@@ -1,0 +1,45 @@
+{
+  "task_id": "gate_trojan_detection_reset_polarity_subset_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Gate-Level Trojan Detection: Reset Distribution Audit",
+  "submission_kind": "analysis_report",
+  "input_artifacts": [
+    "inputs/gate_netlist.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_reset_trace.v"
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ],
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of the hidden ground-truth suspect flop set correctly identified in the submission's suspect_flops (recall)."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of flops reported in suspect_flops that are NOT in the hidden ground-truth suspect set, out of all flops in the netlist."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds taken by evaluate.py to grade the submitted report (including optional iverilog/vvp cross-check simulation)."
+    },
+    {
+      "name": "structural_consistency_score",
+      "direction": "maximize",
+      "description": "Score reflecting whether reset_net_summary correctly partitions flops into disjoint reset-driving groups consistent with the actual netlist structure."
+    }
+  ],
+  "notes": "Participant deliverable is a single JSON report auditing reset distribution across all flip-flops in the provided gate-level netlist. Inputs under inputs/ must not be modified. See README.md for the full field schema and requirements."
+}

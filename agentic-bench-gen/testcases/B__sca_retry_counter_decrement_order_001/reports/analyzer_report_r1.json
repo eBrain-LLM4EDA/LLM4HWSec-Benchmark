@@ -1,0 +1,80 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (SR4)",
+      "description": "SR4's arithmetic-consistency logic is only triggered when the remediation text explicitly mentions a 'second decrement' or 'no-cancel' phrase. There is no shipped mutant/test case demonstrating a submission that trips this specific SR4 branch (double-decrement inconsistency) while passing SR1-SR3; the validation report confirms 'uncovered_requirement' for SR4 with 0/1 targeting mutants detected. This means the security-relevant behavior for SR4 (rejecting arithmetically-inconsistent remediations) is present in code but unverified/untriggered by the test suite.",
+      "evidence": "per_requirement_coverage.SR4: {covered: false, mutants_detected: 0, mutants_targeting: 1}; issues: [{issue: uncovered_requirement, detail: 'SR4 has no targeting mutant detected by its own check'}]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "submission/vulnerability_report.json (baseline)",
+      "description": "The naive baseline correctly fails all SR checks and most FR checks, but FR4 passes for the baseline (confidence/method fields are trivially valid), which is expected/acceptable since FR4 is a narrow type check unrelated to correctness of the finding.",
+      "evidence": "vulnerable_run stdout: '[TEST] PASS: FR4'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a targeted mutant/scratch submission to the test harness that describes 'decrement on entry to COMPARE' plus an explicit second decrement in CHECK_DONE on failure (with no offsetting restore) to concretely exercise and validate the SR4 double-decrement rejection branch, since current mutation testing shows this branch is never hit (0/1 targeting mutants detected).",
+    "Consider adding an additional mutation case that passes SR1-SR3 but describes an arithmetically-inconsistent remediation, to raise the mutation_score above the current 0.875 and confirm SR4 is a live, discriminating check rather than dead code.",
+    "Optionally strengthen the corroborative iverilog simulation (tb_stateskip.v) to also verify a hardened reference implementation against the fault-free lockout sequence, since currently it only demonstrates the vulnerability, not remediation correctness, even though this is explicitly optional per the spec."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline run passes FR1; vulnerable (naive) submission fails FR1 due to empty affected_signals.",
+      "requirement": "FR1 (required string/array fields with retry-counter and auth/lockout signals)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR2; naive baseline fails due to empty justification string.",
+      "requirement": "FR2 (fault_free_behavior_preserved + justification)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes FR3; naive baseline fails due to empty array.",
+      "requirement": "FR3 (state_names_referenced verified against RTL localparams)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and naive baseline pass FR4 since it's a narrow structural check; this is expected since FR4 alone shouldn't gate correctness.",
+      "requirement": "FR4 (confidence/method typed fields)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; naive baseline (IDLE->COMPARE) fails with 'does not name both COMPARE and CHECK_DONE'.",
+      "requirement": "SR1 (vulnerable_transition names COMPARE->CHECK_DONE correctly)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; naive baseline ('at any time') fails.",
+      "requirement": "SR2 (glitch_window correctly scoped)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes; naive baseline ('add a watchdog timer') fails.",
+      "requirement": "SR3 (remediation describes both early-decrement and restore-on-success)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage report shows SR4 mutant not detected: per_requirement_coverage.SR4 covered=false, mutants_detected=0/1. The differential/baseline runs don't exercise the specific double-decrement-without-restore mutant, so SR4's discriminating power is unverified even though the golden/naive contrast happens to pass/fail correctly on the coarser 'fault_free_justification missing' check for the naive baseline.",
+      "requirement": "SR4 (arithmetic consistency of remediation's decrement/restore scheme)",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.status = 'pass'; golden_run exit_code=0 all PASS; vulnerable_run exit_code=1 with FR1,FR2,FR3,SR1,SR2,SR3,SR4 all FAIL.",
+      "requirement": "Differential: golden passes, naive baseline fails",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, fault_model.md, design_brief.md contain no CWE ids, SR ids, or explicit mention of CHECK_DONE/attempts_left as the vulnerable point; fault model is described generically with unrelated examples (traffic light, UART).",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each specify concrete field names, types, and content constraints (e.g., affected_signals must contain retry-counter-like and auth/lockout-like signal names; state_names_referenced must be verified against RTL text) rather than a single generic restatement.",
+      "requirement": "Functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

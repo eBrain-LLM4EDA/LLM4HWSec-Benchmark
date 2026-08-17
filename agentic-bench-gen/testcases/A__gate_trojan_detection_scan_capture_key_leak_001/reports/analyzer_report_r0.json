@@ -1,0 +1,91 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (SR4)",
+      "description": "SR4's keyword-based check is weak: the mutation report shows SR4 has no targeting mutant detected by its own check, meaning there's a coverage gap where a mutant designed to break SR4 was not caught. This indicates the discriminative power of the SR4 check (generic-boilerplate detection + keyword presence) is insufficiently robust against plausible near-miss submissions (e.g. rationale containing 'capture' incidentally without genuine understanding).",
+      "evidence": "per_requirement_coverage.SR4: {\"covered\": false, \"mutants_detected\": 0, \"mutants_targeting\": 1}; uncovered_requirements: [\"SR4\"]; issues: [{\"issue\": \"uncovered_requirement\", \"detail\": \"SR4 has no targeting mutant detected by its own check\"}]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py optional simulation cross-check",
+      "description": "The optional iverilog/vvp corroboration via tb_scan_leak.v is invoked but its result is discarded (assigned to `_`) and never used to gate or corroborate SR4/SR3, despite hidden_spec acceptance criteria and README implying it 'corroborates' ground truth. This makes the corroboration purely decorative rather than functionally verifying the claimed leak independent of the submission.",
+      "evidence": "`_ = run_optional_simulation_corroboration()` followed immediately by `record(\"SR4\", sr4_pass, sr4_reason)` with no use of the simulation output.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen SR4's check to be more discriminative (e.g., require rationale to name at least one of the specific splice mechanisms or reference scan_en AND capture/shift jointly, or penalize rationales that mention keywords out of context) and re-run mutation testing to confirm at least one mutant targeting SR4 is caught.",
+    "Wire up tests/private/ground_truth.py's compute_recall/compute_false_positive_rate helpers into evaluate.py and have it print/emit the four declared metrics (detection_rate, false_positive_rate, trojan_label_accuracy, inference_latency) explicitly, not just PASS/FAIL requirement lines, so the evaluation.metrics contract is actually satisfied.",
+    "Consider using the discarded simulation corroboration result (`_`) to add a sanity assertion or log confirming the evaluator's own ground truth is empirically validated, or remove the dead code path if not needed.",
+    "Add an explicit inference_latency measurement (e.g., wrap evaluate.py's grading logic with a timer) since it's a declared metric but not visibly computed in the shown grader."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run shows [TEST] PASS: FR1; baseline (naive) submission also structurally valid so FR1 passes even for naive baseline, consistent with FR1 being purely structural.",
+      "requirement": "FR1 (valid JSON, required fields/types)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: FR2; regex-based instance parser extracts valid names from key_core_netlist.v.",
+      "requirement": "FR2 (instance names must exist in netlist)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: FR3.",
+      "requirement": "FR3 (confidence in [0,1])",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: FR4.",
+      "requirement": "FR4 (rationale >=20 chars)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: SR1; vulnerable/naive baseline run FAIL: SR1: only 0/4 key flops identified ([]).",
+      "requirement": "SR1 (>=3/4 key flops identified)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: SR2; naive baseline FAIL: SR2: only 0/4 key splice muxes identified ([]).",
+      "requirement": "SR2 (>=3/4 key splice muxes identified)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run PASS: SR3; naive baseline FAIL: SR3: trojan_detected reported as False instead of true.",
+      "requirement": "SR3 (trojan_detected must be true)",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage marks SR4 covered=false with 0/1 targeting mutants detected, indicating the check's discrimination is not validated by mutation testing despite passing on golden/vulnerable pair; differential run confirms directional correctness (golden PASS, vulnerable-baseline FAIL: SR4 lacks conditionality language), but mutation_score_meaningful analysis flags this as an uncovered_requirement gap.",
+      "requirement": "SR4 (rationale demonstrates scan-mode conditionality understanding)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run (naive baseline) exit_code 1, FAIL on SR1/SR2/SR3/SR4 as expected; matches submission contract requiring naive baseline to fail.",
+      "requirement": "Baseline rejection (naive/empty submission must FAIL)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run exit_code 0, all PASS lines, matching expected pass status.",
+      "requirement": "Golden/correct submission acceptance (exit 0)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and key_core_netlist.v comments frame the task as neutral DFT scan-chain review; no CWE ids, SR ids, or 'trojan'/'vulnerability' framing beyond the generic task title 'Gate-Level Trojan Detection' in metadata.json title, which is an acceptable domain-name-level framing rather than a leak of specific ground truth (flop/mux names are documented in brief but that's necessary problem context, not an answer leak).",
+      "requirement": "No leakage of hidden CWE/SR ids/threat-model in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four distinct, concrete, machine-checkable requirements (JSON validity/fields, instance-name grounding, confidence range, rationale length), not a single generic restatement.",
+      "requirement": "Functional requirements concrete and machine-checkable (FR1-FR4)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements pass/fail requirement checks (FR1-4, SR1-4) but does not explicitly compute/report detection_rate, false_positive_rate, trojan_label_accuracy, or inference_latency as named numeric outputs; tests/private/ground_truth.py purportedly has compute_recall/compute_false_positive_rate helpers but evaluate.py does not appear to import or call them in the shown code, so it's unclear whether these declared metrics are actually emitted anywhere in machine-readable form for downstream leaderboard scoring.",
+      "requirement": "Metrics measured by evaluator align with declared evaluation.metrics",
+      "status": "unknown"
+    }
+  ],
+  "source_round": 0
+}

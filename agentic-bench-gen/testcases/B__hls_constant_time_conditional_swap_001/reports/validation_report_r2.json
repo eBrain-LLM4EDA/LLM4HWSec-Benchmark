@@ -1,0 +1,174 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/ladder_swap.cpp",
+    "metadata.json"
+  ],
+  "check_activation": {
+    "FR1": 4,
+    "FR2": 3,
+    "FR3": 4,
+    "FR4": 1,
+    "SR1": 4,
+    "SR2": 1,
+    "SR3": 2
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] FAIL: SR1: branch conditioned on ctrl_bit found: 'if (ctrl_bit & 1u)'\n[TEST] PASS: SR2\n[TEST] FAIL: SR3: timing differs too much between ctrl values: ctrl=0 median=0.0540us ctrl=1 median=19.0890us ratio=353.50x (threshold=3.0x)\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/ladder_swap.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "SR2 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "SR3 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR4\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "mutation_score": 0.714,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.714,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "a73b1fcffde48f229d23eb597ac3970e3c9ebf0f8e5f2e891f23084312010da6",
+        "changed": true,
+        "golden": "golden/ladder_swap.cpp",
+        "golden_sha256": "c5d26bc90b01049230d91e00c60c5ad97a511592be98b4b1737f23ad5fd438e3",
+        "target": "inputs/ladder_swap.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/ladder_swap.cpp"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": [
+    "SR2",
+    "SR3"
+  ]
+}

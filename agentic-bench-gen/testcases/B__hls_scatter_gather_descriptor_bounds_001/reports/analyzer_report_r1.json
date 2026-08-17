@@ -1,0 +1,66 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/harness_main.cpp / evaluate.py",
+      "description": "Mutation testing shows FR4 and SR1 have no targeting mutant detected, meaning the corresponding checks are not empirically discriminating against plausible faulty implementations (mutation_score=0.75, uncovered_requirements=[FR4,SR1]). This weakens confidence that these two checks actually enforce the intended behavior beyond the specific baseline vector already covered.",
+      "evidence": "per_requirement_discrimination: FR4 covered=false mutants_detected=0/1; SR1 covered=false mutants_detected=0/1; uncovered_requirements: [\"FR4\", \"SR1\"]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "validation report / status field",
+      "description": "The overall validation report top-level status is 'fail' despite baseline_run, differential, and coverage checks all passing, driven solely by the two uncovered-requirement mutation gaps. This is a real but moderate quality gap rather than a fundamental correctness/leakage problem.",
+      "evidence": "\"status\": \"fail\" with issues: uncovered_requirement for FR4 and SR1",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Strengthen the SR1 probe or add an additional overflow-adjacent mutant-detection vector so that at least one mutant targeting 32-bit-wraparound validation is caught (e.g. vary the overflow offset/length combination or add a second overflow vector with a different wrap magnitude).",
+    "Strengthen the FR4 probe further, e.g. also assert on the return code path when offsets/lengths are non-null but effectively unused for desc_count=0, or introduce a mutant-detecting variant that flips desc_count==0 handling using a different sentinel/canary configuration to raise its mutation detection rate above zero.",
+    "Re-run mutation analysis after harness adjustments to confirm FR4 and SR1 move from covered=false to covered=true before treating this benchmark case as fully validated.",
+    "Consider documenting in evaluation/README.md why FR4 and SR1 currently show 0 mutants detected (e.g. limited mutant generation strategy) versus being a genuine grader weakness, to aid future maintainers in triaging this specific validation report finding."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run: exit_code=0, status=pass, all 8 [TEST] PASS lines",
+      "requirement": "Golden/hardened implementation passes evaluate.py",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run: exit_code=1, status=fail; FAIL: SR1 (crash exit -11), FAIL: SR2, FAIL: SR3, FAIL: SR4; FR1-FR4 pass as expected since baseline is functionally correct on in-bounds cases",
+      "requirement": "Insecure baseline fails evaluate.py on at least one SR",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py compiles the submission (synthesis), runs FR1-FR4 (functional_pass_rate) and SR1-SR4 (cwe_violation_rate via status/canary checks, information_flow_correctness via dst_ok unmodified/byte-exact checks)",
+      "requirement": "Evaluator measures requested metrics (synthesis_pass_rate, functional_pass_rate, cwe_violation_rate, information_flow_correctness)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type 'functional' and SR1-SR4 as requirement_type 'security', each with distinct detection strategies and test file references",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 uses concrete 32-bit overflow vector (0xFFFFFFF0+0x20), SR2 uses valid-invalid-valid sequencing, SR3 uses cumulative src overrun with canary, SR4 uses exact boundary offset+length==dst_len vs +1; all inspect canary buffers and dst_ok flags rather than generic assertions",
+      "requirement": "Security-relevant behaviors are actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, design_brief.md, and metadata.json use only plain engineering language ('robust', 'safe', 'malformed', 'boundary') with no CWE-787/125/190/129/20 ids, no SR1-SR4 labels, and no comments flagging the baseline as intentionally insecure; inputs/scatter_gather.cpp baseline has no vulnerability-hinting comments",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) into public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec each specify exact desc_count/offsets/lengths/dst_len/src content and exact expected return code and dst content, each independently checkable via the pinned scatter_gather_copy signature",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4, verifiable via pinned interface)",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation_score=0.75; FR4 and SR1 each have 0/1 mutants detected, meaning at least one crafted mutant targeting these requirements was not caught by the corresponding check, indicating a coverage gap flagged explicitly in the validation report's issues list",
+      "requirement": "Mutation/discrimination coverage validates that checks are non-trivial for every requirement",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

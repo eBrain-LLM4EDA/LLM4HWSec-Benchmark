@@ -1,0 +1,101 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/harness_main.cpp / evaluate.py",
+      "description": "The golden/expert hardened reference solution is rejected by the evaluator (differential status: golden_rejected). The 'probe' stack-reuse mechanism does not reliably alias the round_keys memory location, so even a correctly hardened submission that zeroes round_keys shows nonzero probed bytes (28-29 of 176) and fails SR1/SR2. Since the golden solution cannot pass, mutation testing is blocked and the benchmark is unusable as specified.",
+      "evidence": "differential.golden_run.stdout shows '[TEST] FAIL: SR1: 28 of 176 probed bytes nonzero' and '[TEST] FAIL: SR2: 29 of 176 probed bytes nonzero' for the expert golden solution, with overall exit_code 1 (expected pass).",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/harness_main.cpp / evaluate.py (SR4 dualkey check)",
+      "description": "SR4's 'dualkey' probe also fails on the golden solution, indicating the adjacent-scratch heuristic is unreliable/non-deterministic and not actually gated on the round_keys clearing behavior, producing false failures even when the reference implementation is correct.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SR4: adjacent scratch buffer shows distinguishable nonzero, differing content across different-key calls with identical plaintext' \u2014 occurs on the expert/golden artifact, not just the vulnerable baseline.",
+      "severity": "high"
+    },
+    {
+      "artifact": "mutation/differential results",
+      "description": "Both the golden (secure) and vulnerable (insecure baseline) implementations produce nearly identical FAIL patterns for SR1/SR2/SR4 (same requirement IDs failing in both), only differing in nonzero byte counts (28-29 vs 156-157). Because the check thresholds any nonzero byte as failure and the stack-probe technique appears inherently noisy/unreliable, the evaluator cannot discriminate between a correctly hardened and an insecure submission using this mechanism as implemented \u2014 mutation_score is 0.0 and requirement_discrimination_coverage_score is 0.0.",
+      "evidence": "validation report: mutation_score=0.0, requirement_discrimination_coverage_score=0.0, mutation_status='blocked_by_differential', failure_class='golden_rejected' repeated across preflight attempts.",
+      "severity": "high"
+    },
+    {
+      "artifact": "metadata.json / manifest input_artifacts",
+      "description": "input_artifacts list includes a non-real placeholder filename 'cipher_kernel.h.notusedplaceholder' which is explicitly marked for removal in the manifest but still appears in the shipped input_artifacts array, creating inconsistency between declared artifacts and actual shipped files.",
+      "evidence": "validation report issue: 'input_artifact_not_filename: cipher_kernel.h.notusedplaceholder' and manifest entry marked 'REMOVE - not a real file, placeholder to be excluded from final manifest.'",
+      "severity": "medium"
+    },
+    {
+      "artifact": "public_spec / README.md / design_brief.md",
+      "description": "No explicit leakage of CWE IDs, SR IDs, or explicit 'this is intentionally vulnerable' framing was found in the public-facing artifacts; the security framing is presented as general engineering hygiene, which is appropriate. This is noted as a positive finding, not an issue, but flagged here for completeness given the strict leak-check requirement.",
+      "evidence": "README.md and design_brief.md describe clearing as 'general good-engineering practice' and 'robustness/hygiene requirement' without naming CWE-226/212/200 or SR1-SR4 ids.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the stack-probing mechanism in evaluation/harness_main.cpp so that it reliably observes the exact memory location of round_keys after encrypt_block returns (e.g., use the cooperating global pointer hook round_keys_probe_ptr consistently and require submissions to set it, or use a more deterministic same-frame-depth aliasing technique verified empirically to reuse the exact stack slot across many repeated compiler/ABI configurations) so that the expert golden hardened solution passes SR1 and SR2 with zero nonzero bytes.",
+    "Re-validate the golden/expert solution against the evaluator after harness fixes to confirm differential status becomes 'pass' before shipping.",
+    "Loosen or redesign the SR4 dualkey heuristic, since it currently fails on the golden solution; consider gating it more precisely on actual round_keys-derived byte patterns rather than generic adjacent scratch nonzero-and-differing heuristics, or make it purely informational/non-blocking.",
+    "Remove 'inputs/cipher_kernel.h.notusedplaceholder' from all input_artifacts/manifest listings since it is explicitly marked for removal and its presence in artifact-facing metadata is inconsistent with the shipped bundle.",
+    "Add a regression test in the tester bundle that runs evaluate.py against the known golden solution as part of CI to catch this golden_rejected class of failure before publishing the benchmark.",
+    "Consider increasing determinism of the stack-probe technique (e.g., pinning frame layout via inline assembly barriers or disabling stack protector features that might insert canaries/padding altering offsets) to reduce the residual nonzero byte counts observed even on hardened code."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run and vulnerable_run both show '[TEST] PASS: FR1'; evaluator uses independently computed Python AES reference, not hardcoded ciphertext, which is sound.",
+      "requirement": "FR1 (fixed key/plaintext known-answer vector matches reference)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs show '[TEST] PASS: FR2'.",
+      "requirement": "FR2 (all-zero key/plaintext known-answer vector)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs show '[TEST] PASS: FR3'.",
+      "requirement": "FR3 (compiles at -O2, FR1/FR2 reproduced)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both runs show '[TEST] PASS: FR4'.",
+      "requirement": "FR4 (no state carry-over between sequential calls)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden/expert hardened solution fails SR1 with 28/176 nonzero bytes reported \u2014 the detection mechanism does not reliably locate/observe the round_keys memory, making this check unusable even for a correct hardened submission.",
+      "requirement": "SR1 (round_keys zeroed at -O0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden solution fails SR2 with 29/176 nonzero bytes at both -O2 and -O3, same failure pattern as the insecure baseline (only byte-count differs), indicating no reliable discrimination between hardened and vulnerable code.",
+      "requirement": "SR2 (clearing survives -O2/-O3 optimization)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs show '[TEST] PASS: SR3', consistent with expectation since correctness should hold regardless of clearing behavior.",
+      "requirement": "SR3 (clearing does not alter ciphertext correctness)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden solution fails SR4 with the same failure message as the vulnerable baseline ('adjacent scratch buffer shows distinguishable nonzero, differing content'), showing the heuristic is not discriminative and produces false failures on correct submissions.",
+      "requirement": "SR4 (no distinguishable key-dependent residue in adjacent scratch across different-key calls)",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.status='fail', golden_run.ok=false (expected pass, got fail) \u2014 the evaluator does NOT accept the expert golden hardened solution, violating the core hardened_artifact submission contract requirement.",
+      "requirement": "Evaluator accepts correct hardened submission and rejects insecure baseline (submission contract)",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md describe the task in general engineering/hygiene terms without naming CWE-226/212/200, SR1-SR4, or explicitly labeling the baseline as 'intentionally vulnerable'.",
+      "requirement": "No leakage of CWE IDs, SR IDs, or security-spec framing into public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 and SR1-SR4 each mapped to concrete detection procedures in harness_main.cpp/evaluate.py; requirement_mapping_coverage_score=1.0 per validation report, though discrimination coverage is 0.0.",
+      "requirement": "Requirement map covers functional and security requirements separately with machine-checkable detection strategies",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

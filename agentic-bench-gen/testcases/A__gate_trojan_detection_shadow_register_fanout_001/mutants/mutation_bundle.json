@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "evaluate.py structurally traces inputs/netlist.v to compute ground-truth fanout counts per key_bit and finds num_consumers==1 (with only u_round_xor<i> listed) for all 8 entries in the submission, contradicting the actual 2-consumer topology (u_round_xor<i> plus u_shadow_ff<i>) present in the netlist; this fails SR1 even though suspect_instances and verdict remain correct.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_present\",\n  \"key_bus_signal\": \"key_reg\",\n  \"fanout_map\": [\n    {\n      \"key_bit\": 0,\n      \"consumer_instances\": [\"u_round_xor0\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 1,\n      \"consumer_instances\": [\"u_round_xor1\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 2,\n      \"consumer_instances\": [\"u_round_xor2\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 3,\n      \"consumer_instances\": [\"u_round_xor3\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 4,\n      \"consumer_instances\": [\"u_round_xor4\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 5,\n      \"consumer_instances\": [\"u_round_xor5\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 6,\n      \"consumer_instances\": [\"u_round_xor6\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 7,\n      \"consumer_instances\": [\"u_round_xor7\"],\n      \"num_consumers\": 1\n    }\n  ],\n  \"suspect_instances\": [\n    \"u_shadow_ff0\",\n    \"u_shadow_ff1\",\n    \"u_shadow_ff2\",\n    \"u_shadow_ff3\",\n    \"u_shadow_ff4\",\n    \"u_shadow_ff5\",\n    \"u_shadow_ff6\",\n    \"u_shadow_ff7\",\n    \"u_exfil_mux\"\n  ],\n  \"summary\": \"Each bit of key_reg[7:0] fans out to the documented u_round_xor<i> gate only, consistent with the design brief's single-consumer topology. Separately, an undocumented shadow_ff instance bank (u_shadow_ff0..u_shadow_ff7) and a convergence multiplexer u_exfil_mux were found elsewhere in the netlist and are flagged as suspect, though they are not attributed as consumers of key_reg in the fanout analysis above.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_shadow_register_fanout_001_SR1_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "evaluate.py checks suspect_instances is a superset of {u_shadow_ff0..u_shadow_ff7, u_exfil_mux}. This mutant omits u_exfil_mux from suspect_instances entirely (removing that entry), so the required set is not fully covered, recall over the ground-truth suspect set drops below 1.0, and SR2 fails.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_present\",\n  \"key_bus_signal\": \"key_reg\",\n  \"fanout_map\": [\n    {\n      \"key_bit\": 0,\n      \"consumer_instances\": [\"u_round_xor0\", \"u_shadow_ff0\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 1,\n      \"consumer_instances\": [\"u_round_xor1\", \"u_shadow_ff1\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 2,\n      \"consumer_instances\": [\"u_round_xor2\", \"u_shadow_ff2\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 3,\n      \"consumer_instances\": [\"u_round_xor3\", \"u_shadow_ff3\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 4,\n      \"consumer_instances\": [\"u_round_xor4\", \"u_shadow_ff4\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 5,\n      \"consumer_instances\": [\"u_round_xor5\", \"u_shadow_ff5\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 6,\n      \"consumer_instances\": [\"u_round_xor6\", \"u_shadow_ff6\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 7,\n      \"consumer_instances\": [\"u_round_xor7\", \"u_shadow_ff7\"],\n      \"num_consumers\": 2\n    }\n  ],\n  \"suspect_instances\": [\n    \"u_shadow_ff0\",\n    \"u_shadow_ff1\",\n    \"u_shadow_ff2\",\n    \"u_shadow_ff3\",\n    \"u_shadow_ff4\",\n    \"u_shadow_ff5\",\n    \"u_shadow_ff6\",\n    \"u_shadow_ff7\"\n  ],\n  \"summary\": \"Each bit of key_reg[7:0] fans out to two consumers instead of the single documented u_round_xor<i> gate: an undocumented shadow_ff instance (u_shadow_ff0..u_shadow_ff7) clocked and reset identically to the key register bank, forming a covert shadow_reg copy of the key. The eight shadow_reg bits converge via a reduction-OR into exfil_bit, which is routed through a multiplexer gated by the rarely-asserted debug_mode_rare control net, driving the exfil_out port. Neither shadow_reg, exfil_bit, nor exfil_out is described in design_brief.md, and this path never influences round_out, making it a covert secondary exfiltration channel for key_reg.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_shadow_register_fanout_001_SR2_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "evaluate.py performs a string equality check on the verdict field against the fixed ground-truth label 'trojan_present'; this mutant sets verdict to 'trojan_absent' while retaining otherwise correct fanout_map and suspect_instances, which should cause SR3 (and the overall PASS gating on verdict_correctness) to fail.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_absent\",\n  \"key_bus_signal\": \"key_reg\",\n  \"fanout_map\": [\n    {\n      \"key_bit\": 0,\n      \"consumer_instances\": [\"u_round_xor0\", \"u_shadow_ff0\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 1,\n      \"consumer_instances\": [\"u_round_xor1\", \"u_shadow_ff1\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 2,\n      \"consumer_instances\": [\"u_round_xor2\", \"u_shadow_ff2\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 3,\n      \"consumer_instances\": [\"u_round_xor3\", \"u_shadow_ff3\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 4,\n      \"consumer_instances\": [\"u_round_xor4\", \"u_shadow_ff4\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 5,\n      \"consumer_instances\": [\"u_round_xor5\", \"u_shadow_ff5\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 6,\n      \"consumer_instances\": [\"u_round_xor6\", \"u_shadow_ff6\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 7,\n      \"consumer_instances\": [\"u_round_xor7\", \"u_shadow_ff7\"],\n      \"num_consumers\": 2\n    }\n  ],\n  \"suspect_instances\": [\n    \"u_shadow_ff0\",\n    \"u_shadow_ff1\",\n    \"u_shadow_ff2\",\n    \"u_shadow_ff3\",\n    \"u_shadow_ff4\",\n    \"u_shadow_ff5\",\n    \"u_shadow_ff6\",\n    \"u_shadow_ff7\",\n    \"u_exfil_mux\"\n  ],\n  \"summary\": \"Each bit of key_reg[7:0] fans out to two consumers instead of the single documented u_round_xor<i> gate: an undocumented shadow_ff instance (u_shadow_ff0..u_shadow_ff7) clocked and reset identically to the key register bank, forming a covert shadow_reg copy of the key. The eight shadow_reg bits converge via a reduction-OR into exfil_bit, which is routed through the undocumented multiplexer u_exfil_mux, gated by the rarely-asserted debug_mode_rare control net, driving the exfil_out port. Neither shadow_reg, exfil_bit, u_exfil_mux, nor exfil_out is described in design_brief.md, and this path never influences round_out, making it a covert secondary exfiltration channel for key_reg.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_shadow_register_fanout_001_SR3_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "evaluate.py computes false_positive_rate over suspect_instances by checking which flagged names are NOT part of the ground-truth suspect set {u_shadow_ff0..7, u_exfil_mux} but ARE valid netlist instances. This mutant indiscriminately flags all documented u_key_ff0..7 and u_round_xor0..7 instances in addition to the true positives, driving false_positive_rate high and causing SR4 to fail even though the correct instances are technically present.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_present\",\n  \"key_bus_signal\": \"key_reg\",\n  \"fanout_map\": [\n    {\n      \"key_bit\": 0,\n      \"consumer_instances\": [\"u_round_xor0\", \"u_shadow_ff0\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 1,\n      \"consumer_instances\": [\"u_round_xor1\", \"u_shadow_ff1\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 2,\n      \"consumer_instances\": [\"u_round_xor2\", \"u_shadow_ff2\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 3,\n      \"consumer_instances\": [\"u_round_xor3\", \"u_shadow_ff3\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 4,\n      \"consumer_instances\": [\"u_round_xor4\", \"u_shadow_ff4\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 5,\n      \"consumer_instances\": [\"u_round_xor5\", \"u_shadow_ff5\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 6,\n      \"consumer_instances\": [\"u_round_xor6\", \"u_shadow_ff6\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 7,\n      \"consumer_instances\": [\"u_round_xor7\", \"u_shadow_ff7\"],\n      \"num_consumers\": 2\n    }\n  ],\n  \"suspect_instances\": [\n    \"u_key_ff0\",\n    \"u_key_ff1\",\n    \"u_key_ff2\",\n    \"u_key_ff3\",\n    \"u_key_ff4\",\n    \"u_key_ff5\",\n    \"u_key_ff6\",\n    \"u_key_ff7\",\n    \"u_round_xor0\",\n    \"u_round_xor1\",\n    \"u_round_xor2\",\n    \"u_round_xor3\",\n    \"u_round_xor4\",\n    \"u_round_xor5\",\n    \"u_round_xor6\",\n    \"u_round_xor7\",\n    \"u_shadow_ff0\",\n    \"u_shadow_ff1\",\n    \"u_shadow_ff2\",\n    \"u_shadow_ff3\",\n    \"u_shadow_ff4\",\n    \"u_shadow_ff5\",\n    \"u_shadow_ff6\",\n    \"u_shadow_ff7\",\n    \"u_exfil_mux\"\n  ],\n  \"summary\": \"Out of an abundance of caution, every instance found in the netlist during structural analysis has been flagged as suspect, including the documented key register bank (u_key_ff0..7) and documented round-combination XOR gates (u_round_xor0..7), alongside the true undocumented shadow_ff bank and u_exfil_mux. This ensures no potential exfiltration path is missed.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_shadow_register_fanout_001_SR4_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "evaluate.py checks that each fanout_map entry's num_consumers field exactly equals the length of its consumer_instances array. For key_bit 3, consumer_instances has 2 elements (u_round_xor3, u_shadow_ff3) but num_consumers is set to 1, violating FR2's internal-consistency requirement and causing a FAIL/low fanout_accuracy score.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_present\",\n  \"key_bus_signal\": \"key_reg\",\n  \"fanout_map\": [\n    {\n      \"key_bit\": 0,\n      \"consumer_instances\": [\"u_round_xor0\", \"u_shadow_ff0\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 1,\n      \"consumer_instances\": [\"u_round_xor1\", \"u_shadow_ff1\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 2,\n      \"consumer_instances\": [\"u_round_xor2\", \"u_shadow_ff2\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 3,\n      \"consumer_instances\": [\"u_round_xor3\", \"u_shadow_ff3\"],\n      \"num_consumers\": 1\n    },\n    {\n      \"key_bit\": 4,\n      \"consumer_instances\": [\"u_round_xor4\", \"u_shadow_ff4\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 5,\n      \"consumer_instances\": [\"u_round_xor5\", \"u_shadow_ff5\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 6,\n      \"consumer_instances\": [\"u_round_xor6\", \"u_shadow_ff6\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 7,\n      \"consumer_instances\": [\"u_round_xor7\", \"u_shadow_ff7\"],\n      \"num_consumers\": 2\n    }\n  ],\n  \"suspect_instances\": [\n    \"u_shadow_ff0\",\n    \"u_shadow_ff1\",\n    \"u_shadow_ff2\",\n    \"u_shadow_ff3\",\n    \"u_shadow_ff4\",\n    \"u_shadow_ff5\",\n    \"u_shadow_ff6\",\n    \"u_shadow_ff7\",\n    \"u_exfil_mux\"\n  ],\n  \"summary\": \"Each bit of key_reg[7:0] fans out to two consumers instead of the single documented u_round_xor<i> gate: an undocumented shadow_ff instance (u_shadow_ff0..u_shadow_ff7) clocked and reset identically to the key register bank, forming a covert shadow_reg copy of the key. The eight shadow_reg bits converge via a reduction-OR into exfil_bit, which is routed through the undocumented multiplexer u_exfil_mux, gated by the rarely-asserted debug_mode_rare control net, driving the exfil_out port. Neither shadow_reg, exfil_bit, u_exfil_mux, nor exfil_out is described in design_brief.md, and this path never influences round_out, making it a covert secondary exfiltration channel for key_reg.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_shadow_register_fanout_001_FR2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py structurally cross-checks every instance name listed in fanout_map consumer_instances and suspect_instances against instance names literally present in inputs/netlist.v; 'u_shadow_ff8' and 'u_exfil_mux_bridge' do not exist in the netlist, so FR3 validation fails.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_present\",\n  \"key_bus_signal\": \"key_reg\",\n  \"fanout_map\": [\n    {\n      \"key_bit\": 0,\n      \"consumer_instances\": [\"u_round_xor0\", \"u_shadow_ff0\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 1,\n      \"consumer_instances\": [\"u_round_xor1\", \"u_shadow_ff1\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 2,\n      \"consumer_instances\": [\"u_round_xor2\", \"u_shadow_ff2\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 3,\n      \"consumer_instances\": [\"u_round_xor3\", \"u_shadow_ff3\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 4,\n      \"consumer_instances\": [\"u_round_xor4\", \"u_shadow_ff4\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 5,\n      \"consumer_instances\": [\"u_round_xor5\", \"u_shadow_ff5\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 6,\n      \"consumer_instances\": [\"u_round_xor6\", \"u_shadow_ff6\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 7,\n      \"consumer_instances\": [\"u_round_xor7\", \"u_shadow_ff8\"],\n      \"num_consumers\": 2\n    }\n  ],\n  \"suspect_instances\": [\n    \"u_shadow_ff0\",\n    \"u_shadow_ff1\",\n    \"u_shadow_ff2\",\n    \"u_shadow_ff3\",\n    \"u_shadow_ff4\",\n    \"u_shadow_ff5\",\n    \"u_shadow_ff6\",\n    \"u_shadow_ff8\",\n    \"u_exfil_mux_bridge\"\n  ],\n  \"summary\": \"Each bit of key_reg[7:0] fans out to two consumers instead of the single documented u_round_xor<i> gate: an undocumented shadow_ff instance clocked and reset identically to the key register bank, forming a covert shadow_reg copy of the key. The eight shadow_reg bits converge via a reduction-OR into exfil_bit, which is routed through the undocumented multiplexer bridge, gated by the rarely-asserted debug_mode_rare control net, driving the exfil_out port. Neither shadow_reg, exfil_bit, the mux bridge, nor exfil_out is described in design_brief.md, and this path never influences round_out, making it a covert secondary exfiltration channel for key_reg.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_shadow_register_fanout_001_FR3_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "evaluate.py validates the verdict field against the allowed literal set {'trojan_present','trojan_absent'}; a value of 'trojan_suspected' is neither, so FR4 validation must fail, causing the submission to be rejected/failed regardless of otherwise-correct fanout_map and suspect_instances content.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_suspected\",\n  \"key_bus_signal\": \"key_reg\",\n  \"fanout_map\": [\n    {\n      \"key_bit\": 0,\n      \"consumer_instances\": [\"u_round_xor0\", \"u_shadow_ff0\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 1,\n      \"consumer_instances\": [\"u_round_xor1\", \"u_shadow_ff1\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 2,\n      \"consumer_instances\": [\"u_round_xor2\", \"u_shadow_ff2\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 3,\n      \"consumer_instances\": [\"u_round_xor3\", \"u_shadow_ff3\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 4,\n      \"consumer_instances\": [\"u_round_xor4\", \"u_shadow_ff4\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 5,\n      \"consumer_instances\": [\"u_round_xor5\", \"u_shadow_ff5\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 6,\n      \"consumer_instances\": [\"u_round_xor6\", \"u_shadow_ff6\"],\n      \"num_consumers\": 2\n    },\n    {\n      \"key_bit\": 7,\n      \"consumer_instances\": [\"u_round_xor7\", \"u_shadow_ff7\"],\n      \"num_consumers\": 2\n    }\n  ],\n  \"suspect_instances\": [\n    \"u_shadow_ff0\",\n    \"u_shadow_ff1\",\n    \"u_shadow_ff2\",\n    \"u_shadow_ff3\",\n    \"u_shadow_ff4\",\n    \"u_shadow_ff5\",\n    \"u_shadow_ff6\",\n    \"u_shadow_ff7\",\n    \"u_exfil_mux\"\n  ],\n  \"summary\": \"Each bit of key_reg[7:0] fans out to two consumers instead of the single documented u_round_xor<i> gate: an undocumented shadow_ff instance (u_shadow_ff0..u_shadow_ff7) clocked and reset identically to the key register bank, forming a covert shadow_reg copy of the key. The eight shadow_reg bits converge via a reduction-OR into exfil_bit, which is routed through the undocumented multiplexer u_exfil_mux, gated by the rarely-asserted debug_mode_rare control net, driving the exfil_out port. Neither shadow_reg, exfil_bit, u_exfil_mux, nor exfil_out is described in design_brief.md, and this path never influences round_out, making it a covert secondary exfiltration channel for key_reg.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_shadow_register_fanout_001_FR4_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

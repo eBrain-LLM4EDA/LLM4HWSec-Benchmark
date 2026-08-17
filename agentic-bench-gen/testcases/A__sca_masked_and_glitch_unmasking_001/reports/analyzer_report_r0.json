@@ -1,0 +1,89 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/vulnerability_report.json",
+      "description": "The golden/expert submission is not valid JSON (parse error at line 8 column 3), causing evaluate.py to reject it with a SETUP failure. The differential harness confirms golden_run status=fail when expected=pass. This means a correct submission cannot pass the evaluator, violating the core requirement that a correct answer must PASS.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SETUP: submission/vulnerability_report.json is not valid JSON: Expecting property name enclosed in double quotes: line 8 column 3 (char 2873)'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Requirement IDs emitted by evaluate.py's SETUP failure path do not match the requirement_map's expected per-requirement PASS/FAIL markers when the submission fails to parse as JSON; the script exits before printing FR1-FR4/SR1-SR3 lines at all in that scenario, so none of the mapped requirements are exercised for the golden case.",
+      "evidence": "issues[1]: 'evaluate.py never emitted [TEST] PASS/FAIL for [\"FR1\",...,\"SR3\"] on the golden run'",
+      "severity": "high"
+    },
+    {
+      "artifact": "mutation/differential harness",
+      "description": "Because the golden solution is rejected due to a malformed JSON artifact, mutation_score is 0.0 and mutation_score_meaningful is false, meaning the benchmark's discriminative power (ability to distinguish correct vs. vulnerable/naive submissions) is currently unverified and blocked.",
+      "evidence": "mutation_status: 'blocked_by_differential', mutation_score: 0.0, requirement_discrimination_coverage_score: 0.0",
+      "severity": "medium"
+    },
+    {
+      "artifact": "golden/vulnerability_report.json",
+      "description": "The golden file is referenced in expert_files but its content/structure was not shown in the bundle; given the reported JSON syntax error, it likely has a formatting bug (e.g., trailing comma, unquoted key) that needs to be fixed and re-validated.",
+      "evidence": "expert_files: ['golden/vulnerability_report.json']; preflight diagnostic shows JSON parse failure at char 2873",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the JSON syntax error in golden/vulnerability_report.json (reported at line 8, column 3, char 2873 \u2014 likely an unquoted key or trailing comma) and re-run the differential harness to confirm the golden run now exits 0 with all [TEST] PASS lines.",
+    "After fixing the golden file, re-verify that evaluate.py emits PASS for FR1-FR4 and SR1-SR3 on the corrected golden submission, and FAIL for the same set on the naive baseline, to restore meaningful mutation_score and unblock mutation_status.",
+    "Add a schema/lint check step (e.g., `json.load` validation) in the CI pipeline that generates/updates golden/vulnerability_report.json to prevent shipping a malformed golden answer in the future.",
+    "Consider adding a repair path test that intentionally introduces small mutations to a valid golden file to confirm discrimination coverage (currently 0.0) once the parse issue is resolved.",
+    "Re-run mutation testing after the fix to obtain a non-zero, meaningful mutation_score confirming the evaluator actually discriminates between correct, partially-correct, and naive submissions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Cannot verify pass behavior on golden since golden JSON fails to parse before FR1 is evaluated; vulnerable/baseline run shows FR1 PASS incorrectly (baseline has all fields present with empty values), which is expected per design since FR1 alone doesn't catch empty baseline.",
+      "requirement": "FR1: schema/type presence of five required fields",
+      "status": "unknown"
+    },
+    {
+      "evidence": "vulnerable_run correctly shows '[TEST] FAIL: FR2: suspect_nets is empty' for the naive baseline.",
+      "requirement": "FR2: suspect_nets non-empty and valid net names",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows '[TEST] FAIL: FR3: algebraic_masking_correct is not true' for baseline (false), correctly rejecting it.",
+      "requirement": "FR3: algebraic_masking_correct must be true, cross-checked via iverilog/vvp or trace",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows '[TEST] FAIL: FR4: registers_to_add is empty' for baseline.",
+      "requirement": "FR4: hardening_proposal.registers_to_add non-empty and traceable",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows '[TEST] FAIL: SR1: algebraic_masking_correct is not true' for baseline.",
+      "requirement": "SR1: correct attribution of leakage to glitch/timing vs algebraic flaw",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows '[TEST] FAIL: SR2: suspect_nets missing or empty' for baseline.",
+      "requirement": "SR2: suspect_nets names both cross-term nets (and_cross0/and_cross1)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run shows '[TEST] FAIL: SR3: registers_to_add missing or empty' for baseline.",
+      "requirement": "SR3: hardening proposal registers placed before/at cross-share combination, not just outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.status='fail', ok=false, expected='pass'; evaluator rejects the correct submission due to malformed JSON in golden/vulnerability_report.json, per differential.status='fail' and issues=['golden_rejected','requirement_id_mismatch'].",
+      "requirement": "Golden/correct submission must PASS all requirements (core acceptance criterion)",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, design_brief.md, fault_model.json, and metadata.json use neutral engineering language (timing/settling, review focus) without naming CWE-203/CWE-1300, glitch-as-vulnerability, or SR/FR ids; framing is consistent with a plain RTL review task.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, vulnerability framing) in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 each map to a specific, automatically verifiable check (field presence/types, net-name membership in parsed netlist, algebraic invariant via iverilog cross-check, register name traceability) rather than a single generic restatement.",
+      "requirement": "Public functional requirements are concrete and machine-checkable via pinned interface",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

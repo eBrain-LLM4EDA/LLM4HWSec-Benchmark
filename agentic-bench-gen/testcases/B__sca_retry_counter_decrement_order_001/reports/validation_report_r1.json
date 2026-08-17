@@ -1,0 +1,183 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.md",
+    "inputs/pin_check_fsm.v",
+    "inputs/testbench_reference.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 2,
+    "FR3": 2,
+    "FR4": 2,
+    "SR1": 2,
+    "SR2": 2,
+    "SR3": 2,
+    "SR4": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: affected_signals does not name a retry-counter-like signal (e.g. attempts_left)\n[TEST] FAIL: FR2: fault_free_justification missing or too short/not a string\n[TEST] FAIL: FR3: state_names_referenced missing, not a non-empty array of strings\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: vulnerable_transition does not name both COMPARE and CHECK_DONE\n[TEST] FAIL: SR2: glitch_window does not reference the COMPARE/CHECK_DONE edge\n[TEST] FAIL: SR3: remediation proposes vague/generic fix without addressing decrement ordering\n[TEST] FAIL: SR4: fault_free_justification missing\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "SR4 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "mutation_score": 0.875,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.875,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "f9e636531c652734cb7e9c9837dc1003fc88e68de215463a147ba6c6c8004f79",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "127601eaee186c0cb3bbf3c539a62147b855a1af60531cef53cb8bec740252a1",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_stateskip.v"
+  ],
+  "uncovered_requirements": [
+    "SR4"
+  ]
+}

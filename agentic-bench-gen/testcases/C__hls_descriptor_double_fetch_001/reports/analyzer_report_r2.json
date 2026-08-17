@@ -1,0 +1,79 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + evaluation/harness_main.cpp",
+      "description": "The differential test shows the shipped insecure baseline (which re-reads desc->length in the copy loop and return statement) PASSES all requirements including SR1 and SR2, identically to the golden solution. The mutation-based TOCTOU detection mechanism does not actually discriminate between the vulnerable and hardened implementations, despite extensive narrative documentation claiming it was fixed in 'round 3'. This violates the core hardened_artifact contract: the baseline must fail.",
+      "evidence": "differential.vulnerable_run.stdout shows '[TEST] PASS: SR1' and '[TEST] PASS: SR2' for the vulnerable baseline; differential.status = 'fail'; mutation_score = 0.0; mutation_score_meaningful = false; issues[0].issue = 'vulnerable_accepted'",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report",
+      "description": "requirement_discrimination_coverage_score is 0.0, meaning none of the security requirements actually discriminate between correct and vulnerable submissions in practice, despite requirement_mapping_coverage_score being 1.0 (i.e., the map claims coverage on paper but the harness doesn't deliver it behaviorally).",
+      "evidence": "\"requirement_discrimination_coverage_score\": 0.0, \"mutation_status\": \"blocked_by_differential\"",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/harness_main.cpp / evaluate.py timing assumptions",
+      "description": "The sustained-overwrite mutator design relies on the mutator thread's writes being visible/ordered relative to the main thread's reads of a volatile (not atomic) field without any real memory synchronization barrier beyond the phase handshake; combined with -O0 compilation this may work by luck on some platforms but the actual observed empirical result (from the differential run) is that it still fails to catch the baseline, confirming the design is unreliable in practice despite the confident engineering narrative in the private README.",
+      "evidence": "private/README.md claims 'mutation_score fix' and 'near-certain every single run' but validation shows mutation_score=0.0 on an actual run",
+      "severity": "medium"
+    },
+    {
+      "artifact": "README.md / metadata.json",
+      "description": "Public-facing artifacts do not leak CWE ids, SR ids, or explicit statements that the baseline is intentionally vulnerable \u2014 this part is done correctly \u2014 but this is moot given the harness itself does not work.",
+      "evidence": "README.md and metadata.json reviewed: no CWE/SR ids or 'insecure baseline' language present",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Do not ship this case until the sr1_toctou detection mechanism is empirically verified (via the actual differential harness run, not just narrative documentation) to make the shipped baseline fail SR1/SR2 while the golden solution passes.",
+    "Investigate why the sustained-overwrite mutator still fails to trigger detection against the baseline in the actual run \u2014 likely candidates: compiler reordering/caching of the volatile read despite -O0, thread scheduling still not achieving overlap, or a logic bug in the trial-outcome parsing in evaluate.py.",
+    "Consider a more robust deterministic mechanism: e.g., have the harness's Descriptor struct wrap length access through an instrumented accessor function that blocks/signals on each read via a condition variable, guaranteeing the harness can pause execution precisely between the validating read and any subsequent read, rather than relying on a best-effort concurrent overwrite race.",
+    "Add an explicit CI/preflight step that runs the differential test (golden vs baseline) as a hard gate before this case is considered usable, and block publishing until vulnerable_run status is 'fail'.",
+    "Re-verify mutation_score and requirement_discrimination_coverage_score are both above threshold (e.g., 1.0 for discrimination) before resubmission."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run and vulnerable_run both show [TEST] PASS: FR1 as expected since this is not a race scenario",
+      "requirement": "FR1 (32-byte valid transfer)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and vulnerable pass FR2 as expected; non-racy scenario",
+      "requirement": "FR2 (oversized rejection)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both golden and vulnerable pass FR3 as expected",
+      "requirement": "FR3 (zero-length valid transfer)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Both compile and link successfully, FR4 PASS in both runs",
+      "requirement": "FR4 (interface fidelity via compile/link)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable baseline (which re-reads desc->length in the loop and return) incorrectly shows [TEST] PASS: SR1 in the differential vulnerable_run, indicating the TOCTOU mutation harness fails to detect the double-fetch",
+      "requirement": "SR1 (single read of desc->length)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Vulnerable baseline incorrectly shows [TEST] PASS: SR2 in vulnerable_run, same root cause as SR1",
+      "requirement": "SR2 (validated value == value used to bound copy)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both golden and vulnerable pass SR3, which reuses the non-racy fr2 scenario",
+      "requirement": "SR3 (rejection path copies zero bytes)",
+      "status": "pass"
+    },
+    {
+      "evidence": "validation report differential.status = 'fail', vulnerable_run.status = 'pass' but expected 'fail'; failure_class = 'vulnerable_accepted'",
+      "requirement": "Grader accepts golden and rejects baseline (core hardened_artifact contract)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

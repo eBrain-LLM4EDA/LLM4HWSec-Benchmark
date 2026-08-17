@@ -1,0 +1,190 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.md",
+    "inputs/field_datapath.v",
+    "inputs/scalar_mult_ctrl.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 3,
+    "FR3": 2,
+    "FR4": 4,
+    "SR1": 1,
+    "SR2": 3,
+    "SR3": 1,
+    "SR4": 4
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: field 'vulnerable_signal' missing/empty/non-string; field 'vulnerable_states' missing/empty/non-string; field 'timing_dependency_description' missing/empty/non-string; field 'remediation_description' missing/empty/non-string; 'cycle_counts_by_scalar' missing, empty, or not a list\n[TEST] FAIL: FR2: fewer than 4 distinct scalars reported (0); no reported scalar has Hamming weight <= 2; no reported scalar has Hamming weight >= 14; fewer than 2 reported scalars have intermediate Hamming weight (3-13), found 0; no submitted scalars overlap with the fixed reference scalar set; cannot cross-check cycle_count values against simulation\n[TEST] FAIL: FR3: 'remediation_rtl_sketch' missing or too short to be substantive\n[TEST] FAIL: FR4: cannot verify cycle_count_range: no valid cycle_counts_by_scalar entries\n[TEST] FAIL: SR1: report does not reference the ADD state or the scalar_bit conditional path anywhere in vulnerable_signal/vulnerable_states/timing_dependency_description\n[TEST] FAIL: SR2: fewer than 4 cycle_counts_by_scalar entries available to compute correlation\n[TEST] FAIL: SR3: remediation does not clearly describe both (a) always executing ADD every bit into a dummy/discarded result when the bit is 0, and (b) a final mux/select mechanism\n[TEST] FAIL: SR4: 'preserves_correct_output' is not true; remediation text does not clearly explain the mux/select mechanism that commits the real ADD result only when the scalar bit is 1 (vs. a dummy result otherwise), so correctness preservation is not substantiated\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "SR1 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "SR3 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "mutation_score": 0.75,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.75,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "22baddefa913f01cc97a2715262f32e3e85a4c280ed5968b0e85861b8d4af597",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "e50af40c2a4c1a90250e240949f64ecfde00a37486eca7a99ade14bb954527aa",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/naive_baseline_check_notes.md",
+    "evaluation/private/scalar_input.txt",
+    "evaluation/tb_cycle_count.v"
+  ],
+  "uncovered_requirements": [
+    "SR1",
+    "SR3"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 0.889,
+  "rationale": "mutation_score=0.889 >= 0.5 threshold, mapping_coverage=1.0, analyzer_status=warning (not fail), and the golden run passes all 9 checks while the vulnerable baseline correctly fails FR3/SR1/SR2/SR3/SR4/SR5. The only outstanding issue is a single uncovered requirement (SR3) where no mutant in the suite specifically discriminates SR3 in isolation; the analyzer confirms this is a minor coverage gap rather than a correctness defect, since the differential runs show SR3's check does correctly pass/fail in the golden and vulnerable baseline cases. Both the analyzer and validation reports classify this as low severity with no evaluator bugs, no golden rejections, no vulnerable acceptances, and no schema/timing issues. Per the retention rule (validation passes AND analyzer status pass/warning AND mutation_score >= 0.5), this case should be retained; the SR3 coverage gap is a nice-to-have improvement, not a blocking defect. Deterministic quality gates override retain_case to False (actual mutation_score=0.889, validation_status=fail).",
+  "retain_case": false,
+  "revision_instructions": "No revision required for retention. Optional future improvement (non-blocking): add a targeted mutant for SR3 that reintroduces a plausible-but-wrong leakage_metric description containing only weight/count terminology without any transition/switching terminology (or vice versa), so the SR3 check's discriminative power is verified in isolation rather than only via the full vulnerable-baseline differential. This is an enhancement to mutation coverage completeness, not a fix for a defect.",
+  "root_cause": "none",
+  "source_round": 0
+}

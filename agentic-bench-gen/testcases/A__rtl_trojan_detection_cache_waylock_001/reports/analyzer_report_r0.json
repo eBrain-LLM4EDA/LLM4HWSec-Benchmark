@@ -1,0 +1,76 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Mutation testing shows FR4 and SR1 checks are not discriminative: mutants specifically targeting these requirements are not detected by their corresponding checks, indicating the regex-based detection for 'victim_way scope statement' (FR4) and 'lock-bypass consequence claim' (SR1) may be too permissive or overlapping with other checks, masking real failures.",
+      "evidence": "per_requirement_coverage: FR4 covered=false (0/1 mutants detected), SR1 covered=false (0/1 mutants detected); uncovered_requirements: ['FR4','SR1']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "VICTIM_SCOPE_PATTERNS for FR4 includes very generic terms like 'evict(ion)?' and 'victim_way' which could be satisfied even by a report that doesn't explicitly contrast victim_way against hit/hit_way/lock_status, weakening precision of the scoping check.",
+      "evidence": "VICTIM_SCOPE_PATTERNS = [r'victim_way', r'victim\\s+selection', r'evict(ion)?']",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Tighten the FR4 VICTIM_SCOPE_PATTERNS and/or require an explicit contrast statement (e.g., regex requiring both a victim_way/eviction mention AND a mention of hit/hit_way/lock_status being unaffected) so mutants that remove or garble the scoping statement are reliably caught.",
+    "Review the SR1 LOCK_BYPASS_PATTERNS regexes for cases where the mutant likely rephrases or slightly weakens the bypass claim; consider adding stricter co-occurrence requirements (e.g., require both a 'locked' term and an 'evict/victim' term within a shorter proximity window, or require an explicit causal verb) to increase discrimination.",
+    "Re-run mutation testing specifically targeting FR4 and SR1 checks with a broader set of mutants (e.g., a report that mentions victim_way only in passing without claiming the defect, or a report claiming generic 'suspicious logic' without the bypass consequence) to confirm the checks reject those variants.",
+    "Consider adding an additional acceptance-criteria-level check that cross-validates FR4's scope claim against SR3's negative claim to ensure internal consistency of the submitted report."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.vulnerable_run shows exit_code 1 with FR3, SR1, SR2, SR4 FAIL as expected; baseline_run (using shipped submission/trojan_report.json) also passes when run against golden \u2014 validation shows baseline_run status pass matches golden expectation, and vulnerable_run (naive report against real RTL) correctly fails SR1/SR2/SR4.",
+      "requirement": "Baseline (naive/empty) submission must FAIL",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run: exit_code 0, status pass, all FR1-FR4 and SR1-SR4 PASS.",
+      "requirement": "Correct/golden submission must PASS",
+      "status": "pass"
+    },
+    {
+      "evidence": "cache_controller.v implements eff_lock = lock_bits & ~mask_term with mask_term asserted on tag_in==8'hA5 && secure_attr==0, consistent with hidden_spec ground_truth; design_brief.md and README.md describe only functional behavior without leaking the defect; testbench_lock_basic.v avoids the trigger condition as required by constraints.",
+      "requirement": "Coherence between public inputs, hidden ground truth, and expected outputs",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1/SR2 map to detection_rate and trigger_payload_localization; SR3 maps to false_positive_rate; SR4 maps to confidence_calibration. FR1-FR4 provide format gating consistent with response_format.",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, trigger_payload_localization, confidence_calibration)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional and SR1-SR4 as security, each with distinct expected_detection and test_files; per_requirement_coverage confirms activation for all 8 except FR4/SR1 discrimination gaps.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_trigger_check.v directly drives tag_in=8'hA5, secure_attr=0 on a locked way and prints TRIGGER_RESULT for corroboration; this is optional but present and functional per differential results.",
+      "requirement": "Security-relevant behaviors actively triggered rather than only checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced files (cache_controller.v, design_brief.md, testbench_lock_basic.v, evaluate.py, tb_trigger_check.v) are provided in the bundles; no external dependencies beyond iverilog/vvp toolchain mentioned in constraints.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, cache_controller.v (identifiers like eff_lock, mask_term) contain no CWE ids, SR ids, or explicit mention of trojan/backdoor/A5/bypass_lock, consistent with constraints.",
+      "requirement": "No leakage of hidden security intent in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are four distinct, machine-checkable requirements (JSON structure, candidate fields, concrete trigger condition in rationale, explicit output-scope statement), each independently verified by evaluate.py checks.",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 of them)",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation_score=0.75 with per_requirement_discrimination showing FR4 and SR1 both covered=false (0 detected of 1 targeting mutant each), indicating these two checks do not reliably distinguish correct from incorrect submissions in at least one tested mutation scenario.",
+      "requirement": "Mutation/discrimination robustness of all requirement checks",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

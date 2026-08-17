@@ -1,0 +1,41 @@
+{
+  "acceptance_criteria": [
+    "A submission that names u_grant_ff, DFF_NEGEDGE, and grant_pre with trojan_detected=true and a coherent summary passes all FR and SR checks.",
+    "The shipped baseline empty/naive submission (trojan_detected=false, suspect_instances=[], generic summary) must fail SR1-SR4.",
+    "A submission that finds trojan_detected=true but names the wrong instance or wrong signal fails SR1/SR3 even though FR1-FR4 (structural/schema checks) may still pass."
+  ],
+  "cwe_ids": [
+    "CWE-1245",
+    "CWE-1191",
+    "CWE-696"
+  ],
+  "ground_truth": "Instance u_grant_ff in access_ctrl_netlist.v is instantiated as DFF_NEGEDGE (not DFF_POSEDGE like every other documented state element) and samples the net grant_pre, which is the output of the access-permission comparator. Because it captures on the falling edge of clk, it latches grant_pre half a cycle before the comparator logic has settled to its final combinational value, creating a timing window where a stale or transitional permission value can propagate to grant_out. All other sequential elements in the design are DFF_POSEDGE as documented in design_brief.md.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String-match instance_name fields (case-insensitive, ignoring hierarchy separators) against the ground-truth instance name u_grant_ff; also accept exact match if participant used the literal instance path from the netlist.",
+      "id": "SR1",
+      "requirement": "The submitted report must correctly identify u_grant_ff as the anomalous instance."
+    },
+    {
+      "detection_strategy": "String-match cell_type field against 'DFF_NEGEDGE' or free-text detection of 'negedge'/'negative-edge'/'falling edge' in justification.",
+      "id": "SR2",
+      "requirement": "The submitted report must correctly identify the cell_type as DFF_NEGEDGE (or equivalently state that it is negative-edge/falling-edge triggered) as opposed to the documented DFF_POSEDGE discipline."
+    },
+    {
+      "detection_strategy": "String-match sampled_signal field against 'grant_pre' from the netlist's net declarations.",
+      "id": "SR3",
+      "requirement": "The submitted report must correctly identify sampled_signal as grant_pre (the access-permission comparator output)."
+    },
+    {
+      "detection_strategy": "Boolean field check combined with FR3 consistency check.",
+      "id": "SR4",
+      "requirement": "trojan_detected must be true for a passing submission (a report claiming no trojan fails, since the netlist contains a genuine substitution)."
+    },
+    {
+      "detection_strategy": "Run iverilog -o sim.out inputs/access_ctrl_netlist.v inputs/cell_library.v inputs/testbench_stub.v; vvp sim.out; parse VCD/monitor output for a mismatch between negedge-sampled and posedge-sampled grant_pre values within the same clock period; this is a bonus cross-check, not required for PASS but strengthens confidence scoring.",
+      "id": "SR5",
+      "requirement": "Optionally, evaluate.py cross-checks the claim by simulating access_ctrl_netlist.v with testbench_stub.v via iverilog/vvp, comparing the value latched into u_grant_ff's output against a golden posedge reference at the half-cycle mark, confirming an observable discrepancy consistent with the reported finding."
+    }
+  ],
+  "threat_model": "An adversary with foundry- or synthesis-stage access substitutes a single negedge-triggered flip-flop cell for the correct posedge cell on a security-critical sampling path. This is a minimal, naming-plausible structural change that introduces no additional trigger or payload logic, evading netlist diffing approaches that only look for extra gates, and evading simulation-based verification that only checks steady-state functional correctness rather than edge polarity per instance."
+}

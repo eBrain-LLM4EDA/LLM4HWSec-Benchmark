@@ -1,0 +1,34 @@
+{
+  "acceptance_criteria": [
+    "Hardened descriptor_transfer.cpp compiles with g++ -std=c++11 against the unmodified descriptor_transfer.h and the evaluation harness with zero errors.",
+    "All functional known-answer test vectors (FR1-FR3) produce exact expected outputs and return codes.",
+    "Under the TOCTOU mutation scenario (length flipped from safe to unsafe between check and use), the transferred byte count, return value, and dest buffer contents match the pre-mutation validated length only \\u2014 no bytes beyond the validated bound are written or read.",
+    "A canary/guard region immediately following dest is never overwritten in any test scenario, including the mutation scenario.",
+    "The shipped insecure baseline (which re-reads desc->length in the copy loop) is confirmed to fail the mutation scenario when run through the same harness, establishing discriminative power."
+  ],
+  "cwe_ids": [
+    "CWE-367",
+    "CWE-362",
+    "CWE-125",
+    "CWE-787"
+  ],
+  "ground_truth": "The secure implementation reads desc->length exactly once into a local uint32_t snapshot variable immediately upon entry to run_transfer, before any validation or use. That single snapshot is compared against max_len for validation, and the same snapshot value drives the byte-copy loop bound. Because desc->length is declared volatile and represents shared, concurrently-writable memory, the insecure baseline instead re-reads desc->length a second time when constructing the copy loop (e.g. `for (uint32_t i = 0; i < desc->length; i++)`), creating a TOCTOU window: a test harness can validate with a safe length, then flip desc->length to an oversized value between the validation check and the copy loop, causing an out-of-bounds copy in the vulnerable version while the hardened version, having already captured the value, remains unaffected by the later mutation.",
+  "security_requirements": [
+    {
+      "detection_strategy": "The evaluation harness supplies a Descriptor whose `length` field is backed by a mutator: a background thread or an instrumented accessor increments a read-counter each time `length` is dereferenced, or the harness overwrites `length` from a safe value to an oversized value immediately after the first read is observed (via a busy-wait synchronization flag or a custom volatile field with a read side-effect). If the transferred byte count or return value reflects the post-mutation oversized length, or if more than one read of the field is detected, the requirement fails.",
+      "id": "SR1",
+      "requirement": "desc->length (or any field derived from it that determines the transfer size) must be read from shared memory at most once per invocation of run_transfer."
+    },
+    {
+      "detection_strategy": "Run the mutation scenario: set desc->length = 16 (valid), let validation pass, then before/during the copy phase mutate desc->length to 4096 (invalid, far exceeding max_len and the dest buffer capacity). Assert the function copies exactly 16 bytes and returns 16, and that dest bytes beyond index 16 are untouched (checked via a canary/guard region immediately after dest).",
+      "id": "SR2",
+      "requirement": "The value used to bound the copy loop must be identical to the value that was checked against max_len; no path may validate one value and transfer using a different, later-observed value."
+    },
+    {
+      "detection_strategy": "Pre-fill dest with a sentinel pattern, invoke run_transfer with an out-of-bounds length, and verify dest is byte-for-byte unchanged and the return value is -1.",
+      "id": "SR3",
+      "requirement": "On the rejection path (length > max_len at time of the single read), zero bytes must be copied and dest must be left unmodified."
+    }
+  ],
+  "threat_model": "The Descriptor structure resides in memory shared with a concurrent writer (e.g., another hardware engine, DMA controller, or attacker-controlled process) that can mutate the `length` field at arbitrary times, including between the moment the kernel validates the field and the moment it uses that field to bound a copy loop. An attacker exploits this time-of-check-to-time-of-use (TOCTOU) race to pass validation with a safe, in-bounds length and then substitute an oversized length immediately before the transfer executes, causing the kernel to copy more bytes than the destination buffer or security policy permits, leading to out-of-bounds writes or reads."
+}

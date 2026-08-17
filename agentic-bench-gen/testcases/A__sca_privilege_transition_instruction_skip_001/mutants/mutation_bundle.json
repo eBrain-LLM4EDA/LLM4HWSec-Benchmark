@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "SR1 check must FAIL: vulnerable_state is reported as 'SETTLE' instead of the ground-truth write-bearing state 'DEMOTE'. Since SETTLE performs no priv_reg write, skipping it does not actually leave priv_reg elevated, so the resulting_privilege claim of 'supervisor' for SETTLE is unsupported by the actual RTL/simulation behavior. Cross-simulation forcing a skip at SETTLE would show priv_reg still correctly reaches 2'b00 (from the DEMOTE write), contradicting the reported finding, and the per_state_skip_impact entry for DEMOTE (still '10') is now inconsistent with vulnerable_state being SETTLE.",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"SETTLE\", \"DONE\"],\n  \"fault_free_final_priv\": \"00\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"SETTLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DONE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"SETTLE\",\n  \"resulting_privilege\": \"supervisor\",\n  \"mitigation\": \"SETTLE is the state whose skip leaves priv_reg elevated at supervisor, so a single-step instruction-skip fault landing on SETTLE leaves priv_reg at its prior supervisor value (2'b10) for the remainder of the sequence while state-sequencing continues normally through DONE, asserting 'done' with an incorrect elevated privilege. Harden by duplicating the write: add a second, redundant assignment priv_reg <= 2'b00 in the DONE state (in addition to SETTLE's write), so that if the SETTLE write cycle is glitched/skipped, the DONE write on the following cycle still forces priv_reg to 2'b00. As a stronger triplicated defense, additionally add a comparator/re-check-and-correct action after DONE that reads priv_reg, compares it against the expected value 2'b00 for a demotion sequence, and if a mismatch is detected, forces priv_reg <= 2'b00 again. This duplicate-write-with-comparator scheme ensures a single skipped write cycle at SETTLE cannot by itself produce an incorrect final privilege value.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_SR1_domain_specific_01",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "SR2 check should FAIL because the per_state_skip_impact entry for non-vulnerable state SETTLE reports priv_reg_after_skip='10' (a false-positive fault claim) instead of the correct fault-free value '00', which mismatches fault_free_final_priv for a state that performs no write.",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"SETTLE\", \"DONE\"],\n  \"fault_free_final_priv\": \"00\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"SETTLE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"DONE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"DEMOTE\",\n  \"resulting_privilege\": \"supervisor\",\n  \"mitigation\": \"DEMOTE is the sole state in the demotion sequence that writes priv_reg (priv_reg <= 2'b00), so a single-step instruction-skip fault landing on DEMOTE leaves priv_reg at its prior supervisor value (2'b10) for the remainder of the sequence while state-sequencing continues normally through SETTLE and DONE, asserting 'done' with an incorrect elevated privilege. Harden by duplicating the write: add a second, redundant assignment priv_reg <= 2'b00 in the SETTLE state (in addition to DEMOTE's write), so that if the DEMOTE write cycle is glitched/skipped, the SETTLE write on the following cycle still forces priv_reg to 2'b00 before DONE is asserted. As a stronger triplicated defense, additionally add a comparator/re-check-and-correct action in the DONE state that reads priv_reg, compares it against the expected value 2'b00 for a demotion sequence, and if a mismatch is detected (priv_reg == 2'b10 when it should be 2'b00), forces priv_reg <= 2'b00 again before or while done is asserted (and analogously duplicate the PROMOTE write into PSETTLE with a matching re-check in PDONE for the promotion path). This duplicate-write-with-comparator/triplicated-write-and-correct scheme ensures a single skipped write cycle at DEMOTE (or PROMOTE) cannot by itself produce an incorrect final privilege value, since at least one of the redundant write/check cycles will still assert the correct value.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_SR2_constant_change_01",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "SR3 keyword/semantic scoring of the 'mitigation' field should flag this as a generic, non-redundant suggestion (increased test coverage / code review) lacking any duplication, triplication, comparator, or re-check-and-correct mechanism targeted at the DEMOTE write, and reject the submission even though all other fields (vulnerable_state, resulting_privilege, per_state_skip_impact) remain correct.",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"SETTLE\", \"DONE\"],\n  \"fault_free_final_priv\": \"00\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"SETTLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DONE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"DEMOTE\",\n  \"resulting_privilege\": \"supervisor\",\n  \"mitigation\": \"DEMOTE is the sole state in the demotion sequence that writes priv_reg, so a fault landing there leaves priv_reg elevated at supervisor. To mitigate this, the design team should increase test coverage around the demotion sequence, add more thorough code review of the FSM state transitions, run additional static timing analysis, and use encrypted communication channels for any signals related to privilege state to reduce the risk of tampering. Regular security audits and staff training on secure coding practices are also recommended to reduce the likelihood of such issues reaching production.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_SR3_domain_specific_01",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Cross-simulation of mode_sequencer.v with a forced skip of the DEMOTE write shows priv_reg remains 2'b10 (supervisor), but the submission reports resulting_privilege as 'user', which contradicts the actual simulated outcome and must FAIL SR4 (and is inconsistent with the correctly-labeled vulnerable_state and per_state_skip_impact entry showing '10').",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"SETTLE\", \"DONE\"],\n  \"fault_free_final_priv\": \"00\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"SETTLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DONE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"DEMOTE\",\n  \"resulting_privilege\": \"user\",\n  \"mitigation\": \"DEMOTE is the sole state in the demotion sequence that writes priv_reg (priv_reg <= 2'b00), so a single-step instruction-skip fault landing on DEMOTE leaves priv_reg at its prior supervisor value (2'b10) for the remainder of the sequence while state-sequencing continues normally through SETTLE and DONE, asserting 'done' with an incorrect elevated privilege. Harden by duplicating the write: add a second, redundant assignment priv_reg <= 2'b00 in the SETTLE state (in addition to DEMOTE's write), so that if the DEMOTE write cycle is glitched/skipped, the SETTLE write on the following cycle still forces priv_reg to 2'b00 before DONE is asserted. As a stronger triplicated defense, additionally add a comparator/re-check-and-correct action in the DONE state that reads priv_reg, compares it against the expected value 2'b00 for a demotion sequence, and if a mismatch is detected (priv_reg == 2'b10 when it should be 2'b00), forces priv_reg <= 2'b00 again before or while done is asserted (and analogously duplicate the PROMOTE write into PSETTLE with a matching re-check in PDONE for the promotion path). This duplicate-write-with-comparator/triplicated-write-and-correct scheme ensures a single skipped write cycle at DEMOTE (or PROMOTE) cannot by itself produce an incorrect final privilege value, since at least one of the redundant write/check cycles will still assert the correct value.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_SR4_constant_change_01",
+      "operator": "constant_change",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "SR2/FR3/FR4 checks fail: the transition_sequence array is missing the 'SETTLE' state entirely, so it no longer lists every FSM state involved in the demotion sequence in execution order as documented in design_brief.md; per_state_skip_impact also lacks a matching count/entries for the omitted state, causing FR3/FR4 schema-consistency checks to fail as well.",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"DONE\"],\n  \"fault_free_final_priv\": \"00\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"DONE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"DEMOTE\",\n  \"resulting_privilege\": \"supervisor\",\n  \"mitigation\": \"DEMOTE is the sole state in the demotion sequence that writes priv_reg (priv_reg <= 2'b00), so a single-step instruction-skip fault landing on DEMOTE leaves priv_reg at its prior supervisor value (2'b10) for the remainder of the sequence while state-sequencing continues normally through SETTLE and DONE, asserting 'done' with an incorrect elevated privilege. Harden by duplicating the write: add a second, redundant assignment priv_reg <= 2'b00 in the SETTLE state (in addition to DEMOTE's write), so that if the DEMOTE write cycle is glitched/skipped, the SETTLE write on the following cycle still forces priv_reg to 2'b00 before DONE is asserted. As a stronger triplicated defense, additionally add a comparator/re-check-and-correct action in the DONE state that reads priv_reg, compares it against the expected value 2'b00 for a demotion sequence, and if a mismatch is detected (priv_reg == 2'b10 when it should be 2'b00), forces priv_reg <= 2'b00 again before or while done is asserted (and analogously duplicate the PROMOTE write into PSETTLE with a matching re-check in PDONE for the promotion path). This duplicate-write-with-comparator/triplicated-write-and-correct scheme ensures a single skipped write cycle at DEMOTE (or PROMOTE) cannot by itself produce an incorrect final privilege value, since at least one of the redundant write/check cycles will still assert the correct value.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_FR1_assignment_removal_01",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "SR4/FR4 cross-check: fault_free_final_priv must equal '00' per the design brief and FR2's requirement; reporting '10' as the fault-free final privilege is factually wrong (the demotion sequence always ends at user=00 when no fault is injected) and should be rejected by acceptance criteria requiring fault_free_final_priv == '00', and will also cause internal inconsistency with per_state_skip_impact entries for non-vulnerable states which still show '00'.",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"SETTLE\", \"DONE\"],\n  \"fault_free_final_priv\": \"10\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"SETTLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DONE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"DEMOTE\",\n  \"resulting_privilege\": \"supervisor\",\n  \"mitigation\": \"DEMOTE is the sole state in the demotion sequence that writes priv_reg (priv_reg <= 2'b00), so a single-step instruction-skip fault landing on DEMOTE leaves priv_reg at its prior supervisor value (2'b10) for the remainder of the sequence while state-sequencing continues normally through SETTLE and DONE, asserting 'done' with an incorrect elevated privilege. Harden by duplicating the write: add a second, redundant assignment priv_reg <= 2'b00 in the SETTLE state (in addition to DEMOTE's write), so that if the DEMOTE write cycle is glitched/skipped, the SETTLE write on the following cycle still forces priv_reg to 2'b00 before DONE is asserted. As a stronger triplicated defense, additionally add a comparator/re-check-and-correct action in the DONE state that reads priv_reg, compares it against the expected value 2'b00 for a demotion sequence, and if a mismatch is detected (priv_reg == 2'b10 when it should be 2'b00), forces priv_reg <= 2'b00 again before or while done is asserted (and analogously duplicate the PROMOTE write into PSETTLE with a matching re-check in PDONE for the promotion path). This duplicate-write-with-comparator/triplicated-write-and-correct scheme ensures a single skipped write cycle at DEMOTE (or PROMOTE) cannot by itself produce an incorrect final privilege value, since at least one of the redundant write/check cycles will still assert the correct value.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_FR2_constant_change_01",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "SR2/FR3 check should fail because per_state_skip_impact is missing the required entry for state 'DONE', which is present in transition_sequence; FR4/FR3 structural validation (one entry per transition_sequence state) will reject this report.",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"SETTLE\", \"DONE\"],\n  \"fault_free_final_priv\": \"00\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"SETTLE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"DEMOTE\",\n  \"resulting_privilege\": \"supervisor\",\n  \"mitigation\": \"DEMOTE is the sole state in the demotion sequence that writes priv_reg (priv_reg <= 2'b00), so a single-step instruction-skip fault landing on DEMOTE leaves priv_reg at its prior supervisor value (2'b10) for the remainder of the sequence while state-sequencing continues normally through SETTLE and DONE, asserting 'done' with an incorrect elevated privilege. Harden by duplicating the write: add a second, redundant assignment priv_reg <= 2'b00 in the SETTLE state (in addition to DEMOTE's write), so that if the DEMOTE write cycle is glitched/skipped, the SETTLE write on the following cycle still forces priv_reg to 2'b00 before DONE is asserted. As a stronger triplicated defense, additionally add a comparator/re-check-and-correct action in the DONE state that reads priv_reg, compares it against the expected value 2'b00 for a demotion sequence, and if a mismatch is detected (priv_reg == 2'b10 when it should be 2'b00), forces priv_reg <= 2'b00 again before or while done is asserted (and analogously duplicate the PROMOTE write into PSETTLE with a matching re-check in PDONE for the promotion path). This duplicate-write-with-comparator/triplicated-write-and-correct scheme ensures a single skipped write cycle at DEMOTE (or PROMOTE) cannot by itself produce an incorrect final privilege value, since at least one of the redundant write/check cycles will still assert the correct value.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_FR3_assignment_removal_01",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "FAIL because per_state_skip_impact is missing an entry for 'SETTLE', which is listed in transition_sequence, violating FR4's requirement that per_state_skip_impact must contain one entry for every state in transition_sequence (schema/completeness check).",
+      "files": [
+        {
+          "content": "{\n  \"transition_sequence\": [\"IDLE\", \"CHECK\", \"DEMOTE\", \"SETTLE\", \"DONE\"],\n  \"fault_free_final_priv\": \"00\",\n  \"per_state_skip_impact\": [\n    {\"state\": \"IDLE\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"CHECK\", \"priv_reg_after_skip\": \"00\"},\n    {\"state\": \"DEMOTE\", \"priv_reg_after_skip\": \"10\"},\n    {\"state\": \"DONE\", \"priv_reg_after_skip\": \"00\"}\n  ],\n  \"vulnerable_state\": \"DEMOTE\",\n  \"resulting_privilege\": \"supervisor\",\n  \"mitigation\": \"DEMOTE is the sole state in the demotion sequence that writes priv_reg (priv_reg <= 2'b00), so a single-step instruction-skip fault landing on DEMOTE leaves priv_reg at its prior supervisor value (2'b10) for the remainder of the sequence while state-sequencing continues normally through SETTLE and DONE, asserting 'done' with an incorrect elevated privilege. Harden by duplicating the write: add a second, redundant assignment priv_reg <= 2'b00 in the SETTLE state (in addition to DEMOTE's write), so that if the DEMOTE write cycle is glitched/skipped, the SETTLE write on the following cycle still forces priv_reg to 2'b00 before DONE is asserted. As a stronger triplicated defense, additionally add a comparator/re-check-and-correct action in the DONE state that reads priv_reg, compares it against the expected value 2'b00 for a demotion sequence, and if a mismatch is detected (priv_reg == 2'b10 when it should be 2'b00), forces priv_reg <= 2'b00 again before or while done is asserted (and analogously duplicate the PROMOTE write into PSETTLE with a matching re-check in PDONE for the promotion path). This duplicate-write-with-comparator/triplicated-write-and-correct scheme ensures a single skipped write cycle at DEMOTE (or PROMOTE) cannot by itself produce an incorrect final privilege value, since at least one of the redundant write/check cycles will still assert the correct value.\"\n}",
+          "path": "submission/vulnerability_report.json"
+        }
+      ],
+      "mutant_id": "sca_privilege_transition_instruction_skip_001_FR4_assignment_removal_01",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "trojan_detected": true,
+  "suspect_instances": ["u_perm_nand3"],
+  "diverging_vectors": [
+    {
+      "req_level": "10",
+      "owner_id": "101",
+      "expected_grant": 0,
+      "observed_grant": 1
+    }
+  ],
+  "explanation": "Exhaustive gate-level simulation of all 32 (req_level, owner_id) combinations against inputs/reference_truth_table.txt shows exactly one mismatch, at req_level=10, owner_id=101. u_perm_nand3 is a 3-input NAND implementing the owner-id qualifier for the req_level==10/owner_id==100 branch (Term 3), correctly enforcing owner_id[2]=1 and owner_id[1]=0 on its .a/.b inputs, but its .c leg is mis-wired to the wrong polarity of owner_id[0] instead of the correctly inverted signal. At owner_id=101 (owner_id[0]=1), this wiring defect makes the qualifier spuriously evaluate true, incorrectly satisfying the owner_id==100 check, which flips Term 3 and the final grant output to 1 where the reference specifies 0, granting unauthorized access. owner_id=100 and all other 30 vectors match the reference exactly, confirming Term1, Term2, and the OR-reduction network are correctly DeMorgan-equivalent and that u_perm_nand3's local input miswiring is the sole cause of this single-vector authorization bypass."
+}

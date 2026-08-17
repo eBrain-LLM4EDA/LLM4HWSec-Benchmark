@@ -1,0 +1,39 @@
+{
+  "constraints": [
+    "The RTL module masked_and must implement a first-order Boolean masking scheme for AND that is algebraically correct: q0 XOR q1 always equals (a0 XOR a1) AND (b0 XOR b1) for all input combinations, when evaluated at steady state (ignoring transient glitches).",
+    "The masked_and gadget must be implemented as pure combinational logic (no internal registers) between the input share ports and the output share ports, so that any leakage is caused purely by glitch propagation through unregistered combinational logic rather than by an algebraic masking error.",
+    "All input artifacts must be self-contained plain text files (Verilog-2001 compatible, parseable by iverilog) requiring no external IP or proprietary libraries.",
+    "The design_brief.md must describe the module's intended function and port list in purely functional terms without naming any security weakness, CWE identifier, or vulnerability category.",
+    "sim_trace.vcd.txt must be a plain-text, human-readable representation of a value-change dump (or an equivalent stimulus/response table) sufficient to let evaluate.py reconstruct or re-run the same stimulus via iverilog/vvp."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json containing named suspect nets, an architectural explanation, and a hardening proposal with register placement"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/vulnerability_report.json must be syntactically valid JSON and contain all five required top-level fields (suspect_nets, algebraic_masking_correct, vulnerability_summary, hardening_proposal, confidence) with the exact types specified in the interface."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Every string listed in 'suspect_nets' must correspond to an actual wire/reg declared or assigned in inputs/masked_and.v (verifiable by simple text/AST search); submissions listing zero nets or fabricated names not present in the file fail this requirement."
+    },
+    {
+      "id": "FR3",
+      "requirement": "'algebraic_masking_correct' must be set to true, consistent with the fact that the provided gadget is algebraically correct (q0 XOR q1 equals the correct AND) under static evaluation, as verifiable by simulating inputs/masked_and.v with iverilog/vvp over the vectors implied by inputs/sim_trace.vcd.txt."
+    },
+    {
+      "id": "FR4",
+      "requirement": "'hardening_proposal.registers_to_add' must be non-empty and each entry must name a signal that lies on the dataflow path between the identified suspect nets and the module's output ports q0/q1, as determined by tracing inputs/masked_and.v's assign/always statements."
+    }
+  ],
+  "input_artifacts": [
+    "masked_and.v",
+    "fault_model.json",
+    "design_brief.md",
+    "sim_trace.vcd.txt"
+  ],
+  "interface": "The submission is a single JSON file at submission/vulnerability_report.json (UTF-8, valid JSON, no trailing commentary). It MUST contain top-level fields: (1) 'suspect_nets': array of strings, each an exact net/wire identifier as it appears in inputs/masked_and.v (e.g. 'and_cross0'); (2) 'algebraic_masking_correct': boolean, your assessment of whether q0 XOR q1 equals the correct AND of the unmasked operands under static (non-glitch) evaluation; (3) 'vulnerability_summary': string (>=40 characters) describing the mechanism by which the identified nets create a security weakness; (4) 'hardening_proposal': object with fields 'registers_to_add': array of strings naming the exact signal(s) that should be registered (each string must reference a net name that exists in inputs/masked_and.v or a clearly derived share-domain equivalent name), and 'placement_description': string (>=40 characters) explaining where in the dataflow (before/after which combinational stage) the new registers go and why that restores independence; (5) 'confidence': number between 0.0 and 1.0. evaluate.py reads inputs/masked_and.v, inputs/fault_model.json, and optionally uses iverilog/vvp to re-simulate inputs/masked_and.v against inputs/sim_trace.vcd.txt to cross-check any claimed toggling behavior, then grades submission/vulnerability_report.json against hidden ground truth for field presence, format, and substantive correctness.",
+  "objective": "A hardware team has implemented a first-order Boolean-masked AND gadget (Verilog module masked_and) intended to combine two secret-shared operands (a0,a1) and (b0,b1) into an output shared as (q0,q1), such that q0 XOR q1 == (a0 XOR a1) AND (b0 XOR b1). Review the provided RTL and its testbench-derived simulation trace, then produce a structured engineering report that documents the internal signal structure of the gadget: which internal nets carry which partial products, how those nets are combined, and where registers exist (or do not exist) in the signal path between combinational blocks. Your report must also propose a concrete RTL restructuring (register placement) that you believe improves the gadget's resistance to unintended timing-dependent recombination effects, and justify why the proposed placement changes the timing/ordering of signal arrivals at the recombination point.",
+  "response_format": "A single JSON file at submission/vulnerability_report.json matching the schema described in public_spec.interface. No additional files are graded."
+}

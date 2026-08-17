@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 1.0,
+  "rationale": "Validation passes with mutation_score=1.0, mapping_coverage=1.0, discrimination_coverage=1.0, validation_status=pass, baseline_exit_code=0, and 0 validation issues. Analyzer status is pass with only 2 low-severity, non-blocking stylistic observations (a mildly explanatory RTL comment and a note that the baseline resembles the second described baseline type rather than a fully empty report) that do not affect correctness or discrimination. The differential run shows the golden submission passes all FR/SR checks and the vulnerable baseline fails FR3, FR4, SR1, SR2, SR4 as required. All requirements are mapped, tested, and discriminated by mutants with no dead checks or uncovered requirements. This meets all retention criteria.",
+  "retain_case": true,
+  "revision_instructions": "No revision needed. The case is internally coherent: the pinned interface, timing discipline, and hidden ground truth are consistent across specification, artifacts, and evaluation harness; mutation and differential results confirm the evaluator discriminates correct from incorrect submissions on every FR/SR. Optionally, the Architect may consider softening the RTL comment that explains the qualifier term's normal no-op behavior to reduce any residual hinting, but this is optional polish, not a blocking defect.",
+  "root_cause": "none",
+  "source_round": 1
+}

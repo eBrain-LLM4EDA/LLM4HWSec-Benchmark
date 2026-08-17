@@ -1,0 +1,57 @@
+{
+  "task_id": "rtl_trojan_detection_cache_waylock_001",
+  "domain_id": "rtl_trojan_detection",
+  "title": "Way-lock release Trojan in a set-associative cache controller",
+  "description": "Audit a synthesizable RTL implementation of a 2-way, 8-set cache controller with per-way locking. Determine whether the documented lock guarantee (a locked way is never selected as the eviction victim until explicitly unlocked) holds under all reachable input conditions, and produce a written findings report.",
+  "input_artifacts": [
+    "inputs/cache_controller.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_lock_basic.v"
+  ],
+  "expected_output": "submission/trojan_report.json",
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "response_format": {
+    "type": "json",
+    "schema": {
+      "candidates": [
+        {
+          "location": "string",
+          "confidence": "number in [0,1]",
+          "rationale": "string"
+        }
+      ],
+      "summary": "string",
+      "tool_evidence": "string or array of strings"
+    }
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Fraction of required security findings (bypass existence, exact trigger condition) correctly reported across the evaluation set of cases."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of submissions that report spurious/incorrect compromise of hit_way, hit, or lock_status, or that report unrelated high-confidence findings with no basis in the RTL."
+    },
+    {
+      "name": "trigger_payload_localization",
+      "direction": "maximize",
+      "description": "Score reflecting whether the report pinpoints the precise triggering values and the correct affected output (victim_way) versus vague or partially correct localization."
+    },
+    {
+      "name": "confidence_calibration",
+      "direction": "maximize",
+      "description": "Checks whether the correct finding is reported with sufficiently high confidence rather than diluted among many low-confidence guesses."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "notes": "Participants do not modify inputs/. The submitted report at submission/trojan_report.json is graded against the RTL; a naive or empty starter report is shipped as the failing baseline and must be replaced with a genuine analysis."
+}

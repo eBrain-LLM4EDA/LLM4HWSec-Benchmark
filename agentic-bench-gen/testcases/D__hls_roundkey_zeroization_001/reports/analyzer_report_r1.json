@@ -1,0 +1,101 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/harness_main.cpp, evaluation/evaluate.py",
+      "description": "The golden/expert reference solution (golden/cipher_kernel.cpp) is rejected by the evaluator on SR1, SR2, and SR4, per the differential harness run. This is a fatal correctness bug: the stack-probing methodology (probe_stack_frame reading an uninitialized local[176] at the 'same depth') is unreliable and shows nonzero residual bytes (28-29 of 176) even for a properly hardened implementation that clears round_keys with volatile writes. This means SR1/SR2 cannot discriminate between hardened and vulnerable code reliably, and as shown, actively fails the golden case.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SR1: worst-case attempt ... shows 28 of 176 probed bytes nonzero at -O0' and '[TEST] FAIL: SR2: ... shows 29 of 176 probed bytes nonzero at -O2/-O3' despite this being the expert/golden hardened solution expected to pass.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/harness_main.cpp (dualkey mode), evaluate.py SR4 logic",
+      "description": "SR4 also fails on the golden solution. The 'lenient' heuristic claims it should never false-fail a correct submission, but the differential run shows it does fail the golden run with 'adjacent scratch buffer shows distinguishable nonzero, differing content across different-key calls with identical plaintext.' This contradicts the stated design intent and documentation.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SR4: adjacent scratch buffer shows distinguishable nonzero, differing content across different-key calls with identical plaintext'",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential report",
+      "description": "The differential status is 'fail' with failure_class 'golden_rejected' \u2014 confirming the evaluator does not accept a correct submission, violating the core acceptance criterion for a hardened_artifact submission contract task.",
+      "evidence": "differential.status: 'fail', differential.failure_class: 'golden_rejected', golden_run.expected: 'pass', golden_run.status: 'fail'",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report / mutation_status",
+      "description": "Because the differential check fails (golden rejected), mutation testing is blocked entirely, so requirement_discrimination_coverage_score is 0.0 and mutation_score is not meaningful. The benchmark cannot currently be trusted to discriminate hardened vs vulnerable submissions for any requirement, even though requirement_mapping_coverage_score is reported as 1.0 (mapping exists nominally but is not verified to function correctly).",
+      "evidence": "mutation_status: 'blocked_by_differential', requirement_discrimination_coverage_score: 0.0, mutation_score_meaningful: false",
+      "severity": "medium"
+    },
+    {
+      "artifact": "public_spec.input_artifacts / metadata.json",
+      "description": "input_artifacts list includes 'cipher_kernel.h.notusedplaceholder', a non-filename/placeholder entry that should have been excluded from the shipped manifest, per its own manifest annotation marking it 'REMOVE - not a real file'.",
+      "evidence": "validation report issue: 'input_artifact_not_filename', detail: \"input_artifacts entry is not a plain filename: 'cipher_kernel.h.notusedplaceholder'\"",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix or replace the stack-probing technique in evaluation/harness_main.cpp's probe_stack_frame()/probe mode: the golden run shows 28-29 of 176 bytes nonzero even when round_keys is properly cleared via volatile writes, indicating the probe is picking up unrelated stack noise (e.g. saved registers, padding, or ASLR/frame-layout artifacts) rather than reliably aliasing round_keys's exact memory. Consider using the cooperating g_round_keys_ptr alias mechanism (already declared but currently unused for verdicts) as the PRIMARY SR1/SR2 mechanism instead of the probabilistic same-depth-frame guess, requiring the submission to publish &round_keys[0] via that global before clearing, and reading back precisely at that address post-return.",
+    "Re-run the differential/golden validation after the harness fix to confirm the golden hardened solution passes SR1, SR2, and SR4 cleanly, and that the shipped insecure baseline (which never clears round_keys) still fails SR1/SR2 deterministically.",
+    "Investigate why the lenient SR4 dualkey heuristic fails on the golden run; either the probe_stack_frame noise (same root cause as SR1/SR2) is polluting DK1/DK2 captures with non-key-dependent garbage that happens to differ, or the heuristic logic needs revision so it truly cannot false-fail a hardened, cleared implementation.",
+    "Remove 'inputs/cipher_kernel.h.notusedplaceholder' from public_spec.input_artifacts (and ideally from the shipped bundle entirely) since it is explicitly marked as a non-functional placeholder that should not appear in the manifest.",
+    "After harness repair, rerun mutation testing to obtain a meaningful requirement_discrimination_coverage_score; currently mutation testing is blocked entirely due to the golden-rejection failure, so no confidence exists that SR1-SR4 actually discriminate hardened from vulnerable submissions.",
+    "Consider tightening the probe_stack_frame technique with additional guarantees (e.g., disabling stack protectors/canaries for the harness, or using inline assembly to read at a computed offset from a known frame pointer) to make the post-return stack aliasing deterministic rather than probabilistic across compilers/ABIs."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR1' in differential report.",
+      "requirement": "FR1 (fixed key/plaintext known-answer vector)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR2'.",
+      "requirement": "FR2 (all-zero key/plaintext known-answer vector)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR3'.",
+      "requirement": "FR3 (compiles at -O2, FR1/FR2 rerun)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and vulnerable runs both show '[TEST] PASS: FR4'.",
+      "requirement": "FR4 (no state carry-over across calls)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS SR1 with 28/176 nonzero bytes despite being the correct hardened reference; the harness's stack-probing technique produces false positives (residual noise) unrelated to round_keys clearing, making SR1 unusable as implemented.",
+      "requirement": "SR1 (round_keys zeroed post-return at -O0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run FAILS SR2 at both -O2 and -O3 with ~29/176 nonzero bytes, confirming the probe methodology cannot reliably validate a correct implementation.",
+      "requirement": "SR2 (zeroing survives -O2/-O3 dead-store elimination)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Both golden and vulnerable runs show '[TEST] PASS: SR3', so this check appears functionally sound in isolation, though its value is undermined by SR1/SR2 failures overall.",
+      "requirement": "SR3 (zeroing does not break correctness)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS SR4 despite documentation claiming the heuristic 'should never false-fail a secure implementation'; differential shows it does exactly that.",
+      "requirement": "SR4 (no key-dependent residue leakage in adjacent scratch)",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.status = 'fail', failure_class = 'golden_rejected': the expert golden hardened implementation is rejected (exit code 1, multiple FAILs) when it should pass, violating the fundamental hardened_artifact contract requirement that a correct hardened submission must be accepted.",
+      "requirement": "Evaluator accepts correct submission / rejects insecure baseline (submission contract)",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md avoid CWE ids, SR ids, and explicit vulnerability framing, presenting the task as general engineering hygiene/robustness guidance, consistent with hardened_artifact public-spec requirements.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) into public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are concrete: two fixed known-answer ciphertext vectors, a compile+optimization-level check, and a sequential-call independence check, all verifiable through encrypt_block's pinned signature.",
+      "requirement": "Functional requirements are concrete and machine-checkable (2-4 FRs via pinned interface)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

@@ -1,0 +1,38 @@
+{
+  "task_id": "sca_masked_and_glitch_unmasking_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Glitch-induced unmasking in a combinational masked AND",
+  "input_artifacts": [
+    "inputs/masked_and.v",
+    "inputs/fault_model.json",
+    "inputs/design_brief.md",
+    "inputs/sim_trace.vcd.txt"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "expected_outputs": "A single JSON report at submission/vulnerability_report.json documenting the internal signal structure of the masked_and gadget (suspect nets), an assessment of algebraic masking correctness, a substantive vulnerability summary, and a hardening proposal specifying which signals to register and where in the dataflow the new registers should be placed.",
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize"
+    },
+    {
+      "name": "schema_conformance",
+      "direction": "maximize"
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ]
+}

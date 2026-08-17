@@ -1,0 +1,76 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + harness_main.cpp",
+      "description": "Mutation testing shows FR2, FR4, and SR1 requirements are not actually discriminative: mutants targeting these requirements survive (are not detected), meaning the checks for these requirements could pass even with broken logic. FR2's sequential-consumption check and FR4's null-pointer/no-op check are weak, and critically SR1 (the core 32-bit overflow wraparound CWE-190 requirement) has zero mutant-detection power despite being a primary security requirement.",
+      "evidence": "per_requirement_discrimination: FR2 covered=false (0/1 mutants detected), FR4 covered=false (0/1), SR1 covered=false (0/1); mutation_score=0.625; uncovered_requirements: [FR2, FR4, SR1]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "differential.vulnerable_run",
+      "description": "The insecure baseline crashes with SIGSEGV (exit code -11) on SR1 rather than being cleanly rejected via canary/status check, meaning the baseline demonstrates memory corruption via a crash rather than the intended detection mechanism (canary inspection). This still results in a FAIL verdict for SR1 as expected, but indicates the vulnerability manifests as an actual segfault rather than the more subtle wraparound corruption the SR1 detection_strategy describes.",
+      "evidence": "vulnerable_run.stdout: '[TEST] FAIL: SR1: run crashed/timed out (exit code -11)'",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen or add a mutant/check specifically for SR1 to ensure the 32-bit-safe overflow arithmetic is actually exercised and would fail if an implementation used naive unsigned wraparound math that happens not to crash (e.g., a wraparound value that lands squarely in-bounds without a crash).",
+    "Add an FR2-specific check that would fail if descriptor ordering/contiguity logic is subtly wrong (e.g., swap source consumption order) to make the mutation score for FR2 non-zero.",
+    "Add an FR4-specific check variant (e.g., non-zero-filled dst pre-state with desc_count=0) to confirm no writes occur even when the buffer isn't already zero, improving mutant detection for FR4.",
+    "Re-run mutation testing after augmenting these checks and confirm per_requirement_discrimination coverage reaches 1.0 for all 8 requirements before finalizing the benchmark."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "public_spec interface, FR1-FR4, and constraints align with hidden_spec ground_truth and SR1-SR4; baseline insecure implementation matches hidden_spec description of the insecure baseline exactly.",
+      "requirement": "Coherence of public/hidden spec and artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "baseline_run (golden) exits 0 with all PASS; differential.vulnerable_run (insecure baseline) exits 1 with FAIL on SR1, SR2, SR3, SR4 as expected; differential.status = 'pass'.",
+      "requirement": "evaluate.py accepts correct submission and rejects baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py computes synthesis_pass_rate (compile check), functional_pass_rate (FR1-FR4 verdicts), cwe_violation_rate and information_flow_correctness (SR1-SR4 status/dst_ok/canary_ok checks) as described in metadata.json and task spec.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type 'functional' and SR1-SR4 as 'security', each with distinct detection strategies and test files.",
+      "requirement": "Requirement map separates functional and security requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "harness_main.cpp uses concrete overflow (SR1: 0xFFFFFFF0+0x20), partial-batch rejection (SR2), cumulative source overrun (SR3), and boundary off-by-one (SR4) test vectors with canary buffers, not generic assertions.",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "All artifacts are standard C++/Python, no external dependencies, no unsafe operations beyond intended buffer testing.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specific to HLS/DMA scatter-gather descriptor bounds checking, addressing CWE-787/125/190/129/20 with realistic descriptor-list semantics.",
+      "requirement": "Benchmark adapted to domain, not generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation analysis reveals FR2, FR4, and SR1 have zero detection power (mutants targeting them survive), meaning a subtly broken implementation of sequential source consumption, null-pointer no-op handling, or crucially the 32-bit overflow check could still pass grading undetected in some mutated form, undermining confidence that SR1 (the headline CWE-190 requirement) is properly discriminative.",
+      "requirement": "No gaps making results unverifiable",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, inputs/scatter_gather.cpp, and inputs/design_brief.md contain no CWE ids, SR ids, or explicit statements that the baseline is intentionally vulnerable; framed as general robustness/DMA engineering guidance.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are distinct, concrete, and each independently verifiable via the pinned interface (specific descriptor lists, exact byte comparisons, compile check, and null-pointer/zero-count check).",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

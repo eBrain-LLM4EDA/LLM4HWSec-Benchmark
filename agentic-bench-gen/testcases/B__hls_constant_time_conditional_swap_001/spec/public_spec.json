@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The file must remain self-contained C++17 and compile with g++ using only <cstdint> and <cstddef>.",
+    "Do not rename the function, change its signature, or split its logic across multiple translation units.",
+    "Do not use dynamic memory allocation (no new/malloc); operate only on the caller-provided buffers.",
+    "The function must not print, log, or otherwise expose ctrl_bit or any intermediate values through side channels other than the final contents of P and Q."
+  ],
+  "expected_outputs": [
+    "A single revised inputs/ladder_swap.cpp implementing conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit) with identical external behavior to the reference on all test vectors."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For ctrl_bit == 1 and arbitrary arrays P and Q of length n, after calling conditional_swap the contents of P and Q must be exactly swapped (new P equals old Q, new Q equals old P), for every element index from 0 to n-1."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For ctrl_bit == 0 and arbitrary arrays P and Q of length n, after calling conditional_swap the contents of P and Q must be exactly unchanged from their values before the call."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The function must handle n in the range 1 to 4096 (inclusive) without buffer overrun, memory corruption, or crash, verified across multiple array sizes including n=1, n=2, n=64, and n=4096."
+    },
+    {
+      "id": "FR4",
+      "requirement": "inputs/ladder_swap.cpp must compile cleanly with g++ -std=c++17 -Wall -Wextra with zero errors and be linkable against an external test harness that declares and calls conditional_swap with the exact signature given in the interface."
+    }
+  ],
+  "input_artifacts": [
+    "ladder_swap.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/ladder_swap.cpp. Required entry point (exact signature, must be present and callable from a C++ test harness compiled with g++): `void conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit);`. Parameters: P is a pointer to the first coordinate array (in/out, public buffer holding one operand of the ladder, length n); Q is a pointer to the second coordinate array (in/out, public buffer holding the other operand, length n); n is the number of uint32_t elements in each of P and Q (public, always > 0 in tests); ctrl_bit is the (secret) selector bit, guaranteed by the caller to be exactly 0 or 1 -- when ctrl_bit == 1 the contents of P and Q must be exchanged element-wise; when ctrl_bit == 0 the contents of P and Q must remain unchanged. The function returns void and communicates its result solely by mutating the contents pointed to by P and Q in place. No other global state, files, or stdout may be used to communicate results. The function must compile as a freestanding translation unit including only <cstdint> and <cstddef> (no I/O, no dynamic allocation beyond what is already present).",
+  "objective": "The file inputs/ladder_swap.cpp contains a kernel used in an elliptic-curve point-doubling/addition ladder step. It maintains two point coordinate buffers (P and Q, each an array of uint32_t of length N) and, based on a single-bit control value, conditionally exchanges the two buffers' contents element-wise. Harden the implementation in inputs/ladder_swap.cpp so that it always produces the exact same swap results as the reference behavior described below, for both possible control values, while also satisfying the additional requirements listed. Do not change the function signature or the file name.",
+  "response_format": "A single revised C/C++ source file replacing inputs/ladder_swap.cpp in place; no additional answer file is submitted."
+}

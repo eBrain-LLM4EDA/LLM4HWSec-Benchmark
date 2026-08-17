@@ -1,0 +1,75 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3 has no mutation coverage: the mutation testing report shows SR3 detected 0 of 1 targeting mutants, meaning the SR3 check (exact boundary transition pattern) is not effectively discriminating between correct and subtly-incorrect implementations beyond what SR1/SR2 already catch. This is an uncovered_requirement gap flagged explicitly in the validation report.",
+      "evidence": "per_requirement_coverage.SR3: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: [\"SR3\"]; mutation_score: 0.857",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3's fallback auxiliary check performs a static source-text scan for a bare 'counter++;' pattern anchored to the exact baseline construct. While documented as FAIL-only and never able to cause a false PASS, this is a brittle, baseline-specific heuristic that could produce misleading diagnostic text for stylistically different hardened submissions (though it cannot cause an incorrect verdict).",
+      "evidence": "bare_increment_pattern = re.compile(r'\\\\bcounter\\\\s*\\\\+\\\\+\\\\s*;') ... only ever adds context to an already-failing SR3 verdict",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Investigate and strengthen the SR3 check or add a distinct SR3-targeting mutant/test vector so that off-by-one boundary mutations (e.g., exhaustion triggered one call early or late without also reusing nonce 0) are caught independently of SR1/SR2, since currently SR3's unique discriminative value is unproven by the mutation report.",
+    "Consider adding an additional probe sequence for SR3 that isolates off-by-one boundary errors that do not necessarily cause nonce reuse (e.g., a hardened-but-slightly-wrong implementation that fails one call too early), to ensure SR3 is not fully subsumed by SR1/SR2's checks.",
+    "Document in evaluation/README.md or evaluate.py comments which specific mutant class SR3 is intended to catch beyond SR1/SR2, to clarify its unique verification purpose for future maintainers."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "public_spec functional requirements (FR1-FR4) and constraints align with hidden_spec ground_truth and security_requirements (SR1-SR3); interface signature matches exactly across README, header, harness, and hidden spec.",
+      "requirement": "Public/hidden spec coherence",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code 0, all PASS. differential.vulnerable_run: exit_code 1, SR1/SR2/SR3 FAIL as expected. baseline_run and mutation_baseline_run both show the submitted hardened inputs/aead_wrapper.cpp (differs from golden per submission_invariants.mappings changed:true) passing all 7 checks.",
+      "requirement": "Grader accepts correct submission and rejects insecure baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "synthesis_pass_rate mapped to FR3 (compile checks); information_flow_correctness mapped to SR1 (ciphertext identity/nonce reuse checks) and FR1/FR2 byte-exactness; cwe_violation_rate mapped to SR1/SR2/SR3 CWE-323/330/190/696 probes.",
+      "requirement": "Evaluator measures requested metrics",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional) and SR1-SR3 (security) each with distinct expected_detection and test_files; requirement_results in validation show all 7 IDs individually reported.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "harness_main.cpp drives the counter to near-exhaustion via AEAD_TEST_COUNTER_START=0xFFFFFFFDu compile-time seam and issues 6 calls straddling the wraparound boundary, directly observing rc and sentinel-buffer mutation on the actual compiled binary.",
+      "requirement": "Security-relevant behaviors actively triggered, not just checked generically",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files are self-contained C++/Python/Markdown with no external network calls, no dangerous operations; AES stub and mixing table are deterministic and safe.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically about AEAD nonce-counter exhaustion (CWE-323/330/190/696), with a realistic AES-CTR-like wrapper, tag derivation, and a compile-time test seam tailored to make an otherwise infeasible 2^32-call boundary condition testable.",
+      "requirement": "Benchmark adapted to domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 (5-call distinct ciphertext check), FR2 (exact byte-count sentinel overwrite), FR3 (dual g++ compile success), FR4 (zero-length plaintext byte-exactness) are all concrete, pinned-interface-driven, and independently verifiable via harness probes.",
+      "requirement": "Functional requirements concrete and machine-checkable",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and aead_wrapper.h/.cpp use plain engineering language ('harden the counter management logic', 'explicit, deterministic boundary behavior') with no CWE ids, SR ids, or explicit statements that the baseline is intentionally vulnerable; evaluation/README.md (grader-facing, not participant-facing) does reference CWE-190/323/330 but this is in the tester bundle, not the public bundle.",
+      "requirement": "No leakage of hidden security intent in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "validation report explicitly flags 'uncovered_requirement' for SR3: 0 of 1 targeting mutants detected, despite SR3's behavioral check appearing sound in isolation (differential run shows SR3 correctly failing against the raw insecure baseline). This indicates the specific SR3-targeting mutant used by the mutation-testing harness produces behavior indistinguishable from correct handling under this check, or the check is otherwise not sufficiently sensitive to boundary off-by-one mutations distinct from those caught by SR1/SR2.",
+      "requirement": "SR3 mutation coverage / discriminative power",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

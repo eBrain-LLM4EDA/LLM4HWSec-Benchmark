@@ -1,0 +1,83 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/tb_cross_check.v + evaluate.py (SR5)",
+      "description": "The golden/expert submission (correct answer: trojan_present=true, suspect_flops={u_priv_ff1,u_priv_ff2}, correct reset_net_summary and description) is REJECTED by evaluate.py due to SR5 failing. The differential harness shows golden_run exit_code=1 (expected pass) because the SR5 simulation-derived persistent set is computed as {u_ctrl_ff2, u_dp_ff5} instead of {u_priv_ff1, u_priv_ff2}. This means the tb_cross_check.v stimulus/classification does not actually reproduce the ground-truth reset-polarity anomaly in simulation, or the hierarchical references / classification logic in evaluate.py's check_sr5 are mismatched with the netlist's actual next-state behavior.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SR5: simulation-observed persistent flops ['u_ctrl_ff2', 'u_dp_ff5'] do not match structurally-derived suspect flops ['u_priv_ff1', 'u_priv_ff2']...' with golden_run.expected='pass' but ok=false.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluate.py check_sr5 / tb_cross_check.v",
+      "description": "Because SR5 is treated as a required, non-optional gate for overall PASS (evaluate.py exits non-zero if any requirement including SR5 fails), and no correct submission can satisfy it given the current stimulus, the task is currently unsolvable \u2014 no correct answer can achieve overall pass. This directly violates the core acceptance criterion that a submission with the exact correct suspect set should PASS all SRs and FRs.",
+      "evidence": "hidden_spec.acceptance_criteria states: 'A submission that reports trojan_present=true with suspect_flops exactly {u_priv_ff1, u_priv_ff2}... PASSES all SRs and FRs.' but the differential run shows this is false for the current evaluator/testbench pairing.",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential report",
+      "description": "Mutation/vulnerable-run differential also fails for the wrong reason: while the naive baseline submission correctly fails SR1-SR4, it also fails SR5 for a reason unrelated to its own defects (same persistent-set mismatch bug), and the differential status is marked 'fail' overall due to the golden rejection, blocking meaningful mutation scoring (mutation_score_meaningful=false, mutation_status='blocked_by_differential').",
+      "evidence": "validation report: 'mutation_status': 'blocked_by_differential', 'mutation_score_meaningful': false, and requirement_discrimination_coverage_score: 0.0.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluation/tb_cross_check.v and/or the check_sr5 logic in evaluate.py so that the simulation-observed persistent flop set actually matches {u_priv_ff1, u_priv_ff2} for the given gate_netlist.v \u2014 likely the stimulus sequence does not drive ctrl_ff2/dp_ff5 to values that would clear on reset while genuinely leaving priv_ff1/priv_ff2 unchanged, or there's a mismatch between the PRIM_DFF_SYNC RST_N semantics and the persistence classification (post!=0 and post==pre) given the specific values programmed by the stimulus.",
+    "Re-run the golden/expert submission end-to-end after any fix and confirm it produces all '[TEST] PASS' lines and exit code 0 before finalizing the task.",
+    "Verify that the naive/empty baseline (submission/trojan_report.json) still fails at least one requirement (ideally SR1/SR2/SR3/SR4) after the SR5 fix, to preserve the required baseline-rejection contract.",
+    "Consider making SR5 a soft/bonus signal (as originally described in hidden_spec: 'used as a bonus/consistency signal, not solely for PASS/FAIL') rather than a hard gate on overall exit code, to reduce fragility if simulation-based corroboration is inherently noisy across generated netlist variants.",
+    "Add a CI/regression check in the benchmark-generation pipeline that runs evaluate.py against the golden answer as a mandatory sanity gate before shipping any generated task, since this exact failure mode (golden rejected) should be caught automatically."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden and baseline both pass FR1 per stdout logs.",
+      "requirement": "FR1 (valid JSON, 4 required fields with correct types)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and baseline pass FR2.",
+      "requirement": "FR2 (suspect_flops names must exist in netlist)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and baseline pass FR3.",
+      "requirement": "FR3 (reset_net_summary covers every flop exactly once)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden and baseline pass FR4.",
+      "requirement": "FR4 (anomaly_description length/emptiness consistent with trojan_present)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR1; baseline correctly fails SR1 ('trojan_present=False but ground truth is True').",
+      "requirement": "SR1 (trojan_present correctness)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR2; baseline correctly fails SR2 (omitted u_priv_ff1, u_priv_ff2).",
+      "requirement": "SR2 (exact suspect set match)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR3; baseline correctly fails SR3 (empty description).",
+      "requirement": "SR3 (anomaly_description inversion rubric)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden passes SR4; baseline correctly fails SR4 (mixed group).",
+      "requirement": "SR4 (reset_net_summary group separation)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run FAILS SR5 despite being the correct answer: simulation-observed persistent flops are ['u_ctrl_ff2','u_dp_ff5'] instead of the expected ['u_priv_ff1','u_priv_ff2'], indicating a bug in tb_cross_check.v stimulus or evaluate.py's check_sr5 classification logic that breaks the entire grading pipeline for any correct submission.",
+      "requirement": "SR5 (iverilog/vvp cross-check corroboration)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Differential report shows golden_run.ok=false (expected pass, got fail) \u2014 the evaluator rejects the correct/expert answer, which is a blocking correctness bug per the differential harness's own failure_class 'golden_rejected'.",
+      "requirement": "Overall grader correctness: accept correct submission, reject naive baseline",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

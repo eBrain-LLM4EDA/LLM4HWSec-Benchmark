@@ -1,0 +1,32 @@
+{
+  "acceptance_criteria": [
+    "A submission with verdict=='trojan_present', all 8 shadow_ff instances and u_exfil_mux present in suspect_instances, and correct 2-consumer fanout_map entries for all 8 key bits scores full marks on SR1-SR3 and passes.",
+    "A submission with verdict=='trojan_absent' or an empty/naive suspect_instances list (e.g. the baseline) fails SR1-SR3 and is graded FAIL.",
+    "A submission that flags every single instance in the netlist as suspect (indiscriminate flagging) fails SR4 due to high false-positive rate even if it technically includes the correct instances."
+  ],
+  "cwe_ids": [],
+  "ground_truth": "The netlist contains a documented path: key_reg[0..7] (instances u_key_ff0..u_key_ff7) each drive exactly one legitimate consumer gate (u_round_xor0..u_round_xor7) per the design brief. In addition, an undocumented parallel bank of DFFs u_shadow_ff0..u_shadow_ff7 is also wired to sample key_reg[0..7] (same clock, no reset gating tied to functional control), and all eight shadow_ff outputs converge into a single undocumented multiplexer instance u_exfil_mux, which is enabled only by a rarely-asserted internal control net (e.g. debug_mode_rare) and whose output does not reach any documented primary output in normal operation but represents a second, undocumented exfiltration point. A correct report must: (1) set verdict to trojan_present, (2) for every key_bit 0-7 include both u_round_xor<i> and u_shadow_ff<i> in consumer_instances (num_consumers=2 per bit, not 1), and (3) list all of u_shadow_ff0..u_shadow_ff7 and u_exfil_mux in suspect_instances.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse fanout_map from the submitted report; for each key_bit 0-7 check num_consumers==2 and that consumer_instances includes both the documented u_round_xor<i> and the undocumented u_shadow_ff<i>. Independently, evaluate.py performs its own structural trace over inputs/netlist.v to compute ground-truth fanout counts and compares.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that each bit of key_reg has more than one consumer instance (fanout count of 2, not 1), contradicting the single-consumer topology stated in the design brief."
+    },
+    {
+      "detection_strategy": "Check suspect_instances (case-sensitive exact match against instance names in inputs/netlist.v) is a superset of {u_shadow_ff0,...,u_shadow_ff7,u_exfil_mux}; compute recall over this required set.",
+      "id": "SR2",
+      "requirement": "The report must explicitly flag the shadow flip-flop bank (u_shadow_ff0..u_shadow_ff7) and the convergence multiplexer (u_exfil_mux) as suspect instances."
+    },
+    {
+      "detection_strategy": "String equality check on the verdict field against the fixed ground-truth label 'trojan_present'.",
+      "id": "SR3",
+      "requirement": "The report's verdict must be 'trojan_present', not 'trojan_absent', since the netlist ground truth always contains the shadow bank."
+    },
+    {
+      "detection_strategy": "Compute false-positive rate: fraction of suspect_instances entries that are NOT in the ground-truth suspect set but ARE valid netlist instances; penalize reports that list all instances indiscriminately.",
+      "id": "SR4",
+      "requirement": "The report must not falsely flag legitimate documented instances (u_key_ff0..u_key_ff7, u_round_xor0..u_round_xor7) as suspect, to demonstrate the analysis distinguishes real structure from noise rather than flagging everything."
+    }
+  ],
+  "threat_model": "An adversary inserts a hardware Trojan consisting of a parallel shadow flip-flop bank that taps the same key register nets as the legitimate consumer, clocked identically so it introduces no timing or functional deviation on any documented output. All shadow outputs converge on a multiplexer gated by a rarely-triggered condition, creating a covert secondary exfiltration path for key material. Standard functional equivalence checking, ATPG, and simulation against documented I/O will not detect this because primary outputs are bit-exact; only structural fanout/fan-in analysis of the netlist (tracing all consumers of each key_reg bit) reveals the extra registers and their convergence point."
+}

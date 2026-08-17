@@ -1,0 +1,21 @@
+{
+  "best_round": 2,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "02291e26498080e3071e135a3d089a036eb09eb63510a28e1a82ae72bed6d704",
+    "expert/expert_bundle.json": "b31c0b4839b682c0378f1b24c7bc71036f17959625c0a2fd2df3baf462119128",
+    "mutants/mutation_bundle.json": "3825d38bc0a1ab8b97a3b2b110613e5d64fc592347a99e544f90238b53a76acd",
+    "reports/analyzer_report.json": "07902c6b725e9e4473c8f7b573151cf552476a82c48bced5aa7ba8628246df15",
+    "reports/quality_report.json": "a1d851c71744b7b0f01a77a175371f1443ce97b92cfd3dbfda03f00e8599d365",
+    "reports/validation_report.json": "738af55ea225f7c7658ff4fb881457c631203f4495d7053756a2e24081250ab0",
+    "spec/task_spec.json": "ba22b6430c0112e021f4c043833b81892d69f1b617730020419073d335383b94",
+    "tests/tester_bundle.json": "98462920fa88ca9e45d6c09b28af73537c0b359b09c36a2ea66c9ff30e609697"
+  },
+  "domain_id": "gate_trojan_detection",
+  "final_attempted_round": 2,
+  "quality_status": "fail",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 2,
+  "status": "quality_failed",
+  "task_id": "gate_trojan_detection_demorgan_bypass_001"
+}

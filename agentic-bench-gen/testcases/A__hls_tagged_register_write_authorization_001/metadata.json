@@ -1,0 +1,42 @@
+{
+  "task_id": "hls_tagged_register_write_authorization_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Privilege-tag enforcement on accelerator register writes",
+  "submission_kind": "hardened_artifact",
+  "evaluation_mode": "compile_and_run",
+  "input_artifacts": [
+    "inputs/reg_write_kernel.cpp",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "summary": "A hardened version of inputs/reg_write_kernel.cpp that uniformly gates writes to the protected register range (indices 16..47 inclusive) so that they succeed only when priv_tag == 1, always allows writes to unprotected indices (0..15, 48..63) regardless of priv_tag, and always rejects out-of-bounds reg_index values (reg_index < 0 or reg_index >= reg_file_size) without modifying reg_file, while preserving the exact function signature, extern \"C\" linkage, and file name."
+  },
+  "interface": {
+    "signature": "extern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag, unsigned int *reg_file, int reg_file_size);",
+    "return_semantics": "Returns 1 if the write was performed (reg_file[reg_index] == value), 0 if the write was rejected (reg_file[reg_index] left unchanged)."
+  },
+  "toolchain": {
+    "compilers": [
+      "g++",
+      "gcc"
+    ],
+    "flags": "-std=c++11 -Wall"
+  },
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize",
+      "description": "Fraction of the 32 protected-range indices (16..47) for which a write call made with priv_tag=0 is incorrectly accepted (returns 1 or mutates reg_file), sampled by exhaustive sweep."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Fraction of index/tag combinations (across a full sweep of all 64 indices x 2 tag values x 3 out-of-bounds probes) whose observed accept/reject behavior and return code match the specified per-range write policy: protected indices (16..47) accept only when priv_tag=1, unprotected indices (0..15, 48..63) always accept, and out-of-bounds indices always reject."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Whether inputs/reg_write_kernel.cpp compiles successfully with g++ -std=c++11 -Wall against the generated test harness and links into an executable without errors."
+    }
+  ]
+}

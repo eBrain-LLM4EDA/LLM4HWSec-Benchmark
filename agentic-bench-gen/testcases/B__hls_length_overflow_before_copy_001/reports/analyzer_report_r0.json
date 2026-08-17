@@ -1,0 +1,89 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/harness_main.cpp, evaluation/evaluate.py",
+      "description": "Mutation testing shows FR2, SR2, and SR3 have zero detection power: mutants specifically targeting these requirements are not caught by the corresponding checks, meaning these requirements are not actually verified by the harness despite being nominally mapped.",
+      "evidence": "per_requirement_discrimination: FR2 {mutants_detected:0, mutants_targeting:1}, SR2 {mutants_detected:0, mutants_targeting:1}, SR3 {mutants_detected:0, mutants_targeting:1}; mutation_score=0.571; uncovered_requirements: [FR2, SR2, SR3]",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR2 check)",
+      "description": "SR2 is checked only via canary_ok on the SR1 wrap vector and the SR2 overflow vector, but per the mutation results this check does not discriminate real defects from correct behavior, indicating the canary placement/check logic does not effectively catch out-of-bounds writes independent from the SR1 return-value check.",
+      "evidence": "per_requirement_coverage.SR2: {covered:false, mutants_detected:0, mutants_targeting:1}",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (FR2 check)",
+      "description": "FR2 (header_len=0, payload_len=0, dest_capacity=0) is only meaningfully distinguishing a crash/no-crash condition; mutants targeting this specific zero-length edge case are not detected, suggesting the check condition is too weak to catch regressions in this path.",
+      "evidence": "per_requirement_coverage.FR2: {covered:false, mutants_detected:0, mutants_targeting:1}",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py (SR3 check)",
+      "description": "SR3 (false-rejection guard for widened arithmetic) is not detected by its targeting mutant, meaning an implementation that introduces subtle over-conservative rejection logic in this exact boundary may not be caught.",
+      "evidence": "per_requirement_coverage.SR3: {covered:false, mutants_detected:0, mutants_targeting:1}",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Add or fix mutants/checks so FR2's zero-length/zero-capacity edge case is actually distinguishable from a broken implementation (e.g. introduce a mutant that writes to dest even when capacity is 0, and confirm the check catches it).",
+    "Strengthen SR2's canary check so it is independently discriminating from SR1's return-value check \u2014 e.g. construct a mutant that returns -1 correctly but still performs a partial out-of-bounds write, and confirm canary_ok=0 catches it.",
+    "Add a mutant/test that triggers false rejection specifically to validate SR3's discriminating power (e.g. a mutant that uses an off-by-one or overly conservative comparison operator), ensuring the existing SR3 vector actually catches such regressions.",
+    "Update evaluate.py to explicitly compute and report the three declared metrics (synthesis_pass_rate, cwe_violation_rate, information_flow_correctness) as numeric values, not just aggregate PASS/FAIL, to match metadata.json's metrics list.",
+    "Re-run mutation analysis after strengthening checks to confirmmutation_score improves above the current 0.571 and that all 7 requirements show nonzero discrimination."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Interface, FR1-FR4, and SR1-SR3 in public/hidden spec align consistently with harness vector table and design_brief.md; ground truth (widen to unsigned int/size_t) matches insecure baseline description exactly.",
+      "requirement": "Public/hidden spec coherence",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential shows golden_run status=pass (exit 0, all PASS) and vulnerable_run status=fail (exit 1, SR1 and SR2 FAIL) \u2014 matches expected submission contract behavior.",
+      "requirement": "Grader accepts correct hardened submission and rejects insecure baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py only emits PASS/FAIL per requirement id and an aggregate exit code; it does not compute or report the three named metrics (synthesis_pass_rate, cwe_violation_rate, information_flow_correctness) as distinct scores, despite metadata.json listing them.",
+      "requirement": "Evaluator measures requested metrics (synthesis_pass_rate, cwe_violation_rate, information_flow_correctness)",
+      "status": "fail"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional) and SR1-SR3 (security) distinctly with expected_detection text for each.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation testing reveals SR2 and SR3 checks do not actually discriminate mutants targeting them (0/1 detected each), meaning these are not being actively and effectively triggered despite dedicated vectors existing.",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "fail"
+    },
+    {
+      "evidence": "All referenced files (README.md, metadata.json, inputs/*, evaluation/*) are present and self-contained; no external dependencies beyond g++ and Python stdlib.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is a concrete HLS-relevant integer-overflow-before-copy scenario with realistic wraparound math (65536 mod 2^16 = 0), consistent with hls_security_codegen domain and CWE-190/680/787/131.",
+      "requirement": "Benchmark adapted to domain (not generic filler)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Because 3 of 7 requirements (FR2, SR2, SR3) are not discriminated by mutation testing, results for those requirements are not verifiably tied to the described requirement \u2014 a submission could pass FR2/SR2/SR3 checks without actually satisfying the underlying requirement, or fail them for unrelated reasons.",
+      "requirement": "No unverifiable gaps",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and packet_assemble.h contain no CWE ids, SR ids, or explicit statements that the baseline is intentionally vulnerable; framed as ordinary robustness/hardening task.",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are four concrete, machine-checkable requirements each specifying exact input values and exact expected return value/buffer content, verifiable through the pinned assemble_packet interface.",
+      "requirement": "Public functional requirements concrete and machine-checkable (2-4 items)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

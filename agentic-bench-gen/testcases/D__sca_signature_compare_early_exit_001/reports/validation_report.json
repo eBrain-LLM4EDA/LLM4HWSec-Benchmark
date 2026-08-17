@@ -1,0 +1,84 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/signature_compare.v",
+    "inputs/testbench_harness.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "f0e6c33130c5f67e9feebabd9d68211e052a114eb0f23a100d39930d11ab51b8",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: mismatch_at_zero_verdict='mismatch' does not match measured 'match'\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] FAIL: SR2: cycle_relationship formula (slope=1, intercept=2) fails to predict measured cycle counts within +/-1 for: k=0 predicted=2 measured=17; k=2 predicted=4 measured=17; k=4 predicted=6 measured=17; k=6 predicted=8 measured=17; k=8 predicted=10 measured=17; k=10 predicted=12 measured=17; k=12 predicted=14 measured=17\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: full_match_verdict='unknown' does not match measured 'match'\n[TEST] FAIL: FR2: mismatch_at_zero_verdict='unknown' does not match measured 'match'\n[TEST] PASS: FR3\n[TEST] FAIL: FR4: 'proposed_fix_preserves_correctness' is False; a valid fix must preserve correctness\n[TEST] FAIL: SR1: early_exit_signal 'unknown' does not identify the mismatch-triggered early-termination logic (expected reference to e.g. 'mismatch_found' or the expected_byte != received_byte condition causing early done assertion)\n[TEST] FAIL: SR2: could not parse a linear cycle-count formula (slope*k + intercept) from 'cycle_relationship' text: 'not analyzed'\n[TEST] FAIL: SR3: constant_time_fix is missing required remediation element(s): no early-exit removal, unconditional full 16-byte scan, sticky/accumulated mismatch flag (text='none')\n[TEST] PASS: SR4\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "81e4df51ababf0ddd9dc2d4614672700075daca2588a05852201f85334807568",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "545328b0c04fe66b1802ea59981d4059b2d4145ee03aeb4a5e9b5f8b295dca5c",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_reference.v"
+  ],
+  "uncovered_requirements": []
+}

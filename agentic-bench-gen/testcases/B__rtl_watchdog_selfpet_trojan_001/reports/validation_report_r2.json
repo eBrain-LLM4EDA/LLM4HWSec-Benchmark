@@ -1,0 +1,181 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR4\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/register_map.md",
+    "inputs/wdt_top.v",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {
+    "FR1": 2,
+    "FR2": 2,
+    "FR3": 3,
+    "FR4": 3,
+    "SR1": 2,
+    "SR2": 3,
+    "SR3": 2
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR4\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: 'findings' is empty\n[TEST] FAIL: FR4: cannot validate severity fields: FR1 structural check failed ('findings' is empty)\n[TEST] FAIL: FR2: cannot validate trigger pair: FR1 structural check failed ('findings' is empty)\n[TEST] FAIL: FR3: cannot validate reliability conclusion: FR1 structural check failed ('findings' is empty)\n[TEST] FAIL: SR1: cannot validate trigger localization: FR1 structural check failed ('findings' is empty)\n[TEST] FAIL: SR2: cannot validate SR2: FR1 structural check failed ('findings' is empty)\n[TEST] FAIL: SR3: cannot validate SR3: FR1 structural check failed ('findings' is empty)\n"
+    }
+  },
+  "domain_id": "rtl_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "FR2 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "SR1 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    },
+    {
+      "detail": "SR3 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR4\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n"
+  },
+  "mutation_score": 0.571,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.571,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "f9ad638fe76a82107ca329bd7cb5e10b52a5b12a59facc88fb5c44b53e601301",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "9f835da924b3a90d8b0adc700290b751974c775ae4882fc9b127b136b2d32075",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_wdt_trojan_check.v"
+  ],
+  "uncovered_requirements": [
+    "FR2",
+    "SR1",
+    "SR3"
+  ]
+}

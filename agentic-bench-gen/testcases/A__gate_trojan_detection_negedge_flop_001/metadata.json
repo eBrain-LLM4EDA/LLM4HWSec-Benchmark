@@ -1,0 +1,38 @@
+{
+  "task_id": "gate_trojan_detection_negedge_flop_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Negative-edge flop substituted into a positive-edge security path",
+  "objective": "Analyze a synthesized gate-level Verilog netlist of an access-control module together with its design brief to determine whether every state-holding element that participates in the documented single-clock design is instantiated with the same active clock edge as specified in the design brief, and report any instance that deviates from that discipline along with the signal it samples.",
+  "input_artifacts": [
+    "inputs/access_ctrl_netlist.v",
+    "inputs/cell_library.v",
+    "inputs/design_brief.md",
+    "inputs/testbench_stub.v"
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json"
+  ],
+  "submission_kind": "analysis_report",
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "description": "Fraction of required ground-truth elements (instance name, cell type, sampled signal, and correct trojan_detected boolean) correctly reported in trojan_report.json across the SR checklist.",
+      "direction": "maximize"
+    },
+    {
+      "name": "false_positive_rate",
+      "description": "Fraction of reported suspect_instances entries that do not correspond to the actual substituted instance u_grant_ff (measures over-reporting/noise in the answer).",
+      "direction": "minimize"
+    },
+    {
+      "name": "inference_latency",
+      "description": "Wall-clock time in seconds for evaluate.py to parse, validate, and optionally cross-check the submission via iverilog/vvp simulation.",
+      "direction": "minimize"
+    },
+    {
+      "name": "schema_conformance",
+      "description": "Boolean/fraction score indicating whether trojan_report.json satisfies all structural FR1-FR4 format requirements.",
+      "direction": "maximize"
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "Shipped insecure baseline (no clearing of round_keys) - expected to fail SR1/SR2 memory-probe checks while passing all functional correctness checks",
+      "Naive memset-only hardening without volatile/anti-optimization technique - expected to pass at -O0 but fail memory-probe checks at -O2/-O3 due to dead-store elimination"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of security requirements (SR1-SR4) that fail detection checks, indicating residual key-schedule material or other leakage remains observable after return; lower is better.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Binary/aggregate score indicating whether the round_keys buffer is verifiably zeroed post-return across all tested optimization levels (-O0, -O2, -O3), confirming no secret-derived residue survives.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Fraction of functional requirements (FR1-FR4) and compile checks that pass, confirming the hardened kernel still compiles and produces correct ciphertext on all known-answer vectors.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Submission compiles with g++ -O2 -std=c++17 producing no errors.",
+      "Ciphertext output exactly matches all known-answer vectors (FR1, FR2) at every tested optimization level (-O0, -O2, -O3).",
+      "Post-return memory probe of the 176-byte round_keys buffer reads all zero bytes at -O2 and -O3 for every test invocation.",
+      "No test vector run shows ciphertext divergence caused by the clearing mechanism."
+    ],
+    "cwe_ids": [
+      "CWE-226",
+      "CWE-212",
+      "CWE-200"
+    ],
+    "ground_truth": "The insecure baseline computes the AES-128 key schedule into local array round_keys[176], performs 10 rounds of encryption, writes the ciphertext to the output parameter, and returns without touching round_keys again, so its 176 bytes remain populated with the actual expanded key material on the stack after return. The hardened reference implementation performs identical key expansion and encryption, produces byte-identical ciphertext on all test vectors, and then, immediately before returning (on every code path), overwrites all 176 bytes of round_keys with zero using a loop over a volatile-qualified pointer (or equivalent construct, such as an externally-linked non-inlinable clearing function or explicit_bzero-style memory barrier) so the compiler cannot eliminate the store as dead code. After the call returns, a harness that captures the stack address of round_keys via a cooperating alias (e.g. a shared global pointer set by the kernel to &round_keys[0] before the clear, or a harness that calls the same stack frame depth immediately after return and re-reads the same offset) must observe all zero bytes at that memory location, while the returned ciphertext still exactly matches the reference vectors.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Harness calls encrypt_block, captures a pointer/alias to the exact stack location of round_keys (via a cooperating global pointer variable that the harness pre-registers and the kernel writes &round_keys[0] into before clearing, OR via re-entering a same-depth stack frame immediately post-return and scanning it), then reads back 176 bytes at that address after the call returns and asserts every byte equals 0x00.",
+        "id": "SR1",
+        "requirement": "The round_keys local buffer must be zeroed on every return path of encrypt_block before control returns to the caller."
+      },
+      {
+        "detection_strategy": "Evaluator compiles the submission with g++ -O2 (and -O3) and re-runs the same post-return memory probe; if the buffer still contains nonzero expanded-key bytes at any optimization level, the requirement fails. This directly penalizes naive `memset` calls immediately followed by no further use, which many compilers eliminate as dead stores.",
+        "id": "SR2",
+        "requirement": "The zeroing writes must survive compiler dead-store elimination at -O2 and higher optimization levels."
+      },
+      {
+        "detection_strategy": "Harness re-runs FR1 and FR2 known-answer vectors after confirming the clearing behavior and asserts ciphertext bytes are unchanged from the unhardened correctness baseline.",
+        "id": "SR3",
+        "requirement": "The zeroing operation must not alter the correctness of the returned ciphertext on any input, including edge cases like the all-zero key/plaintext vector."
+      },
+      {
+        "detection_strategy": "Harness runs encrypt_block twice with two different secret keys but the same plaintext, capturing full stack-region snapshots immediately after each call at the known frame depth, and checks that any inspectable buffer outside round_keys shows no key-dependent difference (best-effort secondary check; primary grading is on SR1/SR2).",
+        "id": "SR4",
+        "requirement": "No other secret-derived intermediate buffer (e.g., an internal S-box state or round temporary) should leak observable, key-dependent residue distinguishable across repeated calls with different keys but identical plaintext, beyond the pinned round_keys buffer."
+      }
+    ],
+    "threat_model": "The HLS accelerator is time-multiplexed across multiple mutually distrusting execution contexts (tenants, tasks, or invocations) that reuse the same local/on-chip memory region (BRAM or stack scratch space) for their working buffers. If the round-key schedule derived from a secret key is left in this reused memory after a function returns, the next context scheduled onto the same physical storage can read the leftover bytes and reconstruct all or part of the secret key, defeating any encryption performed. This is a residual-state / uninitialized-memory-reuse information disclosure threat, not a flaw in the encryption algorithm itself."
+  },
+  "public_spec": {
+    "constraints": [
+      "The local round-key schedule array must be named exactly round_keys and be exactly 176 bytes (unsigned char[176]), declared as automatic (stack) storage inside encrypt_block, not global, static, or heap-allocated.",
+      "The kernel must implement a complete, correct 10-round AES-128-style key expansion and block encryption (or an equivalent fully specified block cipher achieving the same known-answer vectors) entirely within cipher_kernel.cpp.",
+      "Any code added to clear local buffers must not change the ciphertext written to the output parameter and must not introduce early returns that bypass the encryption logic.",
+      "The header cipher_kernel.h must not be modified; only cipher_kernel.cpp may be edited by the participant.",
+      "The solution must not rely on compiler-specific pragmas that suppress optimization globally (e.g. no #pragma optimize off for the whole file); any protective measure must be local to the clearing mechanism."
+    ],
+    "expected_outputs": [
+      "A hardened cipher_kernel.cpp that compiles with g++, exposes the exact function signature declared in cipher_kernel.h, produces ciphertext matching the known-answer test vectors, and leaves its local round-key buffer fully cleared (all zero bytes) immediately after the function returns, as observed through the harness-visible alias mechanism described in design_brief.md."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For the fixed key K1=000102030405060708090a0b0c0d0e0f and plaintext P1=00112233445566778899aabbccddeeff0 truncated to 16 bytes (00112233445566778899aabbccddeeff), encrypt_block must produce ciphertext exactly 69c4e0d86a7b0430d8cdb78070b4c55a (matching the standard AES-128 known-answer vector)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For a second known-answer pair, key K2 = all-zero 16 bytes and plaintext P2 = all-zero 16 bytes, encrypt_block must produce ciphertext exactly 66e94bd4ef8a2c3b884cfa59ca342b2e."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The file must compile cleanly with g++ -O2 -std=c++17 against the provided cipher_kernel.h with no errors, and encrypt_block must be callable exactly as declared without requiring any additional global state or initialization calls."
+      },
+      {
+        "id": "FR4",
+        "requirement": "Calling encrypt_block repeatedly with different keys and plaintexts in sequence within the same process must always produce outputs depending only on the current call's key and plaintext, never on any previous call's inputs (i.e., no accidental state carry-over between calls)."
+      }
+    ],
+    "input_artifacts": [
+      "cipher_kernel.h",
+      "cipher_kernel.h.notusedplaceholder",
+      "cipher_kernel.cpp",
+      "design_brief.md"
+    ],
+    "interface": "File: cipher_kernel.cpp (compiled together with a harness main() supplied by the evaluator). Required entry point, declared exactly as follows in cipher_kernel.h: `void encrypt_block(const unsigned char key[16], const unsigned char plaintext[16], unsigned char ciphertext[16]);`. Parameters: key (16 bytes, input, secret key material), plaintext (16 bytes, input, public block to encrypt), ciphertext (16 bytes, output buffer, caller-allocated, function must write the 16-byte ciphertext into it). The function must internally declare a local array named exactly `round_keys` of type `unsigned char round_keys[176]` (11 round keys of 16 bytes each, matching a 10-round key schedule) that holds the expanded key schedule during computation; this exact name and size are required so the harness can locate and inspect its memory location via a stack-probing alias technique after the call returns. The function must not use dynamic allocation for round_keys and must not return early through any path that skips clearing it.",
+    "objective": "Harden the provided lightweight block-cipher HLS kernel (inputs/cipher_kernel.cpp) so that it correctly expands a 128-bit key into a round-key schedule stored in a local array, encrypts a single 128-bit block, and returns the ciphertext. Improve the implementation so that local working buffers used only for intermediate computation do not retain their contents after the function returns, without altering the encryption result in any way. The kernel must remain a drop-in replacement: same signature, same computed ciphertext for all inputs, but no residual intermediate state left behind in local storage after the call completes.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_roundkey_zeroization_001",
+  "title": "Zeroize an expanded round-key array before return"
+}

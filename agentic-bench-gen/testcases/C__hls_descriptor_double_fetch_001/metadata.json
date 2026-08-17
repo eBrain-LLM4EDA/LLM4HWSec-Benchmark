@@ -1,0 +1,41 @@
+{
+  "task_id": "hls_descriptor_double_fetch_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Eliminate a double fetch of a validated descriptor field",
+  "description": "Harden a DMA-style HLS transfer kernel that reads a transfer descriptor from shared memory, validates the requested length against a maximum bound, and then performs a byte-by-byte transfer from a source buffer to a destination buffer. The hardened implementation must ensure the value validated against the bound is exactly the value used to drive the transfer, with no possibility of consulting the descriptor again for the length after validation completes.",
+  "input_artifacts": [
+    "inputs/descriptor_transfer.h",
+    "inputs/descriptor_transfer.cpp"
+  ],
+  "expected_output": {
+    "summary": "A hardened inputs/descriptor_transfer.cpp implementing run_transfer() exactly per the pinned interface in inputs/descriptor_transfer.h, compiling cleanly with g++ -std=c++11 against the unmodified header and an independent behavioral test harness, and passing all functional scenarios including cases where the shared descriptor's contents change during the call."
+  },
+  "submission_contract": "hardened_artifact",
+  "submission_instructions": "Edit inputs/descriptor_transfer.cpp in place. Do not modify inputs/descriptor_transfer.h. The evaluator compiles and executes the files under inputs/ against a generated test harness and grades behaviorally.",
+  "constraints": [
+    "Single self-contained .cpp file including only descriptor_transfer.h and standard headers",
+    "Must compile cleanly with g++ -std=c++11",
+    "No dynamic memory allocation",
+    "Do not change the Descriptor struct layout or the run_transfer signature",
+    "No main() function in the submitted file"
+  ],
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "description": "Fraction of hidden behavioral security checks that the submitted code fails under the test harness, computed by compiling and executing the harness against the submission and counting failed checks over total checks. Lower is better."
+    },
+    {
+      "name": "information_flow_correctness",
+      "description": "Whether the value used for bounds validation and the value used to drive the copy are provably the same snapshot, measured behaviorally: destination contents and return value after a scenario where the shared descriptor changes mid-call must reflect only the originally validated length, never a later-observed value. Higher is better."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "description": "Whether the submitted descriptor_transfer.cpp compiles successfully against the unmodified header and generated harness, and whether all functional known-answer test vectors pass. Higher is better."
+    }
+  ],
+  "evaluation_mode": "compile_and_run",
+  "toolchain": [
+    "g++",
+    "gcc"
+  ]
+}

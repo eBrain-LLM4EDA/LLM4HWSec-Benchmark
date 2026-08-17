@@ -1,0 +1,104 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py SR5 sim parsing",
+      "description": "SR5's simulation-based confirmation logic (resolved_soon heuristic over grant_pre/grant_q samples) is somewhat intricate and depends on sample ordering/timing assumptions; while validated by the differential and mutation results, this heuristic could be fragile to unrelated stimulus changes in tb_cross_check.v.",
+      "evidence": "for j in range(i+1, min(i+3, len(samples))): ... resolved_soon check in evaluate.py",
+      "severity": "low"
+    },
+    {
+      "artifact": "README.md / design_brief.md",
+      "description": "Design brief and README are thorough and plausible as ordinary engineering docs; no explicit leakage of CWE/SR ids or 'trojan' framing beyond the task's own generic title, which is acceptable since this is not a hardened_artifact domain requiring blind framing.",
+      "evidence": "README.md and design_brief.md do not mention CWE-1245/1191/696 or SR ids",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "pass",
+  "recommendations": [
+    "Consider adding a small comment or test note clarifying the resolved_soon window's sensitivity to stimulus timing in tb_cross_check.v, to guard against future edits to the testbench silently breaking SR5's detection window.",
+    "Consider documenting in evaluation/README.md that false_positive_rate is computed by counting suspect_instances entries other than u_grant_ff, to make the metric's exact computation more transparent to implementers reusing this harness."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline (all fields correct types) passes FR1 in baseline_run; malformed JSON short-circuits all FR/SR as fail per evaluate.py logic.",
+      "requirement": "FR1 valid schema",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py checks instance_name/cell_type/sampled_signal against netlist text/identifiers; mutation coverage confirms detection (mutants_detected=1/1).",
+      "requirement": "FR2 verbatim identifier cross-reference",
+      "status": "pass"
+    },
+    {
+      "evidence": "Checks trojan_detected vs suspect_instances emptiness; baseline (false/[]) passes FR3 but naive report still fails SR1-SR4/SR5 as required.",
+      "requirement": "FR3 internal consistency",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline summary is 45+ chars and passes FR4; length check present in evaluate.py.",
+      "requirement": "FR4 summary length >=20 chars",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline (empty suspects) fails SR1 in differential vulnerable_run; golden passes SR1.",
+      "requirement": "SR1 correct instance identification (u_grant_ff)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py independently checks matched_entry.cell_type/justification; mutation coverage 1/1 detected; explicitly fails on DFF_POSEDGE claim per spec.",
+      "requirement": "SR2 correct cell_type/edge-polarity language",
+      "status": "pass"
+    },
+    {
+      "evidence": "String-match against 'grant_pre' on matched entry; baseline fails since no matching entry exists.",
+      "requirement": "SR3 correct sampled_signal (grant_pre)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Baseline ships trojan_detected=false and fails SR4 in differential vulnerable_run output.",
+      "requirement": "SR4 trojan_detected=true required",
+      "status": "pass"
+    },
+    {
+      "evidence": "tb_cross_check.v + evaluate.py always invoke iverilog/vvp; golden_run passes SR5, vulnerable_run fails SR5 due to trojan_detected mismatch; mutation coverage 1/1.",
+      "requirement": "SR5 simulation cross-check of narrative consistency",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run exit_code=0 all PASS; vulnerable_run (shipped baseline) exit_code=1 with FAIL on SR1,SR2,SR3,SR4,SR5 as required by acceptance_criteria.",
+      "requirement": "Grader accepts correct submission and rejects naive baseline",
+      "status": "pass"
+    },
+    {
+      "evidence": "detection_rate/schema_conformance map to FR1-FR4+SR1-SR5 checks; false_positive_rate is measurable via extraneous suspect_instances entries beyond u_grant_ff (FR2/SR1 logic supports this); inference_latency is measurable as wall-clock time of evaluate.py execution including subprocess calls.",
+      "requirement": "Metrics coverage (detection_rate, false_positive_rate, inference_latency, schema_conformance)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional and SR1-SR5 as security, each with distinct test files and expected_detection logic; per_requirement_coverage and discrimination scores are 1.0 across all 9.",
+      "requirement": "Requirement map separates functional and security requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR5 actively runs iverilog/vvp simulation against tb_cross_check.v to empirically observe the grant_pre/grant_q half-cycle mismatch, not just a static text check.",
+      "requirement": "Security-relevant behavior actively triggered (not just checked generically)",
+      "status": "pass"
+    },
+    {
+      "evidence": "All Verilog files are self-contained (netlist, cell library, testbench) and compile together per manifest; no external dependencies or unsafe operations.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and netlist comments contain no CWE ids, SR ids, or explicit 'trojan/vulnerable' framing beyond the task's own generic 'anomaly' language consistent with the assignment framing.",
+      "requirement": "No leakage of hidden CWE/SR ids or vulnerability framing in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 are four distinct, concrete, schema/consistency/length checks verifiable directly against trojan_report.json, not a single vague restatement of the objective.",
+      "requirement": "Public FRs are concrete and machine-checkable (not generic restatement)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

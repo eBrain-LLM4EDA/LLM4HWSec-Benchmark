@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Evaluator checks driver_instance field for exact string match against ground-truth instance name U_TIE_SECEN. This mutant reports driver_instance as 'u_sec_or2' (the orphaned OR2 cell that legitimately drives sec_enable_calc, not secure_enable), which is a wrong instance name that does not correspond to the actual TIEHI tie-cell driving secure_enable. Even though the verdict, compromised_net, and orphaned_logic fields remain correct, the misidentified driver_instance must fail SR2's exact-match check against U_TIE_SECEN.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"U_TIE_SECEN\",\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"compromised_net\": \"secure_enable\",\n  \"driver_instance\": \"u_sec_or2\",\n  \"orphaned_logic\": [\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"rationale\": \"Structural analysis of controller_netlist.v shows that the primary output secure_enable is anomalously forced to a constant value rather than reflecting any combinational function of access_grant, admin_override, and lock_bit. The design_brief.md specifies that secure_enable should equal (access_grant & admin_override) | lock_bit, and this exact combinational cone is present in the netlist: u_sec_and1 (AND2) computes access_grant & admin_override into sec_and_out, and u_sec_or2 (OR2) combines sec_and_out with lock_bit into sec_enable_calc, which is the instance we identify as the anomalous driver responsible for the compromised secure_enable net. However, sec_enable_calc is never connected to secure_enable or to any other instance's input port anywhere in controller_netlist.v -- it has zero fan-out/loads, making u_sec_and1 and u_sec_or2 dead/orphaned logic whose correct security computation is discarded. Because testbench_regression.v only observes secure_enable's value alongside data_out and never differentially probes which physical driver produced that value, and because it does not include a stimulus case where the intended secure_enable formula would evaluate to 0 while checking for that value, the regression testbench cannot distinguish this constant substitution from correct behavior; the anomaly is only detectable via netlist-level driver/fan-out analysis, not simulation of the provided vectors. This is a classic minimal-footprint hardware Trojan: a single-cell substitution that defeats an access-control gate while leaving the RTL-equivalent logic physically present but unconnected.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Evaluator's SR3 check performs fan-out analysis to find that u_sec_and1 and u_sec_or2 outputs (sec_and_out, sec_enable_calc) are unconnected/dead logic, then checks the submitted orphaned_logic array for overlap with this ground-truth set (partial credit if at least one is present). This mutant ships orphaned_logic as an empty array despite the rationale still describing the dangling cone, so the omission of any true finding in the graded field causes the SR3 check to award zero credit instead of the expected partial/full credit for identifying the dangling logic.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"U_TIE_SECEN\",\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"compromised_net\": \"secure_enable\",\n  \"driver_instance\": \"U_TIE_SECEN\",\n  \"orphaned_logic\": [],\n  \"rationale\": \"Structural analysis of controller_netlist.v shows that the primary output secure_enable is driven directly by U_TIE_SECEN, a TIEHI constant-tie cell, rather than by any combinational function of access_grant, admin_override, and lock_bit. This means secure_enable is permanently forced to logic 1 regardless of the access-control inputs, silently bypassing the intended secure-mode protection check for any downstream logic gated by this signal. The design_brief.md specifies that secure_enable should equal (access_grant & admin_override) | lock_bit, and this exact combinational cone is in fact present in the netlist: u_sec_and1 (AND2) computes access_grant & admin_override into sec_and_out, and u_sec_or2 (OR2) combines sec_and_out with lock_bit into sec_enable_calc. However, sec_enable_calc is never connected to secure_enable or to any other instance's input port anywhere in controller_netlist.v -- it has zero fan-out/loads, meaning these two instances form dead/orphaned logic that computes the correct security condition but is discarded. Because testbench_regression.v only observes secure_enable's value alongside data_out and never differentially probes which physical driver produced that value, the anomaly is only detectable via netlist-level driver/fan-out analysis, not simulation of the provided vectors. This is a classic minimal-footprint hardware Trojan: a single-cell substitution (TIEHI in place of the AND2/OR2 cone's output) that defeats an access-control gate while leaving the RTL-equivalent logic physically present but unconnected.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Evaluator performs a direct string check on the verdict field. Although the rationale and suspect_instances correctly identify the TIEHI tie-cell, driver instance, compromised net, and orphaned logic (all consistent with a real Trojan), the verdict field has been flipped to 'clean' with a hedged/incorrect conclusion. Since controller_netlist.v as shipped always contains the tie-cell substitution, any verdict other than exact 'trojan_detected' must fail SR4, causing an overall SR-based FAIL despite the structural findings being accurate.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"clean\",\n  \"suspect_instances\": [\n    \"U_TIE_SECEN\",\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"compromised_net\": \"secure_enable\",\n  \"driver_instance\": \"U_TIE_SECEN\",\n  \"orphaned_logic\": [\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"rationale\": \"Structural analysis of controller_netlist.v shows that the primary output secure_enable is driven directly by U_TIE_SECEN, a TIEHI constant-tie cell, rather than by any combinational function of access_grant, admin_override, and lock_bit. The design_brief.md specifies that secure_enable should equal (access_grant & admin_override) | lock_bit, and this exact combinational cone is in fact present in the netlist: u_sec_and1 (AND2) computes access_grant & admin_override into sec_and_out, and u_sec_or2 (OR2) combines sec_and_out with lock_bit into sec_enable_calc, but sec_enable_calc is never connected to secure_enable or any other instance -- it has zero fan-out. Despite this constant-tie substitution and the presence of dangling logic, after further consideration we conclude the regression testbench passes all vectors without functional differences, so this pattern is likely an intentional design simplification or a benign constant strap rather than a genuine security compromise, and the design is therefore assessed as clean with no trojan present.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr4_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "evaluate.py checks that every instance name listed in suspect_instances exists verbatim in controller_netlist.v; 'u_sec_and1_fake' is not a declared instance, so FR2 verification must fail even though verdict/driver/net fields remain correct.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"U_TIE_SECEN\",\n    \"u_sec_and1_fake\",\n    \"u_sec_or2\"\n  ],\n  \"compromised_net\": \"secure_enable\",\n  \"driver_instance\": \"U_TIE_SECEN\",\n  \"orphaned_logic\": [\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"rationale\": \"Structural analysis of controller_netlist.v shows that the primary output secure_enable is driven directly by U_TIE_SECEN, a TIEHI constant-tie cell, rather than by any combinational function of access_grant, admin_override, and lock_bit. This means secure_enable is permanently forced to logic 1 regardless of the access-control inputs, silently bypassing the intended secure-mode protection check for any downstream logic gated by this signal. The design_brief.md specifies that secure_enable should equal (access_grant & admin_override) | lock_bit, and this exact combinational cone is in fact present in the netlist: u_sec_and1_fake (AND2) computes access_grant & admin_override into sec_and_out, and u_sec_or2 (OR2) combines sec_and_out with lock_bit into sec_enable_calc. However, sec_enable_calc is never connected to secure_enable or to any other instance's input port anywhere in controller_netlist.v -- it has zero fan-out/loads. Consequently u_sec_and1_fake and u_sec_or2 form dead/orphaned logic: they compute the correct security condition but that result is discarded, while the actual secure_enable output net is tied high by U_TIE_SECEN. Because testbench_regression.v only observes secure_enable's value alongside data_out and never differentially probes which physical driver produced that value, and because it does not include a stimulus case where the intended secure_enable formula would evaluate to 0 while checking for that value, the regression testbench cannot distinguish this constant-tie substitution from correct behavior; the anomaly is only detectable via netlist-level driver/fan-out analysis, not simulation of the provided vectors. This is a classic minimal-footprint hardware Trojan: a single-cell substitution (TIEHI in place of the AND2/OR2 cone's output) that defeats an access-control gate while leaving the RTL-equivalent logic physically present but unconnected.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "fr2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "FR3 requires that when verdict is 'trojan_detected', the report must include both 'compromised_net' and 'driver_instance' fields. This mutant removes the 'driver_instance' field entirely while keeping verdict as 'trojan_detected', so FR3's conditional-field presence check must fail even though the JSON is otherwise well-formed and FR1/FR2 remain satisfied.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"U_TIE_SECEN\",\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"compromised_net\": \"secure_enable\",\n  \"orphaned_logic\": [\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"rationale\": \"Structural analysis of controller_netlist.v shows that the primary output secure_enable is driven directly by a TIEHI constant-tie cell, rather than by any combinational function of access_grant, admin_override, and lock_bit. This means secure_enable is permanently forced to logic 1 regardless of the access-control inputs, silently bypassing the intended secure-mode protection check for any downstream logic gated by this signal. The design_brief.md specifies that secure_enable should equal (access_grant & admin_override) | lock_bit, and this exact combinational cone is in fact present in the netlist: u_sec_and1 (AND2) computes access_grant & admin_override into sec_and_out, and u_sec_or2 (OR2) combines sec_and_out with lock_bit into sec_enable_calc. However, sec_enable_calc is never connected to secure_enable or to any other instance's input port anywhere in controller_netlist.v -- it has zero fan-out/loads. Consequently u_sec_and1 and u_sec_or2 form dead/orphaned logic: they compute the correct security condition but that result is discarded, while the actual secure_enable output net is tied high. Because testbench_regression.v only observes secure_enable's value alongside data_out and never differentially probes which physical driver produced that value, the anomaly is only detectable via netlist-level driver/fan-out analysis, not simulation of the provided vectors. This is a classic minimal-footprint hardware Trojan: a single-cell substitution that defeats an access-control gate while leaving the RTL-equivalent logic physically present but unconnected.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "fr3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "FR4 requires that the report include an 'orphaned_logic' array listing instances whose outputs are unconnected to any load, when such instances exist and are relevant to the verdict. In this mutant the field is changed from an array of strings to a boolean value (true), which violates the required type/schema for FR4 (array of strings) even though a 'trojan_detected' verdict and correct SR1/SR2 fields remain present. The evaluator's FR4 structural check must reject this because orphaned_logic is not an array of instance-name strings, and the true orphaned instances (u_sec_and1, u_sec_or2) are no longer enumerated anywhere in the report.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"U_TIE_SECEN\",\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"compromised_net\": \"secure_enable\",\n  \"driver_instance\": \"U_TIE_SECEN\",\n  \"orphaned_logic\": true,\n  \"rationale\": \"Structural analysis of controller_netlist.v shows that the primary output secure_enable is driven directly by U_TIE_SECEN, a TIEHI constant-tie cell, rather than by any combinational function of access_grant, admin_override, and lock_bit. This means secure_enable is permanently forced to logic 1 regardless of the access-control inputs, silently bypassing the intended secure-mode protection check for any downstream logic gated by this signal. The design_brief.md specifies that secure_enable should equal (access_grant & admin_override) | lock_bit, and this exact combinational cone is in fact present in the netlist: u_sec_and1 (AND2) computes access_grant & admin_override into sec_and_out, and u_sec_or2 (OR2) combines sec_and_out with lock_bit into sec_enable_calc. However, sec_enable_calc is never connected to secure_enable or to any other instance's input port anywhere in controller_netlist.v -- it has zero fan-out/loads, so there is orphaned logic present, but it is not enumerated as a list of instance names in this report. Because testbench_regression.v only observes secure_enable's value alongside data_out and never differentially probes which physical driver produced that value, the anomaly is only detectable via netlist-level driver/fan-out analysis, not simulation of the provided vectors.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "fr4_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
+    },
+    {
+      "expected_detection": "The SR1 checker independently re-derives the cell type of the reported driver_instance from controller_netlist.v. Here driver_instance is set to 'u_sec_or2', which is an OR2 combinational cell, not a TIEHI/TIELO constant-tie cell. Since the actual constant driver of secure_enable in the ground-truth netlist is U_TIE_SECEN (a TIEHI cell), the checker's independent cell-type lookup for 'u_sec_or2' will find cell type OR2 != TIEHI/TIELO, causing SR1 to FAIL. This is a hard machine-checkable field mismatch (driver_instance != U_TIE_SECEN, and cross-referenced cell type is wrong), unlike the previous mis-scoped mutant that only altered prose.",
+      "files": [
+        {
+          "content": "{\n  \"verdict\": \"trojan_detected\",\n  \"suspect_instances\": [\n    \"U_TIE_SECEN\",\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"compromised_net\": \"secure_enable\",\n  \"driver_instance\": \"u_sec_or2\",\n  \"orphaned_logic\": [\n    \"u_sec_and1\",\n    \"u_sec_or2\"\n  ],\n  \"rationale\": \"Structural analysis of controller_netlist.v shows that the primary output secure_enable is driven by u_sec_or2, an OR2 gate combining sec_and_out and lock_bit, which permanently forces secure_enable in a manner inconsistent with the intended access-control policy described in design_brief.md. u_sec_and1 (AND2) computes access_grant & admin_override into sec_and_out, feeding u_sec_or2 which produces sec_enable_calc. Because testbench_regression.v never differentially probes the secure-mode access path, this anomaly is undetectable via simulation of the provided regression vectors and is only detectable via netlist-level driver and fan-out analysis. This is a minimal-footprint hardware Trojan defeating an access-control gate.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "sr1_stuck_at_signal_001",
+      "operator": "stuck_at_signal",
+      "target_requirement_id": "SR1"
+    }
+  ]
+}

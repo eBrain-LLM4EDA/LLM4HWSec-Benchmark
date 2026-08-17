@@ -1,0 +1,41 @@
+{
+  "task_id": "sca_signature_compare_early_exit_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Early-exit signature comparison in a verification unit",
+  "description": "Analyze the cycle-level behavior of a byte-serial 16-byte signature comparator RTL module and produce a structured report describing its internal control flow, the relationship between input data and comparison latency, and a concrete remediation that removes any data-dependent timing variation while preserving correct match/mismatch verdicts.",
+  "submission_kind": "analysis_report",
+  "input_artifacts": [
+    "inputs/signature_compare.v",
+    "inputs/testbench_harness.v",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize",
+      "description": "Whether the report correctly identifies the early-exit control signal and the qualitative existence of a data-dependent timing leak."
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize",
+      "description": "Fraction of the 17 cycle-count test cases (16 mismatch positions + full match) whose measured cycle count is correctly predicted within tolerance by the reported cycle_relationship formula."
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize",
+      "description": "Whether the proposed constant_time_fix contains all required remediation elements (no early exit, full scan, sticky accumulation) without breaking correctness on any of the 17 verdict cases."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "evaluation_mode": "report_grading"
+}

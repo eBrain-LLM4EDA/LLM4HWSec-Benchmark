@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "Provide a synthesizable lookup module with two banks having different access latencies and a secret-derived index.",
+    "Require a structured report naming the leaking index bits, the latency-divergent paths, and a constant-latency mitigation.",
+    "Keep functional lookup results correct so only timing distinguishes the banks.",
+    "Grade the report against hidden ground truth with a Python grader plus an iverilog latency trace."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "The report must be valid JSON with top-level string field 'module_under_test' equal to 'scratchpad_lookup', matching the module name in scratchpad_lookup.v."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must include a field 'functional_correctness_confirmed' (boolean) stating whether the reported analysis confirms data_out returns the correct value for both bank selections (index[7]=0 and index[7]=1) as defined by the lookup unit's specified data mapping in design_brief.md."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report must include a field 'latency_measurements' that is an array of exactly two objects, each with fields 'bank_select_bit_value' (0 or 1) and 'observed_latency_cycles' (integer), reporting the measured cycle latency from start-pulse to valid-assertion for index[7]=0 and index[7]=1 respectively."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a field 'report_format_version' set to the string '1.0'."
+    }
+  ],
+  "input_artifacts": [
+    "scratchpad_lookup.v",
+    "fault_model.json",
+    "design_brief.md",
+    "testbench_timing.v"
+  ],
+  "interface": "The RTL module is `scratchpad_lookup` in inputs/scratchpad_lookup.v with ports: `input clk`, `input rst_n` (active-low synchronous reset; on rst_n=0 the module returns to IDLE on the next posedge clk and `valid` is deasserted), `input start` (pulse for 1 cycle to begin a lookup), `input [7:0] index` (the secret-derived lookup index; index[7] selects the bank: 0 -> fast bank with 1-cycle access, 1 -> slow bank with 3-cycle access; index[6:0] selects the offset within the 128-entry bank), `output reg [15:0] data_out` (the looked-up value, valid only when `valid` is high), `output reg valid` (Moore output, asserted exactly one cycle when data_out is ready then deasserted the next cycle unless another start is pending). Timing contract: after `start` is asserted for one cycle while the module is IDLE, `valid` rises exactly N cycles later where N = 1 if index[7]=0 and N = 3 if index[7]=1, counting the cycle after the `start` pulse as cycle 1; data_out is stable and correct on the same cycle `valid` is high. The module ignores `start` while busy. The submission is a JSON report, not code; it must be placed at submission/vulnerability_report.json and is graded against the RTL's observed and documented behavior, optionally cross-checked by simulating inputs/testbench_timing.v with iverilog/vvp.",
+  "objective": "Analyze the provided synthesizable RTL lookup unit (scratchpad_lookup.v), which fetches a data word from one of two internal scratchpad banks based on a secret-derived index, and produce a structured vulnerability_report.json describing any observable timing behavior tied to the index, plus a concrete mitigation that keeps the lookup functionally identical while removing that timing dependence.",
+  "response_format": "A single JSON file at submission/vulnerability_report.json with top-level object containing at minimum: module_under_test (string), functional_correctness_confirmed (boolean), latency_measurements (array of 2 objects with bank_select_bit_value and observed_latency_cycles), report_format_version (string '1.0'), leaking_index_bits (array of integers), latency_divergent_paths (array of strings describing the RTL signal/path names or FSM states responsible for the divergent timing, e.g. FSM state names from scratchpad_lookup.v), and mitigation (object with fields 'strategy' (string) and 'description' (string) describing a constant-latency fix)."
+}

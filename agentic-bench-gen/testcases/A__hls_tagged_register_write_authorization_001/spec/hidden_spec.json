@@ -1,0 +1,39 @@
+{
+  "acceptance_criteria": [
+    "A hardened submission must return 0 for all 32 protected indices (16..47) when priv_tag=0, i.e., zero authorization bypasses across the full protected window.",
+    "A hardened submission must return 1 and write correctly for all 32 protected indices when priv_tag=1.",
+    "A hardened submission must preserve unrestricted writability for all 32 unprotected indices under both tag values.",
+    "A hardened submission must reject and not write for at least 3 out-of-bounds reg_index probes under both tag values.",
+    "The shipped insecure baseline must fail this grading by allowing at least one protected index in 32..47 to be written with priv_tag=0."
+  ],
+  "cwe_ids": [
+    "CWE-284",
+    "CWE-862",
+    "CWE-863",
+    "CWE-1220"
+  ],
+  "ground_truth": "The secure implementation checks: if reg_index is out of [0, reg_file_size) bounds, return 0 without writing. Otherwise, if reg_index is within the protected range [16,47] inclusive, the write is performed only when priv_tag == 1 (privileged); if priv_tag != 1, return 0 without writing. If reg_index is outside the protected range (i.e., in [0,15] or [48,63]), the write is always performed regardless of priv_tag, returning 1. The insecure baseline shipped as inputs/reg_write_kernel.cpp only enforces the tag check for a narrow sub-window of the protected range (e.g., indices 16..31) and allows unauthenticated writes to indices 32..47 even though they are nominally protected, thereby letting an unprivileged caller silently reconfigure those protection-adjacent registers.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Sweep reg_index across 16..47 with priv_tag=0 and assert the harness observes return value 0 and reg_file[reg_index] unchanged from its pre-call sentinel value for every index; any index that accepts the write indicates an incomplete gate (matches the insecure baseline's narrow-window flaw).",
+      "id": "SR1",
+      "requirement": "Every index in the protected range 16..47 inclusive must reject writes when priv_tag != 1, with no exceptions or sub-ranges left unchecked."
+    },
+    {
+      "detection_strategy": "Sweep reg_index across 16..47 with priv_tag=1 and assert return value 1 and reg_file[reg_index] == value for every index.",
+      "id": "SR2",
+      "requirement": "Privileged requests (priv_tag=1) must succeed uniformly across the full protected range, so the fix must not overcorrect into denial-of-service for legitimate privileged writers."
+    },
+    {
+      "detection_strategy": "Sweep unprotected indices with priv_tag=0 and priv_tag=1 and assert return value 1 and correct write for both tag values.",
+      "id": "SR3",
+      "requirement": "Unprotected indices (0..15, 48..63) must remain writable by any requester regardless of tag, preserving intended functional behavior while the security fix is applied."
+    },
+    {
+      "detection_strategy": "Call reg_write with reg_index = -1, reg_file_size, and reg_file_size+100 for both priv_tag values and assert return 0 and no memory corruption (checked via canary values surrounding the reg_file buffer).",
+      "id": "SR4",
+      "requirement": "Out-of-bounds reg_index values must never write to memory regardless of tag, preventing an authorization bypass disguised as an out-of-range access."
+    }
+  ],
+  "threat_model": "An attacker or unprivileged software context can invoke the accelerator's register-write path with an unprivileged tag (priv_tag=0). If the enforcement of the privilege check is incomplete -- covering only part of the protected index range -- the attacker can target the overlooked protected indices to write arbitrary configuration values, effectively bypassing the intended access-control boundary and reconfiguring protection or security-relevant settings without authorization."
+}

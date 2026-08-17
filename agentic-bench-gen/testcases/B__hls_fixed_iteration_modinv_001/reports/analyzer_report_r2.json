@@ -1,0 +1,70 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR4 (leftover-state / repeated-call correctness) has no mutant that targets it and is detected, per the mutation analysis. The requirement is checked structurally (REPEAT lines compared to FUNC baseline) but no generated mutant exercises a state-corruption bug that this check would catch, leaving the requirement's discriminative power unverified.",
+      "evidence": "per_requirement_coverage.FR4: {covered: false, mutants_detected: 0, mutants_targeting: 1}; uncovered_requirements: [\"FR4\"]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "overall benchmark",
+      "description": "Mutation score is 0.857 (6/7) rather than 1.0 solely due to the FR4 gap; all other requirements (FR1,FR2,FR3,SR1,SR2,SR3) are well covered and discriminated by mutants, and the differential run confirms golden passes / vulnerable baseline fails on the security-relevant checks (SR1, SR2, SR3).",
+      "evidence": "mutation_score: 0.857; differential.status: pass; vulnerable_run shows FAIL on SR1/SR2/SR3 and PASS on FR1-FR4.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or strengthen a mutant that specifically corrupts cross-call state (e.g., introduces a static/global accumulator inside modinv that persists incorrectly across calls) to give FR4 a detecting mutant and close the discrimination gap flagged as 'uncovered_requirement'.",
+    "Consider tightening the SR3 tolerance or adding a lower-noise timing methodology (e.g., CPU affinity pinning) if more discriminative power is desired, though current calibration already correctly distinguishes golden vs. baseline in the differential run.",
+    "No changes needed regarding security-intent leakage; the public artifacts read as a plausible plain HLS-scheduling engineering task."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "public_spec functional/non-functional requirements (fixed iteration count, no early exit, branchless updates) match hidden_spec SR1-SR3 and FR1-FR4 semantics; interface signature, MOD constant, and g_iter_count instrumentation are consistently specified across README, design_brief, header, and hidden spec.",
+      "requirement": "Public/hidden spec coherence",
+      "status": "pass"
+    },
+    {
+      "evidence": "baseline_run (golden) exit_code 0 with all PASS; differential.vulnerable_run exit_code 1 with FAIL on SR1, SR2, SR3 matching expected 'fail' status; golden_run matches expected 'pass'.",
+      "requirement": "evaluate.py accepts correct submission and rejects baseline (hardened_artifact contract)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Compile step maps to synthesis_pass_rate; SR1/SR2/SR3 pass/fail maps to cwe_violation_rate and information_flow_correctness (iteration count invariance, static scan, timing spread); FR1 check against (a*r)%251==1 maps to functional_correctness_rate.",
+      "requirement": "Evaluator measures requested metrics (synthesis_pass_rate, cwe_violation_rate, information_flow_correctness, functional_correctness_rate)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 (functional) and SR1-SR3 (security) each with distinct expected_detection and test_files; per_requirement_coverage/discrimination confirm 6 of 7 requirements are both covered and discriminated by mutants.",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "Harness resets g_iter_count per call across all 250 operands (SR1), performs warmup + 15 timed trials per operand across fast/slow-converging operands (SR3), and evaluate.py performs brace-matched static scan restricted to the actual loop body containing g_iter_count increment (SR2), directly anchored to the baseline's early-return pattern.",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced files (README.md, metadata.json, inputs/*, evaluation/*) are present in the bundles; no external dependencies, network calls, or unsafe operations; compile uses standard g++ with bounded timeouts.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically about HLS-oriented constant-time modular inverse with binary extended-Euclidean algorithm, fixed-iteration constraints, and instrumented counter tailored to the timing side-channel threat model; not generic boilerplate.",
+      "requirement": "Benchmark adapted to domain rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and input header/source files use only engineering/performance framing (HLS scheduling, fixed latency, predictable pipelining) with no mention of CWE-208/385/203, SR1/SR2/SR3 ids, 'insecure baseline', or side-channel/threat-model language; metadata.json's cwe_violation_rate description was rephrased to avoid CWE/SR ids per manifest annotation.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are concrete: correctness against (a*r)%251==1, compile constraints (no STL/dynamic alloc/recursion), MOD constant value, and repeated-call statelessness \u2014 each independently verifiable via the pinned modinv interface and harness output lines (FUNC, MOD_VALUE, REPEAT).",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 requirements)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 2
+}

@@ -1,0 +1,21 @@
+{
+  "best_round": 2,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "ac1e37c57b1f3c6720a9bb0e39dc0e07f1ac770aed338525bafbf92a134f1695",
+    "expert/expert_bundle.json": "5d849de9c10242330935af82666b165fb895088b22c2075c8ae96ff0768c8df6",
+    "mutants/mutation_bundle.json": "9c292382673bce170c34ad4057dfb64edebc651f816727328772c52615a580c2",
+    "reports/analyzer_report.json": "cf87d8e61b43e4066a44b84a6097921089df657bd7215eea18308cb6dc1d231f",
+    "reports/quality_report.json": "3eff1a13cd9dd8a544b1eec608614d11e55770edb4240637122909214f6db83c",
+    "reports/validation_report.json": "0d4d00370c298f964a162b874e0d1936574d132d1e284d343ebe8a834e6b9de3",
+    "spec/task_spec.json": "db9350e7c36e89d9b39bfab0b1f8102d061070cb8a8f31b588c140b7b02e360f",
+    "tests/tester_bundle.json": "cc1a00a7e771f7ea63f20d69e32292f31af8e67ac3a5cd2ab184bfe3858a2755"
+  },
+  "domain_id": "hls_security_codegen",
+  "final_attempted_round": 2,
+  "quality_status": "pass",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 2,
+  "status": "quality_passed",
+  "task_id": "hls_tagged_register_write_authorization_001"
+}

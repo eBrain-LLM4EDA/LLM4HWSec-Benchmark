@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The netlist must be plain structural Verilog-2001 using only cells defined in cell_library.v (DFFs, muxes, basic gates), synthesizable/simulatable with iverilog without external libraries.",
+    "The design brief must describe the documented datapath: an 8-bit key register bank (key_reg[7:0]) feeding exactly one legitimate consumer path (e.g. an XOR/round-function stage) per key bit, with no mention of any secondary or diagnostic register bank.",
+    "All primary/documented output ports of the netlist must be bit-exact and functionally identical whether or not the extra fanout structure is present, so black-box functional testing of documented outputs cannot reveal it.",
+    "The extra structure, if present in the generated netlist, must be reachable only via structural netlist inspection (instance names, fanout tracing) and not via any documented output pin.",
+    "All instance names in the netlist must be unique and human-readable (e.g. u_key_ff0, u_round_xor0, u_shadow_ff0, u_exfil_mux) to support deterministic ground-truth matching."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json must be valid JSON and contain all five required top-level fields (verdict, key_bus_signal, fanout_map, suspect_instances, summary) with the exact types specified in the interface."
+    },
+    {
+      "id": "FR2",
+      "requirement": "fanout_map must contain exactly 8 entries, one for each key_bit value 0 through 7, each with num_consumers equal to the actual length of its consumer_instances array."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Every instance name listed anywhere in fanout_map's consumer_instances arrays or in suspect_instances must correspond to an instance name that literally appears in inputs/netlist.v."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The verdict field must be either the literal string 'trojan_present' or 'trojan_absent'; any other value fails validation."
+    }
+  ],
+  "input_artifacts": [
+    "netlist.v",
+    "design_brief.md",
+    "cell_library.v"
+  ],
+  "interface": "The submission is a single JSON file at submission/trojan_report.json (no other files are graded; the netlist and brief under inputs/ must NOT be modified). The file MUST be valid JSON with this exact top-level schema: { \"verdict\": <string, one of \"trojan_present\" or \"trojan_absent\">, \"key_bus_signal\": <string, the exact net/bus name analyzed, e.g. \"key_reg\">, \"fanout_map\": <array of objects>, \"suspect_instances\": <array of strings>, \"summary\": <string> }. Each element of fanout_map must be an object: { \"key_bit\": <integer 0-7>, \"consumer_instances\": <array of strings, the instance names of ALL gates/flip-flops whose input is directly or indirectly (within the combinational/register fanout cone) driven by that key bit>, \"num_consumers\": <integer, equal to length of consumer_instances> }. suspect_instances must list every instance name the report flags as belonging to an undocumented/extra structure not part of the single documented consumer path per key bit. evaluate.py reads inputs/netlist.v for reference and structurally cross-checks suspect_instances and fanout_map against ground truth; it does not execute or score any code from submission/.",
+  "objective": "Analyze the provided gate-level netlist of a key-consuming datapath and produce a structural analysis report identifying every flip-flop instance that samples signals from the 8-bit key register bus (key_reg[7:0]), the net(s) each such flip-flop samples, and the downstream gate/instance each flip-flop's output feeds into. The reference design document specifies exactly one legitimate consumer path per key bit; your report must enumerate the complete fanout tree from key_reg so that any deviation from the documented single-consumer topology is visible to a reviewer.",
+  "response_format": "A single JSON file at submission/trojan_report.json conforming exactly to the schema given in public_spec.interface. No markdown, no comments, no trailing content."
+}

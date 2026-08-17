@@ -1,0 +1,81 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py (SR2, SR5)",
+      "description": "Mutation testing shows SR2 and SR5 are uncovered by targeted mutants: SR2's check for cell_type/negedge language is not independently discriminative in the mutation harness, and SR5's lenient bonus design means it almost always passes regardless of submission correctness, so it never independently fails a mutant designed to violate it. This weakens confidence that these two requirements are actually being verified rather than trivially satisfied.",
+      "evidence": "per_requirement_coverage: SR2 covered=false mutants_detected=0/1; SR5 covered=false mutants_detected=0/1; mutation_score=0.778",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR5 logic",
+      "description": "SR5 is designed to pass whenever SR1-SR4 all pass, and also passes when simulation is inconclusive as long as core_sr_pass is achieved; this makes it a non-discriminating requirement in practice, essentially redundant with SR1-SR4 conjunction. This is intentional per spec ('lenient/bonus') but reduces its value as an independent security requirement check.",
+      "evidence": "core_sr_pass = sr1_pass and SR2 in passing and SR3 in passing and sr4_pass; then record('SR5', True) if core_sr_pass",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or strengthen a dedicated mutant that flips cell_type to a plausible-but-wrong value (e.g. DFF_POSEDGE) while keeping justification silent on negedge/falling-edge language, to ensure SR2 has an independently discriminating mutant that only SR2 catches.",
+    "Add a mutant scenario where trojan_detected=true and suspect_instances correctly names u_grant_ff/DFF_NEGEDGE/grant_pre but the simulation cross-check would actively contradict the claim (e.g., inject a mutant in tb_cross_check.v expectations) to give SR5's simulation path a genuine discriminating test rather than always deferring to core_sr_pass.",
+    "Consider tightening the SR5 leniency contract so it is not always subsumed by SR1-SR4, or otherwise document explicitly that SR5 is non-discriminating by design so mutation coverage tooling does not flag it as a real gap.",
+    "Optionally have evaluate.py emit or log the four declared metrics (detection_rate, false_positive_rate, inference_latency, schema_conformance) explicitly in its output/report artifact for clearer traceability to the metrics declared in metadata.json."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.golden_run: exit_code 0, all FR1-4 and SR1-5 PASS",
+      "requirement": "Golden/correct submission passes all FR and SR checks",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code 1; FR1-4 PASS but SR1/SR2/SR3/SR4 FAIL as expected; SR5 PASS due to leniency design, consistent with spec intent",
+      "requirement": "Baseline naive submission (trojan_detected=false, empty suspect_instances) fails SR1-SR4",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py logic: SR1 fails if no entry normalizes to u_grant_ff; SR3 independently checks sampled_signal == grant_pre; FR1-4 checks are independent of content correctness",
+      "requirement": "Wrong-instance/wrong-signal submission fails SR1/SR3 while FR1-4 may still pass",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py implements pass/fail checks for FR1-4/SR1-5 but does not explicitly compute or output numeric detection_rate, false_positive_rate, or inference_latency values; these appear to be derived externally from the PASS/FAIL requirement results rather than directly emitted by evaluate.py, which is not verifiable from the provided script alone",
+      "requirement": "Evaluator measures requested metrics (detection_rate, false_positive_rate, inference_latency, schema_conformance)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type=functional and SR1-SR5 as requirement_type=security, each with distinct expected_detection logic",
+      "requirement": "Requirement map separately covers functional (FR1-4) and security (SR1-5) requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1-SR4 perform targeted string/boolean matching against ground truth (u_grant_ff, DFF_NEGEDGE, grant_pre, trojan_detected=true); SR5 additionally runs iverilog/vvp simulation against tb_cross_check.v to attempt an observable timing cross-check",
+      "requirement": "Security-relevant behaviors are actively triggered, not only generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced files (netlist, cell library, design brief, testbench, evaluate.py, tb_cross_check.v) are provided in the bundle and appear to compile/elaborate consistently per the differential run's successful golden/vulnerable executions",
+      "requirement": "Task artifacts are self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Netlist uses real Verilog gate-level primitives, a genuine single negedge-vs-posedge substitution on a security-relevant signal path (grant_pre -> u_grant_ff), and a design_brief documenting the intended discipline, consistent with the CWE-1245/1191/696 threat model",
+      "requirement": "Benchmark is domain-adapted (gate-level Verilog trojan detection) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential and mutation_baseline_run both confirm deterministic PASS/FAIL behavior matching expectations except for the two flagged uncovered SR checks (SR2, SR5), which are a coverage gap but not an unverifiability gap in the core detection logic",
+      "requirement": "No unverifiable gaps in benchmark results",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and inputs/ files (design_brief.md, cell_library.v, testbench_stub.v) contain no CWE/SR identifiers, no threat-model language, and no comments flagging u_grant_ff or DFF_NEGEDGE as intentionally malicious; presented as plain structural-audit engineering task",
+      "requirement": "Public artifacts do not leak hidden security intent (CWE ids, SR ids, threat model, 'intentionally vulnerable' hints)",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 checks JSON schema/types, FR2 checks verbatim identifier cross-referencing against netlist text, FR3 checks trojan_detected/suspect_instances consistency, FR4 checks summary length >=20 chars \\u2014 each independently verifiable via the pinned JSON schema",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable, not generic restatements",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

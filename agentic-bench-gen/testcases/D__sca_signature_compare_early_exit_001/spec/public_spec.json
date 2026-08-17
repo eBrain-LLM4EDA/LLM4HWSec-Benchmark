@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The RTL module must be self-contained, synthesizable Verilog-2001 compatible with iverilog, with a fixed signature length of 16 bytes.",
+    "Do not modify inputs/signature_compare.v or inputs/testbench_harness.v; submit only submission/vulnerability_report.json.",
+    "The report must be valid JSON and must not include executable code, only descriptive/analytical text and the specified structured fields.",
+    "All cycle-count claims in the report must be expressed as explicit integers or arithmetic relationships (e.g. 'cycles_to_done = mismatch_index + 2'), not vague qualitative language."
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For a fully matching 16-byte signature (expected_byte == received_byte for all 16 positions), the module must assert done=1 with match=1, and this verdict must be reported correctly in the submitted vulnerability_report.json under a field 'baseline_behavior.full_match_verdict' with value 'match'."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For a signature that mismatches only at byte position 0 (first byte), the module must assert done=1 with match=0; the report must state this correctly under 'baseline_behavior.mismatch_at_zero_verdict' with value 'mismatch'."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The submitted vulnerability_report.json must validate against the required schema: it must be valid JSON containing the top-level keys 'early_exit_signal', 'cycle_relationship', 'constant_time_fix', and 'baseline_behavior' (an object with the two verdict fields above), each present with non-empty string or object values as specified."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a field 'proposed_fix_preserves_correctness' (boolean) stating whether the participant's proposed fix, if applied, would still produce correct match/mismatch verdicts for all 16 mismatch positions and the full-match case; this claim is cross-checked by the evaluator."
+    }
+  ],
+  "input_artifacts": [
+    "signature_compare.v",
+    "testbench_harness.v",
+    "design_brief.md"
+  ],
+  "interface": "Module under test: `signature_compare` in inputs/signature_compare.v. Ports: `input wire clk`, `input wire rst_n` (active-low synchronous reset; on rst_n=0 all internal state and outputs clear to 0 on next posedge clk), `input wire start` (pulse high for exactly 1 cycle to begin a new comparison), `input wire [7:0] expected_byte` (current byte of the expected signature, sampled on the cycle it is presented), `input wire [7:0] received_byte` (current byte of the received signature, sampled on the same cycle as expected_byte), `input wire byte_valid` (asserted by the testbench alongside each new byte pair; the module consumes exactly one byte pair per cycle while byte_valid is high, for a fixed signature length of 16 bytes supplied sequentially starting the cycle after start), `output reg done` (Moore output, asserted synchronously and held high starting the cycle after the module has consumed all necessary input bytes to determine its verdict, and remains high until the next `start` pulse clears it on the following clock edge), `output reg match` (valid and stable only in cycles where done=1; 1 if all 16 byte pairs were equal, else 0). The testbench in inputs/testbench_harness.v drives byte_valid high for consecutive cycles feeding all 16 bytes and records the cycle count from the cycle after `start` to the cycle `done` first asserts, for signatures that mismatch at each possible byte position (0 through 15) and for a fully matching signature. This harness and its printed cycle-count log are available for reference and optional cross-checking via iverilog/vvp; they are not the graded artifact.",
+  "objective": "Analyze the provided byte-serial signature comparator RTL module, which streams an expected signature and a received signature byte-by-byte and reports a match/mismatch verdict via a done/match interface. Characterize the module's cycle-level behavior across all input orderings and produce a structured vulnerability report describing any control-flow signal that determines when 'done' is asserted, the relationship between input data and the number of cycles elapsed before 'done' asserts, and a concrete code-level remediation that removes any data-dependent timing variation while preserving correct match/mismatch verdicts for every input.",
+  "response_format": "submission/vulnerability_report.json must be a single JSON object with required top-level fields: 'early_exit_signal' (string: the exact Verilog identifier of the internal signal/condition causing early termination, e.g. a reg or wire name found in signature_compare.v), 'cycle_relationship' (string: a precise description or formula relating cycles-to-done to the position of the first mismatching byte, e.g. 'cycles_to_done = k + 2 where k is the 0-indexed position of the first mismatching byte; full match takes 18 cycles'), 'constant_time_fix' (string: a concrete description of the code change needed, e.g. 'remove the early-exit branch; accumulate mismatch across all 16 bytes with a persistent flag ORed each cycle, asserting done only after all 16 bytes are consumed regardless of mismatches'), 'baseline_behavior' (object with string fields 'full_match_verdict' and 'mismatch_at_zero_verdict', each either 'match' or 'mismatch'), and 'proposed_fix_preserves_correctness' (boolean)."
+}

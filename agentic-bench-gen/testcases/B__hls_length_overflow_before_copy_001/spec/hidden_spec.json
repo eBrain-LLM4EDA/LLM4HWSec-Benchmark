@@ -1,0 +1,34 @@
+{
+  "acceptance_criteria": [
+    "Binary compiles successfully with g++ -O2 -Wall against the harness main().",
+    "All functional requirement vectors (FR1-FR4) produce exactly the specified return values and buffer contents.",
+    "The wrap-triggering vector (header_len=50000, payload_len=15536, dest_capacity=200) returns -1 and leaves dest byte-for-byte unchanged from its pre-call sentinel pattern.",
+    "Red-zone canary bytes immediately following dest_capacity remain unmodified across all test vectors including wrap-triggering and boundary cases.",
+    "No out-of-bounds read occurs on header or payload buffers for any tested vector (checked via AddressSanitizer build if available, otherwise via canary bytes placed before/after those buffers)."
+  ],
+  "cwe_ids": [
+    "CWE-190",
+    "CWE-680",
+    "CWE-787",
+    "CWE-131"
+  ],
+  "ground_truth": "The insecure baseline computes `unsigned short total = header_len + payload_len;` (or an equivalent 16-bit-truncating expression) and then checks `if (total > dest_capacity) return -1;`. Because header_len and payload_len are each up to 65535, their sum can be up to 131070, which wraps modulo 65536 when stored in an unsigned short, producing a small `total` that passes the capacity check even though the true combined length is far larger, after which the kernel performs a bulk copy of header_len + payload_len bytes computed correctly (or re-truncated) into dest, overflowing it. The secure fix computes the sum in a widened type that cannot wrap for the full range of inputs (e.g. `unsigned int` or `size_t`, since 65535+65535 fits comfortably in 32 bits), compares that widened sum against dest_capacity (also widened for the comparison) before performing any copy, and returns -1 without touching dest when the widened sum exceeds dest_capacity. No copy loop may use the narrow, wrappable sum as its bound.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Compile and run with header_len=60000, payload_len=60000, dest_capacity=100 (true sum 120000, mod 65536 = 54464, which is >100 so a naive 16-bit-wrap bug might still reject this one). Use a more targeted wrap vector: header_len=50000, payload_len=15536, dest_capacity=200 (true sum = 65536, wraps to exactly 0 mod 65536, which is <=200 and would incorrectly pass a wrapping check). Assert the function returns -1 and dest is unchanged from a sentinel pattern.",
+      "id": "SR1",
+      "requirement": "The sum of header_len and payload_len must be computed and compared against dest_capacity in a representation wide enough that no valid combination of two 16-bit unsigned values can wrap around before the comparison is made."
+    },
+    {
+      "detection_strategy": "Allocate dest with a canary region immediately after the declared capacity (a red-zone buffer). Run the wrap-triggering vector and boundary vectors; after each call, verify the canary bytes are untouched (byte-for-byte comparison against their pre-call sentinel values).",
+      "id": "SR2",
+      "requirement": "No bulk copy into dest may write more bytes than dest_capacity under any header_len/payload_len combination, including wrap-triggering pairs."
+    },
+    {
+      "detection_strategy": "Run normal in-range vectors (e.g. header_len=100, payload_len=100, dest_capacity=65535) and confirm return value equals header_len+payload_len and copied bytes match expected content exactly.",
+      "id": "SR3",
+      "requirement": "The function must correctly accept and copy all header/payload combinations whose true sum is less than or equal to dest_capacity, with no false rejections caused by overly conservative widened arithmetic."
+    }
+  ],
+  "threat_model": "An attacker who controls header_len and payload_len (e.g. fields parsed from an untrusted packet) can choose values whose true sum exceeds the destination buffer capacity but whose 16-bit-truncated sum appears small enough to pass a naive bounds check. This causes the subsequent bulk copy to write far more bytes than the destination buffer can hold, corrupting adjacent memory (heap or scratchpad overflow) and potentially enabling code execution or denial of service."
+}

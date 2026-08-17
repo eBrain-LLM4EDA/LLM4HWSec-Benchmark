@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "Do not change the function name, signature, parameter order, or the file path inputs/cbc_unpad.cpp.",
+    "Do not use dynamic memory allocation, STL containers, or C++ exceptions.",
+    "The implementation must be pure C/C++ compilable with g++ without additional libraries.",
+    "Do not add any additional side-effecting output parameters or global state."
+  ],
+  "expected_outputs": [
+    "A revised inputs/cbc_unpad.cpp implementing the pad_check kernel with the pinned signature, returning correct validity and unpadded length for all block contents, compiling cleanly with g++."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For a block ending in valid PKCS#7 padding of length N (bytes block[16-N..15] all equal to N, 1<=N<=16), pad_check must set *valid=1 and *unpadded_len=16-N."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For a block whose last byte is 0 or greater than 16, pad_check must set *valid=0 and *unpadded_len=16."
+    },
+    {
+      "id": "FR3",
+      "requirement": "For a block whose last byte N is in 1..16 but where any of the last N bytes does not equal N, pad_check must set *valid=0 and *unpadded_len=16."
+    },
+    {
+      "id": "FR4",
+      "requirement": "pad_check must compile as a standalone translation unit with g++ (C++11 or later) with no external dependencies beyond standard headers, and must not modify the contents of block[] itself."
+    }
+  ],
+  "input_artifacts": [
+    "cbc_unpad.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/cbc_unpad.cpp. Entry point (must match exactly, no overloads, no namespaces): `void pad_check(const unsigned char block[16], int *valid, int *unpadded_len);` Parameters: `block` is a 16-byte array representing the final decrypted CBC block (the padded plaintext block; treat as secret-derived data). `valid` is an output pointer; the callee must write 1 if the padding is well-formed PKCS#7 padding (i.e. the last byte N is in range 1..16 and the last N bytes of `block` all equal N), or 0 otherwise. `unpadded_len` is an output pointer; the callee must write the length of the plaintext without padding when `*valid==1` (computed as 16 - N), and must write 16 when `*valid==0` (i.e. treat the whole block as plaintext when padding is invalid, matching typical fail-safe behavior). The function must not read or write any memory outside `block[0..15]` and the two output pointers, must not call malloc/new, must not throw, and must return normally (void) in all cases -- no early return before scanning is required by the interface itself, but see functional requirements.",
+  "objective": "The file inputs/cbc_unpad.cpp contains a PKCS#7-style padding validation kernel intended for use in an HLS crypto pipeline. Rewrite this kernel so it inspects the final decrypted block and returns both a validity flag and the unpadded plaintext length, while performing a full, uniform scan of the block on every call regardless of the padding contents. The revised kernel must be a drop-in replacement that keeps the exact function signature and file location, is synthesizable-style C++ (no dynamic allocation, no STL containers, no exceptions), and must compile standalone with g++ against a test harness that calls it directly.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

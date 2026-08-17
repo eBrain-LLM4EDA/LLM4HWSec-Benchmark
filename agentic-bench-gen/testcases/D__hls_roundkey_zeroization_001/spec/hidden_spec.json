@@ -1,0 +1,37 @@
+{
+  "acceptance_criteria": [
+    "Submission compiles with g++ -O2 -std=c++17 producing no errors.",
+    "Ciphertext output exactly matches all known-answer vectors (FR1, FR2) at every tested optimization level (-O0, -O2, -O3).",
+    "Post-return memory probe of the 176-byte round_keys buffer reads all zero bytes at -O2 and -O3 for every test invocation.",
+    "No test vector run shows ciphertext divergence caused by the clearing mechanism."
+  ],
+  "cwe_ids": [
+    "CWE-226",
+    "CWE-212",
+    "CWE-200"
+  ],
+  "ground_truth": "The insecure baseline computes the AES-128 key schedule into local array round_keys[176], performs 10 rounds of encryption, writes the ciphertext to the output parameter, and returns without touching round_keys again, so its 176 bytes remain populated with the actual expanded key material on the stack after return. The hardened reference implementation performs identical key expansion and encryption, produces byte-identical ciphertext on all test vectors, and then, immediately before returning (on every code path), overwrites all 176 bytes of round_keys with zero using a loop over a volatile-qualified pointer (or equivalent construct, such as an externally-linked non-inlinable clearing function or explicit_bzero-style memory barrier) so the compiler cannot eliminate the store as dead code. After the call returns, a harness that captures the stack address of round_keys via a cooperating alias (e.g. a shared global pointer set by the kernel to &round_keys[0] before the clear, or a harness that calls the same stack frame depth immediately after return and re-reads the same offset) must observe all zero bytes at that memory location, while the returned ciphertext still exactly matches the reference vectors.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Harness calls encrypt_block, captures a pointer/alias to the exact stack location of round_keys (via a cooperating global pointer variable that the harness pre-registers and the kernel writes &round_keys[0] into before clearing, OR via re-entering a same-depth stack frame immediately post-return and scanning it), then reads back 176 bytes at that address after the call returns and asserts every byte equals 0x00.",
+      "id": "SR1",
+      "requirement": "The round_keys local buffer must be zeroed on every return path of encrypt_block before control returns to the caller."
+    },
+    {
+      "detection_strategy": "Evaluator compiles the submission with g++ -O2 (and -O3) and re-runs the same post-return memory probe; if the buffer still contains nonzero expanded-key bytes at any optimization level, the requirement fails. This directly penalizes naive `memset` calls immediately followed by no further use, which many compilers eliminate as dead stores.",
+      "id": "SR2",
+      "requirement": "The zeroing writes must survive compiler dead-store elimination at -O2 and higher optimization levels."
+    },
+    {
+      "detection_strategy": "Harness re-runs FR1 and FR2 known-answer vectors after confirming the clearing behavior and asserts ciphertext bytes are unchanged from the unhardened correctness baseline.",
+      "id": "SR3",
+      "requirement": "The zeroing operation must not alter the correctness of the returned ciphertext on any input, including edge cases like the all-zero key/plaintext vector."
+    },
+    {
+      "detection_strategy": "Harness runs encrypt_block twice with two different secret keys but the same plaintext, capturing full stack-region snapshots immediately after each call at the known frame depth, and checks that any inspectable buffer outside round_keys shows no key-dependent difference (best-effort secondary check; primary grading is on SR1/SR2).",
+      "id": "SR4",
+      "requirement": "No other secret-derived intermediate buffer (e.g., an internal S-box state or round temporary) should leak observable, key-dependent residue distinguishable across repeated calls with different keys but identical plaintext, beyond the pinned round_keys buffer."
+    }
+  ],
+  "threat_model": "The HLS accelerator is time-multiplexed across multiple mutually distrusting execution contexts (tenants, tasks, or invocations) that reuse the same local/on-chip memory region (BRAM or stack scratch space) for their working buffers. If the round-key schedule derived from a secret key is left in this reused memory after a function returns, the next context scheduled onto the same physical storage can read the leftover bytes and reconstruct all or part of the secret key, defeating any encryption performed. This is a residual-state / uninitialized-memory-reuse information disclosure threat, not a flaw in the encryption algorithm itself."
+}

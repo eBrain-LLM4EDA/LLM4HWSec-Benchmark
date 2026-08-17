@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "FR1 and SR3 are dead checks under mutation testing \u2014 no generated mutant triggers a FR1-specific or SR3-specific failure distinct from cascading FR1 failures, and SR1 also has zero targeted-mutant detections. This indicates the mutation harness could not independently exercise these requirements, reducing confidence that the checks are robust beyond the two anchor cases (golden report / naive baseline).",
+      "evidence": "per_requirement_coverage: FR1 mutants_detected=0/1, SR1 mutants_detected=0/1, SR3 mutants_detected=0/1; issues list explicitly flags dead_check for FR1 and SR3 and uncovered_requirement for FR1, SR1, SR3.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "mutation run",
+      "description": "One mutant run crashed/timed out or used an unsafe path, leaving mutation_score_meaningful=false.",
+      "evidence": "error_runs: 1; mutation_score_meaningful: false; issue 'mutation_execution_error'.",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR3 heuristic",
+      "description": "SR3's cap of 'at most one unsubstantiated finding' on WDT_CTRL/WDT_TIMEOUT is a reasonable design choice but combined with the dead-check result suggests the mutation set never produced a case with exactly 2+ false positive findings on unrelated registers to confirm the boundary is enforced correctly in practice.",
+      "evidence": "per_requirement_coverage.SR3: mutants_detected=0, mutants_targeting=1.",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add or fix targeted mutants for FR1 (e.g., a submission with a non-boolean reset_req_reliable, or a finding missing a required string field, that does NOT also trigger cascading FR1-empty-findings failure) so FR1 has an independent mutant it uniquely catches.",
+    "Add a targeted mutant for SR1 that has a correctly-shaped report with findings present but which fails only the reload-effect-description check (e.g., mentions 0x0C+0xDEADC0DE but describes it as merely 'an interesting write pattern' without reload/pet-equivalent language), to confirm SR1's semantic check is exercised independently of FR2.",
+    "Add a targeted mutant for SR3 with exactly two or more findings claiming hidden/undocumented logic on WDT_CTRL (0x00) or WDT_TIMEOUT (0x04) to confirm the '>1 unsubstantiated finding' cap actually fires and is detected.",
+    "Investigate and fix the one mutant run that crashed/timed out or used an unsafe path so mutation_score becomes meaningful.",
+    "Consider re-running mutation analysis after the above fixes to raise requirement_discrimination_coverage_score above the current 0.571."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run: exit_code 0, status pass, all seven [TEST] PASS lines emitted.",
+      "requirement": "Golden/correct report passes overall (exit 0, all PASS)",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run/baseline differential: exit_code 1, status fail, FAIL on FR1, FR4, FR2, FR3, SR1, SR2, SR3 (cascading from empty findings).",
+      "requirement": "Shipped naive baseline (findings: [], reset_req_reliable: true) fails overall (exit non-zero, FAIL markers)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type functional and SR1-SR3 as requirement_type security, each with distinct expected_detection text and test_files.",
+      "requirement": "FR1-FR4 and SR1-SR3 requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluation/tb_wdt_trojan_check.v drives a real timeout sequence with iverilog/vvp, injecting the magic write at cycle 5 and checking reset_req_at_expected_timeout, used as corroboration for SR1 in evaluate.py's run_simulation_corroboration().",
+      "requirement": "Security-relevant behavior (trigger at 0x0C/0xDEADC0DE) is actively triggered, not just pattern-matched",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, register_map.md contain no CWE ids, SR/FR labels, or mention of 0xDEADC0DE / Trojan location; design_brief and register_map describe 0x0C as inert scratch register consistent with vendor-style documentation.",
+      "requirement": "No leakage of hidden spec (CWE ids, SR ids, threat model) into public-facing files",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 checks JSON schema, FR2 checks explicit address/data pair, FR3 checks reset_req_reliable==false plus contrastive summary language, FR4 checks severity enum \u2014 all directly verifiable against the JSON submission and RTL interface.",
+      "requirement": "Public functional requirements (FR1-FR4) are concrete and machine-checkable via the pinned interface",
+      "status": "pass"
+    },
+    {
+      "evidence": "dead_checks: ['FR1','SR3']; uncovered_requirements: ['FR1','SR1','SR3']; requirement_discrimination_coverage_score 0.571 (4/7 requirements have discriminating mutants).",
+      "requirement": "Mutation/coverage quality: all requirements independently exercised by targeted mutants",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

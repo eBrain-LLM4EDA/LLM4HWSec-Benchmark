@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The submitted file must compile with g++ -std=c++11 without errors or warnings treated as fatal.",
+    "Do not change the Descriptor struct layout or the run_transfer signature in descriptor_transfer.h.",
+    "The implementation must not use dynamic memory allocation.",
+    "The implementation must be a single self-contained .cpp file that includes only descriptor_transfer.h and standard headers."
+  ],
+  "expected_outputs": [
+    "A hardened descriptor_transfer.cpp implementing run_transfer() per the pinned interface, compiling cleanly with g++ against the provided header and an independent test harness."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "Given a descriptor with length=32 and max_len=256, and data filled with a known pattern, run_transfer must copy exactly 32 bytes matching desc->data[0..31] into dest and return 32."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Given a descriptor with length=500 and max_len=256, run_transfer must copy zero bytes into dest (dest remains unmodified from its pre-call state) and return -1."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Given a descriptor with length=0 and max_len=256, run_transfer must copy zero bytes and return 0 (a valid zero-length transfer, distinct from the rejection case)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The function signature, header, and struct layout must remain exactly as declared in descriptor_transfer.h so the provided test harness links and calls it without modification."
+    }
+  ],
+  "input_artifacts": [
+    "descriptor_transfer.h",
+    "descriptor_transfer.cpp"
+  ],
+  "interface": "File: descriptor_transfer.cpp (paired with descriptor_transfer.h). The struct `Descriptor` is defined in descriptor_transfer.h as: struct Descriptor { volatile uint32_t length; uint8_t data[256]; }; (data holds public source bytes, not secret). The entry point is: extern \"C\" int run_transfer(Descriptor* desc, uint8_t* dest, uint32_t max_len); Parameters: `desc` is a pointer to a shared, concurrently-mutable descriptor structure (its `length` field and `data` buffer are public, non-secret values used purely for functional correctness, not confidentiality); `dest` is a caller-supplied destination buffer of at least `max_len` bytes into which bytes are copied; `max_len` is the maximum number of bytes that may ever be copied in a single call. Return value: the function returns the number of bytes actually copied into `dest` as an `int`. Behavioral contract: run_transfer must validate that desc->length does not exceed max_len; if it does, the function must copy zero bytes and return -1. Otherwise it must copy exactly the validated length of bytes from desc->data into dest, in order starting at index 0, and return that same length as an int. The function must not read desc->length more than once during the entire call.",
+  "objective": "Harden a DMA-style HLS transfer kernel that reads a transfer descriptor from shared memory, validates the requested length against a maximum bound, and then performs a byte-by-byte transfer from a source buffer to a destination buffer. The kernel must be refactored so that the value validated against the bound is exactly the value used to drive the transfer loop, with no possibility of the descriptor being consulted again for the length after validation completes.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

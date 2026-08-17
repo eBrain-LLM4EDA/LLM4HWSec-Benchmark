@@ -1,0 +1,103 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "Naive/empty baseline submission: a vulnerability_report.json with placeholder or missing fields (e.g. early_exit_signal: 'unknown', cycle_relationship: 'not analyzed', constant_time_fix: 'none') must fail SR1, SR2, and SR3, demonstrating the benchmark distinguishes real analysis from a stub answer."
+    ],
+    "metrics": [
+      {
+        "description": "Whether the report correctly identifies the early-exit control signal and the qualitative existence of a data-dependent timing leak (SR1, SR4).",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Fraction of the 17 cycle-count test cases (16 mismatch positions + full match) whose measured cycle count is correctly predicted within tolerance by the reported cycle_relationship formula (SR2).",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Whether the proposed constant_time_fix contains all required remediation elements (no early exit, full scan, sticky accumulation) without breaking correctness on any of the 17 verdict cases (SR3, FR4).",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "All four FR fields are present with correctly typed values matching the actual simulated baseline behavior (FR1-FR4).",
+      "The reported early_exit_signal correctly names or unambiguously identifies the mismatch-triggered early-termination logic in signature_compare.v (SR1).",
+      "The reported cycle_relationship formula predicts iverilog-measured cycle counts within +/-1 cycle for all 17 test cases (SR2).",
+      "The constant_time_fix description contains all three required remediation elements: no early exit, full 16-byte scan, sticky/accumulated mismatch flag (SR3).",
+      "The report does not falsely claim the baseline design is already constant-time (SR4).",
+      "A naive/empty baseline submission (missing fields or generic boilerplate) fails at least SR1-SR3."
+    ],
+    "cwe_ids": [
+      "CWE-208",
+      "CWE-385",
+      "CWE-203"
+    ],
+    "ground_truth": "The comparator's internal FSM asserts done immediately (one cycle later) when an internal mismatch_found register goes high upon detecting the first differing byte pair, rather than continuing to consume all 16 bytes; consequently cycles_to_done = k + 2 where k is the 0-indexed byte position of the first mismatch (k=0 -> 2 cycles, k=15 or full match -> 17-18 cycles). This creates a timing side channel: an attacker who can measure done-assertion latency (e.g. via power/EM trace or shared-resource timing) can forge a valid signature one byte at a time by observing which byte value maximizes the cycle count before done asserts, then incrementally extending the matching prefix. The fix is to remove the early-exit branch and instead scan all 16 bytes unconditionally each comparison, accumulating a sticky mismatch flag (e.g. via bitwise OR of per-byte inequality each cycle) and asserting done only after the 16th byte has been consumed, regardless of any earlier mismatch, so cycle count is constant and independent of where (or whether) a mismatch occurs.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String/semantic match of the reported 'early_exit_signal' field against the actual signal name(s) in signature_compare.v that gate the early assertion of done upon first mismatch; evaluator inspects the shipped RTL source and checks the reported identifier corresponds to that logic (exact name or a clearly equivalent functional description referencing the same net).",
+        "id": "SR1",
+        "requirement": "The report must correctly identify the specific internal control signal or FSM state (functionally equivalent to a 'mismatch_found'/early-exit condition) that causes done to assert before all 16 bytes have been consumed."
+      },
+      {
+        "detection_strategy": "Evaluator runs iverilog/vvp on the reference testbench_harness.v against inputs/signature_compare.v for all 17 cases (mismatch at each of 16 positions, plus full match), extracts actual cycle counts, and checks the participant's stated formula/relationship in 'cycle_relationship' predicts each measured value within +/-1 cycle.",
+        "id": "SR2",
+        "requirement": "The report must correctly characterize the quantitative relationship between cycles-to-done and the position of the first mismatching byte (linear, offset by a small fixed constant), matching the ground-truth formula within a tolerance of +/-1 cycle at each of the 16 mismatch positions plus the full-match case."
+      },
+      {
+        "detection_strategy": "Evaluator checks the fix description for the required elements: (a) removal/bypass of any early termination on first mismatch, (b) unconditional consumption of all 16 bytes every comparison, (c) accumulation of a sticky/latched mismatch indicator rather than an immediate branch. Semantic keyword/structure matching against these three criteria; a fix that only adds cosmetic delay without removing the early-exit branch is rejected.",
+        "id": "SR3",
+        "requirement": "The proposed constant_time_fix must eliminate the data-dependent timing variation (i.e., produce a design where cycles-to-done is identical for all mismatch positions and the full-match case) while preserving correct match/mismatch verdicts."
+      },
+      {
+        "detection_strategy": "Evaluator flags any report whose 'cycle_relationship' or overall narrative claims a fixed/constant cycle count in the baseline (unfixed) design as a hard fail, since this contradicts the measured ground truth from iverilog simulation.",
+        "id": "SR4",
+        "requirement": "The report must not claim the design is already constant-time or that no timing leakage exists."
+      }
+    ],
+    "threat_model": "An adversary with the ability to trigger comparisons and measure elapsed cycles (or a correlated physical proxy such as power draw or EM emission per cycle) between issuing 'start' and observing 'done' can perform a byte-at-a-time forgery attack: for a fixed guessed prefix, the attacker tries all 256 values for the next byte and observes which one causes the comparator to run one cycle longer (indicating that byte matched), repeating this process to reconstruct or forge a valid 16-byte signature in O(256*16) trials instead of O(256^16), completely defeating the security purpose of the comparison."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL module must be self-contained, synthesizable Verilog-2001 compatible with iverilog, with a fixed signature length of 16 bytes.",
+      "Do not modify inputs/signature_compare.v or inputs/testbench_harness.v; submit only submission/vulnerability_report.json.",
+      "The report must be valid JSON and must not include executable code, only descriptive/analytical text and the specified structured fields.",
+      "All cycle-count claims in the report must be expressed as explicit integers or arithmetic relationships (e.g. 'cycles_to_done = mismatch_index + 2'), not vague qualitative language."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "For a fully matching 16-byte signature (expected_byte == received_byte for all 16 positions), the module must assert done=1 with match=1, and this verdict must be reported correctly in the submitted vulnerability_report.json under a field 'baseline_behavior.full_match_verdict' with value 'match'."
+      },
+      {
+        "id": "FR2",
+        "requirement": "For a signature that mismatches only at byte position 0 (first byte), the module must assert done=1 with match=0; the report must state this correctly under 'baseline_behavior.mismatch_at_zero_verdict' with value 'mismatch'."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The submitted vulnerability_report.json must validate against the required schema: it must be valid JSON containing the top-level keys 'early_exit_signal', 'cycle_relationship', 'constant_time_fix', and 'baseline_behavior' (an object with the two verdict fields above), each present with non-empty string or object values as specified."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a field 'proposed_fix_preserves_correctness' (boolean) stating whether the participant's proposed fix, if applied, would still produce correct match/mismatch verdicts for all 16 mismatch positions and the full-match case; this claim is cross-checked by the evaluator."
+      }
+    ],
+    "input_artifacts": [
+      "signature_compare.v",
+      "testbench_harness.v",
+      "design_brief.md"
+    ],
+    "interface": "Module under test: `signature_compare` in inputs/signature_compare.v. Ports: `input wire clk`, `input wire rst_n` (active-low synchronous reset; on rst_n=0 all internal state and outputs clear to 0 on next posedge clk), `input wire start` (pulse high for exactly 1 cycle to begin a new comparison), `input wire [7:0] expected_byte` (current byte of the expected signature, sampled on the cycle it is presented), `input wire [7:0] received_byte` (current byte of the received signature, sampled on the same cycle as expected_byte), `input wire byte_valid` (asserted by the testbench alongside each new byte pair; the module consumes exactly one byte pair per cycle while byte_valid is high, for a fixed signature length of 16 bytes supplied sequentially starting the cycle after start), `output reg done` (Moore output, asserted synchronously and held high starting the cycle after the module has consumed all necessary input bytes to determine its verdict, and remains high until the next `start` pulse clears it on the following clock edge), `output reg match` (valid and stable only in cycles where done=1; 1 if all 16 byte pairs were equal, else 0). The testbench in inputs/testbench_harness.v drives byte_valid high for consecutive cycles feeding all 16 bytes and records the cycle count from the cycle after `start` to the cycle `done` first asserts, for signatures that mismatch at each possible byte position (0 through 15) and for a fully matching signature. This harness and its printed cycle-count log are available for reference and optional cross-checking via iverilog/vvp; they are not the graded artifact.",
+    "objective": "Analyze the provided byte-serial signature comparator RTL module, which streams an expected signature and a received signature byte-by-byte and reports a match/mismatch verdict via a done/match interface. Characterize the module's cycle-level behavior across all input orderings and produce a structured vulnerability report describing any control-flow signal that determines when 'done' is asserted, the relationship between input data and the number of cycles elapsed before 'done' asserts, and a concrete code-level remediation that removes any data-dependent timing variation while preserving correct match/mismatch verdicts for every input.",
+    "response_format": "submission/vulnerability_report.json must be a single JSON object with required top-level fields: 'early_exit_signal' (string: the exact Verilog identifier of the internal signal/condition causing early termination, e.g. a reg or wire name found in signature_compare.v), 'cycle_relationship' (string: a precise description or formula relating cycles-to-done to the position of the first mismatching byte, e.g. 'cycles_to_done = k + 2 where k is the 0-indexed position of the first mismatching byte; full match takes 18 cycles'), 'constant_time_fix' (string: a concrete description of the code change needed, e.g. 'remove the early-exit branch; accumulate mismatch across all 16 bytes with a persistent flag ORed each cycle, asserting done only after all 16 bytes are consumed regardless of mismatches'), 'baseline_behavior' (object with string fields 'full_match_verdict' and 'mismatch_at_zero_verdict', each either 'match' or 'mismatch'), and 'proposed_fix_preserves_correctness' (boolean)."
+  },
+  "task_id": "sca_signature_compare_early_exit_001",
+  "title": "Early-exit signature comparison in a verification unit"
+}

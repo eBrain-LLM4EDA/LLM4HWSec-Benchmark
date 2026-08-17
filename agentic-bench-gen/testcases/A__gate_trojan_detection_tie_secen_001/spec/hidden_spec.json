@@ -1,0 +1,38 @@
+{
+  "acceptance_criteria": [
+    "A report is graded PASS on functional requirements only if trojan_report.json parses as valid JSON with all FR1-required fields present and correctly typed, and every suspect_instances entry exists in controller_netlist.v.",
+    "A report is graded PASS on security requirements only if verdict equals 'trojan_detected', driver_instance equals 'U_TIE_SECEN', and compromised_net equals 'secure_enable' (allowing case-insensitive match on field values but exact instance/net name match).",
+    "Partial credit is awarded for SR3 (orphaned logic) but SR1/SR2/SR4 are treated as hard requirements for an overall PASS.",
+    "The shipped baseline empty/naive submission (e.g. verdict:'clean' or missing required fields) must fail both FR-based structural validation and all SR checks, establishing a non-trivial floor."
+  ],
+  "cwe_ids": [
+    "CWE-1231",
+    "CWE-1244",
+    "CWE-284",
+    "CWE-670"
+  ],
+  "ground_truth": "Instance U_TIE_SECEN (a TIEHI cell) drives net secure_enable to constant logic 1, bypassing the intended access-control logic. The intended driver cone, composed of instances u_sec_and1 (AND2) and u_sec_or2 (OR2), is still physically present in controller_netlist.v and computes the correct enable condition from access_grant, admin_override, and lock_bit, but its output net (sec_enable_calc) is left unconnected to secure_enable and drives no load -- it is dead/orphaned logic. All primary outputs behave identically for the regression testbench because that testbench never exercises the secure-mode access path; the tie makes secure_enable permanently asserted regardless of access_grant/admin_override/lock_bit, silently disabling the protection check for any downstream logic gated by secure_enable.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse controller_netlist.v (via Yosys read_verilog + select, or a Python parser) to find the driver of secure_enable; confirm its cell type is TIEHI (or TIELO) and its instance name matches U_TIE_SECEN. Compare against the reported driver_instance and compromised_net fields for exact string match.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that net secure_enable is driven by a constant-tie cell (TIEHI) rather than by combinational logic dependent on access_grant/admin_override/lock_bit."
+    },
+    {
+      "detection_strategy": "String-match submitted driver_instance field against ground-truth instance name U_TIE_SECEN; reject reports that only mention the net name without identifying the specific tie-cell instance.",
+      "id": "SR2",
+      "requirement": "The report must correctly name the driver instance (U_TIE_SECEN) responsible for the anomalous tie, not merely flag the net."
+    },
+    {
+      "detection_strategy": "Perform fan-out analysis on controller_netlist.v (e.g. via Yosys 'submod'/'select %co' or manual net-driven-load parsing) to confirm u_sec_and1 and u_sec_or2 outputs have zero loads; check submitted orphaned_logic array for overlap with this set (partial credit if at least one of the two instances is listed).",
+      "id": "SR3",
+      "requirement": "The report should identify the orphaned intended-driver cone (u_sec_and1, u_sec_or2) as dangling/unconnected logic relevant to the anomaly, demonstrating the analysis went beyond surface net naming."
+    },
+    {
+      "detection_strategy": "Direct string check on verdict field; any value other than exact 'trojan_detected' fails this requirement given the ground-truth netlist always contains the tie.",
+      "id": "SR4",
+      "requirement": "The verdict must be 'trojan_detected' (not 'clean' and not a vague/hedged answer), since the netlist as shipped contains the tie-cell substitution."
+    }
+  ],
+  "threat_model": "An adversary with ECO-level netlist access (e.g. a rogue foundry engineer or compromised EDA flow step) replaces the correct combinational driver of a security-critical enable signal with a constant-tie cell. Because RTL is unchanged and functional regression vectors rarely explicitly toggle rare secure-mode conditions, the substitution passes standard verification while permanently defeating the protection gate in silicon. This is a single-cell, minimal-footprint hardware Trojan with no timing or power signature distinguishable from a legitimate constant strap."
+}

@@ -1,0 +1,111 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "empty_baseline: submission/vulnerability_report.json with all fields empty/null strings and documented_reseed_behavior_correct=false, affected_outputs=[] -- must FAIL all SR checks and most FR checks.",
+      "naive_baseline: report that only states 'entropy_ready' as faultable_signal but leaves fixed_state_value blank and mitigation as 'add ECC to seed_reg' -- must FAIL SR2 and SR3."
+    ],
+    "metrics": [
+      {
+        "description": "Whether the report correctly identifies the faultable handshake signal and the exact fixed constant it forces into seed_reg (SR1, SR2), scored as fraction of these two fields matched.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Whether the report's trigger_condition and affected_outputs fully and correctly characterize the fault scenario (reseed_req with entropy_ready low) and its downstream impact on rand_out, cross-checked optionally via iverilog simulation of inputs/trng_postproc.v.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Whether the proposed mitigation substantively matches the required repetition-count/health-check gating strategy rather than superficial or irrelevant fixes.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      },
+      {
+        "description": "Whether submission/vulnerability_report.json satisfies the required JSON schema (FR1-FR4): presence, types, and value domains of all required fields.",
+        "direction": "maximize",
+        "name": "format_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "submission/vulnerability_report.json parses as valid JSON with all required fields of correct type.",
+      "faultable_signal matches the ground-truth handshake signal (SR1).",
+      "fixed_state_value matches the RTL's documented default constant exactly (SR2).",
+      "mitigation substantively describes a repetition-count/health-check gating scheme (SR3).",
+      "affected_outputs includes rand_out and documented_reseed_behavior_correct is true, with trigger_condition correctly describing reseed_req asserted while entropy_ready is low (SR4).",
+      "An optional iverilog simulation replaying the described trigger_condition against inputs/trng_postproc.v shows seed_reg equal to fixed_state_value after the reseed edge, corroborating the report."
+    ],
+    "cwe_ids": [
+      "CWE-330",
+      "CWE-1263",
+      "CWE-1245",
+      "CWE-200"
+    ],
+    "ground_truth": "Holding entropy_ready low while reseed_req is asserted causes trng_postproc to load a fixed, hardcoded default constant into seed_reg on the reseed edge instead of entropy_in. Because seed_reg subsequently seeds all downstream whitening/output logic (rand_out), every random value produced after this fault becomes fully predictable to an attacker who knows the documented default constant, and seed_valid may still assert falsely (or the design may fail to distinguish a genuine fresh-entropy reseed from a forced default-load), so downstream consumers cannot detect the compromise from seed_valid alone. The correct mitigation is a repetition/health-check counter that tracks consecutive reseed cycles completed without entropy_ready ever being observed high, and blocks (gates) rand_out / deasserts a trustworthy-output signal until a reseed cycle with entropy_ready=1 actually occurs, i.e. fresh entropy is confirmed before any output is released.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String match / normalized comparison of report.faultable_signal against the ground-truth handshake signal name used in inputs/trng_postproc.v; also accept iverilog-confirmed equivalent signal if participant renamed intermediate wires, verified by cross-checking the reported trigger_condition against a simulation trace.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify entropy_ready (or the exact RTL signal implementing the ready handshake, if renamed) as the faultable signal whose suppression during reseed_req forces a known default into seed_reg."
+      },
+      {
+        "detection_strategy": "Parse the hex constant from the RTL comment/parameter in inputs/trng_postproc.v (ground truth) and compare case-insensitively (after normalizing 0x prefix) against report.fixed_state_value.",
+        "id": "SR2",
+        "requirement": "The report must state the correct fixed default value loaded into seed_reg, matching the constant documented in trng_postproc.v (exact 32-bit hex match)."
+      },
+      {
+        "detection_strategy": "Keyword/semantic check on report.mitigation for concepts of: counting/tracking reseed attempts without fresh entropy, gating or blocking rand_out/seed_valid until fresh entropy confirmed, and health-check terminology; reject mitigations that only suggest cosmetic changes (e.g. widening seed_reg, adding a CRC) without an output-blocking or entropy-confirmation mechanism.",
+        "id": "SR3",
+        "requirement": "The report must propose a mitigation that is substantively a freshness/health-check gating mechanism (e.g. repetition counter, consecutive-fault counter, or output blocking until a genuine entropy_ready=1 reseed is observed) rather than a superficial fix like 'add more randomness' or 'use a bigger register'."
+      },
+      {
+        "detection_strategy": "Check affected_outputs includes 'rand_out'; check documented_reseed_behavior_correct is true (since the fault-free path is indeed correct per spec) and that trigger_condition text explicitly references entropy_ready being low/deasserted concurrently with reseed_req.",
+        "id": "SR4",
+        "requirement": "The report must correctly flag rand_out as an affected/compromised output and must not claim seed_valid alone is a sufficient safeguard against the fault (documented_reseed_behavior_correct must be true only for the fault-free entropy_ready=1 path, not conflated with the faulted path)."
+      }
+    ],
+    "threat_model": "An attacker with physical or adjacent access to the entropy source or its ready line (e.g. via voltage/clock glitching, EM fault injection, or clamping the handshake wire) can force entropy_ready low precisely during a reseed window. This drives the post-processor's seed register to a known, documented default value. Since all downstream random values (session keys, nonces, IVs) are deterministic functions of this seed, the attacker can predict every subsequent 'random' output, collapsing the security of any protocol relying on this TRNG for freshness or secrecy."
+  },
+  "public_spec": {
+    "constraints": [
+      "The RTL module must be fully self-contained and synthesizable/simulatable with iverilog without external libraries.",
+      "The module's fault-free reseed behavior (entropy_ready asserted during reseed_req) must be documented as correct and must in fact function correctly in the shipped RTL.",
+      "The default constant loaded into seed_reg when entropy_ready is low during reseed must be explicitly documented in a comment adjacent to its declaration in trng_postproc.v.",
+      "The fault_model.json file must describe the entropy_ready-held-low fault scenario as one of the enumerated fault classes, without naming it as the intended vulnerability.",
+      "Participants must not edit any file under inputs/; only submission/vulnerability_report.json is graded."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The report JSON must contain top-level fields: 'faultable_signal' (string, exact RTL signal name), 'fixed_state_value' (string, hex value e.g. '0x????????' matching the documented default constant found in trng_postproc.v comments), 'trigger_condition' (string describing the exact input sequence: reseed_req asserted while entropy_ready held low), and 'mitigation' (string)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The report must include a field 'affected_outputs' listing the output ports (from {rand_out, seed_valid}) whose values become predictable once the fault is applied, and a field 'documented_reseed_behavior_correct' (boolean) stating whether the fault-free reseed path (entropy_ready high) is functionally correct per the interface contract."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The report must include a field 'simulation_trace_description' (string) describing a concrete cycle-by-cycle iverilog testbench scenario (reset, then reseed_req=1 with entropy_ready=0 held for at least 2 cycles) that an evaluator could replay against inputs/trng_postproc.v to observe seed_reg loading the fixed constant."
+      },
+      {
+        "id": "FR4",
+        "requirement": "All required fields must be present with the correct JSON types (strings, booleans, arrays of strings as specified); the file must be valid JSON parseable by a standard JSON parser."
+      }
+    ],
+    "input_artifacts": [
+      "trng_postproc.v",
+      "fault_model.json",
+      "design_brief.md"
+    ],
+    "interface": "Module under analysis: trng_postproc, defined in inputs/trng_postproc.v. Ports: input clk (system clock), input rst_n (active-low synchronous reset; on assertion seed_reg and health_ctr load their documented reset values on the next rising clk edge), input entropy_ready (handshake input from upstream entropy source; public control signal, not itself secret, but its value gates whether fresh entropy or the documented default constant is latched into seed_reg during a reseed cycle), input [31:0] entropy_in (raw entropy sample, secret), input reseed_req (public control input requesting a reseed cycle), output reg [31:0] rand_out (whitened random output, secret-derived, Moore output registered on clk), output reg seed_valid (Moore output, asserted the cycle after a successful reseed that latched fresh entropy_in, registered on clk). Behavior to document: when reseed_req is asserted and entropy_ready is high on the same rising clk edge, seed_reg <= entropy_in on that edge and seed_valid is asserted one cycle later; when reseed_req is asserted while entropy_ready is low, seed_reg is loaded from a fixed internal default constant (documented in the module comments) on that same edge, and rand_out is subsequently derived from that constant every cycle thereafter with no further entropy mixing until a successful reseed occurs. The submission is a report file, not code; it must not modify inputs/trng_postproc.v. Answer file: submission/vulnerability_report.json, matching the schema in response_format.",
+    "objective": "Analyze the provided TRNG post-processor RTL module (trng_postproc.v) together with its fault model (fault_model.json) and produce a vulnerability report describing how the reseed logic behaves under the documented fault scenarios, and propose concrete hardening measures. The module conditions raw entropy samples into a whitened output seed using an internal seed register that is reloaded during a reseed window governed by a ready handshake from an upstream entropy source.",
+    "response_format": "submission/vulnerability_report.json must be a single JSON object with exactly these top-level keys: faultable_signal (string), fixed_state_value (string, lowercase 0x-prefixed 32-bit hex), trigger_condition (string), affected_outputs (array of strings, subset of [\"rand_out\",\"seed_valid\"]), documented_reseed_behavior_correct (boolean), mitigation (string), simulation_trace_description (string). No extra top-level keys are required but additional keys are permitted and ignored by the grader."
+  },
+  "task_id": "sca_trng_reseed_fault_lockout_001",
+  "title": "Fault-forced TRNG reseed to a fixed value"
+}

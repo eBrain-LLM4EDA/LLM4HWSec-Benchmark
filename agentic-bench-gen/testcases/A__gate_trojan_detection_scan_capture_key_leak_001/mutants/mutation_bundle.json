@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "SR2 exact-match comparison against ground-truth mux instance names (u_smux_key0..u_smux_key3) fails: the submission instead lists u_smux_stat0..u_smux_stat3, which are the ordinary functional/scan select muxes for the status pipeline, not the splice muxes that route key_ff0..key_ff3 onto the scan chain. This yields recall=0 for SR2 (none of the true splice muxes are present) and introduces false positives (u_smux_stat0..u_smux_stat3 are not in the ground-truth suspect_muxes set), even though suspect_flops and trojan_detected remain correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_flops\": [\"key_ff0\", \"key_ff1\", \"key_ff2\", \"key_ff3\"],\n  \"suspect_muxes\": [\"u_smux_stat0\", \"u_smux_stat1\", \"u_smux_stat2\", \"u_smux_stat3\"],\n  \"confidence\": 0.95,\n  \"rationale\": \"The key register flops key_ff0..key_ff3 are architecturally intended to be functionally isolated and never observable at scan_out, per design_brief.md. The scan-mode select multiplexers u_smux_stat0..u_smux_stat3, which choose between each status flop's functional D input and the scan chain data based on scan_en, are responsible for routing the key flop values onto scan_out: when scan_en=0 (functional mode) these muxes pass functional data through unchanged and key state never reaches scan_out, but when scan_en=1 (scan shift/capture mode) they instead forward scan-chain data including the key flop values into the D input of the next scan stage. This means key_ff0..key_ff3 state is shifted into the visible scan chain and will appear at scan_out after the appropriate number of shift cycles, purely as a function of asserting scan_en, with zero effect on scan_en=0 functional behavior. This scan-mode-conditional capture/shift exposure is the defining signature of the leak: it is not a general functional bug affecting normal operation, but a DFT-specific side channel that lets anyone with scan access extract the confidential key register contents, defeating the intended functional isolation described in the design brief.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR2_wrong_mux_names",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Evaluator performs direct boolean equality check of trojan_detected against ground-truth label true; this submission reports false despite listing correct suspect flops/muxes and a correct rationale, so trojan_label_accuracy scores 0.0 and the submission must FAIL the acceptance criteria requiring trojan_detected=true.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": false,\n  \"suspect_flops\": [\"key_ff0\", \"key_ff1\", \"key_ff2\", \"key_ff3\"],\n  \"suspect_muxes\": [\"u_smux_key0\", \"u_smux_key1\", \"u_smux_key2\", \"u_smux_key3\"],\n  \"confidence\": 0.95,\n  \"rationale\": \"The key register flops key_ff0..key_ff3 are architecturally intended to be functionally isolated and never observable at scan_out, per design_brief.md. However, the netlist splices u_smux_key0..u_smux_key3 directly into the scan chain between each status flop stage, exactly at the positions shown in scan_chain_order.txt (u_smux_stat0, u_ff_stat0, u_smux_key0, key_ff0, u_smux_stat1, u_ff_stat1, u_smux_key1, key_ff1, ...). Each u_smux_keyN is a MUX2 whose 'a' input is the previous scan-chain element's Q (normal shift path) and whose 'b' input is the corresponding key_ffN's Q, selected by scan_en: when scan_en=0 (functional mode) the mux passes the normal chain data through unchanged and key_ffN's value never reaches scan_out, but when scan_en=1 (scan shift/capture mode) the mux instead forwards key_ffN's stored value into the D input of the next scan stage. This means key_ff0..key_ff3 state is shifted into the visible scan chain and will appear at scan_out after the appropriate number of shift cycles, dictated by each key flop's position in scan_chain_order.txt, purely as a function of asserting scan_en -- with zero effect on scan_en=0 functional behavior. Despite this clear scan-mode-conditional exposure mechanism, we conclude this does not constitute a trojan since the functional mode (scan_en=0) operation remains bit-identical to a trojan-free design, and therefore judge the design free of malicious intent.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR3_flip_trojan_detected",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Evaluator's SR4 keyword/semantic check for scan-mode conditionality terms (scan_en, capture, shift) should fail because the rationale no longer describes the scan_en-gated, capture/shift-specific nature of the leak; it instead presents the finding as a generic, always-present structural defect, indistinguishable from a naive false-positive style claim. Optional iverilog/vvp cross-check would still show the leak is scan_en-conditional, contradicting the submitted rationale's claim of unconditional exposure.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_flops\": [\"key_ff0\", \"key_ff1\", \"key_ff2\", \"key_ff3\"],\n  \"suspect_muxes\": [\"u_smux_key0\", \"u_smux_key1\", \"u_smux_key2\", \"u_smux_key3\"],\n  \"confidence\": 0.95,\n  \"rationale\": \"The key register flops key_ff0..key_ff3 are wired to muxes u_smux_key0..u_smux_key3 which connect to the scan_out pin, so the key value is always present on scan_out regardless of any control signal. This is simply a wiring mistake where the key register was connected to the wrong output net during netlist assembly. The key state is continuously exposed on scan_out in every clock cycle and every operating condition, just like a stuck bus connection, with no dependency on any mode select or test enable signal; it is a straightforward permanent short between the key register and an external pin.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR4_generic_rationale_no_scanmode",
+      "operator": "constant_change",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Evaluator cross-references every string in suspect_flops/suspect_muxes against actual instance names in inputs/key_core_netlist.v; 'key_ff4' and 'u_smux_key_extra' do not exist in the netlist, so FR2's requirement that every listed name correspond to a real instance is violated, causing a validation failure or precision penalty.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_flops\": [\"key_ff0\", \"key_ff1\", \"key_ff2\", \"key_ff4\"],\n  \"suspect_muxes\": [\"u_smux_key0\", \"u_smux_key1\", \"u_smux_key2\", \"u_smux_key_extra\"],\n  \"confidence\": 0.95,\n  \"rationale\": \"The key register flops key_ff0..key_ff3 are architecturally intended to be functionally isolated and never observable at scan_out, per design_brief.md. However, the netlist splices u_smux_key0..u_smux_key3 directly into the scan chain between each status flop stage, exactly at the positions shown in scan_chain_order.txt. Each u_smux_keyN is a MUX2 whose 'a' input is the previous scan-chain element's Q (normal shift path) and whose 'b' input is the corresponding key_ffN's Q, selected by scan_en: when scan_en=0 (functional mode) the mux passes the normal chain data through unchanged and key_ffN's value never reaches scan_out, but when scan_en=1 (scan shift/capture mode) the mux instead forwards key_ffN's stored value into the D input of the next scan stage. This means key register state is shifted into the visible scan chain and will appear at scan_out after the appropriate number of shift cycles, purely as a function of asserting scan_en -- with zero effect on scan_en=0 functional behavior. This scan-mode-conditional capture/shift exposure is the defining signature of the leak: it is not a general functional bug affecting normal operation, but a DFT-specific side channel that lets anyone with scan access extract the confidential key register contents, defeating the intended functional isolation described in the design brief.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_FR2_fabricated_instance_name",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Evaluator checks that rationale is a non-empty string of at least 20 characters describing the reasoning; this mutant's rationale field is truncated to a trivial short string ('Trojan found.') that fails the minimum-length/substance check and contains no mention of scan_en/capture/shift conditionality, so FR4 must be flagged as failing even though trojan_detected/suspect_flops/suspect_muxes remain otherwise correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_flops\": [\"key_ff0\", \"key_ff1\", \"key_ff2\", \"key_ff3\"],\n  \"suspect_muxes\": [\"u_smux_key0\", \"u_smux_key1\", \"u_smux_key2\", \"u_smux_key3\"],\n  \"confidence\": 0.95,\n  \"rationale\": \"Trojan found.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_FR4_rationale_too_short",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
+    },
+    {
+      "expected_detection": "evaluate.py must validate that the confidence field is a numeric value within the inclusive range [0.0, 1.0] per FR3; this submission sets confidence=1.5, which is outside the valid range and must cause the schema/type validation check to fail even though all other fields (trojan_detected, suspect_flops, suspect_muxes, rationale) are otherwise correct and complete.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_flops\": [\"key_ff0\", \"key_ff1\", \"key_ff2\", \"key_ff3\"],\n  \"suspect_muxes\": [\"u_smux_key0\", \"u_smux_key1\", \"u_smux_key2\", \"u_smux_key3\"],\n  \"confidence\": 1.5,\n  \"rationale\": \"The key register flops key_ff0..key_ff3 are architecturally intended to be functionally isolated and never observable at scan_out, per design_brief.md. However, the netlist splices u_smux_key0..u_smux_key3 directly into the scan chain between each status flop stage, exactly at the positions shown in scan_chain_order.txt (u_smux_stat0, u_ff_stat0, u_smux_key0, key_ff0, u_smux_stat1, u_ff_stat1, u_smux_key1, key_ff1, ...). Each u_smux_keyN is a MUX2 whose 'a' input is the previous scan-chain element's Q (normal shift path) and whose 'b' input is the corresponding key_ffN's Q, selected by scan_en: when scan_en=0 (functional mode) the mux passes the normal chain data through unchanged and key_ffN's value never reaches scan_out, but when scan_en=1 (scan shift/capture mode) the mux instead forwards key_ffN's stored value into the D input of the next scan stage. This means key_ff0..key_ff3 state is shifted into the visible scan chain and will appear at scan_out after the appropriate number of shift cycles, dictated by each key flop's position in scan_chain_order.txt, purely as a function of asserting scan_en -- with zero effect on scan_en=0 functional behavior (status_out, load_key/key_in operation are bit-identical to a trojan-free design). This scan-mode-conditional capture/shift exposure is the defining signature of the leak: it is not a general functional bug affecting normal operation, but a DFT-specific side channel that lets anyone with scan access (scan_en/scan_in/scan_out) extract the confidential key register contents, defeating the intended functional isolation described in the design brief.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_FR3_confidence_out_of_range",
+      "operator": "constant_change",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Evaluator computes recall of suspect_flops against the ground-truth set {key_ff0, key_ff1, key_ff2, key_ff3}; with only key_ff0 and key_ff1 present (2 of 4), recall falls below the required 3-of-4 threshold, so the submission must be graded as a genuine SR1 failure (trojan_label_accuracy/detection_rate check fails and overall PASS criteria for SR1 are not met).",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_flops\": [\"key_ff0\", \"key_ff1\"],\n  \"suspect_muxes\": [\"u_smux_key0\", \"u_smux_key1\", \"u_smux_key2\", \"u_smux_key3\"],\n  \"confidence\": 0.9,\n  \"rationale\": \"The scan chain splices key register flops onto the shift path via u_smux_key0..u_smux_key3, which are selected by scan_en to forward key flop Q values into the next scan stage's D input. When scan_en=1 the key state is captured/shifted out to scan_out after the appropriate number of shift cycles per scan_chain_order.txt, while functional (scan_en=0) behavior remains unaffected. I identified key_ff0 and key_ff1 as being spliced onto the chain by their respective muxes, exposing them at scan_out under scan capture/shift conditions.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_SR1_omit_two_key_ffs",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    }
+  ]
+}

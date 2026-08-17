@@ -1,0 +1,30 @@
+{
+  "acceptance_criteria": [
+    "A submission scoring PASS must set algebraic_masking_correct=true, list both and_cross0 and and_cross1 (or file-verified equivalents) in suspect_nets, describe the glitch/timing mechanism substantively (not just algebraic correctness) in vulnerability_summary, and propose registers on the internal cross/same-term nets (or equivalently on all four input shares plus mask) prior to the XOR recombination stage.",
+    "The baseline/naive empty submission (missing fields, or suspect_nets=[], or algebraic_masking_correct=false, or hardening_proposal registering only the final q0/q1 outputs) must FAIL.",
+    "Optional cross-check: evaluate.py may run iverilog/vvp on inputs/masked_and.v using stimulus derived from inputs/sim_trace.vcd.txt to confirm q0^q1 matches (a0^a1)&(b0^b1) for all sampled vectors, corroborating SR1's algebraic-correctness claim independent of the submitted report."
+  ],
+  "cwe_ids": [
+    "CWE-203",
+    "CWE-1300"
+  ],
+  "ground_truth": "The masked_and module computes q0 and q1 combinationally from a0,a1,b0,b1 and a fresh random mask bit r using the standard first-order Boolean masking formula for AND (e.g. q0 = (a0&b0) ^ r, q1 = (a1&b1) ^ ((a0&b1) ^ (a1&b0) ^ r)). Algebraically this is correct: q0^q1 == (a0^a1)&(b0^b1) always holds. However, the module has no internal pipeline registers between the four input shares and the output shares -- all cross-share AND terms (named internally as and_cross0 = a0&b1 and and_cross1 = a1&b0) and the same-share terms (and_same0 = a0&b0, and_same1 = a1&b1) are combined by a single XOR tree in the same combinational cycle. Because a0,a1,b0,b1 do not all arrive at the gates simultaneously in real silicon (different fan-in depths, wire delays, glitches from upstream logic), the intermediate nets and_cross0 and and_cross1 -- and the XOR combination point where and_same0/and_same1/and_cross0/and_cross1/r are merged -- experience transient glitches during which signals derived from BOTH shares of an operand are momentarily present on the same node before settling. This transient joint dependency on (a0,a1) or (b0,b1) together defeats the first-order independence property that masking relies on, even though the final settled value is masked correctly. The fix is to insert registers on the share-domain intermediate signals (specifically registering and_same0, and_same1, and_cross0, and_cross1, and the mask r before they are combined by the final XOR stage, or equivalently registering a0,a1,b0,b1,r at the gadget's input boundary and again registering q0,q1 at the output) so that no combinational glitch path spans both shares of an operand within a single clock cycle. This restores the first-order non-completeness/glitch-robustness property.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check 'algebraic_masking_correct' == true AND that 'vulnerability_summary' text contains concepts matching glitch/transient/timing/unregistered combinational recombination (keyword and semantic matching against ground_truth mechanism), rejecting reports that claim the masking scheme itself is mathematically wrong.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the leakage source is glitch propagation through unregistered combinational recombination logic, not an algebraic masking flaw."
+    },
+    {
+      "detection_strategy": "Verify 'suspect_nets' includes at least the two cross-term nets (matched against ground-truth identifiers and_cross0/and_cross1, allowing for reasonable naming variants confirmed by tracing the actual assign statements in inputs/masked_and.v) and optionally the XOR recombination node; partial credit if only one of the two cross terms is found, full credit requires both plus the shared combination point or an equivalent complete explanation.",
+      "id": "SR2",
+      "requirement": "The report must name the specific glitch-sensitive intermediate nets that combine shares of both operands within a single unregistered combinational stage."
+    },
+    {
+      "detection_strategy": "Parse 'hardening_proposal.registers_to_add' and 'placement_description'; confirm the named signals correspond (by tracing the netlist dataflow graph derived from inputs/masked_and.v) to points upstream of or at the final XOR combination of and_same0/and_same1/and_cross0/and_cross1/r, i.e. registering happens strictly before the single-cycle combinational path that spans both shares completes; reject proposals that only register the final output q0/q1 without addressing the internal cross-share combination, since that leaves the same single-cycle glitch path intact upstream of the new register.",
+      "id": "SR3",
+      "requirement": "The hardening proposal must correctly place new registers so that share-domain values are latched before being combined across the cross-term/same-term XOR stage, restoring cycle-by-cycle non-completeness."
+    }
+  ],
+  "threat_model": "An attacker with physical or simulated access to power/EM side-channel traces of the hardware implementing this gadget observes glitch-induced transient activity on internal combinational nodes. Even though the masking scheme is algebraically sound at steady state, unregistered combinational recombination of cross-share and same-share partial products causes both shares of an operand to transiently influence a single node's switching activity within one clock cycle, producing a first-order-exploitable leakage in a glitch-extended probing/power model (e.g. the glitch-extended probing model of Faust et al. / robust probing model). The attacker does not need multivariate statistics; univariate CPA/DPA on the recombination node's transient activity suffices to recover the unmasked secret bit correlation."
+}

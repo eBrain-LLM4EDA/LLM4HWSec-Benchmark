@@ -1,0 +1,83 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/harness_main.cpp / evaluate.py",
+      "description": "The differential/preflight check shows the golden (secure) reference implementation is REJECTED by evaluate.py with a linker error: 'undefined reference to conditional_swap'. This means the harness is not correctly linking against inputs/ladder_swap.cpp (likely due to extern \"C\" linkage in harness_main.cpp mismatching a C++ (possibly name-mangled or differently declared) conditional_swap in ladder_swap.cpp, or a build/compile-command ordering issue). Since even the correct golden solution fails to compile/link, no submission can ever pass, making the benchmark case entirely unusable as-is.",
+      "evidence": "golden_run stdout: '[TEST] FAIL: FR4: g++ exited 1: ... undefined reference to `conditional_swap'' with expected='pass' but status='fail'; failure_class='golden_rejected'",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3 marker is never emitted in the golden run's captured output (truncated at SR2 in the log), and the validation report explicitly flags requirement_id_mismatch: 'evaluate.py never emitted [TEST] PASS/FAIL for [\"SR3\"] on the golden run'. This violates the documented marker-completeness guarantee and breaks verifiability of the SR3 requirement.",
+      "evidence": "issues: {\"issue\": \"requirement_id_mismatch\", \"detail\": \"evaluate.py never emitted [TEST] PASS/FAIL for ['SR3'] on the golden run\"}",
+      "severity": "high"
+    },
+    {
+      "artifact": "mutation_score / differential",
+      "description": "Because the golden reference cannot even compile/link successfully against the harness, mutation_score is 0.0 and marked not meaningful, and mutation_status is 'blocked_by_differential'. This confirms the evaluation harness is fundamentally broken and cannot discriminate between secure and insecure submissions, let alone grade functional/security requirements.",
+      "evidence": "\"mutation_score\": 0.0, \"mutation_score_meaningful\": false, \"mutation_status\": \"blocked_by_differential\", \"status\": \"fail\"",
+      "severity": "high"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the harness/build so the golden secure implementation actually compiles and links against evaluation/harness_main.cpp -- investigate the extern \"C\" declaration in harness_main.cpp; if inputs/ladder_swap.cpp does not also declare conditional_swap with extern \"C\" linkage (or if the harness build command in evaluate.py doesn't compile files in the correct order/mode), the linker will fail with 'undefined reference' regardless of submission correctness. Ensure golden/ladder_swap.cpp and inputs/ladder_swap.cpp use matching linkage (both plain C++ or both extern \"C\").",
+    "Add an automated smoke test that runs evaluate.py against the golden reference implementation before shipping the benchmark, asserting exit code 0 and all seven requirement markers reporting PASS.",
+    "Ensure SR3 always emits a marker even under partial success/failure paths; audit evaluate.py's control flow to guarantee run_sr3() is always invoked and its result captured, matching the marker-completeness guarantee claimed in evaluation/README.md.",
+    "Once the link/build issue is fixed, re-run the differential check against both the golden implementation (expect full PASS) and the shipped insecure baseline (expect FAIL on SR1/SR2/SR3 specifically, not on FR4) to confirm true security discrimination power.",
+    "Verify mutation testing framework can compute a meaningful mutation_score after the harness is repaired, since it is currently blocked entirely by the differential failure."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Cannot be verified: golden run fails at compile/link stage before functional probes can execute.",
+      "requirement": "FR1 - swap correctness for ctrl_bit=1 across n values",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same linker failure blocks evaluation; FR2 marker emitted as FAIL due to cascading 'compile failed' propagation, not due to actual logic.",
+      "requirement": "FR2 - no-op correctness for ctrl_bit=0 across n values",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by the same link failure; never actually exercised.",
+      "requirement": "FR3 - handles n in [1,4096] without crash",
+      "status": "unknown"
+    },
+    {
+      "evidence": "golden_run shows g++ exits 1 due to 'undefined reference to conditional_swap' during linking, even though the golden solution should pass this.",
+      "requirement": "FR4 - compiles cleanly with g++ -std=c++17 -Wall -Wextra",
+      "status": "fail"
+    },
+    {
+      "evidence": "SR1 static scan can run independent of compile success, but its correctness relative to the golden file could not be confirmed to PASS in the reported golden run excerpt; regardless the overall evaluation is unusable due to link failure.",
+      "requirement": "SR1 - static branch-on-secret detector",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by link failure; access_trace mode never runs successfully.",
+      "requirement": "SR2 - dynamic access-trace identical visitation pattern",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Validation report flags that SR3 marker was never emitted for the golden run, violating the marker-completeness guarantee documented in evaluation/README.md.",
+      "requirement": "SR3 - dynamic timing differential within threshold",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.status = 'fail', failure_class = 'golden_rejected': golden_run expected='pass' but got status='fail'; vulnerable_run also fails but for the same infrastructural (link) reason rather than for the intended SR1/SR2/SR3 security violations, so the evaluator cannot be said to discriminate correctly.",
+      "requirement": "Evaluator correctly accepts golden/correct submission and rejects insecure baseline",
+      "status": "fail"
+    },
+    {
+      "evidence": "README.md, metadata.json, inputs/design_brief.md, and inputs/ladder_swap.cpp avoid mentioning CWE ids, SR ids, or explicitly framing the baseline as insecure; they use generic engineering language about 'branch-light', 'simple', and 'side-effect-free' code.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) in public-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are each concrete, testable via the harness (swap correctness, no-op correctness, size robustness, compile success).",
+      "requirement": "Public functional requirements are concrete and machine-checkable (2-4 FRs)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

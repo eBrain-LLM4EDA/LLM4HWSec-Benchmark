@@ -1,0 +1,69 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR3's leakage_metric check has no mutant in the mutation suite that specifically targets it in isolation (mutation_score 0.889, SR3 uncovered per per_requirement_coverage), meaning the discriminative power of SR3's regex-based check is unverified by the harness, even though the golden/vulnerable differential run shows it correctly passes/fails in the two baseline cases.",
+      "evidence": "per_requirement_coverage.SR3.covered=false, mutants_detected=0, mutants_targeting=1; uncovered_requirements:['SR3']",
+      "severity": "low"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR3 regex",
+      "description": "SR3 requires both a transition-term AND a weight/count-term to co-occur; a legitimate but differently-worded leakage_metric description (e.g., 'the number of dbus lines that toggle equals the population count of the transported word') could plausibly fail if wording deviates from the expected keyword set, though 'toggle'+'count' would still pass here. This is a minor robustness concern rather than a correctness bug.",
+      "evidence": "transition_terms_pattern=(hamming|transition|switching|toggle); weight_count_terms_pattern=(weight|count)",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Add a targeted mutant for SR3 (e.g., a submission where leakage_metric describes a plausible-sounding but wrong metric using only weight/count terms without transition terms, or only transition terms without weight/count terms) to close the mutation coverage gap and confirm SR3's discriminative power.",
+    "Consider broadening SR3's regex slightly or documenting more accepted phrasings to reduce the risk of false negatives for correct answers phrased with synonyms not in the current keyword list (e.g., 'bit flips', 'discharge count')."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "differential.vulnerable_run: exit_code=1, FR3/SR1/SR2/SR3/SR4/SR5 all FAIL as expected",
+      "requirement": "Baseline (naive) submission must FAIL",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code=0, all 9 checks PASS",
+      "requirement": "Golden/correct submission must PASS",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 (schema/types), FR2 (net-name validity vs RTL), FR3 (mitigation keyword recognition), FR4 (transfer_timing integer fields) each independently verifiable via the pinned JSON schema and RTL text",
+      "requirement": "FR1-FR4 functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as functional and SR1-SR5 as security, each with distinct detection logic in evaluate.py",
+      "requirement": "SR1-SR5 security requirements separately mapped and enforced",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR5 optionally cross-checks via iverilog/vvp simulation of tb_check.v against the actual RTL, and SR1-SR4 check semantic content tied to the specific Hamming-weight leakage mechanism in the RTL structure",
+      "requirement": "Security-relevant behavior actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, fault_model.json all phrased as neutral engineering/power-analysis exercise; no mention of CWE-203/1300/385, SR ids, or 'intentionally vulnerable' language",
+      "requirement": "No leakage of hidden CWE/SR ids or security framing in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "coverage_score=1.0, mutation_score=0.889 (8/9 requirements have a detecting mutant); only SR3 lacks a discriminating mutant, a minor gap rather than a fundamental flaw",
+      "requirement": "Coverage and mutation testing adequacy",
+      "status": "pass"
+    },
+    {
+      "evidence": "All referenced files (RTL, JSON, markdown, txt) are provided in the bundle; no external dependencies beyond iverilog/vvp which are optional",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically about precharge/evaluate bus Hamming-weight power/EM side-channel leakage, with RTL, fault model, and design brief all tailored to that scenario",
+      "requirement": "Domain-specific adaptation (not generic filler)",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,32 @@
+{
+  "task_id": "hls_roundkey_zeroization_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Zeroize an expanded round-key array before return",
+  "description": "Harden the AES-128 block cipher kernel in inputs/cipher_kernel.cpp so that its local round-key schedule buffer no longer retains intermediate computation data after the function returns, while preserving exact functional correctness across all tested optimization levels.",
+  "input_artifacts": [
+    "inputs/cipher_kernel.cpp",
+    "inputs/cipher_kernel.h",
+    "inputs/design_brief.md"
+  ],
+  "expected_output": {
+    "summary": "A hardened inputs/cipher_kernel.cpp that compiles cleanly with g++ -O2 -std=c++17 against the unmodified cipher_kernel.h, exposes the exact declared function signature, produces ciphertext identical to the original kernel on all test vectors at -O0/-O2/-O3, and leaves the local round_keys buffer fully zeroed immediately after encrypt_block returns, at every tested optimization level."
+  },
+  "interface": "void encrypt_block(const unsigned char key[16], const unsigned char plaintext[16], unsigned char ciphertext[16]);",
+  "metrics": [
+    {
+      "name": "cwe_violation_rate",
+      "direction": "minimize",
+      "description": "Fraction of security requirements that fail detection checks, indicating residual key-schedule material or other leakage remains observable after return."
+    },
+    {
+      "name": "information_flow_correctness",
+      "direction": "maximize",
+      "description": "Binary/aggregate score indicating whether the round_keys buffer is verifiably zeroed post-return across all tested optimization levels (-O0, -O2, -O3)."
+    },
+    {
+      "name": "synthesis_pass_rate",
+      "direction": "maximize",
+      "description": "Fraction of functional requirements and compile checks that pass, confirming the hardened kernel still compiles and produces correct ciphertext on all known-answer vectors."
+    }
+  ]
+}

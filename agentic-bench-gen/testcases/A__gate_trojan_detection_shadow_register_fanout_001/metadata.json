@@ -1,0 +1,51 @@
+{
+  "task_id": "gate_trojan_detection_shadow_register_fanout_001",
+  "domain_id": "gate_trojan_detection",
+  "title": "Undocumented Shadow Register Bank on a Key Bus Fanout",
+  "description": "Perform a structural fanout analysis of the 8-bit key register bus (key_reg[7:0]) in the provided gate-level netlist, tracing every gate/flip-flop instance driven directly or indirectly by each key bit, and compare the actual netlist structure against the documented design brief.",
+  "input_artifacts": [
+    "inputs/netlist.v",
+    "inputs/design_brief.md",
+    "inputs/cell_library.v"
+  ],
+  "submission_artifacts": [
+    "submission/trojan_report.json"
+  ],
+  "expected_outputs": {
+    "summary": "A JSON report at submission/trojan_report.json stating a verdict ('trojan_present' or 'trojan_absent'), the analyzed key bus signal name, a complete fanout_map with exactly 8 entries (one per key bit) listing all consumer instances and their count, a suspect_instances list of any instances not part of the documented single-consumer-per-bit topology, and a free-text summary of findings."
+  },
+  "metrics": [
+    {
+      "name": "detection_rate",
+      "direction": "maximize",
+      "description": "Recall: fraction of the ground-truth suspect instance set correctly identified in the submitted suspect_instances list."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Fraction of instances listed in suspect_instances that are legitimate documented instances (not part of the ground-truth suspect set) out of all instances flagged."
+    },
+    {
+      "name": "fanout_accuracy",
+      "direction": "maximize",
+      "description": "Fraction of the 8 fanout_map entries whose num_consumers and consumer_instances exactly match the ground-truth per-bit consumer set computed by structurally tracing inputs/netlist.v."
+    },
+    {
+      "name": "verdict_correctness",
+      "direction": "maximize",
+      "description": "Binary correctness of the top-level verdict field against the fixed ground-truth label."
+    },
+    {
+      "name": "inference_latency",
+      "direction": "minimize",
+      "description": "Wall-clock time in seconds for evaluate.py to parse, structurally cross-check the submission against inputs/netlist.v, and produce a verdict."
+    }
+  ],
+  "evaluation_mode": "report_grading",
+  "submission_kind": "analysis_report",
+  "toolchain": [
+    "yosys",
+    "iverilog",
+    "vvp"
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.json",
+    "inputs/masked_and.v",
+    "inputs/sim_trace.vcd.txt",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "setup_error",
+    "failure_signature": "bdafdeb96eea88cdac27b985b23cde4f3b22ae8be306768b532c3b9c32249039",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: SETUP: submission/vulnerability_report.json is not valid JSON: Expecting property name enclosed in double quotes: line 8 column 3 (char 2873)\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] FAIL: FR2: suspect_nets is empty\n[TEST] FAIL: FR3: algebraic_masking_correct is not true\n[TEST] FAIL: FR4: registers_to_add is empty\n[TEST] FAIL: SR1: algebraic_masking_correct is not true\n[TEST] FAIL: SR2: suspect_nets missing or empty\n[TEST] FAIL: SR3: registers_to_add missing or empty\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "evaluate.py never emitted [TEST] PASS/FAIL for ['FR1', 'FR2', 'FR3', 'FR4', 'SR1', 'SR2', 'SR3'] on the golden run \u2014 requirement_map ids and the script's marker ids must match exactly",
+      "issue": "requirement_id_mismatch"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SETUP: submission/vulnerability_report.json is not valid JSON: Expecting property name enclosed in double quotes: line 8 column 3 (char 2873)",
+        "failure_class": "setup_error",
+        "failure_signature": "bdafdeb96eea88cdac27b985b23cde4f3b22ae8be306768b532c3b9c32249039"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: FR1: submission JSON is invalid: Expecting property name enclosed in double quotes: line 8 column 3 (char 2873)",
+        "failure_class": "golden_rejected",
+        "failure_signature": "8d29783237d176ab9ebea728b952dac076338c6f2fb7246ad3bf33486c7eb3ac"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "setup_error",
+    "failure_signature": "bdafdeb96eea88cdac27b985b23cde4f3b22ae8be306768b532c3b9c32249039",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "692a3ce6e247a4ad4f19151385dabeeca4ea83c3b213aee0746ecb39072d6d00",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "16b6abb3a06ffe1c67f3370f7d47fe24dc6b7ee8773ce9d97e6bc184cf3d3e34",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_masked_and.v"
+  ],
+  "uncovered_requirements": []
+}

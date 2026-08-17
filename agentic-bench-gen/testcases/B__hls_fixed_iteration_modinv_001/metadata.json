@@ -1,0 +1,44 @@
+{
+  "task_id": "hls_fixed_iteration_modinv_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Fixed-iteration modular inverse without early exit",
+  "submission_kind": "hardened_artifact",
+  "objective": "Refactor the provided HLS-style C++ kernel that computes the modular multiplicative inverse of an operand 'a' modulo a fixed constant M=251 so that it executes a single, fixed, compile-time-constant number of loop iterations regardless of the input operand, using predicated (branchless) updates instead of data-dependent early termination, while remaining fully synthesizable C++ and numerically correct for all valid operands in [1,250].",
+  "input_artifacts": [
+    "inputs/modinv_kernel.cpp",
+    "inputs/modinv_kernel.h",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "A modified inputs/modinv_kernel.cpp (and/or inputs/modinv_kernel.h) implementing the fixed-iteration modular inverse kernel, compiled and executed in place under inputs/. The kernel must preserve the exact function signature `unsigned int modinv(unsigned int a);`, keep the constant name MOD equal to 251, and continue to expose the shared instrumentation counter `g_iter_count` declared in modinv_kernel.h and defined in modinv_kernel.cpp, incremented exactly once per core loop iteration."
+  ],
+  "evaluation": {
+    "mode": "compile_and_run",
+    "toolchain": [
+      "g++",
+      "gcc"
+    ],
+    "metrics": [
+      {
+        "name": "synthesis_pass_rate",
+        "description": "Fraction of test cases where the submitted code compiles successfully with g++ against the generated harness and produces a running binary.",
+        "direction": "maximize"
+      },
+      {
+        "name": "cwe_violation_rate",
+        "description": "Fraction of tested security-relevant behavioral checks (operand-dependent iteration count, banned early-exit constructs, timing variance) that fail.",
+        "direction": "minimize"
+      },
+      {
+        "name": "information_flow_correctness",
+        "description": "Whether the observable behavior (loop iteration count and measured timing) is provably invariant across all tested secret operand values, verified via the instrumented counter and timing harness.",
+        "direction": "maximize"
+      },
+      {
+        "name": "functional_correctness_rate",
+        "description": "Fraction of operands in [1,250] for which modinv(a) returns the mathematically correct modular inverse, verified against a precomputed reference table.",
+        "direction": "maximize"
+      }
+    ]
+  }
+}

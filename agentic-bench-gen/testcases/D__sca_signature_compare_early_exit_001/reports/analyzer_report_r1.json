@@ -1,0 +1,79 @@
+{
+  "issues": [
+    {
+      "artifact": "submission/vulnerability_report.json (golden)",
+      "description": "The validation report's differential run shows the golden/expert submission fails preflight because submission/vulnerability_report.json is not valid JSON at the time evaluate.py runs (JSONDecodeError: Expecting value: line 1 column 1). This means either the golden expert file was not properly placed at the expected submission path during grading, or the golden content itself is malformed/empty. Either way, the evaluator rejects a correct submission, which is disqualifying for this benchmark.",
+      "evidence": "golden_run.stdout: \"[TEST] FAIL: SETUP: submission/vulnerability_report.json is not valid JSON: Expecting value: line 1 column 1 (char 0)\"",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Because the golden run errors out at SETUP before any FR/SR checks execute, none of the required requirement IDs (FR1-FR4, SR1-SR4) ever get a [TEST] PASS/FAIL line on the golden run, causing a requirement_id_mismatch against the requirement_map. The evaluator's marker IDs are only exercised on the baseline (naive) run, not on a correct submission, so there's no evidence the evaluator actually accepts a correct report.",
+      "evidence": "issues: requirement_id_mismatch: \"evaluate.py never emitted [TEST] PASS/FAIL for ['FR1','FR2','FR3','FR4','SR1','SR2','SR3','SR4'] on the golden run\"",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report",
+      "description": "mutation_status is blocked_by_differential and mutation_score_meaningful is false, meaning no confidence has been established that the evaluator can discriminate between correct and incorrect/vulnerable submissions across mutations. requirement_discrimination_coverage_score is 0.0.",
+      "evidence": "\"mutation_status\": \"blocked_by_differential\", \"mutation_score_meaningful\": false, \"requirement_discrimination_coverage_score\": 0.0",
+      "severity": "medium"
+    },
+    {
+      "artifact": "submission_invariants",
+      "description": "The submission_invariants section shows baseline and golden sha256 differ and mappings are marked 'changed': true with status pass, but this does not resolve the core golden-run failure documented in the differential section \u2014 the invariants check and differential check appear inconsistent (invariants imply the golden file is present and differs from baseline, yet the differential run reports the file as unparsable JSON).",
+      "evidence": "\"golden_sha256\": \"9101781e2fc06c03aae750eb15cb987f89396e5cefda538c8d6e0a5c5173b7af\", differential.golden_run.stdout shows JSON parse failure",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the golden/expert submission file or the test harness so that submission/vulnerability_report.json actually exists and is valid JSON at the path evaluate.py reads when grading the golden run; the differential preflight must show the golden run passing (exit 0, all PASS lines for FR1-FR4/SR1-SR4) before this benchmark can be considered usable.",
+    "Re-run the differential check after fixing the golden placement issue and confirm exit_code 0 for the golden run and non-zero for the naive baseline run, with matching PASS/FAIL lines for every requirement ID in requirement_map.",
+    "Increase confidence in SR2's parser robustness: the regex-based linear-formula parser is fragile (e.g., may fail on legitimate paraphrased formulas like 'two plus the index of the first differing byte'); consider more robust parsing or accept multiple explicit per-case cycle values in addition to a formula.",
+    "Run mutation testing (e.g., flipping the fix description to omit one of the three SR3 elements, or reporting a plausible but incorrect off-by-two formula for SR2) to raise requirement_discrimination_coverage_score above 0 and confirm the evaluator actually distinguishes near-miss submissions from fully correct ones.",
+    "Verify that the golden report's early_exit_signal, cycle_relationship, and constant_time_fix strings actually satisfy the regex patterns in check_sr1/check_sr2/check_sr3 by testing them directly against evaluate.py in isolation, independent of the submission-path issue, to rule out a second latent bug in the semantic-matching regexes."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Never exercised against a correct (golden) submission due to SETUP failure in differential golden_run; only exercised against the naive baseline (correctly failed).",
+      "requirement": "FR1: full_match_verdict correctness",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same as FR1 \u2014 golden run never reached this check.",
+      "requirement": "FR2: mismatch_at_zero_verdict correctness",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Baseline run shows FR3 PASS (placeholder has all required keys, satisfying only the presence/type check), but golden run never executed this check due to SETUP failure.",
+      "requirement": "FR3: schema/field presence",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Golden run did not reach this check; baseline correctly failed it.",
+      "requirement": "FR4: proposed_fix_preserves_correctness boolean true",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Not exercised on a correct submission; baseline correctly failed it.",
+      "requirement": "SR1: early_exit_signal correctly identifies the RTL signal",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Not exercised on a correct submission due to SETUP failure; baseline correctly failed (unparseable formula).",
+      "requirement": "SR2: cycle_relationship formula matches measured cycle counts within +/-1",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Not exercised on a correct submission; baseline correctly failed.",
+      "requirement": "SR3: constant_time_fix contains all three remediation elements",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Baseline (placeholder 'not analyzed'/'none') incorrectly PASSES SR4 in the vulnerable_run, since the naive submission does not contain the false-claim keywords nor a parseable constant-slope formula; SR4 is documented in acceptance criteria as required to fail for the naive baseline alongside SR1-SR3, but it does not \u2014 this is a substantive functional gap in the negative-control (baseline must fail SR1-SR3 per spec, so SR4 passing is not itself a contract violation, but it does reduce confidence in SR4's discriminative power since it never fails on any tested input).",
+      "requirement": "SR4: report does not falsely claim baseline is constant-time",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

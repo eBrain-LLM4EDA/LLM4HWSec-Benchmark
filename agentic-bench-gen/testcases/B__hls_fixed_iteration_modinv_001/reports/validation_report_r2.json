@@ -1,0 +1,179 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: SR2\n[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR3\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/modinv_kernel.cpp",
+    "inputs/modinv_kernel.h",
+    "metadata.json"
+  ],
+  "check_activation": {
+    "FR1": 3,
+    "FR2": 3,
+    "FR3": 1,
+    "FR4": 1,
+    "SR1": 4,
+    "SR2": 2,
+    "SR3": 5
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: SR2\n[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR3\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: SR2: found banned early-exit construct(s) ['return'] inside the core inversion loop body (the loop that increments g_iter_count); loop must run a fixed number of iterations with no data-dependent break/return\n[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: iteration count varies with operand (min=0 at a=1, max=7 at a=5); expected identical iteration count for every operand\n[TEST] FAIL: SR3: trimmed-median timing spread 14.184 exceeds tolerance 0.60 (fastest a=249: 179881ns, slowest a=5: 2731302ns)\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/modinv_kernel.cpp",
+    "golden/modinv_kernel.h"
+  ],
+  "issues": [
+    {
+      "detail": "FR4 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: SR2\n[TEST] PASS: FR2\n[TEST] PASS: FR1\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR3\n"
+  },
+  "mutation_score": 0.857,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.857,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 2,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "a8752238ae2a2493eda4547ca15c3a731a1b2433defad4495a7fb17863685fea",
+        "changed": true,
+        "golden": "golden/modinv_kernel.cpp",
+        "golden_sha256": "54fc668ce19ec8ab9a0caf6919dbfc0f456dd3cb7fa6225d224667bffaacff9a",
+        "target": "inputs/modinv_kernel.cpp"
+      },
+      {
+        "baseline_sha256": "bd161b76c065bc33e297b8c7071e8c27120026ccfb09fe7928566315047fd4f0",
+        "changed": false,
+        "golden": "golden/modinv_kernel.h",
+        "golden_sha256": "bd161b76c065bc33e297b8c7071e8c27120026ccfb09fe7928566315047fd4f0",
+        "target": "inputs/modinv_kernel.h"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/modinv_kernel.cpp",
+      "inputs/modinv_kernel.h"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": [
+    "FR4"
+  ]
+}

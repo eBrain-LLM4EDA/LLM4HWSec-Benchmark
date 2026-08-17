@@ -1,0 +1,112 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Evaluator string-matches instance_name fields against ground-truth 'u_grant_ff'. This submission instead names 'u_cmp_ff' (a legitimately DFF_POSEDGE instance that is not the anomalous cell), so SR1 must fail even though FR1-FR4 structural/schema checks still pass and trojan_detected remains true with a plausible-looking justification.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_instances\": [\n    {\n      \"instance_name\": \"u_cmp_ff\",\n      \"cell_type\": \"DFF_NEGEDGE\",\n      \"sampled_signal\": \"grant_pre\",\n      \"justification\": \"design_brief.md documents a single clocking discipline in which every state element in access_ctrl_top is instantiated as DFF_POSEDGE, sampling on the rising edge of clk. Cross-referencing access_ctrl_netlist.v shows that the instance u_cmp_ff is instantiated as DFF_NEGEDGE, capturing its .d input on the falling edge of clk instead of the rising edge. The .d port of u_cmp_ff is tied to the net grant_pre, which is the direct output of the comparator AND2 gate u_and_final and represents the raw, unregistered access-permission decision produced by the XOR2/INV/AND2 comparison tree against REF_KEY. Because u_cmp_ff samples grant_pre a half clock period earlier than the documented posedge discipline would dictate, it can latch a stale or transitional value of the comparator output before the rest of the posedge-synchronous pipeline has settled, opening a timing window through which an incorrect permission value can propagate into the registered grant_out output.\"\n    }\n  ],\n  \"summary\": \"A single DFF_NEGEDGE substitution was found on instance u_cmp_ff, which samples the access-permission comparator output grant_pre on the falling edge of clk instead of the rising edge used by every other documented state element, violating the single posedge clocking discipline specified in design_brief.md and creating a half-cycle window for a stale grant_pre value to reach grant_out.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_SR1_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "SR2 fails because the report's cell_type field states 'DFF_POSEDGE' instead of the correct 'DFF_NEGEDGE', and the justification text no longer mentions negedge/falling-edge triggering, so the string-match/free-text detection for negative-edge behavior cannot find the required evidence even though instance_name (SR1) and sampled_signal (SR3) remain correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_instances\": [\n    {\n      \"instance_name\": \"u_grant_ff\",\n      \"cell_type\": \"DFF_POSEDGE\",\n      \"sampled_signal\": \"grant_pre\",\n      \"justification\": \"design_brief.md documents a single clocking discipline in which every state element in access_ctrl_top is instantiated as DFF_POSEDGE, sampling on the rising edge of clk. Cross-referencing access_ctrl_netlist.v shows that u_req_ff, u_key_reg0 through u_key_reg7, u_cmp_ff, and u_out_ff are all correctly instantiated as DFF_POSEDGE, and u_grant_ff is also instantiated as DFF_POSEDGE, capturing its .d input on the rising edge of clk consistent with the documented discipline. The .d port of u_grant_ff is tied to the net grant_pre, which is the direct output of the comparator AND2 gate u_and_final and represents the raw, unregistered access-permission decision produced by the XOR2/INV/AND2 comparison tree against REF_KEY. Even though the edge polarity matches the documented discipline, there appears to be some other anomaly involving how grant_pre reaches grant_q and u_out_and before propagating into the registered grant_out output.\"\n    }\n  ],\n  \"summary\": \"A suspicious instance u_grant_ff was found which samples the access-permission comparator output grant_pre, but it is instantiated as a standard DFF_POSEDGE consistent with the documented posedge clocking discipline in design_brief.md, so no timing-edge deviation was actually identified in this instance.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_SR2_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "SR3 string-match against sampled_signal fails because the report claims the sampled net is 'req_valid_q' instead of the actual .d-port net 'grant_pre' of u_grant_ff; cross-referencing access_ctrl_netlist.v shows u_grant_ff's .d port is tied to grant_pre, not req_valid_q, so the submission's sampled_signal claim is incorrect even though instance_name and cell_type remain correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_instances\": [\n    {\n      \"instance_name\": \"u_grant_ff\",\n      \"cell_type\": \"DFF_NEGEDGE\",\n      \"sampled_signal\": \"req_valid_q\",\n      \"justification\": \"design_brief.md documents a single clocking discipline in which every state element in access_ctrl_top is instantiated as DFF_POSEDGE, sampling on the rising edge of clk. Cross-referencing access_ctrl_netlist.v shows that u_req_ff, u_key_reg0 through u_key_reg7, u_cmp_ff, and u_out_ff are all correctly instantiated as DFF_POSEDGE, but the instance u_grant_ff is instantiated as DFF_NEGEDGE, capturing its .d input on the falling edge of clk instead of the rising edge. The .d port of u_grant_ff is tied to the net req_valid_q, the registered request strobe, meaning the negedge sampling captures a stale or transitional version of the request signal before the rest of the posedge-synchronous pipeline has settled, opening a timing window through which an incorrect permission value can propagate via grant_q and u_out_and into the registered grant_out output.\"\n    }\n  ],\n  \"summary\": \"A single DFF_NEGEDGE substitution was found on instance u_grant_ff, which samples the request strobe req_valid_q on the falling edge of clk instead of the rising edge used by every other documented state element, violating the single posedge clocking discipline specified in design_brief.md and creating a half-cycle window for a stale value to reach grant_out.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_SR3_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "evaluate.py checks trojan_detected boolean; this submission sets it to false despite still listing a correctly-identified suspect instance, which fails SR4 (must be true for a passing submission) and also fails the FR3 internal-consistency check (trojan_detected=false requires suspect_instances to be empty, but it is non-empty here).",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": false,\n  \"suspect_instances\": [\n    {\n      \"instance_name\": \"u_grant_ff\",\n      \"cell_type\": \"DFF_NEGEDGE\",\n      \"sampled_signal\": \"grant_pre\",\n      \"justification\": \"design_brief.md documents a single clocking discipline in which every state element in access_ctrl_top is instantiated as DFF_POSEDGE, sampling on the rising edge of clk. Cross-referencing access_ctrl_netlist.v shows that u_req_ff, u_key_reg0 through u_key_reg7, u_cmp_ff, and u_out_ff are all correctly instantiated as DFF_POSEDGE, but the instance u_grant_ff is instantiated as DFF_NEGEDGE, capturing its .d input on the falling edge of clk instead of the rising edge. The .d port of u_grant_ff is tied to the net grant_pre, which is the direct output of the comparator AND2 gate u_and_final and represents the raw, unregistered access-permission decision produced by the XOR2/INV/AND2 comparison tree against REF_KEY. Because u_grant_ff samples grant_pre a half clock period earlier than the documented posedge discipline would dictate, it can latch a stale or transitional value of the comparator output before the rest of the posedge-synchronous pipeline has settled, but this timing skew is considered within normal design tolerance and does not constitute an exploitable trojan.\"\n    }\n  ],\n  \"summary\": \"A DFF_NEGEDGE instance u_grant_ff sampling grant_pre on the falling edge of clk was noted during review, but after further consideration this deviation is judged benign and not indicative of an actual hardware trojan in this design.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_SR4_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "FR1 must reject a syntactically malformed JSON submission.",
+      "files": [
+        {
+          "content": "{\n",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "deterministic_fr1_malformed_json",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "evaluate.py cross-references suspect_instances entries against identifiers found verbatim in inputs/access_ctrl_netlist.v; this mutant removes the sampled_signal field from the sole suspect_instances entry, leaving it absent (rather than an empty string), which fails FR2's requirement that instance_name, cell_type, and sampled_signal all be present as non-empty strings referencing netlist identifiers.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_instances\": [\n    {\n      \"instance_name\": \"u_grant_ff\",\n      \"cell_type\": \"DFF_NEGEDGE\",\n      \"justification\": \"design_brief.md documents a single clocking discipline in which every state element in access_ctrl_top is instantiated as DFF_POSEDGE, sampling on the rising edge of clk. Cross-referencing access_ctrl_netlist.v shows that u_req_ff, u_key_reg0 through u_key_reg7, u_cmp_ff, and u_out_ff are all correctly instantiated as DFF_POSEDGE, but the instance u_grant_ff is instantiated as DFF_NEGEDGE, capturing its .d input on the falling edge of clk instead of the rising edge. Because u_grant_ff samples the comparator output a half clock period earlier than the documented posedge discipline would dictate, it can latch a stale or transitional value before the rest of the posedge-synchronous pipeline has settled, opening a timing window through which an incorrect permission value can propagate into the registered grant_out output.\"\n    }\n  ],\n  \"summary\": \"A single DFF_NEGEDGE substitution was found on instance u_grant_ff, which samples the access-permission comparator output on the falling edge of clk instead of the rising edge used by every other documented state element, violating the single posedge clocking discipline specified in design_brief.md and creating a half-cycle window for a stale value to reach grant_out.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_FR2_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "evaluate.py's FR3 internal-consistency check finds trojan_detected=true but suspect_instances=[] (empty array), which directly violates the requirement that a true detection must be accompanied by at least one suspect instance entry, causing FR3 to fail even though FR1/FR4 formatting and JSON parseability remain intact.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_instances\": [],\n  \"summary\": \"A single DFF_NEGEDGE substitution was found on instance u_grant_ff, which samples the access-permission comparator output grant_pre on the falling edge of clk instead of the rising edge used by every other documented state element, violating the single posedge clocking discipline specified in design_brief.md and creating a half-cycle window for a stale grant_pre value to reach grant_out.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_FR3_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "evaluate.py checks that the summary field is a non-empty string of at least 20 characters; this mutant shortens summary to a trivial 6-character string ('Found.'), which is well under the minimum length threshold, causing FR4 to fail even though trojan_detected, suspect_instances, instance_name, cell_type, sampled_signal, and justification all remain fully correct.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_instances\": [\n    {\n      \"instance_name\": \"u_grant_ff\",\n      \"cell_type\": \"DFF_NEGEDGE\",\n      \"sampled_signal\": \"grant_pre\",\n      \"justification\": \"design_brief.md documents a single clocking discipline in which every state element in access_ctrl_top is instantiated as DFF_POSEDGE, sampling on the rising edge of clk. Cross-referencing access_ctrl_netlist.v shows that u_req_ff, u_key_reg0 through u_key_reg7, u_cmp_ff, and u_out_ff are all correctly instantiated as DFF_POSEDGE, but the instance u_grant_ff is instantiated as DFF_NEGEDGE, capturing its .d input on the falling edge of clk instead of the rising edge. The .d port of u_grant_ff is tied to the net grant_pre, which is the direct output of the comparator AND2 gate u_and_final and represents the raw, unregistered access-permission decision produced by the XOR2/INV/AND2 comparison tree against REF_KEY. Because u_grant_ff samples grant_pre a half clock period earlier than the documented posedge discipline would dictate, it can latch a stale or transitional value of the comparator output before the rest of the posedge-synchronous pipeline (in particular u_cmp_ff, which samples the same grant_pre net on the correct rising edge) has settled, opening a timing window through which an incorrect permission value can propagate via grant_q and u_out_and into the registered grant_out output.\"\n    }\n  ],\n  \"summary\": \"Found.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_FR4_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR4"
+    },
+    {
+      "expected_detection": "evaluate.py's optional iverilog/vvp cross-check simulates access_ctrl_netlist.v with testbench_stub.v and re-derives the .d port net of the reported instance_name (u_grant_ff) to compare negedge-sampled vs posedge-sampled values at the half-cycle mark. Because this mutant changes sampled_signal to 'cmp_stage_q' (the .q output of the unrelated posedge-sampled u_cmp_ff register) instead of 'grant_pre' (the actual .d input of u_grant_ff), the cross-check either fails FR2's verbatim-netlist-reference cross-reference against the .d port of u_grant_ff, or finds no half-cycle sampling discrepancy at cmp_stage_q since that signal is not the net latched by the negedge flop, causing the SR5 simulation-based corroboration to contradict the submitted claim and the submission to fail SR3/SR5.",
+      "files": [
+        {
+          "content": "{\n  \"trojan_detected\": true,\n  \"suspect_instances\": [\n    {\n      \"instance_name\": \"u_grant_ff\",\n      \"cell_type\": \"DFF_NEGEDGE\",\n      \"sampled_signal\": \"cmp_stage_q\",\n      \"justification\": \"design_brief.md documents a single clocking discipline in which every state element in access_ctrl_top is instantiated as DFF_POSEDGE, sampling on the rising edge of clk. Cross-referencing access_ctrl_netlist.v shows that u_req_ff, u_key_reg0 through u_key_reg7, u_cmp_ff, and u_out_ff are all correctly instantiated as DFF_POSEDGE, but the instance u_grant_ff is instantiated as DFF_NEGEDGE, capturing its .d input on the falling edge of clk instead of the rising edge. The .d port of u_grant_ff is tied to the net cmp_stage_q, the registered output of u_cmp_ff's comparator staging flop, which represents the access-permission decision. Because u_grant_ff samples cmp_stage_q a half clock period earlier than the documented posedge discipline would dictate, it can latch a stale or transitional value before the rest of the posedge-synchronous pipeline has settled, opening a timing window through which an incorrect permission value can propagate via grant_q and u_out_and into the registered grant_out output.\"\n    }\n  ],\n  \"summary\": \"A single DFF_NEGEDGE substitution was found on instance u_grant_ff, which samples cmp_stage_q on the falling edge of clk instead of the rising edge used by every other documented state element, violating the single posedge clocking discipline specified in design_brief.md and creating a half-cycle window for a stale value to reach grant_out.\"\n}",
+          "path": "submission/trojan_report.json"
+        }
+      ],
+      "mutant_id": "gate_trojan_detection_negedge_flop_001_SR5_stuck_at_signal_001",
+      "operator": "stuck_at_signal",
+      "target_requirement_id": "SR5"
+    }
+  ]
+}

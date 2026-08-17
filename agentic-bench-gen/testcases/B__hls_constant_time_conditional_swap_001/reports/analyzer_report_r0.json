@@ -1,0 +1,84 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/harness_main.cpp",
+      "description": "harness_main.cpp contains a syntax error in the dead/unused run_functional() function ('fill_random(Q, 0xaaaa u = 0);' at line 75), which causes g++ to fail compilation for every submission, including the golden/expert solution. This makes FR4 and all downstream requirements (FR1-FR3, SR1-SR3) fail unconditionally regardless of submission quality.",
+      "evidence": "Validation report differential.golden_run shows exit_code 1 and [TEST] FAIL: FR4: g++ exited 1: evaluation/harness_main.cpp:75:34: error: expected ')' before 'u' ... even though golden_run.expected is 'pass'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py + harness_main.cpp",
+      "description": "Because compilation always fails, the grader never reaches SR2/SR3 dynamic checks or produces a PASS/FAIL line for SR3 at all in the golden run output (truncated at SR2), violating the marker contract described in evaluation/README.md that every requirement produces exactly one PASS/FAIL line.",
+      "evidence": "validation report issues: 'evaluate.py never emitted [TEST] PASS/FAIL for [\\'SR3\\'] on the golden run' and golden stdout is truncated after '[TEST] FAIL: SR2'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential result",
+      "description": "The differential harness shows failure_class 'golden_rejected': the expert/golden hardened solution is rejected (exit 1) when it should pass, meaning the evaluator does not satisfy the core hardened_artifact contract requirement that a correct submission be accepted.",
+      "evidence": "differential.status: 'fail', golden_run.ok: false, golden_run.expected: 'pass', golden_run.status: 'fail'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report",
+      "description": "mutation_score is 0.0 and mutation_status is 'blocked_by_differential', and requirement_discrimination_coverage_score is 0.0, indicating the benchmark's ability to discriminate correct vs incorrect submissions could not even be assessed because the harness is broken.",
+      "evidence": "mutation_score: 0.0, mutation_status: 'blocked_by_differential', requirement_discrimination_coverage_score: 0.0",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the syntax error in evaluation/harness_main.cpp: remove or properly complete the dead/incomplete 'run_functional()' function (the 'fill_random(Q, 0xaaaa u = 0);' line is invalid C++ and unused dead code) so the file compiles cleanly.",
+    "Re-run the differential test after the harness fix to confirm the golden solution now compiles and passes all FR1-FR4/SR1-SR3 checks, and that the insecure baseline fails at least SR1/SR2/SR3.",
+    "Ensure evaluate.py and harness_main.cpp emit a PASS/FAIL marker line for every requirement id (including SR3) even when upstream stages fail, or clearly document early-exit behavior consistent with evaluation/README.md's contract.",
+    "Add a CI-level smoke test that compiles evaluation/harness_main.cpp standalone (or with a known-good stub for conditional_swap) before shipping, to catch harness-only compile errors independent of participant submissions.",
+    "Once the harness compiles, re-validate mutation_score and requirement_discrimination_coverage_score to confirm the benchmark can actually discriminate correct vs. mutated/insecure submissions."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Cannot be verified; harness fails to compile due to unrelated syntax error in dead code, so FR1 is always reported FAIL regardless of submission correctness.",
+      "requirement": "FR1 (swap correctness ctrl_bit=1)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same compile failure blocks verification.",
+      "requirement": "FR2 (no-op correctness ctrl_bit=0)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Same compile failure blocks verification.",
+      "requirement": "FR3 (n range robustness)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "g++ fails to compile evaluation/harness_main.cpp itself (not the submission) due to a stray syntax error at line 75, so FR4 fails even for a correct golden submission.",
+      "requirement": "FR4 (clean compilation)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Static regex-based check is independent of compilation and could in principle run, but the overall pipeline treats compile failure as fail-all, so SR1 is falsely marked FAIL for the golden solution per the differential trace.",
+      "requirement": "SR1 (no branch on ctrl_bit)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Blocked by compile failure; golden run shows FAIL for SR2 due to cascading compile-failure logic.",
+      "requirement": "SR2 (identical access pattern)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "Golden run output is truncated before SR3 verdict is even printed, and validation report explicitly flags missing PASS/FAIL marker for SR3.",
+      "requirement": "SR3 (timing differential within threshold)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md avoid CWE ids, SR ids, and explicit 'insecure baseline' framing, phrasing the task as plain engineering hardening for consistency/predictability/timing; this aspect of the bundle is coherent and non-leaking.",
+      "requirement": "Public/hidden spec coherence and no CWE/security-intent leakage",
+      "status": "pass"
+    },
+    {
+      "evidence": "Per differential report, the evaluator rejects the golden (correct) solution (exit 1, FAIL) due to an unrelated harness syntax bug, so the core hardened_artifact acceptance criterion is not met; the baseline is also rejected, but for the wrong reason (broken harness), invalidating the differential signal entirely.",
+      "requirement": "Evaluator accepts correct submission and rejects insecure baseline",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

@@ -1,0 +1,42 @@
+{
+  "task_id": "sca_ecc_ladder_conditional_add_timing_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Conditional point-addition timing in a scalar-multiplication controller",
+  "description": "Analyze the cycle-timing and control-flow behavior of a small double-and-add scalar-multiplication controller across different input scalars, and propose an RTL remediation that equalizes timing while preserving correct outputs.",
+  "input_artifacts": [
+    "inputs/scalar_mult_ctrl.v",
+    "inputs/field_datapath.v",
+    "inputs/fault_model.md",
+    "inputs/design_brief.md"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "expected_output": {
+    "path": "submission/vulnerability_report.json",
+    "summary": "A single JSON report describing the scalar-dependent control path, per-bit cycle-timing signature across representative scalars, and a concrete RTL remediation that equalizes cycle count while preserving correct scalar-multiplication results."
+  },
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Whether the report correctly identifies the scalar-dependent control state/signal responsible for the timing variation and supports this with cycle-count data correlated to the scalar's Hamming weight."
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Fraction of required cycle_counts_by_scalar entries (spanning low, mid, and high Hamming-weight scalars) that are present and numerically consistent with an independent simulation of the provided controller."
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Whether the proposed remediation concretely describes always executing the conditional operation with a discarded/dummy result and selecting the real result via a mux, and whether correctness preservation is asserted and justified."
+    },
+    {
+      "name": "format_conformance",
+      "description": "Whether vulnerability_report.json satisfies the required JSON schema, with all fields present and of the correct type."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ]
+}

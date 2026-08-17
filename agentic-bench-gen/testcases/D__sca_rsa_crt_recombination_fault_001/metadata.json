@@ -1,0 +1,44 @@
+{
+  "task_id": "sca_rsa_crt_recombination_fault_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Bellcore-style fault in CRT recombination",
+  "description": "Review a two-path modular arithmetic recombination datapath (crt_recombine) against a reference oracle (crt_reference) and produce a structured vulnerability report identifying the unverified internal register, an applicable fault model, a concrete trigger scenario, the missing verification step, and a recommended RTL-level fix.",
+  "input_artifacts": [
+    "inputs/crt_recombine.v",
+    "inputs/crt_reference.v",
+    "inputs/tb_crt_recombine.v",
+    "inputs/fault_model.md",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize"
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize"
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize"
+    },
+    {
+      "name": "functional_schema_compliance",
+      "direction": "maximize"
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "evaluation_mode": "report_grading",
+  "submission_kind": "analysis_report"
+}

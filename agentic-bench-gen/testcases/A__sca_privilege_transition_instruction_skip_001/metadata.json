@@ -1,0 +1,52 @@
+{
+  "task_id": "sca_privilege_transition_instruction_skip_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Instruction-skip fault at a privilege-mode transition",
+  "submission_kind": "analysis_report",
+  "objective_summary": "Analyze the mode_sequencer.v RTL control sequencer under a single-step instruction-skip fault model and report which FSM state's skipped register write alters the final privilege outcome, the resulting privilege level, and a redundancy-based hardware mitigation.",
+  "input_artifacts": [
+    "inputs/mode_sequencer.v",
+    "inputs/fault_model.md",
+    "inputs/design_brief.md"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "constraints": [
+    "Participants must not edit any file under inputs/.",
+    "Only submission/vulnerability_report.json is graded.",
+    "submission/vulnerability_report.json must be a single JSON object matching the required schema described in README.md."
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "direction": "maximize",
+      "description": "Whether the submission correctly identifies the exact vulnerable FSM state and resulting elevated privilege value caused by the instruction-skip fault, verified optionally via iverilog/vvp cross-simulation."
+    },
+    {
+      "name": "fault_coverage",
+      "direction": "maximize",
+      "description": "Fraction of FSM states in the transition_sequence for which the submission correctly reports the skip impact (matching ground-truth per-state outcomes, including correctly identifying non-impactful states)."
+    },
+    {
+      "name": "hardening_precision",
+      "direction": "maximize",
+      "description": "Quality and specificity of the proposed redundancy-based mitigation, scored by presence of genuine redundancy mechanisms (duplication/triplication/re-check) targeted at the correct vulnerable write, versus vague or irrelevant suggestions."
+    },
+    {
+      "name": "false_positive_rate",
+      "direction": "minimize",
+      "description": "Rate at which the submission incorrectly flags fault-tolerant (non-write) states as producing a changed privilege outcome under skip."
+    }
+  ],
+  "toolchain": [
+    "iverilog",
+    "vvp",
+    "yosys"
+  ],
+  "evaluation_mode": "report_grading",
+  "notes": "evaluate.py reads inputs/ for reference and grades only submission/vulnerability_report.json; it may optionally invoke iverilog/vvp to cross-simulate mode_sequencer.v with a forced single-step skip at the reported vulnerable_state to verify the reported resulting_privilege."
+}

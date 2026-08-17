@@ -1,0 +1,15 @@
+{
+  "issues": [
+    {
+      "artifact": "pipeline",
+      "description": "Analyzer LLM call failed; no coherence review this round: OpenRouter rejected the request (HTTP 403): Error code: 403 - {'error': {'message': 'Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/fd880df0187ff3862436214a2596d5cca6a5ee74925512dee90dc05f72605c17', 'code': 403}} \u2014 this is an account/key limit (credentials, exhausted credits, or the key's spending cap), not a transient error. Add credits or raise the key's limit at https://openrouter.ai/settings/keys; retrying will not help.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Retry the Analyzer coherence review before publication."
+  ],
+  "requirement_results": [],
+  "source_round": 2
+}

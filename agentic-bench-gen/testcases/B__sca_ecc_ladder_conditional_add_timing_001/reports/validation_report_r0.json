@@ -1,0 +1,119 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.md",
+    "inputs/field_datapath.v",
+    "inputs/scalar_mult_ctrl.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "d39a4ee6da23d5b40bbe2f0a030e7f84d6fa0987d37b1906a9b5ec8a14fa8b8e",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: could not parse vulnerability_report.json as a JSON object: Expecting value: line 1 column 1 (char 0)\n[TEST] FAIL: FR2: cannot evaluate: vulnerability_report.json failed to parse\n[TEST] FAIL: FR3: cannot evaluate: vulnerability_report.json failed to parse\n[TEST] FAIL: FR4: cannot evaluate: vulnerability_report.json failed to parse\n[TEST] FAIL: SR1: cannot evaluate: vulnerability_report.json failed to parse\n[TEST] FAIL: SR2: cannot evaluate: vulnerability_report.json failed to parse\n[TEST] FAIL: SR3: cannot evaluate: vulnerability_report.json failed to parse\n[TEST] FAIL: SR4: cannot evaluate: vulnerability_report.json failed to parse\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR1: field 'vulnerable_signal' missing/empty/non-string; field 'vulnerable_states' missing/empty/non-string; field 'timing_dependency_description' missing/empty/non-string; field 'remediation_description' missing/empty/non-string; 'cycle_counts_by_scalar' missing, empty, or not a list\n[TEST] FAIL: FR2: fewer than 4 distinct scalars reported (0); no reported scalar has Hamming weight <= 2; no reported scalar has Hamming weight >= 14; fewer than 2 reported scalars have intermediate Hamming weight (3-13), found 0; no submitted scalars overlap with the fixed reference scalar set; cannot cross-check cycle_count values against simulation\n[TEST] FAIL: FR3: 'remediation_rtl_sketch' missing or too short to be substantive\n[TEST] FAIL: FR4: cannot verify cycle_count_range: no valid cycle_counts_by_scalar entries\n[TEST] FAIL: SR1: report does not reference the ADD state or the scalar_bit conditional path anywhere in vulnerable_signal/vulnerable_states/timing_dependency_description\n[TEST] FAIL: SR2: fewer than 4 cycle_counts_by_scalar entries available to compute correlation\n[TEST] FAIL: SR3: remediation does not clearly describe both (a) always executing ADD every bit into a dummy/discarded result when the bit is 0, and (b) a final mux/select mechanism\n[TEST] FAIL: SR4: 'preserves_correct_output' is not true; remediation text does not clearly explain the mux/select mechanism that commits the real ADD result only when the scalar bit is 1 (vs. a dummy result otherwise), so correctness preservation is not substantiated\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "Tester retry reproduced the identical differential failure; further identical retries were stopped",
+      "issue": "repeated_preflight_failure"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: FR1: could not parse vulnerability_report.json as a JSON object: Expecting value: line 1 column 1 (char 0)",
+        "failure_class": "golden_rejected",
+        "failure_signature": "d39a4ee6da23d5b40bbe2f0a030e7f84d6fa0987d37b1906a9b5ec8a14fa8b8e"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: FR1: could not parse vulnerability_report.json as a JSON object: Expecting value: line 1 column 1 (char 0)",
+        "failure_class": "golden_rejected",
+        "failure_signature": "d39a4ee6da23d5b40bbe2f0a030e7f84d6fa0987d37b1906a9b5ec8a14fa8b8e"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "d39a4ee6da23d5b40bbe2f0a030e7f84d6fa0987d37b1906a9b5ec8a14fa8b8e",
+    "repair_paths": [
+      "evaluation/README.md",
+      "evaluation/private/scalar_input.txt",
+      "evaluation/tb_cycle_count.v",
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": true,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "22baddefa913f01cc97a2715262f32e3e85a4c280ed5968b0e85861b8d4af597",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "b47f8f7a3490e2052972801c620c16bf61ab72d46ee36cef9ef641c6bf5f5d52",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/private/naive_baseline_check_notes.md",
+    "evaluation/private/scalar_input.txt",
+    "evaluation/tb_cycle_count.v"
+  ],
+  "uncovered_requirements": []
+}

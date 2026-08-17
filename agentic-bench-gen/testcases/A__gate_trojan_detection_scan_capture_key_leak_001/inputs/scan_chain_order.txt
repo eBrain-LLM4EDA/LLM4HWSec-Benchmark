@@ -1,0 +1,27 @@
+# scan_chain_order.txt
+#
+# Ordered sequence of scan-chain element instance names, from the
+# scan_in side to the scan_out side, as wired in key_core_netlist.v.
+#
+# Each listed instance corresponds to either a scan-chain flip-flop
+# stage or a splice mux stage that feeds directly into the next
+# stage's D input along the scan_in -> scan_out path. State stored
+# in a flop instance shows up at scan_out one shift cycle later than
+# the state stored in the flop immediately upstream of it in this
+# list.
+u_smux_stat0
+u_ff_stat0
+u_smux_key0
+key_ff0
+u_smux_stat1
+u_ff_stat1
+u_smux_key1
+key_ff1
+u_smux_stat2
+u_ff_stat2
+u_smux_key2
+key_ff2
+u_smux_stat3
+u_ff_stat3
+u_smux_key3
+key_ff3

@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    if (reg_index < 0 || reg_index >= reg_file_size) {\n        return 0;\n    }\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag.\n    reg_file[reg_index] = value;\n    return 1;\n}",
+      "path": "golden/reg_write_kernel.cpp"
+    }
+  ],
+  "manifest": [
+    {
+      "path": "golden/reg_write_kernel.cpp",
+      "purpose": "Hardened implementation of `extern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag, unsigned int *reg_file, int reg_file_size)`. Logic: (1) if reg_index<0 or reg_index>=reg_file_size, return 0 without touching memory; (2) else if reg_index in [16,47] inclusive, write and return 1 only when priv_tag==1, otherwise return 0 without writing; (3) else (reg_index in [0,15] or [48,63]) always write reg_file[reg_index]=value and return 1 regardless of priv_tag. No dynamic allocation, no exceptions, self-contained with only <cstddef> if needed. Preserves exact function signature, name, and extern \"C\" linkage. Single-range fix replacing the insecure baseline's narrow 16..31 sub-window check, closing the bypass on indices 32..47 while keeping all functional requirements (FR1-FR4) satisfied. Content identical to prior accepted attempt; no change needed here since prior repair notes target metadata.json only, not this file."
+    }
+  ]
+}

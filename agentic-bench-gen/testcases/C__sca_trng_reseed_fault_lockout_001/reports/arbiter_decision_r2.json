@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "mutants",
+  "observed_mutation_score": 1.0,
+  "rationale": "Arbiter LLM call failed; deterministic retention result is False: OpenRouter rejected the request (HTTP 403): Error code: 403 - {'error': {'message': 'Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/fd880df0187ff3862436214a2596d5cca6a5ee74925512dee90dc05f72605c17', 'code': 403}} \u2014 this is an account/key limit (credentials, exhausted credits, or the key's spending cap), not a transient error. Add credits or raise the key's limit at https://openrouter.ai/settings/keys; retrying will not help.",
+  "retain_case": false,
+  "revision_instructions": "Regenerate only the missing mutants for requirements ['FR1', 'FR2', 'FR3', 'SR2', 'SR3', 'SR4']; the golden/baseline differential already passes, so do not rewrite the evaluator.",
+  "root_cause": "mutation_issue",
+  "source_round": 2
+}

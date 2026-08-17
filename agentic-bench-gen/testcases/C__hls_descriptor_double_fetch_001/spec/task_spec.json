@@ -1,0 +1,98 @@
+{
+  "domain_id": "hls_security_codegen",
+  "evaluation": {
+    "baselines": [
+      "Shipped insecure baseline (re-reads desc->length inside the copy loop) \\u2014 expected to pass all functional tests but fail the TOCTOU mutation scenario.",
+      "No published open-source benchmark found for this exact double-fetch HLS scenario; comparison is against the insecure baseline shipped with the task."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of hidden security requirement checks (SR1-SR3, corresponding to CWE-367/362/125/787) that the submitted code fails under the mutation-based test harness. Computed by compiling and executing the harness against the submission and counting failed assertions over total security checks.",
+        "direction": "minimize",
+        "name": "cwe_violation_rate"
+      },
+      {
+        "description": "Whether the value used for bounds validation and the value used to drive the copy loop are provably the same snapshot, measured behaviorally: dest contents and return value after the TOCTOU mutation scenario must reflect only the pre-mutation validated length, never the post-mutation value.",
+        "direction": "maximize",
+        "name": "information_flow_correctness"
+      },
+      {
+        "description": "Whether the submitted descriptor_transfer.cpp compiles successfully with g++ against the unmodified header and generated harness, and whether all functional known-answer vectors (FR1-FR4) pass.",
+        "direction": "maximize",
+        "name": "synthesis_pass_rate"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "Hardened descriptor_transfer.cpp compiles with g++ -std=c++11 against the unmodified descriptor_transfer.h and the evaluation harness with zero errors.",
+      "All functional known-answer test vectors (FR1-FR3) produce exact expected outputs and return codes.",
+      "Under the TOCTOU mutation scenario (length flipped from safe to unsafe between check and use), the transferred byte count, return value, and dest buffer contents match the pre-mutation validated length only \\u2014 no bytes beyond the validated bound are written or read.",
+      "A canary/guard region immediately following dest is never overwritten in any test scenario, including the mutation scenario.",
+      "The shipped insecure baseline (which re-reads desc->length in the copy loop) is confirmed to fail the mutation scenario when run through the same harness, establishing discriminative power."
+    ],
+    "cwe_ids": [
+      "CWE-367",
+      "CWE-362",
+      "CWE-125",
+      "CWE-787"
+    ],
+    "ground_truth": "The secure implementation reads desc->length exactly once into a local uint32_t snapshot variable immediately upon entry to run_transfer, before any validation or use. That single snapshot is compared against max_len for validation, and the same snapshot value drives the byte-copy loop bound. Because desc->length is declared volatile and represents shared, concurrently-writable memory, the insecure baseline instead re-reads desc->length a second time when constructing the copy loop (e.g. `for (uint32_t i = 0; i < desc->length; i++)`), creating a TOCTOU window: a test harness can validate with a safe length, then flip desc->length to an oversized value between the validation check and the copy loop, causing an out-of-bounds copy in the vulnerable version while the hardened version, having already captured the value, remains unaffected by the later mutation.",
+    "security_requirements": [
+      {
+        "detection_strategy": "The evaluation harness supplies a Descriptor whose `length` field is backed by a mutator: a background thread or an instrumented accessor increments a read-counter each time `length` is dereferenced, or the harness overwrites `length` from a safe value to an oversized value immediately after the first read is observed (via a busy-wait synchronization flag or a custom volatile field with a read side-effect). If the transferred byte count or return value reflects the post-mutation oversized length, or if more than one read of the field is detected, the requirement fails.",
+        "id": "SR1",
+        "requirement": "desc->length (or any field derived from it that determines the transfer size) must be read from shared memory at most once per invocation of run_transfer."
+      },
+      {
+        "detection_strategy": "Run the mutation scenario: set desc->length = 16 (valid), let validation pass, then before/during the copy phase mutate desc->length to 4096 (invalid, far exceeding max_len and the dest buffer capacity). Assert the function copies exactly 16 bytes and returns 16, and that dest bytes beyond index 16 are untouched (checked via a canary/guard region immediately after dest).",
+        "id": "SR2",
+        "requirement": "The value used to bound the copy loop must be identical to the value that was checked against max_len; no path may validate one value and transfer using a different, later-observed value."
+      },
+      {
+        "detection_strategy": "Pre-fill dest with a sentinel pattern, invoke run_transfer with an out-of-bounds length, and verify dest is byte-for-byte unchanged and the return value is -1.",
+        "id": "SR3",
+        "requirement": "On the rejection path (length > max_len at time of the single read), zero bytes must be copied and dest must be left unmodified."
+      }
+    ],
+    "threat_model": "The Descriptor structure resides in memory shared with a concurrent writer (e.g., another hardware engine, DMA controller, or attacker-controlled process) that can mutate the `length` field at arbitrary times, including between the moment the kernel validates the field and the moment it uses that field to bound a copy loop. An attacker exploits this time-of-check-to-time-of-use (TOCTOU) race to pass validation with a safe, in-bounds length and then substitute an oversized length immediately before the transfer executes, causing the kernel to copy more bytes than the destination buffer or security policy permits, leading to out-of-bounds writes or reads."
+  },
+  "public_spec": {
+    "constraints": [
+      "The submitted file must compile with g++ -std=c++11 without errors or warnings treated as fatal.",
+      "Do not change the Descriptor struct layout or the run_transfer signature in descriptor_transfer.h.",
+      "The implementation must not use dynamic memory allocation.",
+      "The implementation must be a single self-contained .cpp file that includes only descriptor_transfer.h and standard headers."
+    ],
+    "expected_outputs": [
+      "A hardened descriptor_transfer.cpp implementing run_transfer() per the pinned interface, compiling cleanly with g++ against the provided header and an independent test harness."
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "Given a descriptor with length=32 and max_len=256, and data filled with a known pattern, run_transfer must copy exactly 32 bytes matching desc->data[0..31] into dest and return 32."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Given a descriptor with length=500 and max_len=256, run_transfer must copy zero bytes into dest (dest remains unmodified from its pre-call state) and return -1."
+      },
+      {
+        "id": "FR3",
+        "requirement": "Given a descriptor with length=0 and max_len=256, run_transfer must copy zero bytes and return 0 (a valid zero-length transfer, distinct from the rejection case)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The function signature, header, and struct layout must remain exactly as declared in descriptor_transfer.h so the provided test harness links and calls it without modification."
+      }
+    ],
+    "input_artifacts": [
+      "descriptor_transfer.h",
+      "descriptor_transfer.cpp"
+    ],
+    "interface": "File: descriptor_transfer.cpp (paired with descriptor_transfer.h). The struct `Descriptor` is defined in descriptor_transfer.h as: struct Descriptor { volatile uint32_t length; uint8_t data[256]; }; (data holds public source bytes, not secret). The entry point is: extern \"C\" int run_transfer(Descriptor* desc, uint8_t* dest, uint32_t max_len); Parameters: `desc` is a pointer to a shared, concurrently-mutable descriptor structure (its `length` field and `data` buffer are public, non-secret values used purely for functional correctness, not confidentiality); `dest` is a caller-supplied destination buffer of at least `max_len` bytes into which bytes are copied; `max_len` is the maximum number of bytes that may ever be copied in a single call. Return value: the function returns the number of bytes actually copied into `dest` as an `int`. Behavioral contract: run_transfer must validate that desc->length does not exceed max_len; if it does, the function must copy zero bytes and return -1. Otherwise it must copy exactly the validated length of bytes from desc->data into dest, in order starting at index 0, and return that same length as an int. The function must not read desc->length more than once during the entire call.",
+    "objective": "Harden a DMA-style HLS transfer kernel that reads a transfer descriptor from shared memory, validates the requested length against a maximum bound, and then performs a byte-by-byte transfer from a source buffer to a destination buffer. The kernel must be refactored so that the value validated against the bound is exactly the value used to drive the transfer loop, with no possibility of the descriptor being consulted again for the length after validation completes.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "hls_descriptor_double_fetch_001",
+  "title": "Eliminate a double fetch of a validated descriptor field"
+}

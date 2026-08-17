@@ -1,0 +1,21 @@
+{
+  "best_round": 0,
+  "canonical_sha256": {
+    "artifacts/artifact_bundle.json": "e2982ec2614eec9ae0d012615a8c97df8f7da9926da488b7e96bc220acc8e978",
+    "expert/expert_bundle.json": "e33bb3be5be0da265f6fdaea8553ec445883376584d90d0f7c104abc78651cb2",
+    "mutants/mutation_bundle.json": "f15efdf60c4a64550467784e9fa6485dc58b933f3fd86a08f7b907d37b8552c4",
+    "reports/analyzer_report.json": "23bcb0db0d43f813777e3c7c73dc5b0e2c30d391add47e6f4857a30a78de97c1",
+    "reports/quality_report.json": "a964a851172f1869dbf36da5ce72056cf7d212d85b54035f184f66656dff82cf",
+    "reports/validation_report.json": "126bc537031d2a2fde865b223afa9dc16af5b6efc65548cfd4bea628fc9d147e",
+    "spec/task_spec.json": "082d5bdf30e4e9eca2791a7128f12e1e25bdb62ab53990c8fe741f5cfc868a4c",
+    "tests/tester_bundle.json": "74ad7b14d4b29c98b391fb3b6e456dff10e22a191e3d86dc3d9035d9d0cde9d1"
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "final_attempted_round": 0,
+  "quality_status": "fail",
+  "restored": false,
+  "schema_version": 1,
+  "source_round": 0,
+  "status": "quality_failed",
+  "task_id": "sca_bus_precharge_hamming_leak_001"
+}

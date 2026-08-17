@@ -1,0 +1,112 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/ladder_swap.cpp",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "e7db077926cb983685f39c32c11614a6355306165dc306133fab964a431c392c",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR4: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: FR1: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: FR2: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: FR3: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: SR1: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: SR2"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] FAIL: FR4: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: FR1: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: FR2: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: FR3: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: SR1: compile failed: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:\nevaluation/harness_main.cpp:75:34: error: expected \u2018)\u2019 before \u2018u\u2019\n   75 |             fill_random(Q, 0xaaaa u = 0); // placeholder to avoid unused warnings (overwritten below)\n      |                        ~         ^~\n      |                                  )\nevaluation/harness_main.cpp: At global scope:\nevaluation/harness_main.cpp:38:12: warning: \u2018int run_functional()\u2019 defined but not used [-Wunused-function]\n   38 | static int run_functional()\n      |            ^~~~~~~~~~~~~~\n[TEST] FAIL: SR2"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/ladder_swap.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    },
+    {
+      "detail": "evaluate.py never emitted [TEST] PASS/FAIL for ['SR3'] on the golden run \u2014 requirement_map ids and the script's marker ids must match exactly",
+      "issue": "requirement_id_mismatch"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: FR4: g++ exited 1: evaluation/harness_main.cpp: In function \u2018int run_functional()\u2019:",
+        "failure_class": "golden_rejected",
+        "failure_signature": "e7db077926cb983685f39c32c11614a6355306165dc306133fab964a431c392c"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "[TEST] FAIL: FR4: g++ exited 1: /usr/bin/ld: /tmp/ccIs9rpj.o: in function `main':",
+        "failure_class": "golden_rejected",
+        "failure_signature": "78511527cab11d05148a5a75414238c6667480c52d61e9f48dfe8300f2b006df"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "e7db077926cb983685f39c32c11614a6355306165dc306133fab964a431c392c",
+    "repair_paths": [
+      "evaluation/README.md",
+      "evaluation/harness_main.cpp",
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 7,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "a73b1fcffde48f229d23eb597ac3970e3c9ebf0f8e5f2e891f23084312010da6",
+        "changed": true,
+        "golden": "golden/ladder_swap.cpp",
+        "golden_sha256": "c5d26bc90b01049230d91e00c60c5ad97a511592be98b4b1737f23ad5fd438e3",
+        "target": "inputs/ladder_swap.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/ladder_swap.cpp"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": []
+}

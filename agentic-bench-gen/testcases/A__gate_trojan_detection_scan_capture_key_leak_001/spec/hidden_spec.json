@@ -1,0 +1,38 @@
+{
+  "acceptance_criteria": [
+    "A submission scoring PASS must list at least 3 of the 4 true key flops and at least 3 of the 4 true scan muxes, report trojan_detected=true, and provide a rationale referencing scan-mode/capture conditionality.",
+    "The shipped baseline (naive/empty) submission -- trojan_detected=false, empty suspect_flops/suspect_muxes, generic rationale -- must score FAIL under the grading rubric.",
+    "False positive rate must be computed as the fraction of submitted suspect_flops/suspect_muxes entries that do not appear in the ground-truth sets, and must be reported even on PASS submissions.",
+    "Optional simulation cross-check: if iverilog/vvp are available, evaluate.py may drive scan_en=1 and shift a known pattern through scan_in, then confirm key_ff0..key_ff3 values appear at scan_out at the expected shift-cycle offsets per scan_chain_order.txt, corroborating the ground truth independent of the submission."
+  ],
+  "cwe_ids": [
+    "CWE-1258",
+    "CWE-1300",
+    "CWE-200",
+    "CWE-1245"
+  ],
+  "ground_truth": "The netlist contains four key flip-flops key_ff0, key_ff1, key_ff2, key_ff3 holding a secret key register. In the reference (non-trojan) design these flops' scan_in path would be gated so scan capture never latches key state onto the scan chain (a scan-disable AND gate masks their D-input tap from the shift register during capture). In the trojan variant shipped here, four scan multiplexers u_smux_key0, u_smux_key1, u_smux_key2, u_smux_key3 are spliced directly between each key flop's functional D-input/Q-output and the adjacent scan-chain flip-flop's scan_in, selected by scan_en. This routes key_ff0..key_ff3 state into the shift register during scan capture, so it becomes observable at scan_out after the appropriate number of shift cycles once scan_en=1. Functional (scan_en=0) operation is bit-exact identical to a trojan-free version; the leak manifests only when scan_en is asserted and the chain is shifted.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Exact-match (case-insensitive) comparison of submitted suspect_flops set against the ground-truth key flop instance names extracted from the netlist; compute recall requiring all 4 be present.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify all four key flip-flop instances (key_ff0, key_ff1, key_ff2, key_ff3) as scan-observable in suspect_flops."
+    },
+    {
+      "detection_strategy": "Exact-match comparison of submitted suspect_muxes set against ground-truth mux instance names; compute recall requiring all 4 be present and precision penalizing large numbers of unrelated extraneous instances.",
+      "id": "SR2",
+      "requirement": "The report must correctly identify the four scan-splicing multiplexer instances (u_smux_key0..u_smux_key3) as the mechanism enabling the leak in suspect_muxes."
+    },
+    {
+      "detection_strategy": "Direct boolean equality check against ground-truth label true.",
+      "id": "SR3",
+      "requirement": "trojan_detected must be reported as true, since the design under analysis is the trojan-inserted variant."
+    },
+    {
+      "detection_strategy": "Keyword/semantic check for terms indicating scan-mode conditionality (e.g., 'scan_en', 'scan mode', 'capture', 'shift') combined with optional cross-check simulation via iverilog/vvp toggling scan_en to confirm key_ff values appear at scan_out, validating the reported mechanism actually reproduces the leak on the real netlist.",
+      "id": "SR4",
+      "requirement": "The rationale must demonstrate understanding that the leak is scan-mode-specific (i.e., manifests only when scan_en is asserted) rather than a general functional bug, distinguishing it from a naive false-positive flagging of unrelated flops."
+    }
+  ],
+  "threat_model": "Design-for-test (DFT) scan infrastructure is a standard manufacturing/test feature, but if secret-holding registers (e.g., a symmetric key register) are not explicitly isolated from the scan network, anyone with physical or remote scan access (test engineer, untrusted foundry, or an attacker with JTAG/scan port access post-deployment) can shift the key out through scan_out, defeating confidentiality guarantees that hold in normal functional mode. This converts a test feature into a full key-extraction channel."
+}

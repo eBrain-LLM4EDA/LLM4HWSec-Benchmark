@@ -1,0 +1,13 @@
+{
+  "trace_type": "power / EM side-channel",
+  "observation_granularity": "single execution, univariate analysis",
+  "clock_model": "single global clock; combinational paths are assumed to settle within one clock cycle",
+  "ports_observable": ["a0", "a1", "b0", "b1", "r", "q0", "q1"],
+  "internal_visibility": "attacker may correlate observed trace activity with any internal net's switching behavior, not just primary ports",
+  "review_focus": [
+    "identify which internal nets carry values derived from partial products of the input shares",
+    "characterize how many clock cycles elapse between share inputs arriving and each net settling to its steady-state value",
+    "assess whether any single net's transient (pre-settling) activity could depend on signals derived from more than one share of the same operand within one clock cycle"
+  ],
+  "notes": "This review should treat combinational settling time as significant: gate delays and differing fan-in depths mean internal nodes do not necessarily reach their final value instantaneously or in lockstep. The report should account for both steady-state (settled) values and the transient activity that occurs while a combinational stage is still resolving within a clock cycle."
+}

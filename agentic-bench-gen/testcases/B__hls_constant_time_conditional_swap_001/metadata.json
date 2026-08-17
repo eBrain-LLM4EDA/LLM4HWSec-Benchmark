@@ -1,0 +1,64 @@
+{
+  "task_id": "hls_constant_time_conditional_swap_001",
+  "domain_id": "hls_security_codegen",
+  "title": "Constant-time conditional swap for a scalar-multiplication ladder",
+  "submission_kind": "hardened_artifact",
+  "input_artifacts": [
+    "inputs/ladder_swap.cpp",
+    "inputs/design_brief.md"
+  ],
+  "interface": {
+    "file": "inputs/ladder_swap.cpp",
+    "function_signature": "void conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit);",
+    "parameters": [
+      "P: pointer to the first coordinate buffer (in/out), length n",
+      "Q: pointer to the second coordinate buffer (in/out), length n",
+      "n: number of uint32_t elements in each of P and Q (always > 0 in tests)",
+      "ctrl_bit: selector value, guaranteed to be exactly 0 or 1; 1 means swap P and Q element-wise, 0 means leave them unchanged"
+    ]
+  },
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "summary": "When ctrl_bit == 1, P and Q must be exactly swapped element-wise for all indices 0..n-1."
+    },
+    {
+      "id": "FR2",
+      "summary": "When ctrl_bit == 0, P and Q must remain exactly unchanged."
+    },
+    {
+      "id": "FR3",
+      "summary": "Must handle n from 1 to 4096 inclusive without buffer overrun, corruption, or crash, including n = 1, 2, 64, 4096."
+    },
+    {
+      "id": "FR4",
+      "summary": "Must compile cleanly with g++ -std=c++17 -Wall -Wextra and link against an external test harness using the exact function signature."
+    }
+  ],
+  "constraints": [
+    "Self-contained C++17 file compilable with g++ using only <cstdint> and <cstddef>",
+    "No change to function name, signature, or file layout; single translation unit",
+    "No dynamic memory allocation (no new/malloc); operate only on caller-provided buffers",
+    "No printing, logging, or other side-channel exposure of ctrl_bit or intermediate values beyond the final contents of P and Q"
+  ],
+  "evaluation": {
+    "evaluation_mode": "compile_and_run",
+    "metrics": [
+      {
+        "name": "synthesis_pass_rate",
+        "direction": "maximize",
+        "description": "Fraction of required functional test vectors (swap correctness for ctrl_bit=0/1 across multiple n values, plus successful g++ compilation) that pass when the submitted inputs/ladder_swap.cpp is compiled and executed against the generated harness."
+      },
+      {
+        "name": "cwe_violation_rate",
+        "direction": "minimize",
+        "description": "Fraction of hidden security checks that are violated, determined by static detection and dynamic access-trace/timing differential tests."
+      },
+      {
+        "name": "information_flow_correctness",
+        "direction": "maximize",
+        "description": "Measure of whether the control value can be distinguished from observable behavior (branch count, memory access order, or timing) across repeated dynamic trials; 1.0 means no observable difference detected."
+      }
+    ]
+  }
+}

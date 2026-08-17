@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The netlist inputs/perm_cone_netlist.v must be provided as a self-contained synthesizable Verilog module named perm_cone with ports req_level[1:0], owner_id[2:0], and output grant, built only from NAND2/NAND3/NOR2/INV primitive cell instances (no AND/OR/behavioral logic).",
+    "inputs/reference_truth_table.txt must exhaustively list all 32 combinations of req_level and owner_id together with the specification-correct grant value, in a simple 'req_level owner_id : grant' text format per line.",
+    "inputs/design_brief.md must describe the module's purpose and pinout in plain functional terms without disclosing any information about equivalence, trojans, or the specific divergent vector.",
+    "Participants must not edit any file under inputs/; grading only inspects submission/trojan_report.json."
+  ],
+  "expected_outputs": [
+    "submission/trojan_report.json containing a trojan verdict, suspect gate instance names, and the exact diverging input vector(s), if any"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "submission/trojan_report.json must be valid JSON and must contain all five top-level keys (trojan_detected, suspect_instances, diverging_vectors, explanation) with the exact types specified in the interface; missing or mistyped fields fail this requirement."
+    },
+    {
+      "id": "FR2",
+      "requirement": "Every string in diverging_vectors[].req_level must be exactly 2 characters of '0'/'1', and every owner_id must be exactly 3 characters of '0'/'1'; expected_grant and observed_grant must each be exactly the integer 0 or 1."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Every gate instance name listed in suspect_instances must correspond to an instance name that literally appears in inputs/perm_cone_netlist.v (exact string match against a module instantiation identifier)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "If trojan_detected is false, diverging_vectors must be an empty array; if trojan_detected is true, diverging_vectors must contain at least one entry."
+    }
+  ],
+  "input_artifacts": [
+    "perm_cone_netlist.v",
+    "reference_truth_table.txt",
+    "design_brief.md"
+  ],
+  "interface": "The participant does NOT modify any file under inputs/. The participant authors exactly one answer file at submission/trojan_report.json with this exact JSON schema: { \"trojan_detected\": <boolean>, \"suspect_instances\": [<string>, ...], \"diverging_vectors\": [ { \"req_level\": \"<2-bit binary string, e.g. '10'>\", \"owner_id\": \"<3-bit binary string, e.g. '101'>\", \"expected_grant\": <0 or 1>, \"observed_grant\": <0 or 1> }, ... ], \"explanation\": \"<string, free-form technical justification>\" }. Field types: trojan_detected is a JSON boolean; suspect_instances is a JSON array of strings matching gate instance names exactly as they appear in inputs/perm_cone_netlist.v (e.g. 'u_perm_nand3'); diverging_vectors is a JSON array (possibly empty if trojan_detected is false) of objects with the four listed keys; req_level and owner_id are exact-length binary strings (no '0b' prefix, no whitespace); expected_grant and observed_grant are integers 0 or 1. evaluate.py reads inputs/perm_cone_netlist.v and inputs/reference_truth_table.txt for grading reference and reads submission/trojan_report.json for the graded answer; it does not execute or synthesize the submission itself.",
+  "objective": "You are given a gate-level netlist of a permission-check module extracted from a larger access-control subsystem. The netlist contains a small combinational cone (labeled 'perm_cone') that determines a single-bit 'grant' output from 'req_level' (2-bit) and 'owner_id' (3-bit) inputs. This cone was hand-optimized during synthesis using NAND/NOR/inverter restructuring instead of AND/OR gates for area savings. Your task is to analyze the netlist, determine whether the restructured cone is functionally identical to its documented reference behavior for all input combinations, and produce a structured analysis report identifying any gate instance(s) whose behavior diverges from the reference specification, together with the exact input vector(s) at which divergence occurs. If no divergence exists, report that the cone is equivalent.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema given in public_spec.interface exactly."
+}

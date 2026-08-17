@@ -1,0 +1,112 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/crt_recombine.v",
+    "inputs/crt_reference.v",
+    "inputs/design_brief.md",
+    "inputs/fault_model.md",
+    "inputs/tb_crt_recombine.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "6e4d72ad3ca3ecc9709644a27c95b88f00521308d73a37f519a485516d8a4b7f",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[INFO] golden_fixture regression check: OK (primary=sig_p_reg)\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: trigger_scenario names both branch registers with no primary target distinguished, inconsistent with vulnerable_register=sig_q_reg\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[INFO] golden_fixture regression check: OK (primary=sig_p_reg)\n[TEST] FAIL: FR1: field 'vulnerable_register' is empty; field 'fault_model' is empty; field 'trigger_scenario' is empty; field 'missing_verification_step' is empty; field 'recommended_fix' is empty\n[TEST] FAIL: FR2: cannot evaluate: required fields missing/empty (see FR1)\n[TEST] FAIL: FR3: cannot evaluate: required fields missing/empty (see FR1)\n[TEST] FAIL: FR4: cannot evaluate: required fields missing/empty (see FR1)\n[TEST] FAIL: SR1: cannot evaluate: required fields missing/empty (see FR1)\n[TEST] FAIL: SR2: cannot evaluate: required fields missing/empty (see FR1)\n[TEST] FAIL: SR3: cannot evaluate: required fields missing/empty (see FR1)\n[TEST] FAIL: SR4: cannot evaluate: required fields missing/empty (see FR1)\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SR1: trigger_scenario names both branch registers with no primary target distinguished, inconsistent with vulnerable_register=sig_q_reg",
+        "failure_class": "golden_rejected",
+        "failure_signature": "6e4d72ad3ca3ecc9709644a27c95b88f00521308d73a37f519a485516d8a4b7f"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "File \"/work/evaluation/evaluate.py\", line 1",
+        "failure_class": "multiple",
+        "failure_signature": "552664261bfadb3819df5ce8ae26a7c2a81fb107f0e093df10b49809a78aff8f"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "6e4d72ad3ca3ecc9709644a27c95b88f00521308d73a37f519a485516d8a4b7f",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "809847ec4528f2df230d08ea223b884c5dfc756b0664c05d1cfdc69ded49e8a8",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "94f4d60e099621509287f2836d5704a10e65bb0c4dcc6ebca2e4dbc892f454ab",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/fault_sim_harness.v",
+    "evaluation/private/golden_fixture.json"
+  ],
+  "uncovered_requirements": []
+}

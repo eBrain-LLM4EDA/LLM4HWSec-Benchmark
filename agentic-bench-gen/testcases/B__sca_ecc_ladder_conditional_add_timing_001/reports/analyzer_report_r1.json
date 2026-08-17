@@ -1,0 +1,107 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/vulnerability_report.json vs evaluation/tb_cycle_count.v",
+      "description": "The differential test shows the golden (expert-correct) submission is REJECTED by evaluate.py on FR2: submitted cycle_count values (69 for scalar=1, 129 for scalar=65535) mismatch the independent iverilog reference simulation (103 and 193 respectively) by far more than the allowed tolerance of 1 cycle. This indicates either the golden report's cycle_count arithmetic model is wrong, or the reference testbench/RTL produces a different (and possibly correct) cycle count than what a careful analyst would compute by hand, and the golden fixture was not actually validated against the real simulation before being shipped. This is a critical coherence failure: the grader does not accept a correct submission.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR2: cycle_count mismatches vs reference simulation: scalar 1: submitted=69 ref_sim=103; scalar 65535: submitted=129 ref_sim=193' while golden_run.expected='pass'",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.status",
+      "description": "Differential harness explicitly reports status 'fail' with failure_class 'golden_rejected', and this was reproduced identically across retries (repeated_preflight_failure), confirming the issue is deterministic and not a flaky simulation artifact. mutation_score is 0.0 and marked not meaningful, and mutation_status is blocked_by_differential, meaning no confidence can be placed in the SR/FR discrimination of evaluate.py until this is fixed.",
+      "evidence": "validation report fields: mutation_score=0.0, mutation_score_meaningful=false, mutation_status='blocked_by_differential', requirement_discrimination_coverage_score=0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "golden/vulnerability_report.json cycle_count model",
+      "description": "The mismatch magnitude (69 vs 103 for scalar=1, a 34-cycle discrepancy; 129 vs 193 for scalar=65535, a 64-cycle discrepancy) suggests a systematic off-by-model error, e.g. the golden report's author computed cycles as 16*3 + weight*4 (or similar) but missed additional fixed overhead cycles (IDLE->DOUBLE dispatch, NEXT_BIT transition cycles, or DONE latency) that the actual scalar_mult_ctrl.v/field_datapath.v RTL incurs. This indicates the hidden_spec's ground_truth formula and/or the golden fixture were not cross-validated against the shipped RTL before packaging the task.",
+      "evidence": "64-cycle delta for scalar 65535 (Hamming weight 16) vs 34-cycle delta for scalar 1 (Hamming weight 1) is inconsistent with a simple linear per-bit model, suggesting a NEXT_BIT-per-bit fixed cost (1 cycle *16=16) plus something else was omitted from the golden author's mental model.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Recompute the golden vulnerability_report.json's cycle_counts_by_scalar entries by actually running evaluation/tb_cycle_count.v (or an equivalent harness) against the shipped inputs/scalar_mult_ctrl.v and inputs/field_datapath.v, and replace the golden fixture's values with the true simulated cycle counts for every scalar it reports (especially scalar=1 and scalar=65535 which currently mismatch by 34 and 64 cycles respectively).",
+    "Add a CI/regression step that runs evaluate.py against golden/vulnerability_report.json as part of packaging and blocks release unless it exits 0, to prevent shipping an internally-inconsistent golden fixture again.",
+    "Double check the hidden_spec ground_truth cycle formula (fixed DOUBLE cost*16 + ADD cost*Hamming weight) against the actual RTL, including any additional overhead cycles from S_IDLE dispatch, S_NEXT_BIT transitions, and S_DONE latency, and update fault_model.md/design_brief.md's implied timing model description if it undercounts fixed per-bit overhead.",
+    "Once the golden fixture is corrected, re-run the full differential (golden must pass all FR/SR; baseline must fail all) and confirm mutation_score becomes meaningful before treating this benchmark case as usable."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run.exit_code=1, status='fail', FR2 explicitly failed with large cycle_count mismatches vs reference simulation",
+      "requirement": "evaluate.py ACCEPTs a correct/golden submission (exit 0)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run.exit_code=1, all FR1-FR4/SR1-SR4 report [TEST] FAIL as expected; ok=true for this run",
+      "requirement": "evaluate.py REJECTs the naive/empty baseline submission (exit non-zero)",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py checks string non-emptiness and array-of-{scalar,cycle_count} typing; correctly fails baseline and would pass golden's field presence (golden only failed on FR2)",
+      "requirement": "FR1: required JSON fields present/typed",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run fails FR2 due to cycle_count mismatches vs reference sim tolerance of 1; this is the blocking coherence bug",
+      "requirement": "FR2: cycle_counts_by_scalar Hamming-weight coverage + simulation cross-check",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run.stdout shows '[TEST] PASS: FR3'",
+      "requirement": "FR3: preserves_correct_output + remediation_rtl_sketch substantive",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout shows '[TEST] PASS: FR4'",
+      "requirement": "FR4: cycle_count_range matches min/max of submitted entries",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout shows '[TEST] PASS: SR1'",
+      "requirement": "SR1: identifies ADD-state/scalar_bit conditional as leak source",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout shows '[TEST] PASS: SR2' (correlation checks passed even though absolute cycle_count values were wrong, since Pearson correlation is scale/offset invariant)",
+      "requirement": "SR2: Hamming-weight correlation with cycle_count (>=0.9) plus real variation in reference sim",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout shows '[TEST] PASS: SR3'",
+      "requirement": "SR3: remediation describes always-execute-ADD-with-dummy/mux pattern, not just noise/jitter",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout shows '[TEST] PASS: SR4'",
+      "requirement": "SR4: preserves_correct_output==true and commit-mechanism explained",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, fault_model.md all use purely functional/observational language without security terms, CWE ids, or explicit vulnerability framing, per manifest descriptions",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, vulnerability framing) into public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are distinct and each maps to a concrete, automatable check in evaluate.py (schema/types, Hamming-weight coverage + sim cross-check, boolean+substantive RTL sketch, min/max range consistency)",
+      "requirement": "Public FRs are concrete and machine-checkable (2-4 distinct, verifiable via interface)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as 'functional' and SR1-SR4 as 'security' with distinct detection strategies per id; requirement_mapping_coverage_score=1.0",
+      "requirement": "Requirement map covers functional and security requirements separately",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py runs an independent iverilog/vvp simulation of the actual RTL (tb_cycle_count.v against scalar_mult_ctrl.v/field_datapath.v) to empirically verify Hamming-weight-dependent timing variation (SR2) rather than relying solely on textual claims, and cross-checks submitted cycle counts against this simulation (FR2)",
+      "requirement": "Security-relevant behaviors actively triggered rather than only generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "Because the golden fixture itself fails the simulation cross-check that is central to FR2/SR2, the correctness of the golden cycle-count ground truth (and thus the entire FR2 tolerance-based scoring) is currently unverified/incoherent; this must be resolved before the benchmark can be trusted",
+      "requirement": "Results are verifiable / no unverifiable gaps",
+      "status": "fail"
+    }
+  ],
+  "source_round": 1
+}

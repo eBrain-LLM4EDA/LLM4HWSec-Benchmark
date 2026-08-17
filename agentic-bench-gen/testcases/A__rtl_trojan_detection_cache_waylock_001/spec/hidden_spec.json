@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [
+    "A submission PASSES only if it satisfies FR1-FR4 (format/presence) AND SR1, SR2, SR3, SR4 (substantive correctness) as scored by evaluate.py.",
+    "The shipped baseline/naive submission (e.g., empty candidates list or generic 'no issues found' report) must FAIL on SR1 and SR2.",
+    "evaluate.py may optionally invoke iverilog/vvp on inputs/cache_controller.v with a hidden trigger testbench to confirm the ground-truth trojan is present and to validate that the reviewer's claimed trigger values actually reproduce the lock-bypass in simulation, but PASS/FAIL is determined by grading the submitted report content, not by re-deriving the answer independently."
+  ],
+  "cwe_ids": [
+    "CWE-284",
+    "CWE-693",
+    "CWE-200"
+  ],
+  "ground_truth": "In the victim-selection combinational/sequential logic, the effective lock mask used to exclude locked ways from eviction is computed as effective_lock = lock_bits[set_idx] & ~bypass_term, where bypass_term is asserted (clearing the corresponding lock bit from consideration) precisely when tag_in == 8'hA5 and secure_attr == 1'b0 during a miss. This causes victim_way to be selected from an otherwise-locked way whenever a request with tag 0xA5 and secure_attr deasserted misses on a set where that way is locked. Correct behavior requires victim_way to never equal a way whose lock bit is set, under every reachable input sequence including this tag/attribute combination. hit_way, hit, and lock_status readback are unaffected and remain bit-exact; only victim_way selection is compromised.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Parse candidates[].rationale and summary for an explicit claim that a locked way can become the victim/evicted despite lock_status indicating it is locked.",
+      "id": "SR1",
+      "requirement": "The report must identify that victim_way selection can choose a way whose lock bit is set (i.e., an eviction-protection bypass exists), not merely note generic 'suspicious logic' without concluding a lock-bypass consequence."
+    },
+    {
+      "detection_strategy": "Regex/keyword scan plus optional cross-check: harness runs iverilog/vvp on cache_controller.v with a hidden directed trigger sequence (miss, tag_in=8'hA5, secure_attr=0, target way locked) and confirms victim_way selects the locked way; compares this ground-truth trigger to the values named in the submitted report (accepting 0xA5, 165, or 8'b10100101 as equivalent, and secure_attr=0/low/deasserted as equivalent).",
+      "id": "SR2",
+      "requirement": "The report must identify the specific trigger condition: tag_in equal to 0xA5 (or equivalent decimal/binary form) combined with secure_attr low (0), as the condition activating the bypass."
+    },
+    {
+      "detection_strategy": "Check FR4 field / rationale text for false-positive claims about hit_way/hit/lock_status being wrong; penalize reports that claim these are compromised.",
+      "id": "SR3",
+      "requirement": "The report must correctly scope the defect to victim_way selection and not falsely claim that hit_way, hit, or lock_status are corrupted, since those remain correct."
+    },
+    {
+      "detection_strategy": "Filter candidates matching SR1/SR2 criteria and check their confidence field numerically.",
+      "id": "SR4",
+      "requirement": "At least one reported candidate must achieve confidence >= 0.6 for the correct finding, distinguishing a confident correct detection from a hedged guess buried among many low-confidence speculative candidates."
+    }
+  ],
+  "threat_model": "An adversary who can influence request tag bits and the secure_attr line (e.g. via a compromised peripheral, DMA engine, or software running at reduced privilege that can still issue transactions with attacker-chosen tag and security attribute) can silently defeat the cache's way-locking protection meant to pin security-critical lines (e.g., key schedules, page-table roots) in the cache. By issuing a miss with tag_in=0xA5 and secure_attr=0 on a set containing a locked way, the attacker forces eviction and replacement of the pinned line, enabling side-channel leakage, cache-based timing attacks, or corruption of the resident line without triggering any documented alarm, since lock_status still reports the way as 'locked'."
+}

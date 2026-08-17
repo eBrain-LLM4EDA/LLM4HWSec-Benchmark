@@ -1,0 +1,88 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Static source scan detects an 'if' branch whose condition depends on ctrl_bit (data-dependent control flow), violating SR1. Dynamic differential instruction/branch-count comparison would also show different basic-block execution counts between ctrl_bit=0 and ctrl_bit=1, and functional tests still pass so this defect is purely a security violation, not a functional one.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n#include <cstddef>\n\n// Conditionally exchanges the contents of two coordinate buffers used in\n// a ladder step of a scalar-multiplication routine.\n//\n// P and Q each hold n uint32_t values. When ctrl_bit is 1, the two\n// buffers are exchanged element-wise; when ctrl_bit is 0, both buffers\n// are left exactly as they were.\n//\n// NOTE: this version applies the branchless masked-swap identity as a\n// fast path, but still gates the whole operation behind a check on\n// ctrl_bit to skip work entirely when there is nothing to swap.\nvoid conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit)\n{\n    // Build a full-width mask: all-ones if ctrl_bit is 1, all-zeros if 0.\n    const uint32_t mask = (uint32_t)0 - (uint32_t)(ctrl_bit & 1u);\n\n    // Optimization: if there is nothing to do, skip the loop entirely.\n    // This branch's condition is derived directly from ctrl_bit, which\n    // reintroduces a secret-dependent control-flow path.\n    if (ctrl_bit & 1u)\n    {\n        for (int i = 0; i < n; ++i)\n        {\n            const uint32_t t = mask & (P[i] ^ Q[i]);\n            P[i] ^= t;\n            Q[i] ^= t;\n        }\n    }\n    else\n    {\n        for (int i = 0; i < n; ++i)\n        {\n            const uint32_t t = mask & (P[i] ^ Q[i]);\n            P[i] ^= t;\n            Q[i] ^= t;\n        }\n    }\n}",
+          "path": "inputs/ladder_swap.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_conditional_swap_001_SR1_domain_specific_01",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Dynamic access-trace differential test: instrumented accessors record the addresses/indices touched on P and Q for ctrl_bit=0 vs ctrl_bit=1 at fixed n. This mutant only writes back to P and Q when the computed mask is non-zero (ctrl_bit==1), so for ctrl_bit=0 the write operations to P[i] and Q[i] are skipped entirely, making the memory access trace (write set) differ in length/pattern between ctrl_bit=0 and ctrl_bit=1, even though the branch condition is disguised as a mask check rather than a direct ctrl_bit test. A static scan may miss it (no literal 'if (ctrl_bit)'), but the access-trace/timing tests will detect the differing write pattern and, since the underlying comparison is a data-dependent branch, will also register a possible static/dynamic branch-count mismatch.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n#include <cstddef>\n\n// Conditionally exchanges the contents of two coordinate buffers used in\n// a ladder step of a scalar-multiplication routine.\n//\n// P and Q each hold n uint32_t values. When ctrl_bit is 1, the two\n// buffers are exchanged element-wise; when ctrl_bit is 0, both buffers\n// are left exactly as they were.\n//\n// NOTE: this version still computes a mask value using the same\n// arithmetic technique as a constant-time implementation, but it skips\n// performing the write-back to memory entirely when the mask indicates\n// no swap is needed, as a \"performance optimization\" to avoid redundant\n// stores when nothing would change.\nvoid conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit)\n{\n    // Build a full-width mask: all-ones if ctrl_bit is 1, all-zeros if 0.\n    const uint32_t mask = (uint32_t)0 - (uint32_t)(ctrl_bit & 1u);\n\n    // Skip touching memory at all when there is nothing to swap.\n    if (mask == 0u)\n    {\n        return;\n    }\n\n    for (int i = 0; i < n; ++i)\n    {\n        const uint32_t t = mask & (P[i] ^ Q[i]);\n        P[i] ^= t;\n        Q[i] ^= t;\n    }\n}",
+          "path": "inputs/ladder_swap.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_conditional_swap_001_SR2_domain_specific_01",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Dynamic timing differential test: running conditional_swap repeatedly with ctrl_bit=0 vs ctrl_bit=1 at the same n will show a statistically significant timing difference because the mutant adds an extra full pass over the buffers only when ctrl_bit==1, changing the total work performed and thus the wall-clock time in a data-dependent way, exceeding the generous threshold.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n#include <cstddef>\n\n// Conditionally exchanges the contents of two coordinate buffers used in\n// a ladder step of a scalar-multiplication routine.\n//\n// P and Q each hold n uint32_t values. When ctrl_bit is 1, the two\n// buffers are exchanged element-wise; when ctrl_bit is 0, both buffers\n// are left exactly as they were.\n//\n// This implementation uses a bitwise mask to select swap vs no-swap so\n// that no branch is conditioned on ctrl_bit. However, an additional\n// \"verification\" pass is performed only when the mask is non-zero, to\n// double-check the swap was applied correctly before returning.\nvoid conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit)\n{\n    // Build a full-width mask: all-ones if ctrl_bit is 1, all-zeros if 0.\n    const uint32_t mask = (uint32_t)0 - (uint32_t)(ctrl_bit & 1u);\n\n    for (int i = 0; i < n; ++i)\n    {\n        const uint32_t t = mask & (P[i] ^ Q[i]);\n        P[i] ^= t;\n        Q[i] ^= t;\n    }\n\n    // Extra redundant pass performed only when a swap actually occurred,\n    // to \"confirm\" the buffers are consistent. This doubles the work done\n    // when ctrl_bit == 1 relative to ctrl_bit == 0.\n    if (mask != 0)\n    {\n        for (int i = 0; i < n; ++i)\n        {\n            volatile uint32_t check = P[i] ^ Q[i];\n            (void)check;\n            for (int j = 0; j < 4; ++j)\n            {\n                volatile uint32_t spin = check + (uint32_t)j;\n                (void)spin;\n            }\n        }\n    }\n}",
+          "path": "inputs/ladder_swap.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_conditional_swap_001_SR3_domain_specific_01",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Functional test vector for ctrl_bit==1 will fail: the mask computation is inverted (using bitwise NOT instead of two's-complement negation combined with an OR instead of AND for the bit extraction), causing mask to be 0xFFFFFFFF when ctrl_bit==0 and 0x00000000 when ctrl_bit==1, so P and Q are swapped when they should remain unchanged and left unchanged when they should be swapped. FR1 (ctrl_bit==1 must swap exactly) will be violated and detected by the byte-exact comparison test vectors across n in {1,2,64,4096}.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n#include <cstddef>\n\n// Conditionally exchanges the contents of two coordinate buffers used in\n// a ladder step of a scalar-multiplication routine.\n//\n// P and Q each hold n uint32_t values. When ctrl_bit is 1, the two\n// buffers are exchanged element-wise; when ctrl_bit is 0, both buffers\n// are left exactly as they were.\n//\n// This implementation is intended to be branchless and constant-time with\n// respect to ctrl_bit: the loop trip count and the sequence of memory\n// reads/writes performed on P and Q are identical regardless of\n// ctrl_bit's value.\nvoid conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit)\n{\n    // Build a full-width mask: intended to be all-ones if ctrl_bit is 1,\n    // all-zeros if 0. NOTE: this expression has been altered to use a\n    // bitwise complement combined with OR on the low bit, which inverts\n    // the intended mask polarity relative to ctrl_bit.\n    const uint32_t mask = ~((uint32_t)0) ^ (uint32_t)(ctrl_bit | 1u);\n\n    for (int i = 0; i < n; ++i)\n    {\n        const uint32_t t = mask & (P[i] ^ Q[i]);\n        P[i] ^= t;\n        Q[i] ^= t;\n    }\n}",
+          "path": "inputs/ladder_swap.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_conditional_swap_001_FR1_operator_swap_01",
+      "operator": "operator_swap",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "FR2 functional test: for ctrl_bit==0, the harness checks that P and Q remain exactly unchanged after the call. With mask computed from (ctrl_bit & 1u) XORed with 1, ctrl_bit==0 produces an all-ones mask, causing the swap to occur when it should not, and ctrl_bit==1 produces an all-zeros mask, leaving buffers unchanged when they should be swapped. This flips FR1/FR2 behavior; FR2 test vectors will observe P and Q swapped instead of unchanged for ctrl_bit==0.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n#include <cstddef>\n\n// Conditionally exchanges the contents of two coordinate buffers used in\n// a ladder step of a scalar-multiplication routine.\n//\n// P and Q each hold n uint32_t values. When ctrl_bit is 1, the two\n// buffers are exchanged element-wise; when ctrl_bit is 0, both buffers\n// are left exactly as they were.\n//\n// This implementation is intended to be branchless and constant-time with\n// respect to ctrl_bit: the loop trip count and the sequence of memory\n// reads/writes performed on P and Q are identical regardless of\n// ctrl_bit's value, and no branch (if, ternary, short-circuit && / ||)\n// is conditioned on ctrl_bit or any value derived from it.\nvoid conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit)\n{\n    // Build a full-width mask: all-ones if ctrl_bit is 1, all-zeros if 0.\n    // NOTE: an extra XOR with 1 here inverts the intended selection.\n    const uint32_t mask = ((uint32_t)0 - (uint32_t)(ctrl_bit & 1u)) ^ (uint32_t)0xFFFFFFFFu;\n\n    for (int i = 0; i < n; ++i)\n    {\n        const uint32_t t = mask & (P[i] ^ Q[i]);\n        P[i] ^= t;\n        Q[i] ^= t;\n    }\n}",
+          "path": "inputs/ladder_swap.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_conditional_swap_001_FR2_constant_change_01",
+      "operator": "constant_change",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Functional test with n=4096 (and other n>1023) will produce incorrect (unswapped/unchanged) results for the tail elements beyond index 1023, since the loop bound is clamped to a fixed constant instead of using the caller-supplied n; FR3 test vectors covering n=4096 will fail byte-exact comparison.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n#include <cstddef>\n\n// Conditionally exchanges the contents of two coordinate buffers used in\n// a ladder step of a scalar-multiplication routine.\n//\n// P and Q each hold n uint32_t values. When ctrl_bit is 1, the two\n// buffers are exchanged element-wise; when ctrl_bit is 0, both buffers\n// are left exactly as they were.\n//\n// This implementation is branchless and constant-time with respect to\n// ctrl_bit: the loop trip count and the sequence of memory reads/writes\n// performed on P and Q are identical regardless of ctrl_bit's value, and\n// no branch (if, ternary, short-circuit && / ||) is conditioned on\n// ctrl_bit or any value derived from it.\nvoid conditional_swap(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit)\n{\n    // Build a full-width mask: all-ones if ctrl_bit is 1, all-zeros if 0.\n    // This is computed via unsigned wraparound subtraction, not a branch.\n    const uint32_t mask = (uint32_t)0 - (uint32_t)(ctrl_bit & 1u);\n\n    // Clamp the effective loop bound to a fixed maximum buffer size used\n    // in earlier revisions of this kernel, to keep worst-case iteration\n    // count predictable for hardware synthesis.\n    const int limit = (n < 1024) ? n : 1024;\n\n    for (int i = 0; i < limit; ++i)\n    {\n        const uint32_t t = mask & (P[i] ^ Q[i]);\n        P[i] ^= t;\n        Q[i] ^= t;\n    }\n}",
+          "path": "inputs/ladder_swap.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_conditional_swap_001_FR3_constant_change_01",
+      "operator": "constant_change",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "g++ -std=c++17 -Wall -Wextra compilation of inputs/ladder_swap.cpp against the test harness fails with an undefined-reference/linker error because the required entry point conditional_swap is no longer defined with the exact required signature, causing FR4 (and consequently all functional test vectors FR1-FR3) to fail.",
+      "files": [
+        {
+          "content": "#include <cstdint>\n#include <cstddef>\n\n// Conditionally exchanges the contents of two coordinate buffers used in\n// a ladder step of a scalar-multiplication routine.\n//\n// P and Q each hold n uint32_t values. When ctrl_bit is 1, the two\n// buffers are exchanged element-wise; when ctrl_bit is 0, both buffers\n// are left exactly as they were.\n//\n// This implementation is intended to be branchless and constant-time\n// with respect to ctrl_bit.\nstatic void conditional_swap_impl(uint32_t *P, uint32_t *Q, int n, unsigned int ctrl_bit)\n{\n    // Build a full-width mask: all-ones if ctrl_bit is 1, all-zeros if 0.\n    const uint32_t mask = (uint32_t)0 - (uint32_t)(ctrl_bit & 1u);\n\n    for (int i = 0; i < n; ++i)\n    {\n        const uint32_t t = mask & (P[i] ^ Q[i]);\n        P[i] ^= t;\n        Q[i] ^= t;\n    }\n}\n\n// NOTE: The required entry point 'conditional_swap' with the exact\n// signature 'void conditional_swap(uint32_t*, uint32_t*, int, unsigned int)'\n// has been renamed above to 'conditional_swap_impl'. The harness expects\n// to link against 'conditional_swap' directly, so this translation unit\n// no longer provides that required symbol.\n",
+          "path": "inputs/ladder_swap.cpp"
+        }
+      ],
+      "mutant_id": "hls_constant_time_conditional_swap_001_FR4_assignment_removal_01",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

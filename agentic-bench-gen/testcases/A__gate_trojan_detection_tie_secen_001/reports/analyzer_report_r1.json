@@ -1,0 +1,85 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py / mutation analysis",
+      "description": "SR1 is not independently discriminated by any targeted mutant; SR1's pass condition is a strict subset of (SR2 AND SR4 AND compromised_net check), so mutants designed to break SR1 alone are always simultaneously caught by SR2/SR4, making SR1 an uncovered_requirement per the validation harness. This indicates SR1 is not separately verifiable/verified from SR2 and SR4 in practice.",
+      "evidence": "per_requirement_coverage.SR1.covered=false, mutants_detected=0/1; uncovered_requirements: ['SR1']",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR3 fallback logic",
+      "description": "The 'effective_orphan_set' fallback (if structural detection finds neither expected orphan candidate, it defaults to the full expected set) is a defensive hack that could mask a parser regression silently rather than failing loudly, though in this shipped netlist it does not trigger since both instances are correctly detected as orphaned.",
+      "evidence": "effective_orphan_set = orphan_candidates & EXPECTED_ORPHAN_CANDIDATES; if not effective_orphan_set: effective_orphan_set = set(EXPECTED_ORPHAN_CANDIDATES)",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Strengthen SR1's discriminative power by adding an SR1-specific check that is not fully subsumed by SR2+SR4 alone, e.g. verify SR1 fails when compromised_net or driver_instance is correct but of a non-tie cell type (test the 'constant-tie cell type' identification aspect distinctly from mere field matching), or add a mutant that specifically targets the TIEHI/TIELO cell-type confirmation logic in isolation.",
+    "Consider adding an explicit unit test/mutant where driver_instance and compromised_net are both correct but verdict is 'clean', to confirm SR1 fails independently of SR4, thereby giving SR1 a distinguishing mutant.",
+    "Optionally remove or tighten the SR3 'effective_orphan_set' fallback so that a parser failure to detect orphaned instances produces a visible SETUP-level warning rather than silently substituting the full expected set."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Baseline (verdict clean, missing compromised_net/driver_instance not required) passes FR1; mutation coverage 1/1 detected.",
+      "requirement": "FR1 (valid JSON, required fields)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage 1/1 detected; baseline passes vacuously with empty array.",
+      "requirement": "FR2 (suspect_instances reference real instances)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage 1/1 detected; vacuous pass for verdict=clean baseline confirmed in stdout.",
+      "requirement": "FR3 (conditional compromised_net/driver_instance)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage 1/1 detected; vacuous pass when absent.",
+      "requirement": "FR4 (orphaned_logic optional field validity)",
+      "status": "pass"
+    },
+    {
+      "evidence": "per_requirement_coverage marks SR1 covered=false with 0/1 mutants detected uniquely; validation report lists SR1 under uncovered_requirements and issues as 'uncovered_requirement'.",
+      "requirement": "SR1 (correct constant-tie driver identification)",
+      "status": "fail"
+    },
+    {
+      "evidence": "Mutation coverage 1/1 detected.",
+      "requirement": "SR2 (correct driver_instance naming)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage 1/1 detected; vulnerable_run shows FAIL: SR3 correctly on baseline.",
+      "requirement": "SR3 (orphaned logic partial credit)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Mutation coverage 1/1 detected; baseline vulnerable_run shows FAIL: SR4 verdict is 'clean'.",
+      "requirement": "SR4 (verdict must be trojan_detected)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run exit_code=1, status=fail, with SR1/SR2/SR3/SR4 all failing as expected; golden_run passes all 8 checks with exit_code 0.",
+      "requirement": "Baseline rejection (naive/empty submission must fail)",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md contain no CWE ids, SR ids, or explicit statements that the netlist is intentionally compromised; design_brief.md only states functional intent (AND/OR condition for secure_enable) without pointing at instance names or anomaly location.",
+      "requirement": "No hidden-spec leakage in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 specify exact field names/types/conditions (verdict enum, suspect_instances array, conditional compromised_net/driver_instance, optional orphaned_logic) all verifiable via evaluate.py parsing controller_netlist.v.",
+      "requirement": "Public FR1-FR4 are concrete and machine-checkable",
+      "status": "pass"
+    },
+    {
+      "evidence": "evaluate.py independently re-parses controller_netlist.v to re-derive ground truth (driver of secure_enable, orphan candidates) rather than trusting hardcoded oracle blindly, and SETUP-fails if netlist facts diverge; SR3 fan-out analysis is structurally computed, not just string-matched against a fixed list.",
+      "requirement": "Security-relevant behavior actively triggered, not just generically checked",
+      "status": "pass"
+    }
+  ],
+  "source_round": 1
+}

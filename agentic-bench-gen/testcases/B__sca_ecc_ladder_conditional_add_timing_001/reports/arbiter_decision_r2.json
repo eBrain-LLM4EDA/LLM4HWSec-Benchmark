@@ -1,0 +1,9 @@
+{
+  "artifact_to_revise": "none",
+  "observed_mutation_score": 0.75,
+  "rationale": "Arbiter LLM call failed; deterministic retention result is False: Per-case token budget exceeded (2019584/2000000).",
+  "retain_case": false,
+  "revision_instructions": "",
+  "root_cause": "validation_issue",
+  "source_round": 2
+}

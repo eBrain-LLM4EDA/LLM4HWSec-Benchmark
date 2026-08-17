@@ -1,0 +1,107 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub-style structural checklist baseline: flags any flop within N hops of a scan_en-controlled mux without further discrimination (expected high false_positive_rate).",
+      "Empty/naive baseline (shipped default submission): trojan_detected=false with empty suspect lists, used to verify the evaluator fails naive non-answers."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of ground-truth suspect flops and muxes correctly identified in the submission (recall over the union of SR1/SR2 sets).",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of submitted suspect_flops/suspect_muxes entries that are not present in the ground-truth sets (precision complement).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Whether the boolean trojan_detected field matches the ground-truth label (1.0 if correct, 0.0 otherwise).",
+        "direction": "maximize",
+        "name": "trojan_label_accuracy"
+      },
+      {
+        "description": "Wall-clock time in seconds taken by evaluate.py to grade the submission, including any optional iverilog/vvp cross-check simulation.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission scoring PASS must list at least 3 of the 4 true key flops and at least 3 of the 4 true scan muxes, report trojan_detected=true, and provide a rationale referencing scan-mode/capture conditionality.",
+      "The shipped baseline (naive/empty) submission -- trojan_detected=false, empty suspect_flops/suspect_muxes, generic rationale -- must score FAIL under the grading rubric.",
+      "False positive rate must be computed as the fraction of submitted suspect_flops/suspect_muxes entries that do not appear in the ground-truth sets, and must be reported even on PASS submissions.",
+      "Optional simulation cross-check: if iverilog/vvp are available, evaluate.py may drive scan_en=1 and shift a known pattern through scan_in, then confirm key_ff0..key_ff3 values appear at scan_out at the expected shift-cycle offsets per scan_chain_order.txt, corroborating the ground truth independent of the submission."
+    ],
+    "cwe_ids": [
+      "CWE-1258",
+      "CWE-1300",
+      "CWE-200",
+      "CWE-1245"
+    ],
+    "ground_truth": "The netlist contains four key flip-flops key_ff0, key_ff1, key_ff2, key_ff3 holding a secret key register. In the reference (non-trojan) design these flops' scan_in path would be gated so scan capture never latches key state onto the scan chain (a scan-disable AND gate masks their D-input tap from the shift register during capture). In the trojan variant shipped here, four scan multiplexers u_smux_key0, u_smux_key1, u_smux_key2, u_smux_key3 are spliced directly between each key flop's functional D-input/Q-output and the adjacent scan-chain flip-flop's scan_in, selected by scan_en. This routes key_ff0..key_ff3 state into the shift register during scan capture, so it becomes observable at scan_out after the appropriate number of shift cycles once scan_en=1. Functional (scan_en=0) operation is bit-exact identical to a trojan-free version; the leak manifests only when scan_en is asserted and the chain is shifted.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Exact-match (case-insensitive) comparison of submitted suspect_flops set against the ground-truth key flop instance names extracted from the netlist; compute recall requiring all 4 be present.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify all four key flip-flop instances (key_ff0, key_ff1, key_ff2, key_ff3) as scan-observable in suspect_flops."
+      },
+      {
+        "detection_strategy": "Exact-match comparison of submitted suspect_muxes set against ground-truth mux instance names; compute recall requiring all 4 be present and precision penalizing large numbers of unrelated extraneous instances.",
+        "id": "SR2",
+        "requirement": "The report must correctly identify the four scan-splicing multiplexer instances (u_smux_key0..u_smux_key3) as the mechanism enabling the leak in suspect_muxes."
+      },
+      {
+        "detection_strategy": "Direct boolean equality check against ground-truth label true.",
+        "id": "SR3",
+        "requirement": "trojan_detected must be reported as true, since the design under analysis is the trojan-inserted variant."
+      },
+      {
+        "detection_strategy": "Keyword/semantic check for terms indicating scan-mode conditionality (e.g., 'scan_en', 'scan mode', 'capture', 'shift') combined with optional cross-check simulation via iverilog/vvp toggling scan_en to confirm key_ff values appear at scan_out, validating the reported mechanism actually reproduces the leak on the real netlist.",
+        "id": "SR4",
+        "requirement": "The rationale must demonstrate understanding that the leak is scan-mode-specific (i.e., manifests only when scan_en is asserted) rather than a general functional bug, distinguishing it from a naive false-positive flagging of unrelated flops."
+      }
+    ],
+    "threat_model": "Design-for-test (DFT) scan infrastructure is a standard manufacturing/test feature, but if secret-holding registers (e.g., a symmetric key register) are not explicitly isolated from the scan network, anyone with physical or remote scan access (test engineer, untrusted foundry, or an attacker with JTAG/scan port access post-deployment) can shift the key out through scan_out, defeating confidentiality guarantees that hold in normal functional mode. This converts a test feature into a full key-extraction channel."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not modify any file under inputs/; submit only submission/trojan_report.json.",
+      "The netlist inputs/key_core_netlist.v is provided as-is in structural Verilog (gate-level, using a small standard-cell-like library of DFF, MUX2, AND, OR, NOT primitives) and must not be edited.",
+      "Base your findings solely on static/behavioral analysis of the provided netlist and, optionally, simulation via yosys/iverilog/vvp against the provided scan_chain_order.txt; no other side-channel data is available."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json containing a trojan_detected boolean, a list of suspect flip-flop instance names, a list of suspect mux/gate instance names, and a free-text rationale"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "trojan_report.json must be valid JSON parseable by a standard JSON library and must contain all five required top-level fields (trojan_detected, suspect_flops, suspect_muxes, confidence, rationale) with the exact types specified in the interface."
+      },
+      {
+        "id": "FR2",
+        "requirement": "suspect_flops and suspect_muxes must each be JSON arrays of strings; every string listed must correspond to an actual instance name found in inputs/key_core_netlist.v (no fabricated or misspelled instance names)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "confidence must be a numeric value in the inclusive range [0.0, 1.0]."
+      },
+      {
+        "id": "FR4",
+        "requirement": "rationale must be a non-empty string of at least 20 characters describing the reasoning used to identify the listed flops and muxes."
+      }
+    ],
+    "input_artifacts": [
+      "key_core_netlist.v",
+      "design_brief.md",
+      "scan_chain_order.txt"
+    ],
+    "interface": "The submission is a single JSON file at submission/trojan_report.json (UTF-8, no trailing comments). Required top-level schema: { \"trojan_detected\": <boolean>, \"suspect_flops\": [<string>, ...], \"suspect_muxes\": [<string>, ...], \"confidence\": <number 0.0-1.0>, \"rationale\": <string> }. \"suspect_flops\" must list exact Verilog instance names of flip-flop cells from inputs/key_core_netlist.v that the participant judges to be scan-observable in a way inconsistent with normal isolated operation. \"suspect_muxes\" must list exact instance names of the multiplexer/gating cells the participant judges responsible for splicing those flops onto the scan path. evaluate.py reads inputs/key_core_netlist.v (and optionally invokes iverilog/vvp to simulate scan_en/scan_in/scan_out behavior against inputs/scan_chain_order.txt) purely for reference and cross-checking; it does not execute or modify the submission file. Field names, casing, and types above are exact and mandatory; unrecognized extra fields are ignored.",
+    "objective": "Analyze the supplied gate-level netlist of a small crypto core with an embedded scan-test infrastructure. The design integrates a scan chain (ports scan_en, scan_in, scan_out) alongside a functional key register. Your task is to review the netlist and produce a structured analysis report identifying which flip-flops are reachable on the scan-out path during scan-mode capture-and-shift, and which specific mux instances establish that reachability, so that test engineers can assess whether test infrastructure inadvertently exposes internal state that should remain functionally isolated from the scan network.",
+    "response_format": "JSON or Markdown report plus generated artifacts as requested."
+  },
+  "task_id": "gate_trojan_detection_scan_capture_key_leak_001",
+  "title": "Scan-capture path leaking a key register"
+}

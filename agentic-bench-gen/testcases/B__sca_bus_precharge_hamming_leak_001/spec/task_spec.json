@@ -1,0 +1,111 @@
+{
+  "domain_id": "side_channel_fault_analysis",
+  "evaluation": {
+    "baselines": [
+      "No existing benchmark found; shipped baseline is a naive/empty vulnerability_report.json (e.g., placeholder fields or leaking_phase='none') that must FAIL all security requirements while illustrating minimal schema compliance."
+    ],
+    "metrics": [
+      {
+        "description": "Whether the report correctly identifies the leaking phase (evaluate, following precharge baseline) and the Hamming-weight-proportional nature of the leakage metric, scored against hidden ground truth.",
+        "direction": "maximize",
+        "name": "leakage_detection_accuracy"
+      },
+      {
+        "description": "Whether the report identifies the complete set of affected bus nets (all 8 dbus bit lines) and correct transfer timing offsets, rather than a partial or incorrect subset, cross-checked optionally via iverilog/vvp simulation of the reference RTL.",
+        "direction": "maximize",
+        "name": "fault_coverage"
+      },
+      {
+        "description": "Whether the proposed mitigation specifically achieves constant transition-count balancing (e.g., complementary-bit companion word) while explicitly preserving correct data transport, as opposed to vague, irrelevant, or functionality-breaking suggestions.",
+        "direction": "maximize",
+        "name": "hardening_precision"
+      },
+      {
+        "description": "Whether the submitted vulnerability_report.json contains all required fields in the correct types per response_format.",
+        "direction": "maximize",
+        "name": "schema_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission that reports leaking_phase='evaluate', affected_nets covering all of dbus[7:0], a Hamming-weight/transition-count-based leakage_metric, a complementary-bit-balancing (or equivalent constant-weight) mitigation with an affirmative functional_equivalence_claim, and correct transfer_timing offsets (matching the reference RTL's actual precharge/evaluate cycle offsets) must PASS.",
+      "An empty, missing-field, or generic/naive submission (e.g. baseline stub with placeholder strings, wrong phase, single-bit affected_nets, or an unrelated mitigation like 'add a firewall') must FAIL.",
+      "A submission that only gets FR-level schema right but reports the wrong leaking phase, incomplete affected_nets, or a mitigation that breaks functional correctness must FAIL on hardening_precision even if it passes basic schema checks."
+    ],
+    "cwe_ids": [
+      "CWE-203",
+      "CWE-1300",
+      "CWE-385"
+    ],
+    "ground_truth": "The wrapper precharges dbus[7:0] to all-zero (or all-one, depending on rail polarity as implemented) every cycle immediately preceding an evaluate cycle, then drives dbus to data_in during evaluate. Because every evaluate cycle starts from the same known precharge state, the number of bus lines that transition (discharge or charge) in the precharge->evaluate cycle pair equals exactly the Hamming weight of data_in. This produces a directly observable, per-transfer leakage of the Hamming weight of the secret operand via bus switching-activity magnitude (e.g., measurable current draw or EM emission proportional to the count of transitioning dbus bits), independent of which specific bits are set \u2014 enabling Hamming-weight-based power/EM side-channel attacks and byte-level key-hypothesis ranking (classic DPA/CPA precursor). The correct mitigation is to transmit, on the same or an adjacent evaluate cycle, the bitwise complement (or another fixed-Hamming-weight companion encoding) of data_in so that the combined transition count per transfer is constant (e.g., always 8 transitions for an 8-bit bus), decoupling the observable activity from the secret value's Hamming weight while preserving that dbus still carries data_in (or a value from which data_in is losslessly recoverable) during the evaluate phase for downstream logic.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String/enum match on leaking_phase against the ground-truth phase; partial credit only if reasoning in optional notes correctly ties leakage to the precharge-to-evaluate transition even if label differs, but exact match on canonical phase label is required for full credit.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that the leaking phase is the transition from 'precharge' to 'evaluate' (i.e., leaking_phase should be reported as 'evaluate', the phase during which the Hamming-weight-dependent transition occurs relative to the fixed precharge baseline), not merely 'precharge' alone."
+      },
+      {
+        "detection_strategy": "Check that affected_nets references dbus broadly (e.g. 'dbus[7:0]') or lists all 8 individual bit nets; flag as insufficient if only a subset (e.g. one bit) is named.",
+        "id": "SR2",
+        "requirement": "The report must identify affected_nets that include the full dbus[7:0] bus (or an equivalent enumeration of all 8 bit lines), since leakage is a bus-wide aggregate activity phenomenon, not confined to a single bit."
+      },
+      {
+        "detection_strategy": "Keyword/semantic check for terms indicating transition count, switching activity, or Hamming weight correlation; reject generic or off-topic descriptions.",
+        "id": "SR3",
+        "requirement": "The leakage_metric field must describe a Hamming-weight-proportional or transition-count-based metric (e.g. 'number of bits transitioning from precharge value to data value equals Hamming weight of data_in'), not an unrelated metric like timing delay or fault count."
+      },
+      {
+        "detection_strategy": "Check mitigation text for complementary-bit / dual-rail / constant-weight balancing concepts AND check functional_equivalence_claim is truthy/affirmative; reject mitigations that only add noise, randomization without balancing guarantee, or that silently drop functional correctness.",
+        "id": "SR4",
+        "requirement": "The mitigation must specifically achieve constant per-transfer transition count independent of data value (e.g., transmitting the bitwise complement alongside data_in, dual-rail/differential encoding, or fixed-weight encoding), and must explicitly claim/preserve that dbus still conveys the correct data_in value for functional correctness."
+      },
+      {
+        "detection_strategy": "Compare submitted integer offsets against the ground-truth offsets derived from simulating or reading the reference RTL; evaluate.py may run iverilog/vvp on inputs/precharge_bus_wrapper.v to extract the actual offsets and cross-check the claim numerically.",
+        "id": "SR5",
+        "requirement": "The transfer_timing field must correctly reflect that precharge occurs on the cycle offset immediately preceding the offset at which the evaluate phase (and thus the valid pulse) occurs, consistent with the module's documented 2-cycle transfer latency from load assertion."
+      }
+    ],
+    "threat_model": "An attacker with a power or EM probe near the bus (no logical access to secret data) measures per-cycle switching activity on dbus during repeated transfers of secret operands (e.g., cipher key bytes or intermediate state). Because precharge sets a fixed baseline, the transition count from precharge to evaluate is proportional to Hamming weight of the transported word, giving the attacker a low-noise, byte-granular leakage function usable for Hamming-weight power models in DPA/CPA-style key recovery, without needing to fault or halt the design."
+  },
+  "public_spec": {
+    "constraints": [
+      "Do not modify inputs/precharge_bus_wrapper.v; the participant analyzes it and submits only submission/vulnerability_report.json.",
+      "The RTL module must be self-contained and synthesizable with a plain Verilog toolchain (iverilog); no proprietary primitives.",
+      "The mitigation described in the report must not break the module's documented functional contract: dbus must still present data_in's value during the evaluate phase and valid must still pulse correctly.",
+      "The report file must be UTF-8 encoded, single JSON object, no trailing commentary outside the JSON."
+    ],
+    "expected_outputs": [
+      "submission/vulnerability_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted vulnerability_report.json must be valid JSON containing at minimum the top-level keys: 'leaking_phase' (string, one of 'precharge' or 'evaluate'), 'affected_nets' (array of strings naming bus net(s), e.g. 'dbus[7:0]' or individual bit indices), 'leakage_metric' (string describing what is measured, e.g. 'per-cycle transition count' or 'discharge count'), 'mitigation' (string describing a concrete RTL-level countermeasure), and 'functional_equivalence_claim' (boolean or string stating whether the proposed mitigation preserves correct data transport)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "The 'affected_nets' field must reference net names that actually appear in inputs/precharge_bus_wrapper.v (i.e., must correspond to the dbus port or its constituent bit indices, not invented net names)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "The 'mitigation' field must describe a specific technique applicable to bus-level power/activity leakage (e.g. dual-rail encoding, complementary companion word transmission, constant-Hamming-weight encoding, random data masking) rather than a generic or unrelated security statement (e.g. 'add encryption' or 'use a firewall' would not satisfy this requirement)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a 'transfer_timing' field (object with integer fields 'precharge_cycle_offset' and 'evaluate_cycle_offset') stating, relative to the cycle in which 'load' is asserted, which cycle offset corresponds to the precharge phase and which corresponds to the evaluate phase, consistent with the module's documented two-phase protocol in design_brief.md."
+      }
+    ],
+    "input_artifacts": [
+      "precharge_bus_wrapper.v",
+      "fault_model.json",
+      "design_brief.md",
+      "activity_trace_template.txt"
+    ],
+    "interface": "RTL interface (read-only reference, module lives in inputs/precharge_bus_wrapper.v): module precharge_bus_wrapper(input wire clk, input wire rst_n, input wire load, input wire [7:0] data_in, output reg [7:0] dbus, output reg valid). Ports: clk = system clock; rst_n = active-low synchronous reset; load = pulse for one cycle to begin a transfer of data_in (the secret 8-bit operand, NOT to be modified or exposed by name in the public report beyond referring to it as 'the transported data word'); dbus = the shared, externally observable bus net array dbus[7:0] (this is the net whose switching activity is the object of analysis); valid = asserted for exactly one cycle when dbus carries the fully evaluated (settled) data value corresponding to the most recent load. The wrapper internally alternates a 'precharge' cycle (drives dbus to an architecturally-fixed rail value) and an 'evaluate' cycle (drives dbus toward data_in) each transfer. The submission is NOT code; it is an answer file at submission/vulnerability_report.json which must conform exactly to the schema given in response_format. evaluate.py reads inputs/precharge_bus_wrapper.v and inputs/fault_model.json for reference, may optionally run iverilog/vvp on the netlist to produce an activity trace for cross-checking claims, and grades ONLY the contents of submission/vulnerability_report.json against hidden ground truth.",
+    "objective": "Analyze the provided RTL bus wrapper module 'precharge_bus_wrapper' (in inputs/precharge_bus_wrapper.v), which transports an 8-bit secret data word across a shared bus using a two-phase precharge/evaluate protocol. Determine whether the per-cycle bus switching activity pattern depends on the value being transported, and produce a structured vulnerability report describing your findings and a concrete mitigation, without altering the input RTL. Correct data transport must be preserved by any proposed mitigation.",
+    "response_format": "submission/vulnerability_report.json must be a single JSON object with required keys: leaking_phase (string), affected_nets (array of strings), leakage_metric (string), mitigation (string), functional_equivalence_claim (boolean or string), transfer_timing (object with integer keys precharge_cycle_offset and evaluate_cycle_offset). Optional supporting keys such as 'evidence' or 'notes' are permitted but not required."
+  },
+  "task_id": "sca_bus_precharge_hamming_leak_001",
+  "title": "Precharged bus revealing operand Hamming weight"
+}

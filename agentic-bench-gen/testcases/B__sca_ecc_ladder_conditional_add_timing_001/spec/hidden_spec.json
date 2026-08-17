@@ -1,0 +1,38 @@
+{
+  "acceptance_criteria": [
+    "A submission that reports cycle counts constant across all Hamming weights (i.e., fails to detect the leak) must FAIL SR1/SR2.",
+    "A submission that proposes only random delay/noise injection without describing always-executing ADD must FAIL SR3.",
+    "A submission with cycle_counts_by_scalar values inconsistent with an actual iverilog simulation of scalar_mult_ctrl.v (beyond a small tolerance) must FAIL FR2.",
+    "A correct submission naming the ADD state, showing Hamming-weight-correlated cycle counts, proposing the always-add-with-dummy-mux fix, and asserting/justifying correctness preservation must PASS all FRs and SRs.",
+    "The baseline empty/naive submission (e.g., all fields empty strings, cycle_counts_by_scalar empty, preserves_correct_output false) must FAIL at least FR1/FR2/SR1/SR2."
+  ],
+  "cwe_ids": [
+    "CWE-208",
+    "CWE-385",
+    "CWE-203"
+  ],
+  "ground_truth": "State ADD in scalar_mult_ctrl.v is entered only when the current scalar bit equals 1, so the controller's total cycle count equals a fixed per-bit DOUBLE cost times 16 plus an ADD cost times the Hamming weight of the scalar. This creates a direct linear relationship between cycle count (and thus power/timing trace shape) and the number of set bits in the secret scalar, allowing full scalar recovery via simple power or timing analysis across repeated operations with the same key. The correct hardening is to always execute the ADD operation every bit (into a dummy/discarded accumulator register when the bit is 0, and into the real accumulator when the bit is 1), using a multiplexer to select the committed result, so every scalar produces an identical, scalar-independent cycle count and control-state sequence while the final result remains mathematically correct.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Check that 'vulnerable_signal' and/or 'vulnerable_states' textually reference the ADD state/condition (e.g., mentions of 'ADD', 'scalar_bit', or the specific state encoding used for conditional addition) rather than a generic or incorrect state name; cross-check against the actual state name used in scalar_mult_ctrl.v.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify that the ADD state (or its enabling condition, e.g., scalar_bit == 1) is the scalar-dependent control path responsible for the timing leak, not merely the DOUBLE state or the top-level FSM in general."
+    },
+    {
+      "detection_strategy": "Recompute Hamming weight for each reported scalar and verify Pearson/rank correlation between cycle_count and Hamming weight exceeds a high threshold (e.g., >=0.9) using the submitted data; optionally cross-simulate scalar_mult_ctrl.v via iverilog for the same scalars to confirm reported cycle_count values are accurate within tolerance.",
+      "id": "SR2",
+      "requirement": "The report must demonstrate, via the cycle_counts_by_scalar data, that cycle_count correlates with the Hamming weight of the scalar (monotonic or near-linear relationship), not with the scalar's numeric magnitude or an unrelated property."
+    },
+    {
+      "detection_strategy": "Parse 'remediation_description' and 'remediation_rtl_sketch' for the concept of unconditionally executing ADD every cycle/bit with a discarded/dummy result and a final mux/select based on scalar_bit; flag reports that only propose noise injection, random delays, or blinding without eliminating the conditional branch.",
+      "id": "SR3",
+      "requirement": "The proposed remediation must be the always-execute-ADD-with-dummy-result pattern (constant control flow, data selected via mux) rather than an inadequate fix such as random delay insertion, clock jitter, or masking that does not equalize the cycle count."
+    },
+    {
+      "detection_strategy": "Check preserves_correct_output == true and that remediation_description/remediation_rtl_sketch explains the correctness-preserving mechanism (e.g., mux commits real ADD result only when scalar_bit==1); optionally verify by simulating a corrected version of scalar_mult_ctrl.v with the described mux pattern against known-answer scalar multiplication results.",
+      "id": "SR4",
+      "requirement": "The report must assert (and it must be true) that the remediation preserves correct scalar-multiplication results, not merely equalized timing."
+    }
+  ],
+  "threat_model": "An attacker with access to the controller's per-operation timing (via power trace, EM trace, or direct cycle counting during simulation/testing) observes that overall latency for a full scalar multiplication scales with the Hamming weight of the secret scalar because the ADD state is skipped on zero bits. By running the target with the same or related scalars and measuring total cycles (or the state sequence itself), the attacker recovers the scalar bit-by-bit via simple power/timing analysis (SPA/STA), fully breaking the secrecy of the scalar (e.g., an ECC private key or exponent)."
+}

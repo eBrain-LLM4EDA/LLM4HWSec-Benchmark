@@ -1,0 +1,116 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/cipher_kernel.cpp",
+    "inputs/cipher_kernel.h",
+    "inputs/cipher_kernel.h.notusedplaceholder",
+    "inputs/design_brief.md",
+    "metadata.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "a932e2bcfd9b4e20513fbf00c6196eb20280bfffa68db3413b67126fbc783b16",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: 28 of 176 probed bytes nonzero at -O0 (round_keys not cleared before return)\n[TEST] FAIL: SR2: 29 of 176 probed bytes nonzero at -O2 (clearing eliminated as dead store); 29 of 176 probed bytes nonzero at -O3 (clearing eliminated as dead store)\n[TEST] PASS: SR3\n[TEST] FAIL: SR4: adjacent scratch buffer shows distinguishable nonzero, differing content across different-key calls with identical plaintext\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: 156 of 176 probed bytes nonzero at -O0 (round_keys not cleared before return)\n[TEST] FAIL: SR2: 157 of 176 probed bytes nonzero at -O2 (clearing eliminated as dead store); 157 of 176 probed bytes nonzero at -O3 (clearing eliminated as dead store)\n[TEST] PASS: SR3\n[TEST] FAIL: SR4: adjacent scratch buffer shows distinguishable nonzero, differing content across different-key calls with identical plaintext\n"
+    }
+  },
+  "domain_id": "hls_security_codegen",
+  "expert_files": [
+    "golden/cipher_kernel.cpp"
+  ],
+  "issues": [
+    {
+      "detail": "input_artifacts entry is not a plain filename: 'cipher_kernel.h.notusedplaceholder'",
+      "issue": "input_artifact_not_filename"
+    },
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[TEST] FAIL: SR1: 27 of 176 probed bytes nonzero at -O0 (round_keys not cleared before return)",
+        "failure_class": "golden_rejected",
+        "failure_signature": "9d9276fbfbc7db9c205f7e918ab7e9aa4acb8f6f0fb214b25cff8600bc71cb75"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "File \"/work/evaluation/evaluate.py\", line 1",
+        "failure_class": "multiple",
+        "failure_signature": "81d19a8108ac65a938b9fc5627b48b4070876a2b2ebfe7c029ef9373c914febe"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "9d9276fbfbc7db9c205f7e918ab7e9aa4acb8f6f0fb214b25cff8600bc71cb75",
+    "repair_paths": [
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "9864e21869cc941ff63ad8c4e5d3eb0ab0f0bdf711fb778b4b41c033cfd88ba0",
+        "changed": true,
+        "golden": "golden/cipher_kernel.cpp",
+        "golden_sha256": "427aeaf2a8de20c2f93b8ee27bdc080d8f280b0560e702d456ca583f214985c2",
+        "target": "inputs/cipher_kernel.cpp"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "inputs/cipher_kernel.h",
+      "inputs/cipher_kernel.cpp"
+    ],
+    "unmapped_targets": [
+      "inputs/cipher_kernel.h"
+    ]
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/harness_main.cpp"
+  ],
+  "uncovered_requirements": []
+}

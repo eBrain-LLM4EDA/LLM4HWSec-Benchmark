@@ -1,0 +1,33 @@
+{
+  "acceptance_criteria": [
+    "Compiles cleanly with g++ -std=c++11 (or later) with no errors.",
+    "modinv(a) returns the correct modular inverse for all a in [1,250] (FR1 verified against a precomputed table).",
+    "Instrumented iteration counter g_iter_count records an identical number of iterations for every tested operand (SR1).",
+    "Static scan finds no break/return inside the core inversion loop (SR2).",
+    "Measured wall-clock timing spread across operands stays within tolerance, unlike the insecure baseline (SR3)."
+  ],
+  "cwe_ids": [
+    "CWE-208",
+    "CWE-385",
+    "CWE-203"
+  ],
+  "ground_truth": "The secure kernel implements binary extended-Euclidean modular inversion mod 251 using a fixed number of iterations (e.g., 2*8=16 or a similarly derived constant based on bit-width, sufficient to guarantee convergence for all 8-bit operands) executed unconditionally for every call, with all state updates (swap, subtract, shift) performed via arithmetic masks derived from boolean predicates rather than via `if`/`break`/early `return`. The insecure baseline shipped in inputs/ instead loops with a `while` or `for` with a data-dependent `break`/`return` as soon as the algorithm converges (gcd reaches 1), so the number of executed loop iterations (and thus instrumented iteration count / instruction count) varies with the operand value, leaking bits of the secret operand through timing/iteration count. A correct hardened submission must (a) match the reference inverse table exactly and (b) execute the identical number of loop iterations (instrumented via a global counter incremented once per loop body execution) for every tested operand.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Harness instruments the loop via a global/static volatile counter incremented exactly once per iteration of the core inversion loop (the submission must expose this via a shared counter variable declared in modinv_kernel.h, e.g. `extern volatile unsigned long g_iter_count;`, incremented once per loop body). The harness resets the counter, calls modinv(a), records the counter value, and asserts all recorded values across all tested operands are equal.",
+      "id": "SR1",
+      "requirement": "The number of loop iterations executed by modinv must be identical for every operand a in [1,250]."
+    },
+    {
+      "detection_strategy": "Fail-on-presence static scan of the submitted source for `break` or `return` statements lexically inside the loop body of the function whose loop increments g_iter_count; presence causes an automatic FAIL regardless of runtime behavior (detector only used to flag banned constructs, not to grant PASS).",
+      "id": "SR2",
+      "requirement": "The kernel must not contain a data-dependent early loop exit (no `break` or `return` inside the core inversion loop conditioned on intermediate computed values)."
+    },
+    {
+      "detection_strategy": "Harness runs modinv(a) in a tight loop (e.g., 200000 times) for several operands spanning fast-converging and slow-converging cases under the insecure algorithm, measures elapsed wall-clock time via std::chrono, and checks that the relative spread across operands is below a generous threshold (e.g., 25%), while the insecure baseline is confirmed to exceed this threshold.",
+      "id": "SR3",
+      "requirement": "Wall-clock execution time of modinv, measured over many repeated calls with the same operand, must not vary by more than a small tolerance across different operands, corroborating the fixed-iteration-count behavior."
+    }
+  ],
+  "threat_model": "An attacker who can measure the latency (clock cycles) or instrumented iteration count of the modular inverse computation during a key-agreement protocol can recover bits of the secret scalar/operand, because the insecure baseline's loop exits as soon as the extended-Euclidean algorithm converges, making the number of iterations a direct function of the secret operand's bit pattern (a classic timing side channel in modular arithmetic used in ECC/RSA key exchange)."
+}

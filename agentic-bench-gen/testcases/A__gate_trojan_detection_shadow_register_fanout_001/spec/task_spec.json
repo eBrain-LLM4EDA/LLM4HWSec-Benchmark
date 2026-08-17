@@ -1,0 +1,108 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Naive baseline: submission/trojan_report.json with verdict='trojan_absent', empty fanout consumer lists (num_consumers=1 per bit, only documented consumer), and empty suspect_instances -- must score zero on detection_rate and fail SR1-SR3.",
+      "Trust-Hub-style reference detector output pattern used as an informal upper-bound comparison for detection_rate and false_positive_rate."
+    ],
+    "metrics": [
+      {
+        "description": "Recall: fraction of the ground-truth suspect instance set (8 shadow FFs + exfil mux = 9 instances) correctly identified in the submitted suspect_instances list.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of instances listed in suspect_instances that are legitimate documented instances (not part of the ground-truth suspect set) out of all instances flagged.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Fraction of the 8 fanout_map entries whose num_consumers and consumer_instances exactly match the ground-truth per-bit consumer set computed by structurally tracing inputs/netlist.v.",
+        "direction": "maximize",
+        "name": "fanout_accuracy"
+      },
+      {
+        "description": "Binary correctness of the top-level verdict field against the fixed ground-truth label 'trojan_present'.",
+        "direction": "maximize",
+        "name": "verdict_correctness"
+      },
+      {
+        "description": "Wall-clock time in seconds for evaluate.py to parse, structurally cross-check the submission against inputs/netlist.v, and produce a verdict.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission with verdict=='trojan_present', all 8 shadow_ff instances and u_exfil_mux present in suspect_instances, and correct 2-consumer fanout_map entries for all 8 key bits scores full marks on SR1-SR3 and passes.",
+      "A submission with verdict=='trojan_absent' or an empty/naive suspect_instances list (e.g. the baseline) fails SR1-SR3 and is graded FAIL.",
+      "A submission that flags every single instance in the netlist as suspect (indiscriminate flagging) fails SR4 due to high false-positive rate even if it technically includes the correct instances."
+    ],
+    "cwe_ids": [],
+    "ground_truth": "The netlist contains a documented path: key_reg[0..7] (instances u_key_ff0..u_key_ff7) each drive exactly one legitimate consumer gate (u_round_xor0..u_round_xor7) per the design brief. In addition, an undocumented parallel bank of DFFs u_shadow_ff0..u_shadow_ff7 is also wired to sample key_reg[0..7] (same clock, no reset gating tied to functional control), and all eight shadow_ff outputs converge into a single undocumented multiplexer instance u_exfil_mux, which is enabled only by a rarely-asserted internal control net (e.g. debug_mode_rare) and whose output does not reach any documented primary output in normal operation but represents a second, undocumented exfiltration point. A correct report must: (1) set verdict to trojan_present, (2) for every key_bit 0-7 include both u_round_xor<i> and u_shadow_ff<i> in consumer_instances (num_consumers=2 per bit, not 1), and (3) list all of u_shadow_ff0..u_shadow_ff7 and u_exfil_mux in suspect_instances.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse fanout_map from the submitted report; for each key_bit 0-7 check num_consumers==2 and that consumer_instances includes both the documented u_round_xor<i> and the undocumented u_shadow_ff<i>. Independently, evaluate.py performs its own structural trace over inputs/netlist.v to compute ground-truth fanout counts and compares.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that each bit of key_reg has more than one consumer instance (fanout count of 2, not 1), contradicting the single-consumer topology stated in the design brief."
+      },
+      {
+        "detection_strategy": "Check suspect_instances (case-sensitive exact match against instance names in inputs/netlist.v) is a superset of {u_shadow_ff0,...,u_shadow_ff7,u_exfil_mux}; compute recall over this required set.",
+        "id": "SR2",
+        "requirement": "The report must explicitly flag the shadow flip-flop bank (u_shadow_ff0..u_shadow_ff7) and the convergence multiplexer (u_exfil_mux) as suspect instances."
+      },
+      {
+        "detection_strategy": "String equality check on the verdict field against the fixed ground-truth label 'trojan_present'.",
+        "id": "SR3",
+        "requirement": "The report's verdict must be 'trojan_present', not 'trojan_absent', since the netlist ground truth always contains the shadow bank."
+      },
+      {
+        "detection_strategy": "Compute false-positive rate: fraction of suspect_instances entries that are NOT in the ground-truth suspect set but ARE valid netlist instances; penalize reports that list all instances indiscriminately.",
+        "id": "SR4",
+        "requirement": "The report must not falsely flag legitimate documented instances (u_key_ff0..u_key_ff7, u_round_xor0..u_round_xor7) as suspect, to demonstrate the analysis distinguishes real structure from noise rather than flagging everything."
+      }
+    ],
+    "threat_model": "An adversary inserts a hardware Trojan consisting of a parallel shadow flip-flop bank that taps the same key register nets as the legitimate consumer, clocked identically so it introduces no timing or functional deviation on any documented output. All shadow outputs converge on a multiplexer gated by a rarely-triggered condition, creating a covert secondary exfiltration path for key material. Standard functional equivalence checking, ATPG, and simulation against documented I/O will not detect this because primary outputs are bit-exact; only structural fanout/fan-in analysis of the netlist (tracing all consumers of each key_reg bit) reveals the extra registers and their convergence point."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist must be plain structural Verilog-2001 using only cells defined in cell_library.v (DFFs, muxes, basic gates), synthesizable/simulatable with iverilog without external libraries.",
+      "The design brief must describe the documented datapath: an 8-bit key register bank (key_reg[7:0]) feeding exactly one legitimate consumer path (e.g. an XOR/round-function stage) per key bit, with no mention of any secondary or diagnostic register bank.",
+      "All primary/documented output ports of the netlist must be bit-exact and functionally identical whether or not the extra fanout structure is present, so black-box functional testing of documented outputs cannot reveal it.",
+      "The extra structure, if present in the generated netlist, must be reachable only via structural netlist inspection (instance names, fanout tracing) and not via any documented output pin.",
+      "All instance names in the netlist must be unique and human-readable (e.g. u_key_ff0, u_round_xor0, u_shadow_ff0, u_exfil_mux) to support deterministic ground-truth matching."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/trojan_report.json must be valid JSON and contain all five required top-level fields (verdict, key_bus_signal, fanout_map, suspect_instances, summary) with the exact types specified in the interface."
+      },
+      {
+        "id": "FR2",
+        "requirement": "fanout_map must contain exactly 8 entries, one for each key_bit value 0 through 7, each with num_consumers equal to the actual length of its consumer_instances array."
+      },
+      {
+        "id": "FR3",
+        "requirement": "Every instance name listed anywhere in fanout_map's consumer_instances arrays or in suspect_instances must correspond to an instance name that literally appears in inputs/netlist.v."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The verdict field must be either the literal string 'trojan_present' or 'trojan_absent'; any other value fails validation."
+      }
+    ],
+    "input_artifacts": [
+      "netlist.v",
+      "design_brief.md",
+      "cell_library.v"
+    ],
+    "interface": "The submission is a single JSON file at submission/trojan_report.json (no other files are graded; the netlist and brief under inputs/ must NOT be modified). The file MUST be valid JSON with this exact top-level schema: { \"verdict\": <string, one of \"trojan_present\" or \"trojan_absent\">, \"key_bus_signal\": <string, the exact net/bus name analyzed, e.g. \"key_reg\">, \"fanout_map\": <array of objects>, \"suspect_instances\": <array of strings>, \"summary\": <string> }. Each element of fanout_map must be an object: { \"key_bit\": <integer 0-7>, \"consumer_instances\": <array of strings, the instance names of ALL gates/flip-flops whose input is directly or indirectly (within the combinational/register fanout cone) driven by that key bit>, \"num_consumers\": <integer, equal to length of consumer_instances> }. suspect_instances must list every instance name the report flags as belonging to an undocumented/extra structure not part of the single documented consumer path per key bit. evaluate.py reads inputs/netlist.v for reference and structurally cross-checks suspect_instances and fanout_map against ground truth; it does not execute or score any code from submission/.",
+    "objective": "Analyze the provided gate-level netlist of a key-consuming datapath and produce a structural analysis report identifying every flip-flop instance that samples signals from the 8-bit key register bus (key_reg[7:0]), the net(s) each such flip-flop samples, and the downstream gate/instance each flip-flop's output feeds into. The reference design document specifies exactly one legitimate consumer path per key bit; your report must enumerate the complete fanout tree from key_reg so that any deviation from the documented single-consumer topology is visible to a reviewer.",
+    "response_format": "A single JSON file at submission/trojan_report.json conforming exactly to the schema given in public_spec.interface. No markdown, no comments, no trailing content."
+  },
+  "task_id": "gate_trojan_detection_shadow_register_fanout_001",
+  "title": "Undocumented Shadow Register Bank on a Key Bus Fanout"
+}

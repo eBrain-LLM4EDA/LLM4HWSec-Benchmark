@@ -1,0 +1,32 @@
+{
+  "acceptance_criteria": [
+    "All FR1-FR4 known-answer vectors compiled and executed via g++ produce outputs bit-identical to the reference implementation.",
+    "SR2 known-answer equivalence holds for all valid-padding lengths, invalid last-byte values, and adversarial mismatch-position blocks.",
+    "SR1 instrumented iteration/comparison count is identical across all mismatch-position and validity classes tested (constant-time behavior demonstrated empirically).",
+    "The shipped insecure baseline in cbc_unpad.cpp fails SR1 (shows position-dependent iteration counts) even though it may pass FR1-FR4/SR2, demonstrating the benchmark distinguishes functional correctness from timing security."
+  ],
+  "cwe_ids": [
+    "CWE-208",
+    "CWE-203",
+    "CWE-385"
+  ],
+  "ground_truth": "A secure pad_check unconditionally scans all 16 bytes of the block on every invocation, accumulating a bitwise/boolean validity mask across all 16 positions with identical instruction sequence and loop trip count independent of whether padding is valid, invalid, or adversarially crafted (e.g. right at the boundary). It never branches on secret-derived byte values to decide whether to continue scanning or to return early. The insecure baseline shipped in inputs/cbc_unpad.cpp reads the last byte N, then loops comparing padding bytes and returns/breaks as soon as it finds a mismatching byte -- causing the number of comparisons executed (and thus observable loop-iteration count / instrumented branch count) to depend on where the first mismatch occurs, which is the classic Vaudenay padding-oracle timing side channel. The secure fix must always execute the same number of comparison operations (a fixed unrolled or bounded loop of 16 iterations) and combine results via bitwise AND/OR accumulation into the mask rather than via short-circuiting logical operators or conditional early exits, matching the reference's validity/length results exactly on all block classes: fully valid padding at every length 1-16, invalid last byte (0 or >16), and adversarial blocks where the mismatch is deliberately placed at the very first, middle, or very last padding-checked byte.",
+  "security_requirements": [
+    {
+      "detection_strategy": "Instrument the submitted pad_check by compiling it with a loop/compare counter injected via a wrapper harness (macro or code transformation counting comparisons executed) and call it with: (a) fully valid padding at each length 1..16, (b) invalid last-byte values (0, 17, 255), (c) adversarial blocks where the single mismatching byte is placed at position 15 (last byte checked first), position 0 (first byte checked last), and the middle -- for a fixed padding length N=8. Compare observed iteration/comparison counts across all these cases; require they are identical (or vary by no more than a fixed structural constant independent of mismatch position). The insecure baseline will show iteration counts that scale with the position of the earliest mismatch from the end of the block.",
+      "id": "SR1",
+      "requirement": "The implementation must execute a constant number of comparison/iteration steps over the 16-byte block regardless of the position of the first padding mismatch or the value of the last byte."
+    },
+    {
+      "detection_strategy": "Run the compiled kernel against a table of known-answer vectors covering valid padding of every length 1-16, invalid last bytes, and adversarial near-miss blocks, and assert bitwise equality of *valid and *unpadded_len with the precomputed reference values.",
+      "id": "SR2",
+      "requirement": "Validity and unpadded_len outputs must exactly match the reference oracle for all tested block classes (correctness must not be sacrificed for constant-time behavior)."
+    },
+    {
+      "detection_strategy": "Static fail-on-presence scan of the submitted source restricted to the body of pad_check: flag any `return` or `break` statement that appears before the final unconditional write of *valid/*unpadded_len inside a loop that iterates over block[], and flag any `&&`/`||` whose operands both reference block[i] comparisons in a conditional guarding control flow (used only as a vulnerability detector, never as the sole pass criterion -- SR1 behavioral timing/counting test is the authoritative pass condition).",
+      "id": "SR3",
+      "requirement": "The implementation must not use early return, break, or short-circuit logical operators (&&, ||) that depend on secret block byte values to skip remaining comparisons."
+    }
+  ],
+  "threat_model": "A CBC padding oracle: an attacker who can submit ciphertexts and observe how long (in cycles/iterations) or how the implementation behaves when checking the padding of the decrypted last block can distinguish 'first byte checked from the end mismatches' from 'many bytes match before a mismatch is found'. Because the implementation returns as soon as it detects a mismatching pad byte, the number of loop iterations executed correlates with the number of correctly-guessed trailing bytes, letting an attacker performing a Vaudenay-style attack recover the plaintext byte-by-byte through repeated queries against the same ciphertext with modified prior blocks. This is a textbook observable-timing/observable-behavior side channel that undermines the confidentiality guarantee of CBC-mode decryption."
+}

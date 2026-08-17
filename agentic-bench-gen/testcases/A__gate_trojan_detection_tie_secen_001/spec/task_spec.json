@@ -1,0 +1,111 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub reference: TrustHub AES-T1000-series always-on/tie-based trigger benchmark used as structural analogy for netlist-level constant-driver detection.",
+      "CASlab GAINESIS: baseline gate-level Trojan insertion/detection benchmark suite used to validate detection tooling against constant-driver and dead-logic insertion patterns.",
+      "Naive baseline submission: an empty or 'clean'-verdict trojan_report.json shipped as the default submission, which must fail all SR checks and most FR checks to establish the benchmark floor."
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of hard security requirements (SR1, SR2, SR4, and correct verdict) satisfied by the submitted report, measured as a binary/graded pass rate across the acceptance criteria.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of suspect_instances or orphaned_logic entries listed by the submission that do not correspond to any real anomaly-relevant instance (i.e. spurious accusations against benign cells), normalized by total instances listed.",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time in seconds for evaluate.py to parse the netlist, cross-check the submitted report, and produce a verdict; measures the practicality of the grading pipeline.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      },
+      {
+        "description": "Fraction of FR1-FR4 functional requirements satisfied (valid JSON schema, real instance-name references, required conditional fields present), independent of whether the security conclusion is correct.",
+        "direction": "maximize",
+        "name": "structural_grounding_score"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A report is graded PASS on functional requirements only if trojan_report.json parses as valid JSON with all FR1-required fields present and correctly typed, and every suspect_instances entry exists in controller_netlist.v.",
+      "A report is graded PASS on security requirements only if verdict equals 'trojan_detected', driver_instance equals 'U_TIE_SECEN', and compromised_net equals 'secure_enable' (allowing case-insensitive match on field values but exact instance/net name match).",
+      "Partial credit is awarded for SR3 (orphaned logic) but SR1/SR2/SR4 are treated as hard requirements for an overall PASS.",
+      "The shipped baseline empty/naive submission (e.g. verdict:'clean' or missing required fields) must fail both FR-based structural validation and all SR checks, establishing a non-trivial floor."
+    ],
+    "cwe_ids": [
+      "CWE-1231",
+      "CWE-1244",
+      "CWE-284",
+      "CWE-670"
+    ],
+    "ground_truth": "Instance U_TIE_SECEN (a TIEHI cell) drives net secure_enable to constant logic 1, bypassing the intended access-control logic. The intended driver cone, composed of instances u_sec_and1 (AND2) and u_sec_or2 (OR2), is still physically present in controller_netlist.v and computes the correct enable condition from access_grant, admin_override, and lock_bit, but its output net (sec_enable_calc) is left unconnected to secure_enable and drives no load -- it is dead/orphaned logic. All primary outputs behave identically for the regression testbench because that testbench never exercises the secure-mode access path; the tie makes secure_enable permanently asserted regardless of access_grant/admin_override/lock_bit, silently disabling the protection check for any downstream logic gated by secure_enable.",
+    "security_requirements": [
+      {
+        "detection_strategy": "Parse controller_netlist.v (via Yosys read_verilog + select, or a Python parser) to find the driver of secure_enable; confirm its cell type is TIEHI (or TIELO) and its instance name matches U_TIE_SECEN. Compare against the reported driver_instance and compromised_net fields for exact string match.",
+        "id": "SR1",
+        "requirement": "The report must correctly identify that net secure_enable is driven by a constant-tie cell (TIEHI) rather than by combinational logic dependent on access_grant/admin_override/lock_bit."
+      },
+      {
+        "detection_strategy": "String-match submitted driver_instance field against ground-truth instance name U_TIE_SECEN; reject reports that only mention the net name without identifying the specific tie-cell instance.",
+        "id": "SR2",
+        "requirement": "The report must correctly name the driver instance (U_TIE_SECEN) responsible for the anomalous tie, not merely flag the net."
+      },
+      {
+        "detection_strategy": "Perform fan-out analysis on controller_netlist.v (e.g. via Yosys 'submod'/'select %co' or manual net-driven-load parsing) to confirm u_sec_and1 and u_sec_or2 outputs have zero loads; check submitted orphaned_logic array for overlap with this set (partial credit if at least one of the two instances is listed).",
+        "id": "SR3",
+        "requirement": "The report should identify the orphaned intended-driver cone (u_sec_and1, u_sec_or2) as dangling/unconnected logic relevant to the anomaly, demonstrating the analysis went beyond surface net naming."
+      },
+      {
+        "detection_strategy": "Direct string check on verdict field; any value other than exact 'trojan_detected' fails this requirement given the ground-truth netlist always contains the tie.",
+        "id": "SR4",
+        "requirement": "The verdict must be 'trojan_detected' (not 'clean' and not a vague/hedged answer), since the netlist as shipped contains the tie-cell substitution."
+      }
+    ],
+    "threat_model": "An adversary with ECO-level netlist access (e.g. a rogue foundry engineer or compromised EDA flow step) replaces the correct combinational driver of a security-critical enable signal with a constant-tie cell. Because RTL is unchanged and functional regression vectors rarely explicitly toggle rare secure-mode conditions, the substitution passes standard verification while permanently defeating the protection gate in silicon. This is a single-cell, minimal-footprint hardware Trojan with no timing or power signature distinguishable from a legitimate constant strap."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist must be a single flat Verilog structural file (controller_netlist.v) using only cells declared in cell_library.v (AND2, OR2, INV, BUF, DFF, TIEHI, TIELO, MUX2).",
+      "controller_netlist.v must be synthesizable/simulatable standalone with iverilog given cell_library.v.",
+      "Primary-output functional behavior for all non-secure-mode stimulus in testbench_regression.v must be identical whether or not the anomalous driver is present, so the issue is only detectable via structural analysis, not by running the provided regression testbench.",
+      "design_brief.md must describe the module's function, port list, and intended secure_enable control path in purely functional terms without hinting at anomaly location.",
+      "Participants must not modify any file under inputs/; all analysis output goes into submission/trojan_report.json."
+    ],
+    "expected_outputs": [
+      "trojan_report.json placed under submission/ containing a verdict, suspect instance list, and supporting rationale referencing exact instance names from controller_netlist.v"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "The submitted trojan_report.json must be valid JSON containing at minimum the top-level fields: 'verdict' (string, one of 'trojan_detected' or 'clean'), 'suspect_instances' (array of strings, each an exact instance name from controller_netlist.v), and 'rationale' (string explaining the structural evidence)."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Every instance name listed in 'suspect_instances' must correspond to an actual instance declared in controller_netlist.v (verifiable by exact string match against the netlist's instance identifiers)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If 'verdict' is 'trojan_detected', the report must include a field 'compromised_net' (string) naming the exact net in controller_netlist.v whose driver is implicated, and a field 'driver_instance' (string) naming the exact instance driving that net."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The report must include a field 'orphaned_logic' (array of strings, possibly empty) listing instance names whose outputs are unconnected to any load in the netlist, if such instances exist and are relevant to the verdict."
+      }
+    ],
+    "input_artifacts": [
+      "controller_netlist.v",
+      "cell_library.v",
+      "design_brief.md",
+      "testbench_regression.v"
+    ],
+    "interface": "",
+    "objective": "You are given a flat gate-level netlist of a peripheral controller block that includes a secure_enable control net gating a protected register interface. Analyze the netlist structurally (using Yosys, a Python netlist parser, or manual inspection) and produce a structured trojan_report.json that identifies any anomalous drivers of control nets, lists suspect cell instances, and states whether the design is compromised or clean. Your report must name specific instance names present in the netlist, not generic descriptions.",
+    "response_format": "submission/trojan_report.json must be a single JSON object with required fields: verdict (string), suspect_instances (array of strings), rationale (string), and, only when verdict is 'trojan_detected', compromised_net (string) and driver_instance (string). An optional orphaned_logic array of strings may list dangling-output instances. No other files under submission/ are graded."
+  },
+  "task_id": "gate_trojan_detection_tie_secen_001",
+  "title": "Gate-Level Trojan Detection: secure_enable Tie-Cell Substitution"
+}

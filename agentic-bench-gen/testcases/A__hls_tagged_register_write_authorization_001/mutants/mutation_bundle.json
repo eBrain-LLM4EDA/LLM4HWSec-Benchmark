@@ -1,0 +1,100 @@
+{
+  "mutants": [
+    {
+      "expected_detection": "Sweeping reg_index across 16..47 with priv_tag=0 reveals that indices 32..47 incorrectly return 1 and mutate reg_file, reproducing the narrow-window authorization bypass (CWE-862/CWE-863) that SR1 is designed to catch.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    if (reg_index < 0 || reg_index >= reg_file_size) {\n        return 0;\n    }\n\n    // Privileged configuration block: only the lower sub-window\n    // 16..31 is gated here. (Defect: the upper half of the protected\n    // range 32..47 is left uncovered by this check and falls through\n    // to the general-purpose write path below.)\n    if (reg_index >= 16 && reg_index <= 31) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag. Indices 32..47 fall\n    // through to here unintentionally.\n    reg_file[reg_index] = value;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_SR1_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "SR1"
+    },
+    {
+      "expected_detection": "Sweeping reg_index across 16..47 with priv_tag=1 will observe return value 0 and reg_file unchanged for every index in that range, since the privileged branch condition has been negated to require priv_tag != 1; this violates SR2 which requires privileged writes to succeed uniformly across the entire protected range.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    if (reg_index < 0 || reg_index >= reg_file_size) {\n        return 0;\n    }\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag != 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag.\n    reg_file[reg_index] = value;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_SR2_condition_negation_001",
+      "operator": "condition_negation",
+      "target_requirement_id": "SR2"
+    },
+    {
+      "expected_detection": "Sweep unprotected indices (0..15, 48..63) with priv_tag=0 and priv_tag=1; for indices 48..63 the mutant now requires priv_tag==1 to write, so unprivileged writes to that block return 0 and leave reg_file unchanged instead of the required return 1 with the value written, violating SR3/FR1.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    if (reg_index < 0 || reg_index >= reg_file_size) {\n        return 0;\n    }\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // High general-purpose block also requires privilege due to a\n    // maintenance change that mistakenly extended the gate check to\n    // cover the tail of the address space.\n    if (reg_index >= 48 && reg_index <= 63) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // Low general-purpose registers (0-15) are writable by any\n    // requester regardless of privilege tag.\n    reg_file[reg_index] = value;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_SR3_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "SR3"
+    },
+    {
+      "expected_detection": "Calling reg_write with reg_index == reg_file_size (e.g. 64) for either priv_tag value writes one element past the end of reg_file (buffer overflow) instead of returning 0 and leaving memory untouched; a canary/bounds check around the reg_file buffer or an assertion on the return value for reg_index == reg_file_size will detect the corruption/incorrect acceptance.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    // NOTE: off-by-one relaxation of the upper bound check using <= instead\n    // of < allows reg_index == reg_file_size to slip through the guard.\n    if (reg_index < 0 || reg_index > reg_file_size) {\n        return 0;\n    }\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag.\n    reg_file[reg_index] = value;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_SR4_operator_swap_001",
+      "operator": "operator_swap",
+      "target_requirement_id": "SR4"
+    },
+    {
+      "expected_detection": "Sweep unprotected indices (0..15, 48..63) with priv_tag=0: index 10 will incorrectly return 0 and leave reg_file[10] unchanged instead of returning 1 and writing value, violating FR1's requirement that unprotected indices are always writable regardless of tag.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    if (reg_index < 0 || reg_index >= reg_file_size) {\n        return 0;\n    }\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag -- except index 10, which\n    // is inadvertently gated behind an unrelated one-off check that\n    // rejects it whenever it happens to match this special-cased value.\n    if (reg_index == 10) {\n        return 0;\n    }\n\n    reg_file[reg_index] = value;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_FR1_constant_change_001",
+      "operator": "constant_change",
+      "target_requirement_id": "FR1"
+    },
+    {
+      "expected_detection": "Sweep reg_index across 16..47 with priv_tag=1: assert return value is 1 and reg_file[reg_index] == value for every index in that range. This mutant returns 1 (claiming success) but omits the actual memory write, so reg_file[reg_index] remains at its pre-call sentinel value, which the harness will detect as a mismatch between reported success and actual register contents.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    if (reg_index < 0 || reg_index >= reg_file_size) {\n        return 0;\n    }\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag == 1) {\n            // NOTE: privileged write path intentionally reports success\n            // without performing the memory update.\n            return 1;\n        }\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag.\n    reg_file[reg_index] = value;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_FR2_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR2"
+    },
+    {
+      "expected_detection": "Calling reg_write with reg_index = -1, reg_file_size, or reg_file_size+100 must return 0 without writing. This mutant removes the upper-bound bounds check, so reg_index == reg_file_size or reg_index = reg_file_size+100 is treated as in-bounds and reg_file[reg_index] is written out-of-bounds, returning 1 instead of 0. A harness sweeping out-of-bounds probes and checking canary/return values will detect the corrupted array write and wrong return code.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // NOTE: only the lower bound is checked here; the upper bound\n    // check against reg_file_size has been dropped, so reg_index\n    // values at or beyond reg_file_size are treated as in-bounds.\n    if (reg_index < 0) {\n        return 0;\n    }\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = value;\n            return 1;\n        }\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag.\n    reg_file[reg_index] = value;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_FR3_assignment_removal_001",
+      "operator": "assignment_removal",
+      "target_requirement_id": "FR3"
+    },
+    {
+      "expected_detection": "Compiling inputs/reg_write_kernel.cpp with g++ -std=c++11 -Wall against the test harness fails because the code now uses dynamic memory allocation (new) inside reg_write, which is forbidden by the public_spec constraints and also risks triggering allocation-related warnings/errors and undefined behavior if new throws inside a noexcept-style extern \"C\" kernel; the synthesis_pass_rate metric drops to 0 since the build either fails to link/compile cleanly or violates the no-dynamic-allocation constraint checked by the harness build step.",
+      "files": [
+        {
+          "content": "// reg_write_kernel.cpp\n//\n// Register-write entry point for the accelerator's configuration\n// register file. The register file has 64 32-bit registers, indices\n// 0..63. Registers 16 through 47 inclusive belong to the privileged\n// configuration block and require a privileged requester tag; all\n// other registers are general-purpose and are always writable.\n//\n// This kernel is invoked from the register-access shim on every\n// incoming write request.\n\n#include <cstddef>\n#include <new>\n\nextern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag,\n                          unsigned int *reg_file, int reg_file_size) {\n    // Reject any request that falls outside the register file bounds.\n    // No memory is touched in this case.\n    if (reg_index < 0 || reg_index >= reg_file_size) {\n        return 0;\n    }\n\n    // Scratch buffer used to stage the value before committing it to\n    // the register file. (Introduced defect: this allocates dynamic\n    // memory on every call, violating the no-dynamic-allocation\n    // constraint required for standalone HLS-style synthesis and\n    // clean standalone compilation/linking expectations.)\n    unsigned int *staging = new unsigned int(value);\n\n    // Privileged configuration block: the entire reserved window\n    // 16..47 (inclusive) holds protection/config registers and\n    // requires a privileged requester tag. This range is treated\n    // uniformly with no sub-division.\n    if (reg_index >= 16 && reg_index <= 47) {\n        if (priv_tag == 1) {\n            reg_file[reg_index] = *staging;\n            delete staging;\n            return 1;\n        }\n        delete staging;\n        return 0;\n    }\n\n    // General-purpose registers (0-15, 48-63) are writable by any\n    // requester regardless of privilege tag.\n    reg_file[reg_index] = *staging;\n    delete staging;\n    return 1;\n}",
+          "path": "inputs/reg_write_kernel.cpp"
+        }
+      ],
+      "mutant_id": "hls_reg_write_FR4_domain_specific_001",
+      "operator": "domain_specific",
+      "target_requirement_id": "FR4"
+    }
+  ]
+}

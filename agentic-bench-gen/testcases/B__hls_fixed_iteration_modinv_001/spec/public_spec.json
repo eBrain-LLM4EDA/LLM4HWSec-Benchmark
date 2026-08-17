@@ -1,0 +1,38 @@
+{
+  "constraints": [
+    "The kernel must be self-contained, synthesizable-style C++ (no file I/O, no exceptions, no threads).",
+    "Do not change the function name, signature, or the MOD constant name.",
+    "The implementation must not use `return` statements inside the core inversion loop to exit early; the loop must run a single fixed number of iterations for every operand.",
+    "The loop trip count must be a compile-time constant (e.g., a `#pragma`-free `for` loop bounded by a literal or `static const` constant), not derived from the operand value.",
+    "All conditional updates inside the loop must be expressed as branchless/predicated arithmetic (e.g., using arithmetic masks or the ternary operator on precomputed boolean conditions) rather than `if` statements that skip work conditionally on secret-derived data."
+  ],
+  "expected_outputs": [
+    "A modified modinv_kernel.cpp (and/or modinv_kernel.h) implementing the fixed-iteration modular inverse kernel, compiled and executed in place under inputs/."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For every operand a in [1,250], modinv(a) must return the unique value r in [1,250] satisfying (a*r) % 251 == 1, matching a precomputed reference table exactly."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The function must compile cleanly as standard C++ (C++11 or later) with g++ using only fixed-size integer types, no STL containers, no dynamic memory allocation, and no recursion."
+    },
+    {
+      "id": "FR3",
+      "requirement": "MOD must be defined as a compile-time constant equal to 251 and accessible from modinv_kernel.h."
+    },
+    {
+      "id": "FR4",
+      "requirement": "modinv must be callable repeatedly within the same process for arbitrary sequences of operands without producing incorrect results due to leftover state from a previous call."
+    }
+  ],
+  "input_artifacts": [
+    "modinv_kernel.cpp",
+    "modinv_kernel.h",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/modinv_kernel.cpp (and inputs/modinv_kernel.h if declarations are split). Required entry point, exact signature: `unsigned int modinv(unsigned int a);` declared in modinv_kernel.h and defined in modinv_kernel.cpp. Parameter 'a' is the operand for which the multiplicative inverse modulo the fixed constant M=251 is computed (1 <= a <= 250; a is treated as the secret/sensitive input in the security evaluation, but functionally it is just an integer argument). Return value is the modular inverse of 'a' mod 251, i.e. the unique integer r in [1,250] such that (a*r) mod 251 == 1. The modulus M=251 must remain a compile-time constant named `MOD` (a `#define MOD 251` or `static const unsigned int MOD = 251;`) declared in modinv_kernel.h so the harness can reference it directly. The function must be a pure computation with no I/O, no global mutable state read across calls, and no dynamic allocation.",
+  "objective": "Refactor the provided HLS-style C++ kernel that computes the modular multiplicative inverse of an operand 'a' modulo a fixed constant M (M = 251, a small prime) using a binary extended-Euclidean-style algorithm. The kernel must be rewritten so it is suitable for high-level synthesis: it must execute a single, fixed, compile-time-constant number of loop iterations regardless of the input operand, using predicated (branchless) updates instead of data-dependent early termination. The revised kernel must remain fully synthesizable C++ (no dynamic memory allocation, no recursion, no STL containers) and must produce numerically identical results to the reference algorithm for all valid operands in [1, 250].",
+  "response_format": "Submit the modified inputs/modinv_kernel.cpp (and inputs/modinv_kernel.h if used) directly; no separate report is required."
+}

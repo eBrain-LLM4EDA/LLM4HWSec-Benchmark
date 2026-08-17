@@ -1,0 +1,95 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + golden/trojan_report.json",
+      "description": "The differential validation shows the golden (expert-correct) submission is REJECTED by evaluate.py, failing SR2 and SR3. This indicates a mismatch between the actual netlist ground truth (as parsed/simulated by evaluate.py) and the intended single-diverging-vector design. The golden run reports SR1 passes (trojan_detected=true correct) but SR2 fails because the evaluator's own simulation finds a second diverging vector at req_level=10, owner_id=100 (expected 1, got 0) in addition to the intended req_level=10, owner_id=101 vector, and SR3 fails because the grader's flip-sensitivity analysis implicates essentially every instance in the netlist (16 instances), not just u_perm_nand3 as intended.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SR2: missing true diverging vector(s): [(\"10\", \"100\", 1, 0)]' and '[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): [... 16 instances ...]'",
+      "severity": "high"
+    },
+    {
+      "artifact": "inputs/perm_cone_netlist.v",
+      "description": "The netlist as authored does not match the intended single-vector divergence (req_level=10,owner_id=101 only). Exhaustive simulation (by evaluate.py's own gate simulator) reveals a second unintended divergence at req_level=10,owner_id=100 (T3 term), meaning the netlist construction (u_nand_t3/owner_qual wiring) has a bug beyond the intended trojan, breaking the 'exactly one diverging vector' ground-truth claim in hidden_spec.",
+      "evidence": "vulnerable_run.stdout: 'ground-truth exhaustive simulation found 2 diverging vector(s)' and SR2 mismatch list includes ('10','100',1,0) and ('10','101',0,1).",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py SR3 logic",
+      "description": "The flip-sensitivity analysis for SR3 is far too broad: because the topology funnels all terms through a shared final NOR/INV output stage, flipping almost any instance's output changes grant for a single-vector test, causing SR3 to require nearly the entire instance list (16 of ~20 instances) rather than isolating u_perm_nand3 as the sole intended suspect. This makes SR3 unsatisfiable by a reasonable/correct submission that names only u_perm_nand3, directly contradicting the hidden_spec's acceptance criteria (suspect_instances should contain exactly {u_perm_nand3}).",
+      "evidence": "golden_run.stdout SR3 failure lists u_inv_a, u_inv_a0, u_inv_a1, u_inv_o1, u_inv_out, u_inv_owner_qual, u_inv_req10, u_inv_t1, u_inv_t2, u_inv_t3, u_nand_req10, u_nand_t1, u_nand_t2, u_nand_t3, u_nor_1, u_nor_out as also 'ground-truth-implicated', which conflicts with hidden_spec's stated exact-suspect-set requirement of {u_perm_nand3}.",
+      "severity": "high"
+    },
+    {
+      "artifact": "differential.status",
+      "description": "Overall differential validation status is 'fail' with failure_class 'golden_rejected', meaning the benchmark case as currently constructed cannot correctly discriminate a correct submission from an incorrect one \u2014 the core coherence check between hidden ground truth, input artifacts, and evaluator fails.",
+      "evidence": "differential.status: 'fail', golden_run.expected: 'pass', golden_run.status: 'fail'.",
+      "severity": "medium"
+    },
+    {
+      "artifact": "mutation_score / requirement_discrimination_coverage_score",
+      "description": "Because the golden solution fails, mutation testing is blocked and discrimination coverage score is 0.0, meaning no confidence that the requirement checks meaningfully discriminate correct from incorrect submissions.",
+      "evidence": "mutation_status: 'blocked_by_differential', requirement_discrimination_coverage_score: 0.0",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix inputs/perm_cone_netlist.v so that exhaustive simulation yields exactly one diverging vector (req_level=10, owner_id=101) as intended; debug the T3/owner_qual cone wiring, since evaluate.py's own simulation currently finds an additional unintended mismatch at req_level=10, owner_id=100.",
+    "Redesign the SR3 flip-sensitivity check (or the netlist's final OR-reduction topology) so that only u_perm_nand3 is implicated as causally responsible for the divergence \u2014 e.g., avoid routing all terms through a single shared NOR/INV combining stage that makes every upstream gate 'flip-sensitive' for a single output bit; consider a more localized suspect-determination heuristic (e.g., cone-of-influence intersected with the differing term only) or restructure the netlist so only the corrupted cone affects that one vector.",
+    "Re-run the differential validation (golden vs baseline) after fixing the netlist and/or SR3 logic, and confirm golden_run transitions to exit_code 0 / all PASS while vulnerable_run (naive baseline) still fails SR1/SR2/SR4.",
+    "Once golden passes, re-run mutation testing to obtain a meaningful mutation_score and requirement_discrimination_coverage_score, since these are currently blocked/zero due to the golden rejection.",
+    "Consider hardcoding or tightly constraining the ground-truth suspect set determination to avoid combinatorial over-inclusion when the design has a shared final-stage OR/NOR tree, or document/adjust hidden_spec's acceptance criteria if some non-primary instances are legitimately allowed in suspect_instances (though this conflicts with the current 'exactly {u_perm_nand3}' specification)."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run.stdout: '[TEST] PASS: FR1'; vulnerable_run.stdout: '[TEST] PASS: FR1'",
+      "requirement": "FR1 (schema validity)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout: '[TEST] PASS: FR2'",
+      "requirement": "FR2 (field formats)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout: '[TEST] PASS: FR3'",
+      "requirement": "FR3 (instance name validity)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout: '[TEST] PASS: FR4'",
+      "requirement": "FR4 (trojan_detected/diverging_vectors consistency)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout: '[TEST] PASS: SR1'; baseline correctly fails via vulnerable_run: '[TEST] FAIL: SR1: ground-truth exhaustive simulation found 2 diverging vector(s) but submission.trojan_detected is False'",
+      "requirement": "SR1 (trojan_detected must be true)",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SR2: missing true diverging vector(s): [(\"10\", \"100\", 1, 0)]' \u2014 the golden submission listing only the intended vector fails because the netlist has an unintended second divergence.",
+      "requirement": "SR2 (exact diverging vector set match)",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run.stdout: '[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): [16 instance names]' \u2014 flip-sensitivity analysis is too permissive/broad given the shared output stage topology.",
+      "requirement": "SR3 (suspect instance coverage)",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run.stdout: '[TEST] PASS: SR4' but this passes trivially/incidentally given the SR2/SR3 failures already break overall pass; not independently verified as meaningful given upstream ground-truth computation errors.",
+      "requirement": "SR4 (zero false positive rate)",
+      "status": "unknown"
+    },
+    {
+      "evidence": "differential.status: 'fail', failure_class: 'golden_rejected'; golden_run.exit_code=1 (expected 0/pass) while vulnerable_run.exit_code=1 (correctly fails, but for the wrong/coincidental reasons since SR1 alone already fails it).",
+      "requirement": "Evaluator accepts correct submission and rejects naive baseline (submission contract)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run.stdout shows 2 diverging vectors found by exhaustive simulation, contradicting hidden_spec.ground_truth claim of 'sole diverging vector'.",
+      "requirement": "Hidden spec coherence (netlist produces exactly one diverging vector at req_level=10,owner_id=101, sole suspect u_perm_nand3)",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

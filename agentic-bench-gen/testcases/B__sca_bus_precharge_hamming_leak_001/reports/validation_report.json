@@ -1,0 +1,193 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/activity_trace_template.txt",
+    "inputs/design_brief.md",
+    "inputs/fault_model.json",
+    "inputs/precharge_bus_wrapper.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {
+    "FR1": 2,
+    "FR2": 2,
+    "FR3": 3,
+    "FR4": 2,
+    "SR1": 2,
+    "SR2": 3,
+    "SR3": 1,
+    "SR4": 3,
+    "SR5": 3
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: 'mitigation' does not name a recognized bus-leakage countermeasure technique (dual-rail, complementary/complement encoding, constant-weight/constant-Hamming encoding, or masking); got: 'add input validation'\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: leaking_phase must be 'evaluate' (the precharge->evaluate transition where the Hamming-weight-dependent transition occurs), got: 'none'\n[TEST] FAIL: SR2: affected_nets does not cover the full dbus[7:0] bus (neither a whole-bus token nor all individual bit indices are present); got: ['dbus[0]']\n[TEST] FAIL: SR3: 'leakage_metric' does not describe a Hamming-weight or transition-count-based metric (needs a transition-like term such as hamming/transition/switching/toggle combined with a weight/count term); got: 'unknown'\n[TEST] FAIL: SR4: 'mitigation' does not describe a constant-transition-count technique (complementary-bit companion word, dual-rail, or constant-Hamming-weight encoding; plain masking alone is insufficient); got: 'add input validation'; 'functional_equivalence_claim' is not affirmative; got: False\n[TEST] FAIL: SR5: transfer_timing.precharge_cycle_offset should be 1 (per design_brief.md's documented two-cycle latency), got 0; transfer_timing.evaluate_cycle_offset should be 2 (per design_brief.md's documented two-cycle latency), got 0 (sim cross-check ran: ok)\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "SR3 has no targeting mutant detected by its own check \u2014 requirement coverage gap",
+      "issue": "uncovered_requirement"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n[TEST] PASS: SR5\n"
+  },
+  "mutation_score": 0.889,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR5": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR3": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 1
+    },
+    "SR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR5": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    }
+  },
+  "requirement_count": 9,
+  "requirement_discrimination_coverage_score": 0.889,
+  "requirement_mapping_coverage_score": 1.0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "a204d9cef5f73074c28ac31ab4622a2a04dbbbf9ebec06f7d7d57f5a5c138255",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "67206a51c2abad10f3ce6af2448a0ed7fd78fcbdecb669746c127153c795a307",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_check.v"
+  ],
+  "uncovered_requirements": [
+    "SR3"
+  ]
+}

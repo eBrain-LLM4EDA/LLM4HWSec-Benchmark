@@ -1,0 +1,39 @@
+{
+  "acceptance_criteria": [
+    "FAIL if vulnerable_state does not match the ground-truth write-bearing state.",
+    "FAIL if resulting_privilege does not equal 'supervisor' (or the correct high-privilege label used in design_brief.md) for the vulnerable_state entry.",
+    "FAIL if any non-vulnerable state's priv_reg_after_skip differs from fault_free_final_priv (false positive fault claim).",
+    "FAIL if mitigation lacks a redundancy mechanism (duplication/triplication/re-check-and-correct).",
+    "FAIL if per_state_skip_impact is missing entries for any state in transition_sequence or fault_free_final_priv is not '00'.",
+    "PASS requires all required JSON fields present with correct types AND all SR1-SR4 checks satisfied."
+  ],
+  "cwe_ids": [
+    "CWE-1298",
+    "CWE-1234",
+    "CWE-693"
+  ],
+  "ground_truth": "Skipping the priv_reg write in state DEMOTE leaves priv_reg at its prior value 2'b10 (supervisor) instead of transitioning to 2'b00 (user), because DEMOTE is the sole state that performs the write during the demotion sequence; all other states in the sequence (IDLE, CHECK, SETTLE, DONE) do not write priv_reg so skipping their actions does not change the final privilege outcome. Mitigation: duplicate the demotion write (write priv_reg <= 2'b00 in both DEMOTE and SETTLE, or add a redundant check-and-rewrite in the state following DEMOTE that re-asserts priv_reg==2'b00 and forces it if not, e.g. a triplicated/duplicated write with a comparator that flags mismatch and re-executes the write) so a single skipped write cycle is corrected by the redundant write in the next cycle.",
+  "security_requirements": [
+    {
+      "detection_strategy": "String/semantic match of 'vulnerable_state' against the ground-truth state name derived from mode_sequencer.v; cross-check via iverilog simulation forcing a skip of that state's write and comparing simulated priv_reg to the reported 'resulting_privilege'.",
+      "id": "SR1",
+      "requirement": "The report must correctly identify DEMOTE (or the equivalently-named state in the shipped design that performs the sole priv_reg write during the demotion sequence) as the vulnerable_state whose skip leaves priv_reg at the supervisor value."
+    },
+    {
+      "detection_strategy": "Compare each non-vulnerable-state entry's priv_reg_after_skip to fault_free_final_priv; flag mismatches. Optionally cross-simulate each state's skip via iverivog/vvp testbench harness.",
+      "id": "SR2",
+      "requirement": "The report must correctly report that skipping any non-write state (IDLE, CHECK, SETTLE, DONE or equivalents) does NOT alter the final priv_reg outcome, i.e. per_state_skip_impact entries for those states must equal fault_free_final_priv."
+    },
+    {
+      "detection_strategy": "Keyword/semantic scoring of 'mitigation' field for redundancy concepts (duplicate, triplicate, re-check, comparator, re-write, voting) combined with reference to the correct vulnerable state or write signal; reject vague/generic answers.",
+      "id": "SR3",
+      "requirement": "The reported mitigation must be a genuine redundancy-based hardware countermeasure (e.g., duplicated write with comparator, triplicated write/voting, or re-assert-and-check in a subsequent state) rather than a generic or non-redundant suggestion (e.g., 'add more testing', 'use encryption')."
+    },
+    {
+      "detection_strategy": "Cross-check via iverilog/vvp simulation of mode_sequencer.v with a forced skip at the reported vulnerable_state's write cycle; compare final priv_reg register value against resulting_privilege mapping (2'b10 -> supervisor).",
+      "id": "SR4",
+      "requirement": "The reported resulting_privilege for the vulnerable_state skip must match the actual simulated privilege level (supervisor), not merely a plausible-sounding guess."
+    }
+  ],
+  "threat_model": "An attacker with physical or logical access capable of injecting a transient fault (voltage/clock glitch, EM pulse, or laser fault injection) at a single clock cycle can suppress the register-write side effect of one FSM state without disrupting state-sequencing logic. If this skip lands on the unique state responsible for lowering privilege during a supervisor-to-user demotion, the sequencer proceeds through the remaining states and asserts 'done' while priv_reg still holds the supervisor value, allowing subsequently executed code to run with elevated privilege it should not have."
+}

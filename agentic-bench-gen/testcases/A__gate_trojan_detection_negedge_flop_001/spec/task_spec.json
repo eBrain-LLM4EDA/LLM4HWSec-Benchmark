@@ -1,0 +1,113 @@
+{
+  "domain_id": "gate_trojan_detection",
+  "evaluation": {
+    "baselines": [
+      "Trust-Hub",
+      "CASlab GAINESIS"
+    ],
+    "metrics": [
+      {
+        "description": "Fraction of required ground-truth elements (instance name, cell type, sampled signal, and correct trojan_detected boolean) correctly reported in trojan_report.json across the SR checklist.",
+        "direction": "maximize",
+        "name": "detection_rate"
+      },
+      {
+        "description": "Fraction of reported suspect_instances entries that do not correspond to the actual substituted instance u_grant_ff (measures over-reporting/noise in the answer).",
+        "direction": "minimize",
+        "name": "false_positive_rate"
+      },
+      {
+        "description": "Wall-clock time in seconds for evaluate.py to parse, validate, and optionally cross-check the submission via iverilog/vvp simulation.",
+        "direction": "minimize",
+        "name": "inference_latency"
+      },
+      {
+        "description": "Boolean/fraction score indicating whether trojan_report.json satisfies all structural FR1-FR4 format requirements.",
+        "direction": "maximize",
+        "name": "schema_conformance"
+      }
+    ]
+  },
+  "hidden_spec": {
+    "acceptance_criteria": [
+      "A submission that names u_grant_ff, DFF_NEGEDGE, and grant_pre with trojan_detected=true and a coherent summary passes all FR and SR checks.",
+      "The shipped baseline empty/naive submission (trojan_detected=false, suspect_instances=[], generic summary) must fail SR1-SR4.",
+      "A submission that finds trojan_detected=true but names the wrong instance or wrong signal fails SR1/SR3 even though FR1-FR4 (structural/schema checks) may still pass."
+    ],
+    "cwe_ids": [
+      "CWE-1245",
+      "CWE-1191",
+      "CWE-696"
+    ],
+    "ground_truth": "Instance u_grant_ff in access_ctrl_netlist.v is instantiated as DFF_NEGEDGE (not DFF_POSEDGE like every other documented state element) and samples the net grant_pre, which is the output of the access-permission comparator. Because it captures on the falling edge of clk, it latches grant_pre half a cycle before the comparator logic has settled to its final combinational value, creating a timing window where a stale or transitional permission value can propagate to grant_out. All other sequential elements in the design are DFF_POSEDGE as documented in design_brief.md.",
+    "security_requirements": [
+      {
+        "detection_strategy": "String-match instance_name fields (case-insensitive, ignoring hierarchy separators) against the ground-truth instance name u_grant_ff; also accept exact match if participant used the literal instance path from the netlist.",
+        "id": "SR1",
+        "requirement": "The submitted report must correctly identify u_grant_ff as the anomalous instance."
+      },
+      {
+        "detection_strategy": "String-match cell_type field against 'DFF_NEGEDGE' or free-text detection of 'negedge'/'negative-edge'/'falling edge' in justification.",
+        "id": "SR2",
+        "requirement": "The submitted report must correctly identify the cell_type as DFF_NEGEDGE (or equivalently state that it is negative-edge/falling-edge triggered) as opposed to the documented DFF_POSEDGE discipline."
+      },
+      {
+        "detection_strategy": "String-match sampled_signal field against 'grant_pre' from the netlist's net declarations.",
+        "id": "SR3",
+        "requirement": "The submitted report must correctly identify sampled_signal as grant_pre (the access-permission comparator output)."
+      },
+      {
+        "detection_strategy": "Boolean field check combined with FR3 consistency check.",
+        "id": "SR4",
+        "requirement": "trojan_detected must be true for a passing submission (a report claiming no trojan fails, since the netlist contains a genuine substitution)."
+      },
+      {
+        "detection_strategy": "Run iverilog -o sim.out inputs/access_ctrl_netlist.v inputs/cell_library.v inputs/testbench_stub.v; vvp sim.out; parse VCD/monitor output for a mismatch between negedge-sampled and posedge-sampled grant_pre values within the same clock period; this is a bonus cross-check, not required for PASS but strengthens confidence scoring.",
+        "id": "SR5",
+        "requirement": "Optionally, evaluate.py cross-checks the claim by simulating access_ctrl_netlist.v with testbench_stub.v via iverilog/vvp, comparing the value latched into u_grant_ff's output against a golden posedge reference at the half-cycle mark, confirming an observable discrepancy consistent with the reported finding."
+      }
+    ],
+    "threat_model": "An adversary with foundry- or synthesis-stage access substitutes a single negedge-triggered flip-flop cell for the correct posedge cell on a security-critical sampling path. This is a minimal, naming-plausible structural change that introduces no additional trigger or payload logic, evading netlist diffing approaches that only look for extra gates, and evading simulation-based verification that only checks steady-state functional correctness rather than edge polarity per instance."
+  },
+  "public_spec": {
+    "constraints": [
+      "The netlist must be a flat, single-clock gate-level design using only cells declared in cell_library.v (DFF_POSEDGE, DFF_NEGEDGE, and standard combinational gates AND2, OR2, NAND2, NOR2, XOR2, INV, MUX2).",
+      "All documented state elements in design_brief.md must be described as posedge-triggered; exactly one instance in access_ctrl_netlist.v must actually be instantiated as DFF_NEGEDGE.",
+      "Instance and net names must follow plausible conventions consistent with the rest of the design (e.g. u_grant_ff, grant_pre) so the substitution is not detectable by naming alone.",
+      "The substituted negedge flop must sit on the path that samples the access-grant comparator output (grant_pre) before it feeds the final grant_out logic.",
+      "testbench_stub.v must provide a clock generator and stimulus sufficient to expose a half-cycle timing difference between posedge and negedge sampling of grant_pre via iverilog simulation."
+    ],
+    "expected_outputs": [
+      "submission/trojan_report.json"
+    ],
+    "functional_requirements": [
+      {
+        "id": "FR1",
+        "requirement": "submission/trojan_report.json must be valid JSON containing the top-level fields trojan_detected (boolean), suspect_instances (array), and summary (string); missing or mistyped fields fail this check."
+      },
+      {
+        "id": "FR2",
+        "requirement": "Each element of suspect_instances must contain non-empty string values for instance_name, cell_type, and sampled_signal that reference identifiers found verbatim in inputs/access_ctrl_netlist.v (evaluate.py cross-references the netlist text)."
+      },
+      {
+        "id": "FR3",
+        "requirement": "If trojan_detected is true, suspect_instances must contain at least one entry; if trojan_detected is false, suspect_instances must be an empty array (internal consistency check)."
+      },
+      {
+        "id": "FR4",
+        "requirement": "The summary field must be a non-empty string of at least 20 characters describing the finding."
+      }
+    ],
+    "input_artifacts": [
+      "access_ctrl_netlist.v",
+      "cell_library.v",
+      "design_brief.md",
+      "testbench_stub.v"
+    ],
+    "interface": "The netlist file inputs/access_ctrl_netlist.v defines module access_ctrl_top with ports: input clk, input rst_n, input [7:0] key_in, input req_valid, output grant_out. All sequential cells are instantiated from the cell_library.v primitives: DFF_POSEDGE (ports .clk, .d, .q, .rst_n) and DFF_NEGEDGE (ports .clk, .d, .q, .rst_n). The design_brief.md states the module's documented clocking discipline is single-clock, all state elements posedge-triggered on clk. Participants submit an answer file at submission/trojan_report.json (participants must NOT modify any file under inputs/). The JSON file must be a single object with exactly these top-level fields: \"trojan_detected\" (boolean), \"suspect_instances\" (array of objects, each with \"instance_name\" (string, exact instance identifier as it appears in access_ctrl_netlist.v), \"cell_type\" (string, exact primitive name such as \"DFF_NEGEDGE\"), \"sampled_signal\" (string, exact net name driving the .d port of that instance), and \"justification\" (string, free text)), and \"summary\" (string, free text overview of the finding). evaluate.py parses this exact schema; unparsable JSON or missing required fields fails the FR checks. evaluate.py may optionally invoke iverilog/vvp on testbench_stub.v against access_ctrl_netlist.v to cross-check that a reported instance's output value differs from a same-named posedge reference at the half-cycle sampling point, but the PASS/FAIL verdict is determined by grading the content of trojan_report.json against the hidden ground truth.",
+    "objective": "You are given a synthesized gate-level Verilog netlist of an access-control module along with its design brief. Analyze the netlist's structural cell list and its clocking discipline to determine whether every state-holding element that participates in the documented single-clock design is instantiated with the same active clock edge as specified in the design brief, and report any instance that deviates from that discipline along with the signal it samples. Produce a JSON report identifying any anomalous flip-flop instance, the net it captures, and a short justification grounded in the netlist structure.",
+    "response_format": "A single JSON file at submission/trojan_report.json matching the schema described in public_spec.interface."
+  },
+  "task_id": "gate_trojan_detection_negedge_flop_001",
+  "title": "Negative-edge flop substituted into a positive-edge security path"
+}

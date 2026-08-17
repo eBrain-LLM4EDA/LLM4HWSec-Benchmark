@@ -1,0 +1,78 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py + harness_main.cpp",
+      "description": "Differential test confirms the shipped insecure baseline (which re-reads desc->length in the copy loop and return statement) passes ALL requirements including SR1 and SR2, the exact TOCTOU checks it was designed to fail. The evaluator does not discriminate between the golden hardened solution and the vulnerable baseline; both yield identical PASS output. This violates the core acceptance criterion that the baseline must fail the mutation scenario.",
+      "evidence": "differential.status=fail; vulnerable_run.stdout identical to golden_run.stdout with all [TEST] PASS lines including SR1 and SR2; failure_class=vulnerable_accepted",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/harness_main.cpp sr1_toctou scenario",
+      "description": "The race design relies purely on thread scheduling luck (spin-wait on an atomic flag with no bounded delay before the single run_transfer call returns) to catch a re-read in a tiny, extremely fast loop (16 iterations). In practice the copy loop for the baseline completes near-instantaneously, so the mutator thread frequently loses the race across all 200 trials, making the security check flaky/non-discriminating as demonstrated by the preflight/differential result.",
+      "evidence": "preflight.attempt_history shows repeated vulnerable_accepted; mutation_score=0.0 and requirement_discrimination_coverage_score=0.0",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report",
+      "description": "mutation_status is blocked_by_differential and mutation_score is 0.0, meaning no mutants were meaningfully tested because the baseline itself already passes -- the benchmark provides no verifiable discriminative signal for the security requirements it claims to check.",
+      "evidence": "mutation_score: 0.0, mutation_score_meaningful: false, requirement_discrimination_coverage_score: 0.0",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Redesign the sr1_toctou race so it deterministically forces the mutator write to land between the validation read and the copy-loop's re-read for the baseline, e.g. by having the harness pre-empt or instrument timing more reliably (larger N, larger copy length so the race window is wider, or use a synchronization technique that guarantees the mutation lands mid-loop rather than relying on OS thread scheduling against a 16-iteration loop).",
+    "Re-run the differential test after harness changes to confirm the baseline fails SR1/SR2 with high reliability (ideally deterministically, not just empirically 'high probability') and the golden solution still passes all checks.",
+    "Consider increasing the safe validated length (e.g., 256 instead of 16) and/or slowing the per-iteration copy artificially only in the race scenario to create a larger, more reliable exploitation window without introducing wall-clock sleeps.",
+    "Add an assertion or fallback mechanism such as running the sr1_toctou scenario many more times (e.g., 5000+ trials) or using thread priority/affinity pinning to increase race-window reliability if pure atomic-flag spinning proves too fast to reliably interleave.",
+    "Do not ship this task until the differential status shows 'pass' (golden passes all, vulnerable baseline fails SR1 and SR2 specifically)."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "golden_run PASS: FR1; baseline also passes (expected, functional-only)",
+      "requirement": "FR1 - basic 32-byte transfer",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run PASS: FR2; baseline also passes (expected)",
+      "requirement": "FR2 - oversized rejection",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run PASS: FR3; baseline also passes (expected)",
+      "requirement": "FR3 - zero-length valid transfer",
+      "status": "pass"
+    },
+    {
+      "evidence": "golden_run PASS: FR4; compile-based check is sound",
+      "requirement": "FR4 - interface/struct fidelity via compile",
+      "status": "pass"
+    },
+    {
+      "evidence": "vulnerable_run reports PASS: SR1 even though the baseline re-reads desc->length in the copy loop and return statement -- the discriminating check fails to catch the known-insecure baseline",
+      "requirement": "SR1 - desc->length read at most once (TOCTOU)",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run reports PASS: SR2 for the baseline, which is the exact scenario this requirement is meant to catch per hidden_spec ground_truth",
+      "requirement": "SR2 - validated value == value used for copy bound",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run PASS: SR3; baseline also passes (expected, non-racy path)",
+      "requirement": "SR3 - rejection path leaves dest untouched",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md and metadata.json describe the task as general robustness hardening without mentioning CWE ids, SR ids, or flagging the baseline as vulnerable",
+      "requirement": "No leakage of hidden security intent in public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec are concrete, each independently verifiable via the pinned interface (specific length/max_len values and expected outputs)",
+      "requirement": "Public functional requirements concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

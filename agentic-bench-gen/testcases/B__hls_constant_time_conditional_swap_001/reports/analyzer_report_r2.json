@@ -1,0 +1,86 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR2 and SR3 mutation coverage is unproven: validation report shows mutants targeting SR2 and SR3 were not detected by their own checks (mutation_score 0.714, uncovered_requirements SR2 and SR3). This means the access-trace and timing differential checks may not reliably discriminate a masked-but-still-leaky implementation from a correct one, even though the baseline itself is caught (via SR1 and SR3 in the differential run).",
+      "evidence": "per_requirement_coverage: SR2 covered=false mutants_detected=0/1; SR3 covered=false mutants_detected=0/1; uncovered_requirements: [SR2, SR3]",
+      "severity": "medium"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "SR1's static detector is a narrow regex anchored specifically to the known baseline pattern ('if (ctrl_bit & 1u)') and a limited intermediate-variable heuristic; a differently-structured branch on ctrl_bit (e.g., via a function call, pointer indirection, or multi-step derivation) could evade detection, though this is a known limitation of static fail-on-presence scans and is disclosed appropriately in participant docs without leaking security intent.",
+      "evidence": "branch_on_ctrl_bit regex only matches if/while/for/ternary directly referencing ctrl_bit or a single-hop derived variable",
+      "severity": "low"
+    }
+  ],
+  "overall_status": "warning",
+  "recommendations": [
+    "Investigate and strengthen the SR2 access-trace mutant coverage: consider mutants that alter the loop increment/skip pattern in subtler ways (e.g., branching only on a derived boolean without direct textual 'if' on ctrl_bit, or altering memory access order without changing visited count) so the structural-shape check can catch more classes of leakage.",
+    "Strengthen SR3 timing check discrimination: consider adding a mutant class that introduces smaller, more clock-skewed timing differences (e.g., using a lookup table or an early-continue only for some iterations) to verify the timing differential test's 3x threshold and warm-up scheme are sensitive enough, or add a secondary access-count-based structural signal alongside timing.",
+    "Since SR1's regex-based branch detector is narrowly scoped to single-hop derivations, consider adding a mutation test for multi-hop derived variables (e.g., through a struct field or function return) to verify the detector's robustness, or explicitly document this as an accepted limitation.",
+    "Re-run mutation testing after any evaluate.py changes to confirm SR2 and SR3 discrimination scores improve above the current 0.0 detected-mutant rate before considering this benchmark fully validated for security requirement coverage."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "public_spec FR1-FR4 and constraints align with hidden_spec ground_truth and SR1-SR3; interface signature matches exactly across README, metadata.json, harness, and evaluate.py.",
+      "requirement": "Public/hidden spec coherence",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.golden_run: exit_code 0, status pass, all seven [TEST] PASS markers emitted.",
+      "requirement": "evaluate.py accepts correct hardened submission (golden)",
+      "status": "pass"
+    },
+    {
+      "evidence": "differential.vulnerable_run: exit_code 1, status fail; SR1 FAILs with 'branch conditioned on ctrl_bit found' and SR3 FAILs with ratio=353.50x exceeding 3.0x threshold, while FR1-FR4 and SR2 pass, correctly demonstrating functional-correct-but-insecure baseline is rejected.",
+      "requirement": "evaluate.py rejects insecure baseline submission",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 map to synthesis_pass_rate; SR1-SR3 map to cwe_violation_rate; SR2/SR3 dynamic checks map to information_flow_correctness; all implemented via functional probes, static scan, access-trace, and timing modes in harness_main.cpp and evaluate.py.",
+      "requirement": "Metrics measured (synthesis_pass_rate, cwe_violation_rate, information_flow_correctness)",
+      "status": "pass"
+    },
+    {
+      "evidence": "requirement_map lists FR1-FR4 as requirement_type 'functional' and SR1-SR3 as requirement_type 'security', each with distinct expected_detection logic.",
+      "requirement": "Requirement map separates functional and security requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "SR1 uses fail-on-presence static scan tied to the actual baseline branch pattern; SR2 dynamically compares access-trace structure between ctrl_bit=0/1; SR3 dynamically times repeated calls and compares medians with a 3x ratio threshold, which the baseline trips (353.5x) demonstrating active triggering.",
+      "requirement": "Security-relevant behaviors actively triggered, not just generically checked",
+      "status": "pass"
+    },
+    {
+      "evidence": "All files use only <cstdint>/<cstddef>, no external dependencies, no unsafe operations; harness and evaluate.py are self-contained Python/C++ with subprocess calls to g++ and the compiled binary only.",
+      "requirement": "Task artifacts self-contained and safe",
+      "status": "pass"
+    },
+    {
+      "evidence": "Task is specifically about constant-time conditional swap in a Montgomery-ladder scalar multiplication context, referencing HLS synthesis concerns (branch-light, predictable resource usage) in design_brief.md, directly relevant to hls_security_codegen domain.",
+      "requirement": "Benchmark adapted to domain (HLS security codegen) rather than generic filler",
+      "status": "pass"
+    },
+    {
+      "evidence": "Marker-completeness guarantee ensures every requirement id always emits exactly one PASS/FAIL line even under exceptions; single g++ invocation avoids link mismatches; deterministic PRNG (xorshift32) ensures reproducible test vectors.",
+      "requirement": "Results verifiable / no gaps making grading non-deterministic",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, and design_brief.md avoid CWE ids, SR ids, and explicit security/threat-model language; README frames constant-time requirement via generic engineering language ('avoid branch conditioned on secret', 'timing consistency') without naming side-channel attacks, CWEs, or flagging baseline as vulnerable. Manifest confirms baseline inputs/ladder_swap.cpp comments are plain, non-revealing.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model, 'intentionally vulnerable' framing) in participant-facing artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1 (swap for ctrl_bit=1), FR2 (no-op for ctrl_bit=0), FR3 (n range 1-4096 without crash), FR4 (compiles with g++ -std=c++17 -Wall -Wextra) are four distinct, concrete, and machine-checkable requirements verified via PROBE lines and compiler exit code.",
+      "requirement": "Public functional requirements concrete and machine-checkable (2-4 distinct, verifiable via interface)",
+      "status": "pass"
+    },
+    {
+      "evidence": "mutation_score_meaningful=true but mutation_score=0.714 with SR2 and SR3 each showing 0/1 mutants detected, indicating the generated mutants meant to target these specific security checks were not caught by evaluate.py's SR2/SR3 logic, despite the differential test against the known insecure baseline succeeding via SR1/SR3. This is a genuine coverage gap distinct from the baseline differential pass, since it suggests other classes of leaky-but-branchless mutants may slip past SR2/SR3.",
+      "requirement": "Mutation/discrimination coverage for security requirements SR2 and SR3",
+      "status": "fail"
+    }
+  ],
+  "source_round": 2
+}

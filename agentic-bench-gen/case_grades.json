@@ -27,6 +27,41 @@
   "mutation_score": 1.0,
   "reason": "clean"
  },
+ "testcases/A__gate_trojan_detection_negedge_flop_001": {
+  "case": "gate_trojan_detection_negedge_flop_001",
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__gate_trojan_detection_scan_capture_key_leak_001": {
+  "case": "gate_trojan_detection_scan_capture_key_leak_001",
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__gate_trojan_detection_shadow_register_fanout_001": {
+  "case": "gate_trojan_detection_shadow_register_fanout_001",
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__gate_trojan_detection_tie_secen_001": {
+  "case": "gate_trojan_detection_tie_secen_001",
+  "domain": "gate_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__hls_aead_nonce_counter_exhaustion_001": {
+  "case": "hls_aead_nonce_counter_exhaustion_001",
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
  "testcases/A__hls_bram_bounds_enforcement_001": {
   "case": "hls_bram_bounds_enforcement_001",
   "domain": "hls_security_codegen",
@@ -64,6 +99,13 @@
  },
  "testcases/A__hls_stale_bram_data_clearing_001": {
   "case": "hls_stale_bram_data_clearing_001",
+  "domain": "hls_security_codegen",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__hls_tagged_register_write_authorization_001": {
+  "case": "hls_tagged_register_write_authorization_001",
   "domain": "hls_security_codegen",
   "grade": "A",
   "mutation_score": 1.0,
@@ -132,6 +174,13 @@
   "mutation_score": 1.0,
   "reason": "clean"
  },
+ "testcases/A__rtl_trojan_detection_cache_waylock_001": {
+  "case": "rtl_trojan_detection_cache_waylock_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
  "testcases/A__rtl_trojan_detection_clean_debug_controller_001": {
   "case": "rtl_trojan_detection_clean_debug_controller_001",
   "domain": "rtl_trojan_detection",
@@ -167,6 +216,27 @@
   "mutation_score": 1.0,
   "reason": "clean"
  },
+ "testcases/A__sca_masked_and_glitch_unmasking_001": {
+  "case": "sca_masked_and_glitch_unmasking_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__sca_privilege_transition_instruction_skip_001": {
+  "case": "sca_privilege_transition_instruction_skip_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
+ "testcases/A__sca_scratchpad_index_timing_leak_001": {
+  "case": "sca_scratchpad_index_timing_leak_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "A",
+  "mutation_score": 1.0,
+  "reason": "clean"
+ },
  "testcases/A__scfa-001": {
   "case": "scfa-001",
   "domain": "side_channel_fault_analysis",
@@ -186,126 +256,196 @@
   "domain": "gate_trojan_detection",
   "grade": "B",
   "mutation_score": 0.714,
-  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+  "reason": "gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__gate_trojan_detection_addr_decoder_alias_001": {
   "case": "gate_trojan_detection_addr_decoder_alias_001",
   "domain": "gate_trojan_detection",
   "grade": "B",
   "mutation_score": 0.667,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__gate_trojan_detection_cell_substitution_001": {
   "case": "gate_trojan_detection_cell_substitution_001",
   "domain": "gate_trojan_detection",
   "grade": "B",
   "mutation_score": 0.889,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__gate_trojan_detection_counter_timebomb_001": {
   "case": "gate_trojan_detection_counter_timebomb_001",
   "domain": "gate_trojan_detection",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+  "reason": "gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__gate_trojan_detection_power_isolation_bypass_001": {
   "case": "gate_trojan_detection_power_isolation_bypass_001",
   "domain": "gate_trojan_detection",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__gate_trojan_detection_tmr_voter_cloning_001": {
   "case": "gate_trojan_detection_tmr_voter_cloning_001",
   "domain": "gate_trojan_detection",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__hls_constant_time_cbc_unpad_001": {
+  "case": "hls_constant_time_cbc_unpad_001",
+  "domain": "hls_security_codegen",
+  "grade": "B",
+  "mutation_score": 0.571,
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__hls_constant_time_conditional_swap_001": {
+  "case": "hls_constant_time_conditional_swap_001",
+  "domain": "hls_security_codegen",
+  "grade": "B",
+  "mutation_score": 0.714,
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__hls_fixed_iteration_modinv_001": {
+  "case": "hls_fixed_iteration_modinv_001",
+  "domain": "hls_security_codegen",
+  "grade": "B",
+  "mutation_score": 0.857,
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__hls_ift_crypto_kernel_001": {
   "case": "hls_ift_crypto_kernel_001",
   "domain": "hls_security_codegen",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+  "reason": "gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__hls_key_indexed_lookup_001": {
   "case": "hls_key_indexed_lookup_001",
   "domain": "hls_security_codegen",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__hls_length_overflow_before_copy_001": {
+  "case": "hls_length_overflow_before_copy_001",
+  "domain": "hls_security_codegen",
+  "grade": "B",
+  "mutation_score": 0.857,
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__hls_scatter_gather_descriptor_bounds_001": {
+  "case": "hls_scatter_gather_descriptor_bounds_001",
+  "domain": "hls_security_codegen",
+  "grade": "B",
+  "mutation_score": 0.625,
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__hre_pwm_deadtime_001": {
   "case": "hre_pwm_deadtime_001",
   "domain": "hardware_reverse_engineering",
   "grade": "B",
   "mutation_score": 0.833,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__logic_deobfuscation_sat_muxlock_keygates_001": {
   "case": "logic_deobfuscation_sat_muxlock_keygates_001",
   "domain": "logic_deobfuscation_sat",
   "grade": "B",
   "mutation_score": 0.857,
-  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+  "reason": "gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__rtl_nmi_priority_suppression_trojan_v1": {
   "case": "rtl_nmi_priority_suppression_trojan_v1",
   "domain": "rtl_trojan_detection",
   "grade": "B",
   "mutation_score": 0.714,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__rtl_opcode_privilege_trojan_001": {
   "case": "rtl_opcode_privilege_trojan_001",
   "domain": "rtl_trojan_detection",
   "grade": "B",
   "mutation_score": 0.625,
-  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+  "reason": "gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__rtl_trojan_detection_aes_rare_trigger_001": {
   "case": "rtl_trojan_detection_aes_rare_trigger_001",
   "domain": "rtl_trojan_detection",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+  "reason": "gaps: dead_check,uncovered_requirement"
  },
  "testcases/B__rtl_trojan_detection_bus_arbiter_dos_fsm_001": {
   "case": "rtl_trojan_detection_bus_arbiter_dos_fsm_001",
   "domain": "rtl_trojan_detection",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__rtl_trojan_detection_key_zeroize_hold_001": {
   "case": "rtl_trojan_detection_key_zeroize_hold_001",
   "domain": "rtl_trojan_detection",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__rtl_trojan_detection_lockstep_alu_001": {
   "case": "rtl_trojan_detection_lockstep_alu_001",
   "domain": "rtl_trojan_detection",
   "grade": "B",
   "mutation_score": 0.778,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__rtl_trojan_detection_rng_healthcheck_001": {
   "case": "rtl_trojan_detection_rng_healthcheck_001",
   "domain": "rtl_trojan_detection",
   "grade": "B",
   "mutation_score": 0.75,
-  "reason": "discrimination gaps: dead_check,uncovered_requirement"
+  "reason": "gaps: dead_check,uncovered_requirement"
+ },
+ "testcases/B__rtl_watchdog_selfpet_trojan_001": {
+  "case": "rtl_watchdog_selfpet_trojan_001",
+  "domain": "rtl_trojan_detection",
+  "grade": "B",
+  "mutation_score": 0.857,
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__sca_bus_precharge_hamming_leak_001": {
+  "case": "sca_bus_precharge_hamming_leak_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "B",
+  "mutation_score": 0.889,
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__sca_ecc_ladder_conditional_add_timing_001": {
+  "case": "sca_ecc_ladder_conditional_add_timing_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "B",
+  "mutation_score": 0.75,
+  "reason": "gaps: uncovered_requirement"
  },
  "testcases/B__sca_fia_secure_boot_bypass_001": {
   "case": "sca_fia_secure_boot_bypass_001",
   "domain": "side_channel_fault_analysis",
   "grade": "B",
   "mutation_score": 0.875,
-  "reason": "discrimination gaps: uncovered_requirement"
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/B__sca_retry_counter_decrement_order_001": {
+  "case": "sca_retry_counter_decrement_order_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "B",
+  "mutation_score": 0.875,
+  "reason": "gaps: uncovered_requirement"
+ },
+ "testcases/C__hls_descriptor_double_fetch_001": {
+  "case": "hls_descriptor_double_fetch_001",
+  "domain": "hls_security_codegen",
+  "grade": "C",
+  "mutation_score": 0.0,
+  "reason": "mutation invalid: no mutants generated"
  },
  "testcases/C__hls_security_codegen_xor_cipher_kernel_v1": {
   "case": "hls_security_codegen_xor_cipher_kernel_v1",
@@ -326,14 +466,14 @@
   "domain": "logic_deobfuscation_sat",
   "grade": "C",
   "mutation_score": 1.0,
-  "reason": "mutation score invalid: mutation_generation_failure"
+  "reason": "mutation invalid: mutation_generation_failure"
  },
  "testcases/C__rtl_redundant_counter_common_mode_fault": {
   "case": "rtl_redundant_counter_common_mode_fault",
   "domain": "side_channel_fault_analysis",
   "grade": "C",
   "mutation_score": 1.0,
-  "reason": "mutation score invalid: mutation_generation_failure"
+  "reason": "mutation invalid: mutation_generation_failure"
  },
  "testcases/C__sca_fixed_latency_enable_count_001": {
   "case": "sca_fixed_latency_enable_count_001",
@@ -342,158 +482,200 @@
   "mutation_score": 1.0,
   "reason": "spec-integrity: input_artifact_not_filename"
  },
+ "testcases/C__sca_trng_reseed_fault_lockout_001": {
+  "case": "sca_trng_reseed_fault_lockout_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "C",
+  "mutation_score": 1.0,
+  "reason": "mutation invalid: mutation_generation_failure"
+ },
  "testcases/C__side_channel_fault_analysis_rtl_dpa_leaky_sbox": {
   "case": "side_channel_fault_analysis_rtl_dpa_leaky_sbox",
   "domain": "side_channel_fault_analysis",
   "grade": "C",
   "mutation_score": 0.857,
-  "reason": "mutation score invalid: mutation_execution_error"
+  "reason": "mutation invalid: mutation_execution_error"
  },
  "testcases/D__gate_aoi_absorbed_trigger": {
   "case": "gate_aoi_absorbed_trigger",
   "domain": "gate_trojan_detection",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__gate_clock_enable_payload": {
   "case": "gate_clock_enable_payload",
   "domain": "gate_trojan_detection",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__gate_sequential_fsm_trigger_001": {
   "case": "gate_sequential_fsm_trigger_001",
   "domain": "gate_trojan_detection",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
+ },
+ "testcases/D__gate_trojan_detection_demorgan_bypass_001": {
+  "case": "gate_trojan_detection_demorgan_bypass_001",
+  "domain": "gate_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__gate_trojan_detection_mult8_and_tree_001": {
   "case": "gate_trojan_detection_mult8_and_tree_001",
   "domain": "gate_trojan_detection",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
+ },
+ "testcases/D__gate_trojan_detection_reset_polarity_subset_001": {
+  "case": "gate_trojan_detection_reset_polarity_subset_001",
+  "domain": "gate_trojan_detection",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__hls_cross_context_state_reset": {
   "case": "hls_cross_context_state_reset",
   "domain": "hls_security_codegen",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__hls_privileged_command_dispatch": {
   "case": "hls_privileged_command_dispatch",
   "domain": "hls_security_codegen",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
+ },
+ "testcases/D__hls_roundkey_zeroization_001": {
+  "case": "hls_roundkey_zeroization_001",
+  "domain": "hls_security_codegen",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__hw_reveng_fsm_recovery_001": {
   "case": "hw_reveng_fsm_recovery_001",
   "domain": "hardware_reverse_engineering",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__hwre_dualport_regfile_recovery_001": {
   "case": "hwre_dualport_regfile_recovery_001",
   "domain": "hardware_reverse_engineering",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__locked_cyclic_feedback": {
   "case": "locked_cyclic_feedback",
   "domain": "logic_deobfuscation_sat",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__locked_mixed_xor_mux": {
   "case": "locked_mixed_xor_mux",
   "domain": "logic_deobfuscation_sat",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__locked_sequential_keyload_fsm": {
   "case": "locked_sequential_keyload_fsm",
   "domain": "logic_deobfuscation_sat",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__reverse_crc16_serial": {
   "case": "reverse_crc16_serial",
   "domain": "hardware_reverse_engineering",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__reverse_fifo_controller": {
   "case": "reverse_fifo_controller",
   "domain": "hardware_reverse_engineering",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__reverse_pipelined_saturating_mac": {
   "case": "reverse_pipelined_saturating_mac",
   "domain": "hardware_reverse_engineering",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__rtl_auth_clock_glitch_window": {
   "case": "rtl_auth_clock_glitch_window",
   "domain": "side_channel_fault_analysis",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__rtl_distributed_trigger_exfiltration": {
   "case": "rtl_distributed_trigger_exfiltration",
   "domain": "rtl_trojan_detection",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__rtl_reset_order_trojan": {
   "case": "rtl_reset_order_trojan",
   "domain": "rtl_trojan_detection",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__sarlock_point_function_recovery": {
   "case": "sarlock_point_function_recovery",
   "domain": "logic_deobfuscation_sat",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__sca_fault_secded_double_fault_miscorrection_001": {
   "case": "sca_fault_secded_double_fault_miscorrection_001",
   "domain": "side_channel_fault_analysis",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__sca_fault_spn_lastround_dfa_001": {
   "case": "sca_fault_spn_lastround_dfa_001",
   "domain": "side_channel_fault_analysis",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
+ },
+ "testcases/D__sca_rsa_crt_recombination_fault_001": {
+  "case": "sca_rsa_crt_recombination_fault_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected/diff fails"
+ },
+ "testcases/D__sca_signature_compare_early_exit_001": {
+  "case": "sca_signature_compare_early_exit_001",
+  "domain": "side_channel_fault_analysis",
+  "grade": "D",
+  "mutation_score": 0.0,
+  "reason": "golden_rejected/diff fails"
  },
  "testcases/D__sfa_rom_addr_leak_001": {
   "case": "sfa_rom_addr_leak_001",
   "domain": "side_channel_fault_analysis",
   "grade": "D",
   "mutation_score": 0.0,
-  "reason": "golden_rejected / differential fails"
+  "reason": "golden_rejected/diff fails"
  }
 }

@@ -1,0 +1,36 @@
+{
+  "constraints": [
+    "The reviewer must not modify inputs/wdt_top.v; analysis is read-only against the provided RTL.",
+    "The report must be self-contained JSON parsable without external references.",
+    "Findings must reference concrete signal names or register addresses that exist in the provided RTL, not generic placeholders."
+  ],
+  "expected_outputs": [
+    "trojan_report.json"
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "trojan_report.json must be valid JSON containing top-level fields: 'findings' (array of objects, each with 'signal_or_path' (string), 'location' (string, e.g. module and approximate line or block description), 'trigger_condition' (string describing the input pattern that activates the behavior), and 'confidence' (number in [0,1])), 'summary' (string), and 'reset_req_reliable' (boolean stating whether reset_req can be trusted to fire at the programmed timeout under all bus traffic)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "The report must state, for at least one finding, an explicit bus address and 32-bit data value pair (or exact byte pattern) that the reviewer claims triggers anomalous counter reload behavior distinct from the documented WDT_PET address/value."
+    },
+    {
+      "id": "FR3",
+      "requirement": "The report's 'reset_req_reliable' field must be set to false, and the summary must explain in plain terms why ordinary use of the documented WDT_PET register at 0x08 is unaffected by the finding (i.e. distinguish the documented pet path from the anomalous path)."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The report must include a 'severity' field (string: one of 'low','medium','high','critical') for each finding, reflecting that a silent counter reload defeats the watchdog's core reset guarantee."
+    }
+  ],
+  "input_artifacts": [
+    "wdt_top.v",
+    "design_brief.md",
+    "register_map.md"
+  ],
+  "interface": "The RTL module under review is `wdt_top` in inputs/wdt_top.v, with ports: input wire clk, input wire rst_n (active-low async reset), input wire [7:0] addr (byte address on the internal register bus), input wire [31:0] wdata (write data), input wire we (write enable, active high, sampled on posedge clk), output reg reset_req (active-high system reset request, asserted the cycle the internal counter reaches the programmed timeout value and held until a documented pet or disable occurs). Documented registers: WDT_CTRL at addr 0x00 (bit0 = enable, bit1 = disable when written 0 after being 1), WDT_TIMEOUT at addr 0x04 (32-bit timeout value in prescaled ticks), WDT_PET at addr 0x08 (writing 32'hA5A5A5A5 reloads the counter to 0 and clears reset_req), WDT_CFG_ALIAS at addr 0x0C (documented as a scratch configuration register with no functional effect on timeout behavior). The submission is a single JSON file at submission/trojan_report.json (not RTL) analyzed by evaluate.py against inputs/wdt_top.v; evaluate.py may optionally cross-check reported findings by simulating inputs/wdt_top.v with iverilog/vvp.",
+  "objective": "A vendor delivered an RTL watchdog timer peripheral (wdt_top.v) intended to guarantee that a hung or unresponsive system is reset after a programmable timeout unless explicitly serviced by software through the documented pet register. Your job is to review the RTL design and produce a written analysis report identifying any logic paths that can alter the counter's reload/timeout behavior outside of the documented register interface, and to assess whether the peripheral can be relied upon to assert its reset_req output at the programmed timeout under all bus traffic patterns, including unusual or malformed writes to unrelated registers.",
+  "response_format": "A single JSON file at submission/trojan_report.json matching the schema described in the interface section (fields: findings[], summary, reset_req_reliable, and per-finding severity)."
+}

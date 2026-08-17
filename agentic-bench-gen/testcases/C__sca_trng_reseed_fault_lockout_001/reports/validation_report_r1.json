@@ -1,0 +1,212 @@
+{
+  "baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[INFO] iverilog corroboration: simulation confirms seed_reg matches parsed constant\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/fault_model.json",
+    "inputs/trng_postproc.v",
+    "metadata.json",
+    "submission/vulnerability_report.json"
+  ],
+  "check_activation": {
+    "FR1": 1,
+    "FR2": 1,
+    "FR3": 1,
+    "FR4": 1,
+    "SR1": 2,
+    "SR2": 1,
+    "SR3": 1,
+    "SR4": 1
+  },
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": null,
+    "failure_signature": null,
+    "golden_run": {
+      "exit_code": 0,
+      "expected": "pass",
+      "ok": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "[INFO] iverilog corroboration: simulation confirms seed_reg matches parsed constant\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+    },
+    "status": "pass",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "",
+      "stdout": "[INFO] iverilog corroboration: simulation confirms seed_reg matches parsed constant\n[TEST] FAIL: FR1: fixed_state_value '' is not a valid 0x-prefixed 32-bit hex string\n[TEST] PASS: FR2\n[TEST] FAIL: FR3: simulation_trace_description missing concepts: reset, reseed_req, entropy_ready, entropy_ready-low indication\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] FAIL: SR2: fixed_state_value missing or malformed; cannot compare to ground truth\n[TEST] FAIL: SR3: mitigation appears to propose a superficial/cosmetic fix without a repetition-count/health-check gating mechanism\n[TEST] FAIL: SR4: affected_outputs does not include 'rand_out'; documented_reseed_behavior_correct is not true (fault-free entropy_ready=1 reseed path must be documented as correct); trigger_condition does not clearly describe reseed_req asserted concurrently with entropy_ready low\n"
+    }
+  },
+  "domain_id": "side_channel_fault_analysis",
+  "expert_files": [
+    "golden/vulnerability_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "FR1 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "FR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR2 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR3 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "SR4 has no targeting mutant, so its harness discrimination is unproven",
+      "issue": "untested_requirement"
+    },
+    {
+      "detail": "Mutant generation failed for requirements ['FR1', 'FR2', 'FR3', 'SR2', 'SR3', 'SR4']; repair the mutation bundle",
+      "issue": "mutation_generation_failure"
+    }
+  ],
+  "mutation_baseline_run": {
+    "exit_code": 0,
+    "status": "pass",
+    "stderr": "",
+    "stdout": "[INFO] iverilog corroboration: simulation confirms seed_reg matches parsed constant\n[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] PASS: SR2\n[TEST] PASS: SR3\n[TEST] PASS: SR4\n"
+  },
+  "mutation_score": 1.0,
+  "mutation_score_meaningful": true,
+  "mutation_status": "evaluated",
+  "per_requirement_coverage": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    }
+  },
+  "per_requirement_discrimination": {
+    "FR1": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "FR4": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR1": {
+      "covered": true,
+      "mutants_detected": 1,
+      "mutants_targeting": 1
+    },
+    "SR2": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR3": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    },
+    "SR4": {
+      "covered": false,
+      "mutants_detected": 0,
+      "mutants_targeting": 0
+    }
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.25,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 1,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "c56aa0eb58d1e3c422c6e74f1072eeca6eb9879589182f979ba02fdc4540b5f4",
+        "changed": true,
+        "golden": "golden/vulnerability_report.json",
+        "golden_sha256": "b3c70c40a0bfd732083adf00b7b4f1f18bd45e8df2985b31fbbb5941b7d43fe2",
+        "target": "submission/vulnerability_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/vulnerability_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_reseed_fault.v"
+  ],
+  "uncovered_requirements": [],
+  "untested_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "SR2",
+    "SR3",
+    "SR4"
+  ]
+}

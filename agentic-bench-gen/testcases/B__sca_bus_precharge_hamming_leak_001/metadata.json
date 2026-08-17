@@ -1,0 +1,36 @@
+{
+  "task_id": "sca_bus_precharge_hamming_leak_001",
+  "domain_id": "side_channel_fault_analysis",
+  "title": "Precharged bus revealing operand Hamming weight",
+  "description": "Analyze the precharge_bus_wrapper RTL module's two-phase precharge/evaluate bus protocol and produce a structured findings report describing how bus switching activity relates to the transported data word, along with a concrete hardening proposal.",
+  "input_artifacts": [
+    "inputs/precharge_bus_wrapper.v",
+    "inputs/fault_model.json",
+    "inputs/design_brief.md",
+    "inputs/activity_trace_template.txt"
+  ],
+  "expected_outputs": [
+    "submission/vulnerability_report.json"
+  ],
+  "submission_artifacts": [
+    "submission/vulnerability_report.json"
+  ],
+  "metrics": [
+    {
+      "name": "leakage_detection_accuracy",
+      "description": "Whether the report correctly identifies the leaking phase and the nature of the switching-activity-based leakage metric, scored against hidden ground truth."
+    },
+    {
+      "name": "fault_coverage",
+      "description": "Whether the report identifies the complete set of affected bus nets and the correct transfer timing offsets, rather than a partial or incorrect subset."
+    },
+    {
+      "name": "hardening_precision",
+      "description": "Whether the proposed mitigation specifically achieves constant transition-count balancing while explicitly preserving correct data transport, as opposed to vague, irrelevant, or functionality-breaking suggestions."
+    },
+    {
+      "name": "schema_conformance",
+      "description": "Whether the submitted vulnerability_report.json contains all required fields in the correct types per the response format."
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "blocked_mutation_requirements": [
+    "FR1",
+    "FR2",
+    "FR3",
+    "FR4",
+    "SR1",
+    "SR2",
+    "SR3",
+    "SR4"
+  ],
+  "case_files": [
+    "README.md",
+    "inputs/design_brief.md",
+    "inputs/perm_cone_netlist.v",
+    "inputs/reference_truth_table.txt",
+    "metadata.json",
+    "submission/trojan_report.json"
+  ],
+  "check_activation": {},
+  "coverage_score": 1.0,
+  "dead_checks": [],
+  "differential": {
+    "failure_class": "golden_rejected",
+    "failure_signature": "240e628bd4c5605f3dec65e7c6405316989c01197cebec811377c3b869ab8acf",
+    "golden_run": {
+      "exit_code": 1,
+      "expected": "pass",
+      "ok": false,
+      "status": "fail",
+      "stderr": "[INFO] iverilog cross-check compile failed (non-fatal): inputs/perm_cone_netlist.v:4: warning: macro grant undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:6: warning: macro a1 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:6: warning: macro o2 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:8: warning: macro T1 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:9: warning: macro T2 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:10: warnin\n",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] PASS: SR1\n[TEST] FAIL: SR2: missing true diverging vector(s): [('10', '100', 1, 0)]\n[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): ['u_inv_a', 'u_inv_a0', 'u_inv_a1', 'u_inv_o1', 'u_inv_out', 'u_inv_owner_qual', 'u_inv_req10', 'u_inv_t1', 'u_inv_t2', 'u_inv_t3', 'u_nand_req10', 'u_nand_t1', 'u_nand_t2', 'u_nand_t3', 'u_nor_1', 'u_nor_out']\n[TEST] PASS: SR4\n"
+    },
+    "status": "fail",
+    "vulnerable_run": {
+      "exit_code": 1,
+      "expected": "fail",
+      "ok": true,
+      "status": "fail",
+      "stderr": "[INFO] iverilog cross-check compile failed (non-fatal): inputs/perm_cone_netlist.v:4: warning: macro grant undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:6: warning: macro a1 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:6: warning: macro o2 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:8: warning: macro T1 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:9: warning: macro T2 undefined (and assumed null) at this point.\ninputs/perm_cone_netlist.v:10: warnin\n",
+      "stdout": "[TEST] PASS: FR1\n[TEST] PASS: FR2\n[TEST] PASS: FR3\n[TEST] PASS: FR4\n[TEST] FAIL: SR1: ground-truth exhaustive simulation found 2 diverging vector(s) but submission.trojan_detected is False (expected true)\n[TEST] FAIL: SR2: missing true diverging vector(s): [('10', '100', 1, 0), ('10', '101', 0, 1)]\n[TEST] FAIL: SR3: suspect_instances is missing ground-truth-implicated instance(s): ['u_inv_a', 'u_inv_a0', 'u_inv_a1', 'u_inv_o1', 'u_inv_out', 'u_inv_owner_qual', 'u_inv_req10', 'u_inv_t1', 'u_inv_t2', 'u_inv_t3', 'u_nand_req10', 'u_nand_t1', 'u_nand_t2', 'u_nand_t3', 'u_nor_1', 'u_nor_out', 'u_perm_nand3']\n[TEST] FAIL: SR4: no diverging_vectors or suspect_instances were submitted, so no true positives were reported despite a real divergence existing\n"
+    }
+  },
+  "domain_id": "gate_trojan_detection",
+  "expert_files": [
+    "golden/trojan_report.json"
+  ],
+  "issues": [
+    {
+      "detail": "evaluate.py rejects the expert golden solution (PASS expected) \u2014 the evaluator is buggy/over-strict or grades the wrong file",
+      "issue": "golden_rejected"
+    }
+  ],
+  "mutation_score": 0.0,
+  "mutation_score_meaningful": false,
+  "mutation_status": "blocked_by_differential",
+  "preflight": {
+    "attempt_history": [
+      {
+        "attempt": 0,
+        "diagnostic": "[INFO] iverilog cross-check compile failed (non-fatal): inputs/perm_cone_netlist.v:4: warning: macro grant undefined (and assumed null) at this point.",
+        "failure_class": "golden_rejected",
+        "failure_signature": "240e628bd4c5605f3dec65e7c6405316989c01197cebec811377c3b869ab8acf"
+      },
+      {
+        "attempt": 1,
+        "diagnostic": "File \"/work/evaluation/evaluate.py\", line 1",
+        "failure_class": "multiple",
+        "failure_signature": "d01d432403f7b39a931496e9966f2bba57f215ef54f1ede7ed8032dd95f6e48e"
+      }
+    ],
+    "attempts": 1,
+    "failure_class": "golden_rejected",
+    "failure_signature": "240e628bd4c5605f3dec65e7c6405316989c01197cebec811377c3b869ab8acf",
+    "repair_paths": [
+      "evaluation/README.md",
+      "evaluation/tb_perm_cone.v",
+      "evaluation/evaluate.py"
+    ],
+    "repeated_signature": false,
+    "selected_attempt": 0
+  },
+  "requirement_count": 8,
+  "requirement_discrimination_coverage_score": 0.0,
+  "requirement_mapping_coverage_score": 1.0,
+  "source_round": 0,
+  "status": "fail",
+  "submission_invariants": {
+    "issues": [],
+    "mappings": [
+      {
+        "baseline_sha256": "b25ef6f0567f14743c23699e23c0cc79fb11d5bd7303803ac5dc96159c364672",
+        "changed": true,
+        "golden": "golden/trojan_report.json",
+        "golden_sha256": "5f1bddec426bbf83a5ed4365f234fd3c1a87e2de765879adede1d40141cfb387",
+        "target": "submission/trojan_report.json"
+      }
+    ],
+    "status": "pass",
+    "targets": [
+      "submission/trojan_report.json"
+    ],
+    "unmapped_targets": []
+  },
+  "tester_files": [
+    "evaluation/README.md",
+    "evaluation/evaluate.py",
+    "evaluation/tb_perm_cone.v"
+  ],
+  "uncovered_requirements": []
+}

@@ -1,0 +1,77 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "Golden/expert submission at golden/vulnerability_report.json fails FR1 because evaluate.py cannot parse it as JSON ('Expecting value: line 1 column 1 (char 0)'), indicating the golden file is empty, malformed, or evaluate.py is pointed at the wrong path. The differential harness confirms golden_rejected: the correct submission does not pass all requirements as required by the domain contract.",
+      "evidence": "golden_run.stdout: '[TEST] FAIL: FR1: could not parse vulnerability_report.json as a JSON object: Expecting value: line 1 column 1 (char 0)' followed by cascading FAILs on FR2-FR4, SR1-SR4.",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report",
+      "description": "Preflight repair attempts were made twice and reproduced the identical failure signature, meaning the golden-rejection is a persistent, unresolved defect rather than a transient issue.",
+      "evidence": "preflight.attempt_history shows two attempts with identical failure_signature 'd39a4ee6...'; repeated_signature: true.",
+      "severity": "high"
+    },
+    {
+      "artifact": "requirement_discrimination_coverage_score",
+      "description": "Because the golden submission cannot be validated as passing, the requirement discrimination coverage score is 0.0, meaning it is unverified whether the FR/SR checks correctly discriminate correct vs. incorrect submissions.",
+      "evidence": "requirement_discrimination_coverage_score: 0.0, mutation_status: blocked_by_differential, mutation_score_meaningful: false.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the golden/vulnerability_report.json file (or the path evaluate.py reads it from) so that it is valid, well-formed JSON matching the required schema \u2014 the reported parse error 'Expecting value: line 1 column 1 (char 0)' strongly suggests the golden file is empty or missing content.",
+    "Re-run the differential harness after fixing the golden file to confirm evaluate.py now exits 0 on the corrected golden submission while still rejecting the naive baseline.",
+    "Once golden passes, re-validate requirement_discrimination_coverage_score to ensure each FR/SR check is independently exercised and distinguishes correct from incorrect submissions (not just cascading failures from a single upstream parse error).",
+    "Add a CI/regression test that runs evaluate.py against the golden answer as part of the build pipeline to catch this class of regression before publishing the benchmark."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden submission fails FR1 due to JSON parse error; naive baseline correctly fails FR1 for empty fields. Since golden also fails, FR1 check is not proven to accept valid submissions.",
+      "requirement": "FR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden fails FR2 as a cascading consequence of the FR1 parse failure.",
+      "requirement": "FR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden fails FR3 as a cascading consequence of the FR1 parse failure.",
+      "requirement": "FR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden fails FR4 as a cascading consequence of the FR1 parse failure.",
+      "requirement": "FR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden fails SR1 as a cascading consequence of the FR1 parse failure.",
+      "requirement": "SR1",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden fails SR2 as a cascading consequence of the FR1 parse failure.",
+      "requirement": "SR2",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden fails SR3 as a cascading consequence of the FR1 parse failure.",
+      "requirement": "SR3",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden fails SR4 as a cascading consequence of the FR1 parse failure.",
+      "requirement": "SR4",
+      "status": "fail"
+    },
+    {
+      "evidence": "vulnerable_run shows the naive baseline correctly fails all FR1-FR4/SR1-SR4 checks with exit code 1, matching expected behavior.",
+      "requirement": "Baseline must fail",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

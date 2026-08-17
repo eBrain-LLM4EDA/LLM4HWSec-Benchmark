@@ -1,0 +1,17 @@
+{
+  "trojan_present": false,
+  "suspect_flops": [],
+  "anomaly_description": "",
+  "reset_net_summary": {
+    "RSTN": [
+      "u_ctrl_ff0",
+      "u_ctrl_ff1",
+      "u_ctrl_ff2",
+      "u_ctrl_ff3",
+      "u_dp_ff4",
+      "u_dp_ff5",
+      "u_priv_ff1",
+      "u_priv_ff2"
+    ]
+  }
+}

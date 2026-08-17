@@ -1,0 +1,37 @@
+{
+  "constraints": [
+    "The register file has exactly 64 32-bit registers (indices 0..63).",
+    "The protected range is fixed at indices 16 through 47 inclusive; this range must be treated uniformly.",
+    "The function signature, name, linkage (extern \"C\"), and file name must not be changed.",
+    "The implementation must be self-contained in reg_write_kernel.cpp with no external dependencies beyond the standard C++ library.",
+    "Do not use dynamic memory allocation or exceptions inside reg_write."
+  ],
+  "expected_outputs": [
+    "A hardened version of inputs/reg_write_kernel.cpp that compiles with g++ and, for every register index and every privilege tag value, produces the write/reject behavior defined by the functional requirements below."
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR1",
+      "requirement": "For any reg_index in the unprotected ranges 0..15 or 48..63, calling reg_write with priv_tag=0 and any value must return 1 and result in reg_file[reg_index] == value (unprotected indices are always writable regardless of tag)."
+    },
+    {
+      "id": "FR2",
+      "requirement": "For any reg_index in the protected range 16..47, calling reg_write with priv_tag=1 must return 1 and result in reg_file[reg_index] == value."
+    },
+    {
+      "id": "FR3",
+      "requirement": "Calling reg_write with reg_index < 0 or reg_index >= reg_file_size must return 0 and must not modify any element of reg_file."
+    },
+    {
+      "id": "FR4",
+      "requirement": "The function must compile cleanly with g++ -std=c++11 -Wall as a standalone translation unit when included by a harness that provides main(), with no unresolved symbols and no undefined behavior warnings treated as errors by the build."
+    }
+  ],
+  "input_artifacts": [
+    "reg_write_kernel.cpp",
+    "design_brief.md"
+  ],
+  "interface": "File: inputs/reg_write_kernel.cpp. The file must define exactly this function, callable from a C++ test harness that includes the file or links against it: `extern \"C\" int reg_write(int reg_index, unsigned int value, int priv_tag, unsigned int *reg_file, int reg_file_size);` Parameters: reg_index (public, the target register index, valid range 0..reg_file_size-1), value (public, the 32-bit value to write), priv_tag (public, the requester's privilege tag; 1 means privileged, 0 means unprivileged -- this is a declassified/public input, not a secret), reg_file (public, pointer to the register file array of length reg_file_size that the function may mutate), reg_file_size (public, number of registers in reg_file, supplied by the harness, expected value 64). Return value: the function must return 1 if the write was performed (reg_file[reg_index] set to value) and 0 if the write was rejected (reg_file[reg_index] left unchanged). The protected register index range is fixed at indices 16..47 inclusive (inclusive of both ends), out of a 64-register file (indices 0..63); indices 0..15 and 48..63 are unprotected. reg_index values outside 0..reg_file_size-1 must return 0 and must not write to memory.",
+  "objective": "Harden the provided HLS accelerator register-write kernel (inputs/reg_write_kernel.cpp) so that writes to configuration registers are correctly gated by the requester's privilege tag across the ENTIRE protected register range, while leaving unprotected register behavior unchanged. Edit the file in place; do not change its public function signature or file name.",
+  "response_format": "JSON or Markdown report plus generated artifacts as requested."
+}

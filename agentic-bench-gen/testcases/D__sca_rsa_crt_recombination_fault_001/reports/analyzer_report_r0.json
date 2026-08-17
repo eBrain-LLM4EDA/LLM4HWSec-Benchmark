@@ -1,0 +1,85 @@
+{
+  "issues": [
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The golden/expert submission is rejected by the grader. The regex find_register_tokens correctly finds both sig_p_reg and sig_q_reg mentioned anywhere in vulnerable_register text (since the golden report's vulnerable_register field explains the RTL context and mentions sig_q_reg parenthetically for contrast, even though it clearly designates sig_p_reg as the answer). FR3 and SR1 then fail because len(vr_regs) != 1, even though the golden answer correctly and primarily identifies sig_p_reg. This is a differential validation failure: golden_rejected, confirmed by the validation report's differential section showing golden_run.status='fail' when expected='pass'.",
+      "evidence": "[TEST] FAIL: FR3: vulnerable_register names multiple registers ambiguously ... [TEST] FAIL: SR1: vulnerable_register does not unambiguously name sig_p_reg or sig_q_reg",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py",
+      "description": "The whole-word token extraction for vulnerable_register is overly brittle: it treats any secondary mention of the other register name (e.g. for explanatory/contrastive purposes) as ambiguity, rather than requiring the field's primary/first-stated register to be checked. This will penalize any well-written, thorough report that explains why the other register is not the primary concern, punishing exactly the kind of thoroughness the task's field guidance implicitly invites ('Name the specific internal register...whose value is consumed...without being independently re-checked first' -- explanatory context is natural).",
+      "severity": "medium"
+    },
+    {
+      "artifact": "validation report",
+      "description": "Differential harness confirms mutation_score is 0.0 and mutation_status is blocked_by_differential due to the golden_rejected failure; requirement_discrimination_coverage_score is 0.0, meaning the benchmark cannot currently be trusted to discriminate correct vs incorrect submissions until the FR3/SR1 bug is fixed.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix evaluate.py's FR3/SR1 register-extraction logic so that it does not treat contrastive/explanatory mentions of the non-primary register as ambiguity -- e.g., only consider the register token(s) appearing before the first sentence boundary, or require an explicit disambiguating pattern (such as 'not sig_q_reg' or 'unlike sig_q_reg') to be recognized as non-ambiguous, or simply take the first-mentioned register as canonical when multiple are present but one is clearly marked as primary.",
+    "Add a regression test using the shipped golden/vulnerability_report.json (referenced in expert_files) to the CI/differential harness so that future evaluate.py changes cannot silently reintroduce golden_rejected failures.",
+    "Re-run the full differential validation (golden vs baseline vs mutants) after patching FR3/SR1 to confirm mutation_score and requirement_discrimination_coverage_score both rise above 0, and confirm the golden submission passes all 8 requirements end-to-end.",
+    "Consider loosening the whole-word register match logic to only flag ambiguity when both registers are asserted as the vulnerable one without qualification (e.g., 'sig_p_reg or sig_q_reg could be the issue') rather than whenever both identifiers appear anywhere in the text."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run shows [TEST] PASS: FR1; baseline (empty fields) shows [TEST] FAIL: FR1 with all fields empty -- correct behavior.",
+      "requirement": "FR1 schema/field presence",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows [TEST] PASS: FR2; baseline fails as expected due to empty fields.",
+      "requirement": "FR2 trigger_scenario reproducible via simulation",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows [TEST] FAIL: FR3 despite golden answer correctly identifying sig_p_reg as primary register; the checker's ambiguity logic incorrectly flags this as failing.",
+      "requirement": "FR3 vulnerable_register names exactly one branch register",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows [TEST] PASS: FR4.",
+      "requirement": "FR4 recommended_fix describes concrete recompute-and-compare fix",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows [TEST] FAIL: SR1 for the same reason as FR3 -- ambiguous multi-register detection in vulnerable_register field text.",
+      "requirement": "SR1 register naming consistency between vulnerable_register and trigger_scenario",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run shows [TEST] PASS: SR2.",
+      "requirement": "SR2 fault model describes single transient register corruption",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows [TEST] PASS: SR3.",
+      "requirement": "SR3 recompute-and-compare semantics present in missing_verification_step/recommended_fix",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run shows [TEST] PASS: SR4.",
+      "requirement": "SR4 trigger_scenario reproducibility via forced-register simulation",
+      "status": "pass"
+    },
+    {
+      "evidence": "Vulnerable/baseline run shows all FR1-FR4, SR1-SR4 FAIL as expected, confirming the baseline is correctly rejected.",
+      "requirement": "Baseline (naive/empty) submission must fail all requirements",
+      "status": "pass"
+    },
+    {
+      "evidence": "README.md, metadata.json, design_brief.md, and fault_model.md are framed as plain engineering review/reliability content with no mention of CWE ids, Bellcore/RSA/CRT-RSA, key recovery, or SR/FR labels.",
+      "requirement": "No leakage of hidden security intent (CWE ids, SR ids, threat model) into public artifacts",
+      "status": "pass"
+    },
+    {
+      "evidence": "FR1-FR4 in public_spec map to concrete, distinctly checkable conditions (schema/fields, simulatable trigger scenario, exact register naming, concrete RTL fix) rather than a single vague restatement.",
+      "requirement": "Public functional requirements are concrete and machine-checkable",
+      "status": "pass"
+    }
+  ],
+  "source_round": 0
+}

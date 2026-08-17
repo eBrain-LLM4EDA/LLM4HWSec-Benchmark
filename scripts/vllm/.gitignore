@@ -1,0 +1,7 @@
+# Runtime artifacts from serve_*.sh / prune_*.sh - none of this belongs in
+# version control (model weights, cache, logs, PID files, generated envs).
+.hf_cache/
+.venv-*/
+logs/*.log
+logs/*.pid
+pruned/

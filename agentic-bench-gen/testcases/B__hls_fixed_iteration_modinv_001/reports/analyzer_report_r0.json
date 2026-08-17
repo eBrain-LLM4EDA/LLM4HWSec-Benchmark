@@ -1,0 +1,84 @@
+{
+  "issues": [
+    {
+      "artifact": "golden/modinv_kernel.cpp",
+      "description": "The differential harness shows the golden/expert reference solution fails to compile against evaluate.py's grading pipeline (undeclared identifier 'u_odd_inverse_mask' at line 64), causing every behavioral requirement (FR1-FR4, SR1, SR3) to FAIL for the correct solution. This is a critical validity failure: the grader cannot accept a correct hardened submission.",
+      "evidence": "golden_run.stdout: \"error: 'u_odd_inverse_mask' was not declared in this scope\" repeated across FR1,FR2,FR3,FR4,SR1,SR3 FAIL lines; golden_run.expected='pass' but status='fail'.",
+      "severity": "high"
+    },
+    {
+      "artifact": "metadata.json",
+      "description": "Participant-facing metadata.json leaks hidden security identifiers (CWE ids and SR ids) that should remain hidden per the hardened_artifact contract, revealing the exact vulnerability classes and requirement ids being tested.",
+      "evidence": "issues report: \"participant-facing file mentions hidden-security identifiers ['CWE-203', 'CWE-208', 'CWE-385', 'SR1', 'SR3']\" in metadata.json (via cwe_violation_rate metric description).",
+      "severity": "high"
+    },
+    {
+      "artifact": "validation report / mutation pipeline",
+      "description": "Mutation scoring is blocked entirely by the differential failure (golden rejected), so mutation_score is 0.0 and marked not meaningful, and requirement_discrimination_coverage_score is 0.0 \u2014 the benchmark's ability to distinguish correct from incorrect submissions is unverified.",
+      "evidence": "mutation_score: 0.0, mutation_score_meaningful: false, mutation_status: 'blocked_by_differential', requirement_discrimination_coverage_score: 0.0.",
+      "severity": "high"
+    },
+    {
+      "artifact": "evaluation/evaluate.py + golden/modinv_kernel.cpp",
+      "description": "Root cause appears to be a mismatch between the golden solution's variable naming/structure and what was intended, or a bug introduced in the golden fixture itself (undeclared variable), indicating the golden artifact used for differential testing was not properly validated before being paired with the grader.",
+      "evidence": "Compile error is a simple undeclared-identifier issue, suggesting either a typo in golden/modinv_kernel.cpp or a version mismatch between the golden file and the header it includes.",
+      "severity": "medium"
+    }
+  ],
+  "overall_status": "fail",
+  "recommendations": [
+    "Fix the golden/modinv_kernel.cpp reference solution so it compiles cleanly against modinv_kernel.h and the harness \u2014 resolve the undeclared 'u_odd_inverse_mask' identifier at line 64 (likely a missing variable declaration or typo) and re-run the differential check until golden_run passes all requirements.",
+    "Remove or redact CWE identifiers (CWE-208, CWE-385, CWE-203) and SR ids (SR1, SR3) from metadata.json's metric descriptions; rephrase cwe_violation_rate's description in domain-neutral engineering language (e.g., 'fraction of security-relevant behavioral checks that fail') so the public-facing metadata does not leak hidden_spec content.",
+    "Re-run the full differential and mutation pipeline after fixing the golden fixture to obtain a meaningful mutation_score and requirement_discrimination_coverage_score before accepting this benchmark case.",
+    "Add a CI/build step that compiles the golden solution against evaluate.py as part of benchmark authoring to catch golden/grader mismatches before publishing.",
+    "Once golden compiles, re-verify SR1/SR3 pass thresholds and iteration-count fixed-bound logic against the corrected golden implementation to ensure the fixed-iteration algorithm (e.g., 16 iterations) actually converges correctly for all operands in [1,250]."
+  ],
+  "requirement_results": [
+    {
+      "evidence": "Golden run fails to compile, so FR1 cannot be verified as passing for a correct submission (golden_run FAIL: FR1: compile failed).",
+      "requirement": "FR1: modinv(a) correctness for all a in [1,250]",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run FR2 FAILs due to compile error in golden/modinv_kernel.cpp.",
+      "requirement": "FR2: compiles cleanly, synthesizable subset only",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run FR3 FAILs due to compile error propagating from FR2/FR1 compile failure.",
+      "requirement": "FR3: MOD constant equals 251",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run FR4 FAILs due to compile error.",
+      "requirement": "FR4: no leftover state across repeated calls",
+      "status": "fail"
+    },
+    {
+      "evidence": "Golden run SR1 FAILs due to compile error; vulnerable_run correctly shows SR1 FAIL with varying iteration counts (min=0,max=7), demonstrating the check itself works when code compiles, but golden fixture doesn't compile.",
+      "requirement": "SR1: identical iteration count across operands",
+      "status": "fail"
+    },
+    {
+      "evidence": "golden_run.stdout shows '[TEST] PASS: SR2' \u2014 SR2 static scan works independently of compilation and correctly passes on golden and fails on vulnerable baseline ('found banned early-exit construct(s)').",
+      "requirement": "SR2: no break/return inside core loop (static scan)",
+      "status": "pass"
+    },
+    {
+      "evidence": "Golden run SR3 FAILs due to compile error; vulnerable_run correctly shows SR3 FAIL with spread 6.451 exceeding 0.25 threshold, confirming the check design is sound but blocked by golden compile failure.",
+      "requirement": "SR3: timing spread within tolerance",
+      "status": "fail"
+    },
+    {
+      "evidence": "metadata.json exposes CWE-208/385/203 and SR1/SR3 identifiers via the cwe_violation_rate metric description, violating the hardened_artifact requirement that public task read as a plain engineering assignment.",
+      "requirement": "No hidden-spec leakage into public artifacts",
+      "status": "fail"
+    },
+    {
+      "evidence": "differential.status='fail', failure_class='golden_rejected'; vulnerable_run correctly fails (expected='fail', ok=true) but golden_run incorrectly fails (expected='pass', ok=false), so the core acceptance/rejection contract is broken for the correct case.",
+      "requirement": "Evaluator accepts correct submission and rejects insecure baseline",
+      "status": "fail"
+    }
+  ],
+  "source_round": 0
+}

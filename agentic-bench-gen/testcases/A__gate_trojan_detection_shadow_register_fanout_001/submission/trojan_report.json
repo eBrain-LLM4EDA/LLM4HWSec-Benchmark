@@ -1,0 +1,48 @@
+{
+  "verdict": "trojan_absent",
+  "key_bus_signal": "key_reg",
+  "fanout_map": [
+    {
+      "key_bit": 0,
+      "consumer_instances": ["u_round_xor0"],
+      "num_consumers": 1
+    },
+    {
+      "key_bit": 1,
+      "consumer_instances": ["u_round_xor1"],
+      "num_consumers": 1
+    },
+    {
+      "key_bit": 2,
+      "consumer_instances": ["u_round_xor2"],
+      "num_consumers": 1
+    },
+    {
+      "key_bit": 3,
+      "consumer_instances": ["u_round_xor3"],
+      "num_consumers": 1
+    },
+    {
+      "key_bit": 4,
+      "consumer_instances": ["u_round_xor4"],
+      "num_consumers": 1
+    },
+    {
+      "key_bit": 5,
+      "consumer_instances": ["u_round_xor5"],
+      "num_consumers": 1
+    },
+    {
+      "key_bit": 6,
+      "consumer_instances": ["u_round_xor6"],
+      "num_consumers": 1
+    },
+    {
+      "key_bit": 7,
+      "consumer_instances": ["u_round_xor7"],
+      "num_consumers": 1
+    }
+  ],
+  "suspect_instances": [],
+  "summary": "Structural review of the key register bank confirms each bit of key_reg[7:0] drives exactly one consumer, the corresponding u_round_xor<i> instance, matching the documented round-combination datapath. No additional or undocumented consumers were found."
+}
